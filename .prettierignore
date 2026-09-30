@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+test-results
+playwright-report
+public/licenses
+docs/requirements.fi.md
+package-lock.json

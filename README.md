@@ -1,32 +1,105 @@
-# 3D Design
+# Nivo
 
-Selaimessa toimiva avoimen lähdekoodin 3D-suunnitteluohjelma kalusteiden,
-rakennusosien ja tilojen mallintamiseen sekä mittakuvien tuottamiseen.
+**Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
+3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-**Ideasta mitoitettuun malliin ja esitettävään kuvaan mahdollisimman vähillä työvaiheilla.**
+Ensimmäinen ajettava versio toteuttaa vaatimusmäärittelyn vaiheiden 0–1 perustan.
+OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
+johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-## Projektin tila
+![Nivon mallinnustyötila ja esimerkkikaappi](docs/images/nivo-workspace.png)
 
-Projektin nimi valitaan ennen toteutuksen aloittamista. Tämä repository sisältää
-toistaiseksi alkuperäisen vaatimusmäärittelyn. Sovellusta ei vielä voi käynnistää.
+## Käynnistä
 
-## Ensimmäinen toteutuskokonaisuus
+Node.js 22.12+ (testattu Node 24:llä).
 
-1. Varmista CAD-ytimen toiminta selaimessa ja Web Workerissa, tarkat
-   geometriaoperaatiot, tallennus ja teknisen piirustuksen toteutustapa.
-2. Toteuta kokonainen työnkulku: uusi projekti → mittatarkka suorakulmio →
-   push/pull → valinta ja siirto tartunnoilla → etukuva ja mitoitus → SVG-vienti.
-3. Huolehdi alusta lähtien kosketuskäytöstä, undo/redo-toiminnoista,
-   automaattitallennuksesta sekä projektitiedoston tuonnista ja viennistä.
+```sh
+npm ci
+npm run dev
+```
 
-Tarkka geometria, renderöintiverkko ja projektin tietomalli pidetään erillään.
-Mahdolliset TypeScript-, Three.js- ja OpenCascade.js/Replicad-riippuvuudet
-arvioidaan ennen teknisiä valintoja.
+Avaa **http://127.0.0.1:5173** tai terminaalin ilmoittama osoite.
+Sovellus ei tarvitse käyttäjätiliä, palvelintietokantaa tai API-avaimia.
+Kaikki laskenta ja projektitallennus tapahtuvat selaimessa. Riippuvuuksien
+asennus tarvitsee verkkoyhteyden; paikallinen sovellus ei käytä ulkoisia
+fontteja, CDN-kirjastoja tai laskentapalveluja.
 
-## Määrittely
+```sh
+npm run build       # tyyppitarkistus ja dist/
+npm run preview     # tuotantopaketin paikallinen esikatselu
+```
 
-[Alkuperäinen suomenkielinen vaatimusmäärittely](docs/requirements.fi.md)
-on muunnettu tiedostosta `Prompt 3d ohjelmalle.rtf`.
+## Ensimmäinen työnkulku
 
-Määrittely sisältää vaiheet 0–7 sekä kaapin, työtason ja seinärakenteen
-hyväksymisesimerkit. Ensimmäinen toteutus keskittyy vaiheisiin 0–1.
+1. Piirrä suorakulmio XY-tasolle vetämällä tai kirjoittamalla tarkat mitat.
+2. Hyväksy luonnos ja anna sille paksuus **Push / pull** -työkalulla.
+3. Valitse kappale tai pinta, siirrä, kopioi ja poista kappaleita.
+4. Tartu kulmiin, reunojen keskipisteisiin tai 10 mm ruudukkoon. Lukitse
+   siirtosuunta X-, Y- tai Z-akselille.
+5. Vaihda perspektiivin ja rinnakkaisprojektion välillä. Käytä etu-, sivu-, ylä-
+   ja 3D-näkymiä sekä sovita valinta näkymään.
+6. Avaa **Mittakuva**, valitse kappale ja lisää leveys-, syvyys- tai korkeusmitta.
+   Mitat seuraavat kappaleen muutoksia.
+7. Vie A4-vaaka-arkki SVG:nä valitussa fyysisessä mittakaavassa. Näkyvät ja
+   piilossa olevat viivat lasketaan CAD-geometriasta.
+8. Peru ja palauta muutoksia. Lataa `.nivo`-tiedosto ja avaa se uudelleen.
+
+Mittasyöttö hyväksyy `600`, `18 mm`, `1,8 cm`, `2,4 m` ja siirroissa negatiiviset
+arvot. Oletusyksikkö on millimetri ja Z-akseli osoittaa ylöspäin.
+Automaattitallennus palauttaa työn samassa selaimessa. **Lataa myös oma
+projektitiedosto:** selaimen tallennustila ei ole varmuuskopio.
+
+Tyhjästä työtilasta voi avata **600 × 800 × 560 mm esimerkkikaapin**. Sen kuusi
+levyä ovat itsenäisiä osia. Esimerkissä ei vielä ole ovea tai linkitettyjä
+komponentteja.
+
+## Ohjaus
+
+- Napautus valitsee. Työkalun yhden sormen veto muokkaa esikatselua;
+  **Hyväksy** tekee muutoksen.
+- Kahden sormen ele panoroi ja zoomaa. **Navigoi**-tilassa yksi sormi kiertää.
+- Hiiren oikea painike kiertää, keskipainike panoroi ja rulla zoomaa.
+  Navigoi-tilassa myös vasen painike kiertää.
+- V = valitse, R = suorakulmio, P = push/pull, M = siirrä, H = navigoi.
+  X/Y/Z lukitsevat siirtoakselin. Enter hyväksyy, Esc peruu työkalun.
+  Ctrl/Cmd+Z peruu, Ctrl/Cmd+Shift+Z palauttaa.
+- Keskeiset toiminnot löytyvät painikkeista ilman näppäimistöä.
+
+## Tarkistukset
+
+```sh
+npm test
+npx playwright install chromium
+npm run test:e2e
+npm run build
+NIVO_PREVIEW=1 npm run test:e2e
+npm run format:check
+```
+
+Geometriatestit käyttävät oikeaa WASM-ydintä. Selaintestit kattavat työpöytäkoon
+ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testattu.
+[Testiraportti](docs/validation.md) kuvaa tarkistukset ja rajat.
+
+## Rajaus ja jatko
+
+V1 tukee akselien suuntaisia suorakulmaisia levyjä, XY-tasolle piirtämistä ja
+paksuuden muuttamista. Booleanit ja pyöristykset on varmennettu CAD-kokeessa,
+mutta niille ei vielä ole käyttäjän työkalua. Vapaa pintamuokkaus, leikkaukset,
+mesh-tuonti, layerit, ryhmät, komponentit, pintamateriaalit, scenet sekä PDF-,
+STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
+
+Piirustus sisältää yhden ortografisen näkymän ja osien kokonaismittoja. Monien
+mittaviivojen sijoittelu, useat näkymät ja leikkaukset kuuluvat vaiheeseen 6.
+**Seuraava vaihe on layerit, ryhmät ja komponentit.**
+
+- [Alkuperäinen määrittely](docs/requirements.fi.md)
+- [Arkkitehtuuri ja päätökset](docs/architecture.md)
+- [Projektiformaatti v1](docs/project-format.md)
+- [Toteutusvaiheet](docs/roadmap.md)
+
+## Lisenssi
+
+Nivon oma koodi: [MIT](LICENSE). Replicad ja Three.js: MIT.
+OpenCascade.js/WASM: LGPL-2.1; OCCT sisältää oman lisenssipoikkeuksensa.
+[Kirjastojen lisenssit ja lähdelinkit](public/licenses/NOTICE.txt) ovat mukana
+myös tuotantopaketissa.
