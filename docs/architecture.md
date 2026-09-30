@@ -1,4 +1,4 @@
-# Arkkitehtuuri — vaiheet 0–1
+# Arkkitehtuuri — v0.2
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -40,8 +40,9 @@ src/useEditor  atominen muutos, vanhojen vastausten hylkäys, historia, tallennu
 src/App        työkalutila, paneelit, käyttöohjeet
 ```
 
-V1:n auktoritatiivinen geometria on suorakulmion pursotuksen tarkka resepti ja
-sijainti. Worker rakentaa siitä aidon BRep-kappaleen. Näyttöverkkoa ei käytetä
+V2:n auktoritatiivinen geometria on suorakulmion tai monikulmion pursotuksen
+tarkka resepti ja sijainti, tai yhdistämisen litistetty lähdejoukko.
+Worker rakentaa siitä aidon BRep-kappaleen. Näyttöverkkoa ei käytetä
 geometrian ainoana lähteenä. Vapaan mallinnuksen BRep/operaatiohistoria tulee
 lisätä projektiformaatin migraation kautta.
 
@@ -57,6 +58,9 @@ vastauksen. Peruminen kasvattaa revisiota ja pysäyttää workerin. Uusi toimint
 käynnistää uuden ytimen. 45 sekunnin aikaraja katkaisee jumittuneen laskennan.
 
 Geometria välimuistitetaan UUID:n, reseptin ja sijainnin perusteella.
+Jokainen objekti tuottaa yhden Three.Meshin sekä erillisen reunaviivaesityksen.
+Yhdistäminen korvaa valitut lähteet uudella UUID:llä ja yhdellä CAD-tuloksella;
+undo palauttaa lähteet. Erilliset solidit voivat olla saman objektin compoundissa.
 Muuttumattomia kappaleita ei lasketa uudelleen. Korvatut BRep- ja GPU-resurssit
 vapautetaan. Replicadin compound- ja boolean-operaatioille annetaan kopiot:
 ne voivat ottaa syöteolioiden omistajuuden. Näkymää renderöidään muutoksissa,
@@ -77,6 +81,15 @@ mitan muuttuminen ei katkaise viitettä. Poistettu kappale jättää näkyvän
 rikkoutuneen mittaviitteen ja estää viennin, kunnes viite on korjattu/peruttu
 tai mitta poistettu. Viitettä ei siirretä hiljaisesti toiseen kappaleeseen.
 
+Apuviiva viittaa kappaleen UUID:hen ja verteksiin. Laatikossa käytetään
+semanttista kulmaa, monikulmiossa pisteindeksiä ja pohja/kansi-tietoa.
+Yhdistetyssä osassa ankkuri on paikallinen CAD-verteksi; nykyiset siirrot
+säilyttävät sen. Yhdistäminen antaa uuden UUID:n eikä arvaa vanhojen viitteiden
+kohteita. Viivat-lista näyttää puuttuvan viitteen. Kynän ja yhdistelmän
+`surface:n`-tunnisteet ovat vain hetkellistä pintavalintaa.
+Tartuntapisteet otetaan CAD-reunoista, eivät rajalaatikon kuvitteellisista kulmista.
+Kappaleen keskipiste tarkoittaa rajalaatikon keskipistettä.
+
 Vaiheen 3 leikkaukset ja jaetut pinnat tarvitsevat operaatiokohtaisen
 topologian muunnoskartan. Mesh-tuonti saa oman tyypin ja toimintovalikoiman.
 
@@ -95,7 +108,16 @@ Pointer Events kattaa hiiren, kosketuksen ja kynän. Napautus valitsee.
 Yksi sormi käyttää työkalua; toinen sormi keskeyttää muokkausvedon ja vaihtaa
 panorointiin/zoomaukseen. Navigoi-tila tarjoaa orbitoinnin yhdellä sormella.
 Keskeiset painikkeet ovat kosketuksella vähintään 44 CSS-pikseliä.
-Piste-/reunavalinta ja päällekkäisten kohteiden kierrätys ovat jatkotyötä.
+Tartunnat suosivat todellisia verteksiä ja reunojen keskipisteitä ennen
+apuviivoja, viitteen suuntia ja 45° ennakointia. Hystereesi vähentää värähtelyä.
+Shift poimii juuri haetun pisteen ja vapautus poistaa viitteen; kosketuksella
+viite poimitaan painikkeella. Mittatyökalussa Shift tarkoittaa vapaata kulmaa.
+
+Numerosyöttö lukitsee kirjoitetut kentät, Tab kiertää kenttiä.
+Osoittimen vapautus ja Enter käyttävät samaa atomista hyväksyntää;
+synkroniset luonnosviitteet estävät vanhan React-tilan tallentumisen.
+Kynän itsensä leikkaava tai degeneroitunut ääriviiva hylätään ennen CAD-laskentaa.
+Päällekkäisten kohteiden kierrätys ja mielivaltaiset piirtotasot ovat jatkotyötä.
 
 ## Tuotantopaketti ja kirjaston vaihto
 

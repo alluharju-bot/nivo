@@ -155,7 +155,7 @@ test('complete precise modelling, history, drawing, export and recovery workflow
   await page.screenshot({ path: testInfo.outputPath('workflow.png') });
 });
 
-test('tablet drawing gesture, explicit acceptance, orientation change and recovery', async ({
+test('tablet drawing release accepts once, orientation change and recovery', async ({
   page,
   context,
 }, testInfo) => {
@@ -173,10 +173,8 @@ test('tablet drawing gesture, explicit acceptance, orientation change and recove
     touchPoints: [{ x: x + 100, y: y + 110 }],
   });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await expect(page.getByTestId('width-input')).not.toHaveValue('600');
-  await page.getByTestId('width-input').fill('600');
-  await page.getByTestId('depth-input').fill('400');
-  await page.getByRole('button', { name: 'Hyväksy', exact: true }).tap();
+  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Anna paksuus', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Anna paksuus', exact: true }).tap();
   await page.getByTestId('height-input').fill('18');

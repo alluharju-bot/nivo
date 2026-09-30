@@ -19,7 +19,7 @@ describe('precision and model persistence', () => {
     const body = makeBody(600, 560, 18);
     const project = { ...freshProject(), bodies: [body] };
     expect(parseProject(JSON.stringify(project))).toEqual(project);
-    expect(() => parseProject(JSON.stringify({ ...project, version: 2 }))).toThrow();
+    expect(() => parseProject(JSON.stringify({ ...project, version: 999 }))).toThrow();
     expect(() => parseProject(JSON.stringify({ ...project, bodies: [body, body] }))).toThrow();
     expect(() =>
       parseProject(JSON.stringify({ ...project, bodies: [{ ...body, origin: [null, 0, 0] }] })),

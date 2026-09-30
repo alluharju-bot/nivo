@@ -1,38 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { bounds, type Axis, type Body, type FaceRef, type Vec3, type View } from '../model/project';
-import { snapPoint, type Snap } from '../model/snap';
-import type { BodyMesh } from '../cad/protocol';
-
-export type Tool = 'select' | 'rectangle' | 'extrude' | 'move' | 'navigate';
-export interface CameraCommand {
-  id: number;
-  type: 'fit' | 'view' | 'projection';
-  view?: View;
-  projection?: 'perspective' | 'orthographic';
-}
-interface Props {
-  bodies: Body[];
-  meshes: BodyMesh[];
-  selected?: string;
-  selectedFace?: FaceRef;
-  tool: Tool;
-  preview?: Body;
-  axis?: Axis;
-  gridSnap: boolean;
-  busy: boolean;
-  command?: CameraCommand;
-  onSelect: (id?: string, face?: FaceRef) => void;
-  onRectangle: (origin: Vec3, width: number, depth: number) => void;
-  onMove: (origin: Vec3) => void;
-  onExtrude: (height: number) => void;
-  onSnap: (label: string) => void;
-}
+import { bounds, type Vec3 } from '../model/project';
+import { guidePoints } from '../model/guides';
+import { formatLength } from '../model/units';
+import { installInteractions } from './interactions';
+import type { ViewportProps as Props, CameraCommand } from './types';
+export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   sync: () => void;
   preview: () => void;
   command: (command: CameraCommand) => void;
+  annotations: () => void;
+  interactionSync: () => void;
   dispose: () => void;
 }
 
@@ -65,7 +45,16 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   controls.minDistance = 2;
   controls.maxDistance = 250_000;
   controls.screenSpacePanning = true;
-  const render = () => renderer.render(scene, camera);
+  const labels: { element: HTMLDivElement; point: THREE.Vector3 }[] = [];
+  const render = () => {
+    renderer.render(scene, camera);
+    for (const label of labels) {
+      const p = label.point.clone().project(camera);
+      label.element.hidden = Math.abs(p.z) > 1;
+      label.element.style.left = `${((p.x + 1) * container.clientWidth) / 2}px`;
+      label.element.style.top = `${((1 - p.y) * container.clientHeight) / 2}px`;
+    }
+  };
   controls.addEventListener('change', render);
   controls.update();
   const resize = () => {
@@ -120,16 +109,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const bodies = new THREE.Group(),
     ghost = new THREE.Group();
   scene.add(bodies, ghost);
-  const marker = new THREE.Mesh(
-    new THREE.SphereGeometry(4, 12, 8),
-    new THREE.MeshBasicMaterial({ color: '#df752f', depthTest: false }),
-  );
-  marker.visible = false;
-  marker.renderOrder = 100;
-  scene.add(marker);
   const disposeGroup = (group: THREE.Group) => {
     group.traverse((obj) => {
-      if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
         obj.geometry.dispose();
         (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
       }
@@ -142,7 +124,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     for (const data of props.meshes) {
       const body = props.bodies.find((b) => b.id === data.id);
       if (!body) continue;
-      const selected = data.id === props.selected;
+      const selected = props.selectedIds.includes(data.id);
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
@@ -180,8 +162,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         ),
       );
     }
-    const editing = ['rectangle', 'move', 'extrude'].includes(props.tool);
-    if (!editing) marker.visible = false;
+    const editing = ['rectangle', 'move', 'extrude', 'measure', 'pen'].includes(props.tool);
     controls.mouseButtons.LEFT = editing || props.tool === 'select' ? null! : THREE.MOUSE.ROTATE;
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
     controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
@@ -194,26 +175,117 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const body = current().preview;
     if (body) {
       const { width, depth, height } = body.feature;
-      const geometry = new THREE.BoxGeometry(width, depth, Math.max(height, 0.1));
-      const material = new THREE.MeshBasicMaterial({
-        color: '#3b967a',
-        transparent: true,
-        opacity: 0.2,
-        depthWrite: false,
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(
-        body.origin[0] + width / 2,
-        body.origin[1] + depth / 2,
-        body.origin[2] + height / 2,
+      let geometry: THREE.BufferGeometry;
+      const position = new THREE.Vector3(...body.origin);
+      if (body.feature.type === 'polygon-extrusion') {
+        const shape = new THREE.Shape(body.feature.points.map((p) => new THREE.Vector2(...p)));
+        geometry = height
+          ? new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1 })
+          : new THREE.ShapeGeometry(shape);
+      } else if (body.feature.type === 'union') {
+        const data = current().meshes.find((m) => m.id === body.id),
+          source = current().bodies.find((b) => b.id === body.id);
+        if (!data || !source) return;
+        geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
+        geometry.setIndex(data.triangles);
+        position.sub(new THREE.Vector3(...source.origin));
+      } else {
+        geometry = new THREE.BoxGeometry(width, depth, Math.max(height, 0.1));
+        position.add(new THREE.Vector3(width / 2, depth / 2, height / 2));
+      }
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshBasicMaterial({
+          color: '#3b967a',
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
       );
+      mesh.position.copy(position);
       ghost.add(mesh);
-      const lines = new THREE.LineSegments(
+      const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(geometry),
         new THREE.LineBasicMaterial({ color: '#17755d', depthTest: false }),
       );
-      lines.position.copy(mesh.position);
-      ghost.add(lines);
+      edges.position.copy(position);
+      ghost.add(edges);
+    }
+    render();
+  };
+  const guides = new THREE.Group();
+  scene.add(guides);
+  const annotations = () => {
+    disposeGroup(guides);
+    labels.forEach((l) => l.element.remove());
+    labels.length = 0;
+    const props = current(),
+      all = props.guides.filter((g) => g.id !== props.guidePreview?.id);
+    if (props.guidePreview) all.push(props.guidePreview);
+    for (const guide of all) {
+      const points = guidePoints(props.bodies, guide);
+      if (!points) continue;
+      const vectors = points.map((p) => new THREE.Vector3(...p));
+      const isGuide = guide.mode === 'guide';
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(vectors),
+        isGuide
+          ? new THREE.LineDashedMaterial({
+              color: '#b98236',
+              dashSize: 14,
+              gapSize: 8,
+              depthTest: false,
+            })
+          : new THREE.LineBasicMaterial({ color: '#357e70', depthTest: false }),
+      );
+      line.computeLineDistances();
+      line.renderOrder = 80;
+      guides.add(line);
+      if (isGuide) {
+        const direction = vectors[1].clone().sub(vectors[0]).normalize();
+        const extension = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            vectors[0].clone().addScaledVector(direction, -20000),
+            vectors[1].clone().addScaledVector(direction, 20000),
+          ]),
+          new THREE.LineDashedMaterial({
+            color: '#b98236',
+            dashSize: 14,
+            gapSize: 8,
+            transparent: true,
+            opacity: 0.25,
+            depthTest: false,
+          }),
+        );
+        extension.computeLineDistances();
+        guides.add(extension);
+      }
+      const element = document.createElement('div');
+      element.className = 'guide-label';
+      element.dataset.testid = 'guide-label';
+      element.textContent = `${formatLength(vectors[0].distanceTo(vectors[1]))} mm${isGuide ? ' · ' + formatLength(guide.angle) + '°' : ''}`;
+      container.append(element);
+      labels.push({ element, point: vectors[0].clone().add(vectors[1]).multiplyScalar(0.5) });
+    }
+    if (props.penPoints.length) {
+      const points = [...props.penPoints];
+      if (props.penHover) points.push(props.penHover);
+      guides.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(points.map((p) => new THREE.Vector3(...p))),
+          new THREE.LineBasicMaterial({ color: '#237b65', depthTest: false }),
+        ),
+      );
+      props.penPoints.forEach((p, i) => {
+        const marker = new THREE.Mesh(
+          new THREE.SphereGeometry(i === 0 ? 6 : 4, 12, 8),
+          new THREE.MeshBasicMaterial({ color: i === 0 ? '#ca883e' : '#237b65', depthTest: false }),
+        );
+        marker.position.set(...p);
+        guides.add(marker);
+      });
     }
     render();
   };
@@ -278,168 +350,40 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     }
     render();
   };
-  const raycaster = new THREE.Raycaster(),
-    pointer = new THREE.Vector2();
-  const setRay = (event: PointerEvent) => {
-    const rect = renderer.domElement.getBoundingClientRect();
-    pointer.set(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      (-(event.clientY - rect.top) / rect.height) * 2 + 1,
-    );
-    camera.updateMatrixWorld();
-    scene.updateMatrixWorld();
-    raycaster.setFromCamera(pointer, camera);
-  };
-  const planePoint = (event: PointerEvent, z: number): Vec3 | undefined => {
-    setRay(event);
-    const point = raycaster.ray.intersectPlane(
-      new THREE.Plane(new THREE.Vector3(0, 0, 1), -z),
-      new THREE.Vector3(),
-    );
-    return point ? (point.toArray() as Vec3) : undefined;
-  };
-  let lastSnap: Snap | undefined;
-  const snap = (raw: Vec3, anchor?: Vec3) => {
-    const props = current();
-    const height =
-      camera === perspective
-        ? camera.position.distanceTo(controls.target) * Math.tan(THREE.MathUtils.degToRad(20)) * 2
-        : (halfHeight * 2) / orthographic.zoom;
-    lastSnap = snapPoint(
-      raw,
-      props.bodies.filter((b) => props.tool !== 'move' || b.id !== props.selected),
-      (height / container.clientHeight) * 16,
-      lastSnap,
-      props.tool === 'move' ? props.axis : undefined,
-      anchor,
-      props.gridSnap,
-    );
-    marker.position.set(...lastSnap.point);
-    marker.scale.setScalar((height / container.clientHeight) * 1.1);
-    marker.visible = true;
-    props.onSnap(lastSnap.label);
-    render();
-    return lastSnap.point;
-  };
-  const pointers = new Set<number>();
-  let drag:
-    { start: Vec3; origin: Vec3; screenX: number; screenY: number; height: number } | undefined;
-  let blockedGesture = false;
-  const down = (event: PointerEvent) => {
-    if (event.button !== 0) return;
-    pointers.add(event.pointerId);
-    if (pointers.size > 1) {
-      drag = undefined;
-      blockedGesture = true;
-      marker.visible = false;
-      render();
-      return;
-    }
-    const props = current();
-    if (props.busy || props.tool === 'navigate') return;
-    const selected = props.bodies.find((b) => b.id === props.selected);
-    const point = planePoint(event, props.tool === 'rectangle' ? 0 : (selected?.origin[2] ?? 0));
-    if (!point && props.tool !== 'extrude' && props.tool !== 'select') return;
-    const start = props.tool === 'rectangle' ? snap(point!) : (point ?? ([0, 0, 0] as Vec3));
-    drag = {
-      start,
-      origin: selected?.origin ?? [0, 0, 0],
-      screenX: event.clientX,
-      screenY: event.clientY,
-      height: selected?.feature.height ?? 0,
-    };
-    renderer.domElement.setPointerCapture(event.pointerId);
-  };
-  const move = (event: PointerEvent) => {
-    const props = current();
-    if (!drag || blockedGesture || pointers.size > 1 || props.busy) return;
-    if (props.tool === 'extrude') {
-      const height = Math.max(0.1, Math.round(drag.height + (drag.screenY - event.clientY) * 2));
-      props.onExtrude(height);
-      return;
-    }
-    const point = planePoint(event, props.tool === 'rectangle' ? 0 : drag.origin[2]);
-    if (!point) return;
-    if (props.tool === 'rectangle') {
-      const end = snap(point),
-        w = Math.abs(end[0] - drag.start[0]),
-        d = Math.abs(end[1] - drag.start[1]);
-      if (w >= 0.1 && d >= 0.1)
-        props.onRectangle(
-          [Math.min(end[0], drag.start[0]), Math.min(end[1], drag.start[1]), 0],
-          w,
-          d,
-        );
-    } else if (props.tool === 'move') {
-      let origin = point.map((v, i) => drag!.origin[i] + v - drag!.start[i]) as Vec3;
-      if (props.axis === 'z')
-        origin = [
-          drag.origin[0],
-          drag.origin[1],
-          drag.origin[2] + (drag.screenY - event.clientY) * 2,
-        ];
-      props.onMove(snap(origin, drag.origin));
-    }
-  };
-  const up = (event: PointerEvent) => {
-    const props = current();
-    if (
-      drag &&
-      !blockedGesture &&
-      props.tool === 'select' &&
-      Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) < 8
-    ) {
-      setRay(event);
-      const hit = raycaster
-        .intersectObjects(bodies.children)
-        .find((h) => h.object instanceof THREE.Mesh);
-      if (hit) {
-        const faces = hit.object.userData.faces as BodyMesh['faces'];
-        const index = (hit.faceIndex ?? 0) * 3;
-        props.onSelect(
-          hit.object.userData.id,
-          faces.find((f) => index >= f.start && index < f.start + f.count)?.ref,
-        );
-      } else props.onSelect();
-    }
-    pointers.delete(event.pointerId);
-    drag = undefined;
-    if (!pointers.size) blockedGesture = false;
-  };
-  const canceled = (event: PointerEvent) => {
-    pointers.delete(event.pointerId);
-    drag = undefined;
-    if (!pointers.size) blockedGesture = false;
-  };
-  const canvas = renderer.domElement;
-  canvas.addEventListener('pointerdown', down);
-  canvas.addEventListener('pointermove', move);
-  canvas.addEventListener('pointerup', up);
-  canvas.addEventListener('pointercancel', canceled);
+  const interactions = installInteractions({
+    container,
+    canvas: renderer.domElement,
+    scene,
+    bodies,
+    camera: () => camera,
+    current,
+    render,
+  });
   resize();
   sync();
   return {
     sync,
+    annotations,
+    interactionSync: interactions.sync,
     preview,
     command,
     dispose() {
       observer.disconnect();
       controls.dispose();
-      canvas.removeEventListener('pointerdown', down);
-      canvas.removeEventListener('pointermove', move);
-      canvas.removeEventListener('pointerup', up);
-      canvas.removeEventListener('pointercancel', canceled);
+      interactions.dispose();
+      disposeGroup(guides);
+      labels.forEach((l) => l.element.remove());
       disposeGroup(bodies);
       disposeGroup(ghost);
       scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
           obj.geometry.dispose();
           (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
         }
       });
       key.shadow.dispose();
       renderer.dispose();
-      canvas.remove();
+      renderer.domElement.remove();
     },
   };
 }
@@ -461,10 +405,16 @@ export function Viewport(props: Props) {
   }, []);
   useEffect(() => {
     api.current?.sync();
+    api.current?.interactionSync();
     if (props.meshes.length && !hadGeometry.current) api.current?.command({ id: 0, type: 'fit' });
     hadGeometry.current = props.meshes.length > 0;
-  }, [props.bodies, props.meshes, props.selected, props.selectedFace, props.tool]);
+  }, [props.bodies, props.meshes, props.selectedIds, props.selectedFace, props.tool, props.epoch]);
   useEffect(() => api.current?.preview(), [props.preview]);
+  useEffect(() => api.current?.interactionSync(), [props.reference]);
+  useEffect(
+    () => api.current?.annotations(),
+    [props.guides, props.guidePreview, props.penPoints, props.penHover, props.bodies],
+  );
   useEffect(() => {
     if (props.command) api.current?.command(props.command);
   }, [props.command]);

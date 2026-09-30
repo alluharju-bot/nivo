@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import initOpenCascade from 'replicad-opencascadejs';
 import { setOC } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe } from './kernel';
-import { makeBody } from '../model/project';
+import { makeBody, makePolygonBody, mergeBodies } from '../model/project';
 
 beforeAll(async () => {
   setOC(
@@ -16,6 +16,43 @@ beforeAll(async () => {
 }, 30_000);
 
 describe('actual OpenCascade kernel', () => {
+  it('fuses overlapping parts and preserves exact disconnected components in one body mesh', () => {
+    for (const offset of [50, 150]) {
+      const body = mergeBodies([makeBody(100, 100, 20), makeBody(100, 100, 20, [offset, 0, 0])]);
+      const shape = createShape(body);
+      try {
+        const mesh = meshBody(body, shape);
+        expect(mesh.volume).toBeCloseTo((offset === 50 ? 150 : 200) * 100 * 20, 4);
+        expect(mesh.id).toBe(body.id);
+        expect(mesh.verticesCAD.length).toBeGreaterThanOrEqual(8);
+        expect(mesh.triangles.length).toBeGreaterThan(0);
+      } finally {
+        shape.delete();
+      }
+    }
+  });
+  it('closes and extrudes a concave pen outline with actual topology snap points', () => {
+    const body = makePolygonBody([
+      [10, 20, 0],
+      [110, 20, 0],
+      [110, 60, 0],
+      [50, 60, 0],
+      [50, 120, 0],
+      [10, 120, 0],
+    ]);
+    for (const height of [0, 18]) {
+      body.feature.height = height;
+      const shape = createShape(body);
+      try {
+        const mesh = meshBody(body, shape);
+        expect(mesh.volume).toBeCloseTo(6400 * height, 4);
+        expect(mesh.verticesCAD).toHaveLength(height ? 12 : 6);
+        expect(mesh.verticesCAD.some((v) => v.point[0] === 110 && v.point[1] === 120)).toBe(false);
+      } finally {
+        shape.delete();
+      }
+    }
+  });
   it('extrudes, cuts, fillets and round-trips BRep with valid geometry', () => {
     const result = runProbe();
     expect(result.boxVolume).toBeCloseTo(600 * 400 * 18, 4);

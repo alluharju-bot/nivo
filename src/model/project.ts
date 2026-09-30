@@ -1,20 +1,91 @@
 import { z } from 'zod';
+import { polygonError } from './polygon';
 
 const length = z.number().finite().min(0.1).max(100_000);
 const coordinate = z.number().finite().min(-100_000).max(100_000);
 const id = z.string().min(1).max(100);
+export const pointSchema = z.tuple([coordinate, coordinate, coordinate]);
+const rectangleFeature = z.object({
+  type: z.literal('rectangle-extrusion'),
+  width: length,
+  depth: length,
+  height: z.number().finite().min(0).max(100_000),
+});
+const polygonFeature = z
+  .object({
+    type: z.literal('polygon-extrusion'),
+    width: length,
+    depth: length,
+    height: z.number().finite().min(0).max(100_000),
+    points: z
+      .array(z.tuple([coordinate, coordinate]))
+      .min(3)
+      .max(300),
+  })
+  .superRefine((feature, ctx) => {
+    const error = polygonError(feature.points);
+    if (error) ctx.addIssue({ code: 'custom', message: error });
+    for (let axis = 0; axis < 2; axis++) {
+      const values = feature.points.map((p) => p[axis]);
+      if (
+        Math.abs(Math.min(...values)) > 1e-5 ||
+        Math.abs(Math.max(...values) - [feature.width, feature.depth][axis]) > 1e-5
+      )
+        ctx.addIssue({ code: 'custom', message: 'Monikulmion rajat eivät vastaa verteksiä.' });
+    }
+  });
+const primitiveFeature = z.discriminatedUnion('type', [rectangleFeature, polygonFeature]);
+const unionFeature = z
+  .object({
+    type: z.literal('union'),
+    width: length,
+    depth: length,
+    height: length,
+    operands: z
+      .array(z.object({ feature: primitiveFeature, origin: pointSchema }))
+      .min(2)
+      .max(1000),
+  })
+  .superRefine((feature, ctx) => {
+    const sizes = [feature.width, feature.depth, feature.height];
+    for (let i = 0; i < 3; i++) {
+      const min = Math.min(...feature.operands.map((o) => o.origin[i]));
+      const max = Math.max(
+        ...feature.operands.map(
+          (o) => o.origin[i] + [o.feature.width, o.feature.depth, o.feature.height][i],
+        ),
+      );
+      if (Math.abs(min) > 0.00001 || Math.abs(max - sizes[i]) > 0.00001)
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Yhdistetyn kappaleen rajat eivät vastaa geometriaa.',
+        });
+    }
+    if (feature.operands.some((o) => o.feature.height < 0.1))
+      ctx.addIssue({ code: 'custom', message: 'Yhdistä vain tilavuuskappaleita.' });
+  });
 export const bodySchema = z.object({
   id,
   name: z.string().min(1).max(120),
   kind: z.literal('cad'),
-  feature: z.object({
-    type: z.literal('rectangle-extrusion'),
-    width: length,
-    depth: length,
-    height: z.number().finite().min(0).max(100_000),
-  }),
-  origin: z.tuple([coordinate, coordinate, coordinate]),
+  feature: z.discriminatedUnion('type', [rectangleFeature, polygonFeature, unionFeature]),
+  origin: pointSchema,
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
+});
+const vertexAnchorSchema = z.object({
+  bodyId: id,
+  key: z.string().min(1).max(150),
+  local: pointSchema,
+});
+export const anchorSchema = z.union([vertexAnchorSchema, z.object({ point: pointSchema })]);
+export const guideSchema = z.object({
+  id,
+  anchor: anchorSchema,
+  plane: z.enum(['XY', 'XZ', 'YZ']),
+  angle: z.number().finite().min(-360).max(360),
+  length,
+  mode: z.enum(['guide', 'free']),
+  endAnchor: anchorSchema.optional(),
 });
 export const dimensionSchema = z.object({
   id,
@@ -27,16 +98,17 @@ export const dimensionSchema = z.object({
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(1),
+    version: z.literal(2),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
     bodies: z.array(bodySchema).max(1000),
     dimensions: z.array(dimensionSchema).max(3000),
+    guides: z.array(guideSchema).max(1000),
     updatedAt: z.string().datetime(),
   })
   .superRefine((p, ctx) => {
-    for (const list of [p.bodies, p.dimensions]) {
+    for (const list of [p.bodies, p.dimensions, p.guides]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });
     }
@@ -44,20 +116,26 @@ export const projectSchema = z
 export type Body = z.infer<typeof bodySchema>;
 export type Dimension = z.infer<typeof dimensionSchema>;
 export type Project = z.infer<typeof projectSchema>;
+export type Guide = z.infer<typeof guideSchema>;
+export type VertexAnchor = z.infer<typeof vertexAnchorSchema>;
+export type Anchor = z.infer<typeof anchorSchema>;
+export type WorkPlane = Guide['plane'];
 export type Vec3 = [number, number, number];
 export type Axis = 'x' | 'y' | 'z';
-export type FaceRef = 'x:min' | 'x:max' | 'y:min' | 'y:max' | 'z:min' | 'z:max';
+export type FaceRef =
+  'x:min' | 'x:max' | 'y:min' | 'y:max' | 'z:min' | 'z:max' | `surface:${number}`;
 export type View = 'iso' | 'front' | 'right' | 'top';
 export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 1,
+  version: 2,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
   bodies: [],
   dimensions: [],
+  guides: [],
   updatedAt: new Date().toISOString(),
 });
 export function makeBody(
@@ -105,10 +183,65 @@ export function parseProject(text: string): Project {
   } catch {
     throw new Error('Tiedosto ei ole luettava Nivo-projekti.');
   }
+  // V1 files are migrated in memory; the original file is never rewritten implicitly.
+  if (value && typeof value === 'object' && 'version' in value && value.version === 1)
+    value = { ...value, version: 2, guides: [] };
   const result = projectSchema.safeParse(value);
   if (!result.success)
     throw new Error('Projektin versio tai sisältö ei ole tuettu. Nykyinen työ säilyi.');
   return result.data;
+}
+export function mergeBodies(bodies: Body[]): Body {
+  if (bodies.length < 2 || bodies.some((b) => b.feature.height < 0.1))
+    throw new Error('Valitse vähintään kaksi kappaletta, joilla on paksuus.');
+  const box = bounds(bodies);
+  const operands = bodies.flatMap((body) => {
+    const parts =
+      body.feature.type === 'union'
+        ? body.feature.operands
+        : [{ feature: body.feature, origin: [0, 0, 0] as Vec3 }];
+    return parts.map((part) => ({
+      feature: part.feature,
+      origin: part.origin.map((v, i) => v + body.origin[i] - box.min[i]) as Vec3,
+    }));
+  });
+  return bodySchema.parse({
+    id: uid(),
+    name: 'Yhdistetty osa',
+    kind: 'cad',
+    origin: box.min,
+    color: bodies[0].color,
+    feature: {
+      type: 'union',
+      width: box.max[0] - box.min[0],
+      depth: box.max[1] - box.min[1],
+      height: box.max[2] - box.min[2],
+      operands,
+    },
+  });
+}
+export function makePolygonBody(points: Vec3[], name = 'Kynämuoto'): Body {
+  const minX = Math.min(...points.map((p) => p[0])),
+    minY = Math.min(...points.map((p) => p[1]));
+  const local = points.map((p) => [p[0] - minX, p[1] - minY] as [number, number]);
+  const error = polygonError(local);
+  if (error) throw new Error(error);
+  if (points.some((p) => Math.abs(p[2] - points[0][2]) > 1e-6))
+    throw new Error('Verteksien tulee olla samalla piirtotasolla.');
+  return bodySchema.parse({
+    id: uid(),
+    name,
+    kind: 'cad',
+    color: '#c3a57e',
+    origin: [minX, minY, points[0][2]],
+    feature: {
+      type: 'polygon-extrusion',
+      width: Math.max(...local.map((p) => p[0])),
+      depth: Math.max(...local.map((p) => p[1])),
+      height: 0,
+      points: local,
+    },
+  });
 }
 export function cabinetProject(): Project {
   return {

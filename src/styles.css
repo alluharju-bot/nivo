@@ -455,6 +455,237 @@ p {
   height: 100%;
   touch-action: none;
 }
+.dynamic-input {
+  position: absolute;
+  z-index: 4;
+  width: 236px;
+  max-width: calc(100% - 20px);
+  padding: 12px;
+  border: 1px solid #ccd7ca;
+  border-radius: 12px;
+  background: #fbfcf7f5;
+  box-shadow: 0 8px 28px #243c2f20;
+  backdrop-filter: blur(12px);
+}
+.dynamic-title,
+.dynamic-footer {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dynamic-title {
+  justify-content: space-between;
+  margin-bottom: 9px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.dynamic-title small {
+  color: #748174;
+  font-size: 10px;
+  font-weight: 400;
+}
+.dynamic-fields {
+  display: flex;
+  gap: 6px;
+}
+.dynamic-fields label {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.dynamic-fields label > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  color: #6b7769;
+  margin-bottom: 4px;
+}
+.dynamic-fields input {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 23px 7px 8px;
+  border: 1px solid #dbe1d5;
+  border-radius: 5px;
+  background: white;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.dynamic-fields input:focus {
+  outline: 2px solid #378873;
+  outline-offset: -1px;
+}
+.dynamic-fields .locked > span {
+  color: #237b65;
+}
+.dynamic-fields label > small {
+  position: absolute;
+  right: 7px;
+  bottom: 11px;
+  font-size: 9px;
+  color: #85917f;
+  pointer-events: none;
+}
+.dynamic-footer {
+  margin-top: 8px;
+}
+.dynamic-spacer {
+  flex: 1;
+}
+.dynamic-footer button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 5px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+.dynamic-footer button:hover {
+  background: #e6ece1;
+}
+.dynamic-footer .dynamic-accept {
+  background: #26765f;
+  color: white;
+  padding: 0 9px;
+}
+.reference-bar {
+  position: absolute;
+  z-index: 3;
+  left: 22px;
+  top: 72px;
+  display: flex;
+  gap: 5px;
+}
+.reference-bar button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid #d5dfd0;
+  background: #fbfcf5ed;
+  border-radius: 6px;
+  font-size: 10px;
+}
+.reference-bar button[aria-pressed='true'],
+.reference-bar [data-testid='reference-lock'] {
+  color: #16644d;
+  border-color: #579583;
+  background: #e3eee4;
+}
+.snap-hint,
+.guide-label {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 4px 7px;
+  background: #fafbf1e8;
+  color: #7d5623;
+  box-shadow: 0 1px 5px #30462e15;
+}
+.snap-hint {
+  color: #24694f;
+  border: 1px solid #b4c9b2;
+}
+.guide-label {
+  transform: translate(-50%, -150%);
+}
+.measure-mode-menu {
+  position: absolute;
+  top: 112px;
+  left: 22px;
+  z-index: 6;
+  width: 246px;
+  padding: 5px;
+  background: #fbfcf7;
+  border: 1px solid #ccd7ca;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px #243c2f20;
+}
+.measure-mode-menu button {
+  display: block;
+  text-align: left;
+  padding: 12px;
+  width: 100%;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.measure-mode-menu small {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: #76816f;
+}
+.measure-mode-menu button[aria-checked='true'] {
+  background: #e5eee0;
+  color: #1c654f;
+}
+.gesture-help {
+  display: grid;
+  gap: 12px;
+}
+.multi-actions {
+  display: flex;
+  gap: 5px;
+  padding: 12px 20px 0;
+}
+.multi-actions button {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  font-size: 10px;
+  border: 1px solid #dce2d5;
+  border-radius: 5px;
+}
+.multi-actions button[aria-pressed='true'] {
+  background: #e5eee0;
+  color: #1c654f;
+}
+.guide-list {
+  padding: 8px 14px;
+}
+.guide-list > div {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #e8ecdf;
+}
+.guide-list > div > button:first-child {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-size: 11px;
+  padding: 10px 5px;
+}
+.guide-list small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #84917b;
+}
+.guide-list .broken {
+  color: #b85939;
+}
+@media (pointer: coarse) {
+  .dynamic-fields input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .dynamic-footer button,
+  .reference-bar button,
+  .multi-actions button {
+    min-height: 44px;
+  }
+}
 .viewport-error {
   position: absolute;
   inset: 100px 30px auto;

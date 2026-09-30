@@ -2,12 +2,25 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+Prioriteettia tarkennettu käyttäjän kanssa: helppokäyttöisyys, mittasyöttö ja
+perustyökalut toteutetaan ennen layereita, ryhmiä ja komponentteja. Alkuperäinen
+vaihenumerointi säilyy vertailua varten.
+
+Versiossa 0.2 toteutettu: itsenäiset objektimeshit ja valinnainen yhdistäminen,
+mittatyökalun apuviiva/vapaa mittaviiva, apuviivoihin tarttuva piirto ja siirto,
+haettava Shift-viite (kosketuksella Poimi viite), 45° ennakointi, kelluva
+numero-/Tab-syöttö, Enter/vapautus-hyväksyntä sekä sulkeutuva Kynä ja pursotus.
+
+Seuraavaksi: pintaan piirtäminen, piirtotason valinta, viitteiden poiminnan
+käyttökokeet, kierto, leikkaus ja muut perustyökalut. Fyysinen tabletti ja Safari
+varmennetaan erikseen. Ryhmittely tulee tämän jälkeen.
+
 | Vaihe | Tila                 | Sisältö                                                                                                                         |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Perusta varmennettu  | CAD-worker, pursotus/leikkaus/pyöristys, BRep-serialisointi, pintaviite, ortografinen HLR. Fyysinen tabletti vielä testaamatta. |
 | 1     | Työnkulku toteutettu | Suorakulmio → push/pull → valinta/siirto ja tartunnat → etukuva ja mitta → projektitiedosto/SVG, tallennus, historia, kosketus. |
-| 2     | Seuraava             | Layerit, ryhmät, komponenttimääritelmät ja linkitetyt instanssit, uniikiksi tekeminen, näkyvyys ja lukitus.                     |
-| 3     | Suunniteltu          | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.              |
+| 2     | Myöhemmin            | Layerit, ryhmät, komponenttimääritelmät ja linkitetyt instanssit, uniikiksi tekeminen, näkyvyys ja lukitus.                     |
+| 3     | Osin toteutettu      | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.              |
 | 4     | Suunniteltu          | Materiaalit, tekstuurit, pintasijoittelu, lasi ja ympäristöä valaiseva emissio.                                                 |
 | 5     | Suunniteltu          | Scenet, esitystyylit, valaistus ja kuvavienti.                                                                                  |
 | 6     | Suunniteltu          | Laaja mitoitus, arkit, PDF, useat näkymät ja leikkaukset. HLR/SVG-perusta on jo toteutettu.                                     |

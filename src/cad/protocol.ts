@@ -1,4 +1,4 @@
-import type { Body, FaceRef } from '../model/project';
+import type { Body, FaceRef, Vec3, VertexAnchor } from '../model/project';
 
 export interface BodyMesh {
   id: string;
@@ -8,6 +8,8 @@ export interface BodyMesh {
   edges: number[];
   faces: { start: number; count: number; ref: FaceRef }[];
   volume: number;
+  verticesCAD: { point: Vec3; anchor: VertexAnchor }[];
+  midpointsCAD: Vec3[];
 }
 export interface Projection {
   visible: string[];

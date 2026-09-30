@@ -1,12 +1,12 @@
-# .nivo-projektiformaatti v1
+# .nivo-projektiformaatti v2
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 1`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 2`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
 ```json
 {
   "format": "nivo",
-  "version": 1,
+  "version": 2,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",
@@ -21,6 +21,7 @@ millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen
       "color": "#c3a57e"
     }
   ],
+  "guides": [],
   "dimensions": [
     {
       "id": "dimension-uuid",
@@ -37,6 +38,30 @@ millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen
 syvyys Y- ja paksuus Z-suunnassa. Nollapaksuus tarkoittaa tasoluonnosta.
 Leveys ja syvyys ovat 0,1–100 000 mm, paksuus 0–100 000 mm. Sijainti on
 −100 000…100 000 mm per akseli. UI:n pursotuksen vähimmäispaksuus on 0,1 mm.
+
+V1-tiedosto ja selaimen V1-tallennus muunnetaan avattaessa V2:ksi lisäämällä
+tyhjä `guides`-taulukko. Kappaleiden ja mittojen tunnisteet säilyvät.
+
+`polygon-extrusion` sisältää lisäksi paikalliset XY-verteksit `points`.
+Rajalaatikon minimi on [0,0], maksimi [width,depth]. Sulkemispistettä ei
+toisteta. Muodossa on 3–300 verteksiä, ja itsensä leikkaavat muodot hylätään.
+
+`union` sisältää `operands`-taulukon: jokaisessa on suorakulmio- tai
+monikulmioresepti sekä `origin` suhteessa yhdistetyn osan origoon. Sisäkkäiset
+yhdistelmät litistetään. CAD laskee unionin uudelleen avattaessa. Osilla pitää
+olla paksuus; yhden objektin sisällä sallitaan erilliset solidit.
+
+`guides` sisältää enintään 1000 viivaa. Viivalla on `id`, `mode` (`guide` tai
+`free`), `plane` (`XY`, `XZ` tai `YZ`), `angle` asteina, `length` millimetreinä
+ja `anchor`. Ankkuri on vapaa `{point:[x,y,z]}` tai
+`{bodyId,key,local:[x,y,z]}`. `corner:n` viittaa laatikon semanttiseen kulmaan,
+`polygon:n:bottom/top` monikulmion verteksiin ja `vertex:x,y,z` yhdistetyn osan
+paikalliseen CAD-verteksiin. Vapaa mittaviiva voi sisältää myös `endAnchor`-viitteen.
+
+Apuviiva jatkuu tartuntaa varten molempiin suuntiin. Viite seuraa osan siirtoa;
+suorakulmion ja monikulmion viite seuraa myös paksuuden muutosta. Yhdistäminen
+luo uuden objektin, joten aiemmat lähdeviitteet näytetään rikkoutuneina.
+Undo palauttaa ne. Haettu Shift-viite on väliaikainen eikä tallennu projektiin.
 
 Mittaviite on semanttinen. Puuttuvaan kappaleeseen viittaava mitta sallitaan
 tuonnissa, jotta virhe voidaan näyttää käyttäjälle ja korjata. UUID:t ovat

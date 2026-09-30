@@ -6,13 +6,18 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
-| Tarkistus                         | Tulos                                                                                                                                                |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm test`                        | 12 testiä hyväksytty.                                                                                                                                |
-| `npm run test:e2e`                | 7 hyväksytty; vain tabletille tarkoitettu testi ohitetaan työpöytäprofiilissa.                                                                       |
-| `npm run build`                   | TypeScript ja tuotantopaketointi hyväksytty.                                                                                                         |
-| `NIVO_PREVIEW=1 npm run test:e2e` | 5 käyttöliittymätestiä hyväksytty tuotantopaketille. Kaksi kehitystilaan sidottua worker-koetta ja työpöydän tablettitesti ohitetaan tarkoituksella. |
-| `npm run format:check`            | Lähdekoodin ja dokumentaation muotoilutarkistus.                                                                                                     |
+| Tarkistus                    | Tulos                                                                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                   | 21 testiä hyväksytty.                                                                                                                          |
+| Kehitystilan selaintestit    | Aiemmat työnkulut, CAD-worker ja uudet vuorovaikutukset ajettu molemmilla profiileilla; korjatut tapaukset varmennettu kohdistetuilla ajoilla. |
+| `npm run build`              | TypeScript ja tuotantopaketointi hyväksytty.                                                                                                   |
+| Tuotantopaketin selaintestit | Mittasyöttö, apuviivat, Shift-viite, kynä, yhdistäminen sekä aiemmat työnkulut työpöydällä ja tablettiprofiilissa. Ajotulokset alla.           |
+| `npm run format:check`       | Lähdekoodin ja dokumentaation muotoilutarkistus.                                                                                               |
+
+Lopullinen `NIVO_PREVIEW=1 npm run test:e2e`: **18 hyväksytty, 4 tarkoituksella
+ohitettu**. Ohitukset ovat kaksi vain kehitystilassa ajettavaa worker-koetta ja
+kaksi vain tablettiprofiilille tarkoitettua kosketustestiä työpöytäprofiilissa.
+TypeScript, tuotantopaketointi ja muotoilutarkistus hyväksytty.
 
 Geometriatestit käyttävät aitoa OpenCascade-WASM-ydintä:
 
@@ -22,6 +27,10 @@ Geometriatestit käyttävät aitoa OpenCascade-WASM-ydintä:
 - BRep-serialisointi ja avaaminen säilyttävät tilavuuden.
 - Kuusi semanttista pintaa tunnistetaan myös siirretyssä kappaleessa.
 - Tasoluonnos toimii ennen pursotusta.
+- Kovera kynämuoto (6400 mm²) muodostaa pinnan ja 18 mm pursotuksen.
+  Tartuntaverteksit vastaavat todellista topologiaa.
+- Päällekkäisten 100 × 100 × 20 mm osien unioni antaa 300 000 mm³;
+  erilliset osat säilyttävät yhteistilavuuden 400 000 mm³ saman objektin sisällä.
 - Mahdoton 1000 mm pyöristys hylätään ja alkuperäinen kappale säilyy ehjänä.
 - 200 erillistä levyä rakentuu workerissa. Virheellinen seuraava pyyntö
   hylätään ja kelvollisen geometrian käsittely jatkuu.
@@ -36,9 +45,20 @@ Selaimessa ajetut työnkulut:
 5. Leveys- ja korkeusmitat sekä SVG-tiedoston lataus.
 6. `.nivo`-tiedoston lataus, uudelleenlatauksesta palautuminen, uusi projekti,
    tiedostotuonti ja virheellisen version turvallinen hylkäys.
-7. Sormella piirtäminen, painikkeilla hyväksyminen ja näytön suunnan vaihtaminen.
+7. Sormella piirtäminen, hyväksyntä sormen noustessa ja näytön suunnan vaihtaminen.
 8. Kaappiesimerkin avaus, mitoitus, kappaleen poisto → rikkoutunut mittaviite
    → vienti estyy → undo korjaa viitteen.
+9. Kirjoittaminen ilman kentän klikkaamista, Tab, Enter sekä vedon hyväksyntä
+   täsmälleen kerran. Tarkat mitat ja aloituspiste säilyvät vapautuksessa.
+10. Keskipisteen haku, Shift-lukitus ja uuteen muotoon tallentuva tarkka kohdistus.
+11. Mittatyökalun kaksi tilaa, R/45°, Shift/vapaa kulma, tarkka asteluku,
+    apuviivan ja vapaan mittaviivan tallennus.
+12. Piirto ja siirto tarttuvat apuviivaan; viivat palautuvat uudelleenlatauksessa.
+13. Kynän sulkeminen, pursotus, monivalinta, yhdistäminen ja lähteiden palautus
+    undolla. Tarkat kynäsiirtymät toimivat ilman uutta hiiren liikettä;
+    virheellinen mittasyöte hylätään.
+14. Kosketuksen Poimi viite sekä kahden sormen navigointi: keskeneräistä
+    piirtoelettä ei hyväksytä navigoinnin päätteeksi.
 
 SVG-tarkistus varmistaa A4:n `297mm × 210mm`-koon ja vastaavan viewBoxin.
 600 mm leveä kappale mittakaavassa 1:5 käyttää 120 mm paperileveyttä.
@@ -56,10 +76,14 @@ Mittatekstin koko määritellään paperiyksiköissä eikä kamerasta tai piksel
 - Vite varoittaa suuresta pääpaketista ja CAD-loaderin Node-haaran
   ulkoistamisesta. Tuotantotyönkulkujen selaintestit varmentavat käytetyn
   selainhaaran toiminnan.
-- V1:n pintatunnisteet toimivat suorakulmaisille, akselien suuntaisille osille.
+- Semanttiset pintatunnisteet toimivat suorakulmaisille, akselien suuntaisille osille.
   Yleisten boolean-muutosten topologinen nimeäminen on jatkotyötä.
 - Piirtotaso on XY. Siirto on tasossa ja Z-lukolla korkeussuunnassa;
   numerosyöttö mahdollistaa kaikki kolme akselia. Vapaa kierto ei ole vielä mukana.
+- Apuviivan tartunta edellyttää samaa tasoa. Haettu 3D-viite projisoidaan
+  aktiiviseen tasoon. Keskipiste on kappaleen rajalaatikon keskipiste.
+- Yhdistäminen edellyttää tilavuuskappaleita. Yhdistetyn objektin paksuuden
+  muuttaminen ja topologiaviitteiden siirtäminen yhdistämisen yli ovat jatkotyötä.
 - Arkilla on yksi näkymä. Useiden päällekkäisten mittaviivojen automaattinen
   sijoittelu ei ole valmis; käytä ensimmäisessä versiossa muutamaa kokonaismittaa.
 - Esimerkkikaappi todentaa kuuden levyn rungon. Täydelliset hyväksymisesimerkit
