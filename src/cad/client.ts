@@ -6,7 +6,7 @@ import type {
   ProbeResult,
   DrawingView,
 } from './protocol';
-import type { Body } from '../model/project';
+import type { Body, FaceRef } from '../model/project';
 
 export class CadClient {
   private worker?: Worker;
@@ -54,6 +54,9 @@ export class CadClient {
   }
   probe() {
     return this.request<ProbeResult>({ type: 'probe' });
+  }
+  pushPull(body: Body, face: FaceRef, distance: number) {
+    return this.request<Body>({ type: 'push-pull', body, face, distance });
   }
   cancel(message = 'Laskenta peruttiin.') {
     this.worker?.terminate();

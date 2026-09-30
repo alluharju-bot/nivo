@@ -45,6 +45,7 @@ import {
   makePolygonBody,
   mergeBodies,
   parseProject,
+  featureIsSolid,
   uid,
   type Anchor,
   type Guide,
@@ -57,9 +58,26 @@ import {
 } from './model/project';
 import { formatLength, parseLength } from './model/units';
 import { downloadFile, safeFilename } from './storage/projects';
-import type { DrawingView } from './cad/protocol';
+import type { DrawingView, FaceTarget } from './cad/protocol';
 import { DynamicInput, type NumericField } from './ui/DynamicInput';
-import { angleBetween, guidePoints, parseAngle, resolveAnchor } from './model/guides';
+import { CommitCheckbox } from './ui/CommitCheckbox';
+import {
+  angleBetween,
+  guidePoints,
+  guideVector,
+  guideDirection,
+  parseAngle,
+  resolveAnchor,
+} from './model/guides';
+import {
+  add,
+  sub,
+  scale as scaleVector,
+  unit,
+  dot,
+  axisVector,
+  planeForDirection,
+} from './model/geometry';
 import type { ReferencePoint } from './model/snap';
 import type { Gesture } from './viewport/types';
 
@@ -74,7 +92,7 @@ const faceNames: Record<FaceRef, string> = {
 const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = [
   { id: 'select', label: 'Valitse', icon: <MousePointer2 />, shortcut: 'V' },
   { id: 'rectangle', label: 'Suorakulmio', icon: <Square />, shortcut: 'R' },
-  { id: 'extrude', label: 'Push / pull', icon: <ArrowUpFromLine />, shortcut: 'P' },
+  { id: 'extrude', label: 'Push / pull', icon: <ArrowUpFromLine />, shortcut: 'E' },
   { id: 'move', label: 'Siirrä', icon: <Move3D />, shortcut: 'M' },
   { id: 'pen', label: 'Kynä', icon: <Pencil />, shortcut: 'K' },
   { id: 'measure', label: 'Mittatyökalu', icon: <Ruler />, shortcut: 'T' },
@@ -84,11 +102,12 @@ const instructions: Record<Tool, string> = {
   select: 'Napauta kappaletta tai pintaa. Kahdella sormella voit panoroida ja zoomata.',
   rectangle:
     'Vedä tai kirjoita X ja Tab → Y. Enter tai hiiren vapautus hyväksyy. Shift lukitsee haetun viitepisteen.',
-  extrude: 'Vedä ylös tai anna levyn paksuus. Hyväksy pursotus.',
+  extrude:
+    'E · Osoita pintaa ja vedä normaalin suuntaan. Positiivinen lisää, negatiivinen poistaa. Enter hyväksyy.',
   move: 'Vedä kappaletta tai anna siirtymä. Hyväksy uusi sijainti.',
-  pen: 'Klikkaa verteksit. Sulje ensimmäiseen pisteeseen tai Enterillä. Shift lukitsee haetun viitepisteen.',
+  pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Esc vapauttaa lukon.',
   measure:
-    'Valitse alku ja vedä. R kiertää 45°, Shift vapauttaa kulman. Enter tai hiiren vapautus hyväksyy.',
+    'Vedä verteksistä tai reunasta. X/Y/Z lukitsee akselin, Esc vapauttaa. R kiertää 45°, Shift+R vapaasti.',
   navigate: 'Vedä yhdellä sormella kiertääksesi. Kahdella sormella panoroit ja zoomaat.',
 };
 type Fields = {
@@ -100,6 +119,7 @@ type Fields = {
   z: string;
   length: string;
   angle: string;
+  offset: string;
 };
 const defaults: Fields = {
   width: '600',
@@ -110,6 +130,7 @@ const defaults: Fields = {
   z: '0',
   length: '100',
   angle: '0',
+  offset: '0',
 };
 
 function IconButton({
@@ -143,12 +164,22 @@ export default function App() {
   const [penPoints, setPenPoints] = useState<Vec3[]>([]);
   const penRef = useRef<Vec3[]>([]);
   const [penHover, setPenHover] = useState<Vec3>();
+  const [penConstraint, setPenConstraint] = useState<Vec3>();
+  const constraintRef = useRef<Vec3 | undefined>(undefined);
+  const [faceTarget, setFaceTarget] = useState<FaceTarget>();
+  const faceRef = useRef<FaceTarget | undefined>(undefined);
+  const [selectedGuideId, setSelectedGuideId] = useState<string>();
+  const [freeRotate, setFreeRotate] = useState(false);
   const hoverRef = useRef<Vec3 | undefined>(undefined);
   const [guideDraft, setGuideDraft] = useState<{
     anchor: Anchor;
     plane: WorkPlane;
     endAnchor?: Anchor;
     id?: string;
+    direction?: Vec3;
+    offset?: Vec3;
+    xray?: boolean;
+    edgeLength?: number;
   }>();
   const guideRef = useRef<typeof guideDraft>(undefined);
   const lockRef = useRef(new Set<string>());
@@ -187,6 +218,12 @@ export default function App() {
     if (tool === 'pen') penMove(hoverRef.current ?? penRef.current.at(-1));
     if (tool === 'measure' && guideRef.current) {
       guideRef.current = { ...guideRef.current, endAnchor: undefined };
+      if (key === 'angle') {
+        try {
+          guideRef.current.direction = guideDirection(guideRef.current.plane, parseAngle(value));
+          setAxis(undefined);
+        } catch {}
+      }
       setGuideDraft(guideRef.current);
     }
   };
@@ -205,6 +242,13 @@ export default function App() {
     clearLocks();
     setReference(undefined);
     setPickReference(false);
+    faceRef.current = undefined;
+    setFaceTarget(undefined);
+    setSelectedGuideId(undefined);
+    setFreeRotate(false);
+    constraintRef.current = undefined;
+    setPenConstraint(undefined);
+    setAxis(undefined);
   };
   const select = (id?: string, face?: FaceRef, additive = false) => {
     setSelected(id);
@@ -236,12 +280,8 @@ export default function App() {
       setMeasureMenu(!measureMenu);
       return;
     }
-    if ((next === 'extrude' || next === 'move') && !body) {
+    if (next === 'move' && !body) {
       editor.setMessage('Valitse ensin kappale.');
-      return;
-    }
-    if (next === 'extrude' && body?.feature.type === 'union') {
-      editor.setMessage('Yhdistetty osa säilyttää muotonsa. Pursota osat ennen yhdistämistä.');
       return;
     }
     resetGesture();
@@ -253,18 +293,35 @@ export default function App() {
     if (['rectangle', 'extrude', 'move', 'measure', 'pen'].includes(next)) {
       setPanelOpen(true);
       setDraftId(uid());
-      writeFields({ ...defaults, height: String(body?.feature.height || 18) });
+      writeFields({ ...defaults });
+      if (next === 'extrude' && body) {
+        const mesh = editor.meshes.find((m) => m.id === body.id);
+        const face =
+          mesh?.faces.find((f) => f.ref === selectedFace) ??
+          mesh?.faces.find((f) => f.normal[2] > 0.9) ??
+          mesh?.faces[0];
+        if (face) {
+          const target = {
+            bodyId: body.id,
+            face: face.ref,
+            normal: face.normal,
+            point: face.center,
+          };
+          faceRef.current = target;
+          setFaceTarget(target);
+        }
+      }
       if (next === 'rectangle' || next === 'pen') {
         setSelected(undefined);
         setSelectedIds([]);
         setSelectedFace(undefined);
-        if (view !== 'iso' && view !== 'top') changeView('top');
+        if (next === 'rectangle' && view !== 'iso' && view !== 'top') changeView('top');
       }
     }
   };
   const makePreview = (): Body | undefined => {
     const fields = fieldsRef.current;
-    if (!editing || ['measure', 'pen'].includes(tool)) return;
+    if (!editing || ['measure', 'pen', 'extrude'].includes(tool)) return;
     if (tool === 'rectangle') {
       return {
         ...makeBody(
@@ -278,8 +335,6 @@ export default function App() {
       };
     }
     if (!body) return;
-    if (tool === 'extrude' && body.feature.type !== 'union')
-      return { ...body, feature: { ...body.feature, height: parseLength(fields.height) } };
     return {
       ...body,
       origin: body.origin.map(
@@ -294,6 +349,13 @@ export default function App() {
       return undefined;
     }
   }, [tool, fields, body, draftId, project.bodies.length]);
+  const faceDistance = useMemo(() => {
+    try {
+      return parseLength(fields.height, true, true);
+    } catch {
+      return 0;
+    }
+  }, [fields.height]);
 
   const makeGuide = (): Guide | undefined => {
     const draft = guideRef.current;
@@ -306,6 +368,11 @@ export default function App() {
       mode: measureMode,
       length: parseLength(fieldsRef.current.length),
       angle: parseAngle(fieldsRef.current.angle),
+      direction: draft.direction,
+      offset: draft.offset
+        ? scaleVector(unit(draft.offset), parseLength(fieldsRef.current.offset, true, true))
+        : undefined,
+      xray: draft.xray,
     };
   };
   const guidePreview = useMemo(() => {
@@ -318,9 +385,14 @@ export default function App() {
   const precisePenPoint = (point: Vec3): Vec3 => {
     const start = penRef.current.at(-1);
     if (!start) return point;
+    if (constraintRef.current && lockRef.current.has('length'))
+      return add(
+        start,
+        scaleVector(constraintRef.current, parseLength(fieldsRef.current.length, true, true)),
+      );
     return point.map((n, i) => {
       const key = (['x', 'y', 'z'] as const)[i];
-      return i < 2 && lockRef.current.has(key)
+      return lockRef.current.has(key)
         ? start[i] + parseLength(fieldsRef.current[key], true, true)
         : n;
     }) as Vec3;
@@ -328,13 +400,29 @@ export default function App() {
   const apply = async (forceClose = false) => {
     if (committing.current || busy) return;
     try {
-      if (tool === 'pen') {
+      if (tool === 'extrude') {
+        const target = faceRef.current,
+          source = project.bodies.find((b) => b.id === target?.bodyId);
+        if (!target || !source) {
+          editor.setMessage('Osoita pintaa ja aloita veto.');
+          return;
+        }
+        const distance = parseLength(fieldsRef.current.height, true);
+        committing.current = true;
+        if (
+          await editor.transact(async () => {
+            const next = await editor.cad.pushPull(source, target.face, distance);
+            return { ...project, bodies: project.bodies.map((b) => (b.id === next.id ? next : b)) };
+          }, 'Pintaa muokattu.')
+        )
+          select(source.id);
+      } else if (tool === 'pen') {
         if (!forceClose && lockRef.current.size && hoverRef.current) {
           const point = precisePenPoint(hoverRef.current);
           penRef.current = [...penRef.current, point];
           setPenPoints(penRef.current);
           clearLocks();
-          writeFields({ x: '0', y: '0' });
+          writeFields({ x: '0', y: '0', z: '0' });
           editor.setError('');
           return;
         }
@@ -352,7 +440,7 @@ export default function App() {
         if (!candidate) {
           editor.setMessage(
             measureMode === 'guide'
-              ? 'Valitse ensin kappaleen verteksi.'
+              ? 'Valitse ensin kappaleen verteksi tai reuna.'
               : 'Valitse mittaviivan alkupiste.',
           );
           return;
@@ -370,6 +458,7 @@ export default function App() {
           )
         ) {
           select();
+          setSelectedGuideId(candidate.id);
           setTab('guides');
         }
       } else {
@@ -400,16 +489,37 @@ export default function App() {
     }
   };
   const cancel = () => {
+    if (axis || penConstraint) {
+      setAxis(undefined);
+      constraintRef.current = undefined;
+      setPenConstraint(undefined);
+      setEpoch((e) => e + 1);
+      return;
+    }
     if (busy) editor.cancel();
     resetGesture();
     setTool('select');
     setMeasureMenu(false);
     editor.setError('');
   };
-  const rotateGuide = () => {
+  const rotateGuide = (free = false) => {
+    if (!guideRef.current && selectedGuideId) {
+      const guide = project.guides.find((g) => g.id === selectedGuideId);
+      if (guide) editGuide(guide);
+    }
     if (!guideRef.current) return;
+    if (free) {
+      setAxis(undefined);
+      lockRef.current.delete('angle');
+      setLocked(new Set(lockRef.current));
+      setFreeRotate((v) => !v);
+      return;
+    }
     try {
       field('angle', String((parseAngle(fieldsRef.current.angle) + 45) % 360));
+      const draft = guideRef.current;
+      draft.direction = guideDirection(draft.plane, parseAngle(fieldsRef.current.angle));
+      setGuideDraft({ ...draft });
     } catch (e) {
       editor.setError((e as Error).message);
     }
@@ -418,14 +528,22 @@ export default function App() {
     if (point && penRef.current.length) {
       const start = penRef.current.at(-1)!;
       const next = [...point] as Vec3;
-      for (const [i, key] of ['x', 'y'].entries()) {
+      for (const [i, key] of ['x', 'y', 'z'].entries()) {
         if (lockRef.current.has(key)) {
           try {
-            next[i] = start[i] + parseLength(fieldsRef.current[key as 'x' | 'y'], true, true);
+            next[i] = start[i] + parseLength(fieldsRef.current[key as 'x' | 'y' | 'z'], true, true);
           } catch {}
         } else writeFields({ [key]: String(Math.round((point[i] - start[i]) * 100) / 100) });
       }
       point = next;
+      if (constraintRef.current && !lockRef.current.has('length'))
+        writeFields({
+          length: String(Math.round(dot(sub(point, start), constraintRef.current) * 100) / 100),
+        });
+      if (constraintRef.current && lockRef.current.has('length'))
+        try {
+          point = precisePenPoint(point);
+        } catch {}
     }
     hoverRef.current = point;
     setPenHover(point);
@@ -447,7 +565,7 @@ export default function App() {
       patch.y = String(origin[1]);
       writeFields(patch);
     } else if (event.type === 'extrude') {
-      if (!lockRef.current.has('height')) writeFields({ height: String(event.height) });
+      if (!lockRef.current.has('height')) writeFields({ height: String(event.distance) });
     } else if (event.type === 'move' && body) {
       for (const [i, key] of ['x', 'y', 'z'].entries())
         if (!lockRef.current.has(key))
@@ -460,25 +578,29 @@ export default function App() {
       if (!start) return;
       const length = Math.hypot(...event.end.map((n, i) => n - start[i]));
       if (length >= 0.1) {
-        if (!lockRef.current.has('length')) patch.length = String(Math.round(length * 100) / 100);
+        if (!lockRef.current.has('length'))
+          patch.length = String(Math.round((event.edgeLength ?? length) * 100) / 100);
         if (!lockRef.current.has('angle'))
           patch.angle = String(
-            Math.round(
-              angleBetween(
-                start,
-                event.end,
-                event.plane,
-                event.freeAngle || measureMode === 'free',
-              ) * 100,
-            ) / 100,
+            Math.round(angleBetween(start, event.end, event.plane, true) * 100) / 100,
           );
       }
+      if (event.direction && !lockRef.current.has('angle'))
+        patch.angle = String(
+          Math.round(angleBetween([0, 0, 0], event.direction, event.plane, true) * 100) / 100,
+        );
+      if (event.offset && !lockRef.current.has('offset'))
+        patch.offset = String(Math.round(Math.hypot(...event.offset) * 100) / 100);
       writeFields(patch);
       guideRef.current = {
         anchor: event.anchor,
         plane: event.plane,
         id: guideRef.current?.id,
         endAnchor: measureMode === 'free' && !lockRef.current.size ? event.endAnchor : undefined,
+        direction: lockRef.current.has('angle') ? guideRef.current?.direction : event.direction,
+        offset: event.offset ?? guideRef.current?.offset,
+        xray: guideRef.current?.xray,
+        edgeLength: event.edgeLength,
       };
       setGuideDraft(guideRef.current);
     } else if (event.type === 'pen') {
@@ -495,7 +617,7 @@ export default function App() {
       penRef.current = [...penRef.current, hoverRef.current ?? event.point];
       setPenPoints(penRef.current);
       clearLocks();
-      writeFields({ x: '0', y: '0' });
+      writeFields({ x: '0', y: '0', z: '0' });
       editor.setError('');
     }
   };
@@ -522,14 +644,23 @@ export default function App() {
     setMode('model');
     setMeasureMode(guide.mode);
     setDraftId(guide.id);
+    setSelectedGuideId(guide.id);
     guideRef.current = {
       anchor: guide.anchor,
       plane: guide.plane,
       endAnchor: guide.endAnchor,
       id: guide.id,
+      direction: guide.direction,
+      offset: guide.offset,
+      xray: guide.xray,
     };
     setGuideDraft(guideRef.current);
-    writeFields({ ...defaults, length: String(guide.length), angle: String(guide.angle) });
+    writeFields({
+      ...defaults,
+      length: String(guide.length),
+      angle: String(guide.angle),
+      offset: String(Math.hypot(...(guide.offset ?? [0, 0, 0]))),
+    });
   };
   const numericFields: NumericField[] =
     tool === 'rectangle'
@@ -550,21 +681,24 @@ export default function App() {
           },
         ]
       : tool === 'extrude'
-        ? [
-            {
-              key: 'height',
-              label: 'Paksuus · Z',
-              value: fields.height,
-              unit: 'mm',
-              testId: 'height-input',
-            },
-          ]
+        ? faceTarget
+          ? [
+              {
+                key: 'height',
+                label: 'Pinnan siirtymä',
+                value: fields.height,
+                unit: 'mm',
+                testId: 'height-input',
+                signed: true,
+              },
+            ]
+          : []
         : tool === 'measure'
           ? [
               {
-                key: 'length',
-                label: 'Pituus',
-                value: fields.length,
+                key: guideDraft?.offset ? 'offset' : 'length',
+                label: guideDraft?.offset ? 'Etäisyys reunasta' : 'Pituus',
+                value: guideDraft?.offset ? fields.offset : fields.length,
                 unit: 'mm',
                 testId: 'guide-length',
               },
@@ -576,14 +710,25 @@ export default function App() {
                 testId: 'guide-angle',
               },
             ]
-          : (tool === 'pen' ? ['x', 'y'] : ['x', 'y', 'z']).map((key) => ({
-              key,
-              label: `Siirtymä · ${key.toUpperCase()}`,
-              value: fields[key as 'x' | 'y' | 'z'],
-              unit: 'mm',
-              testId: `move-${key}`,
-              signed: true,
-            }));
+          : tool === 'pen' && penConstraint
+            ? [
+                {
+                  key: 'length',
+                  label: 'Pituus lukitulla suunnalla',
+                  value: fields.length,
+                  unit: 'mm',
+                  testId: 'pen-length',
+                  signed: true,
+                },
+              ]
+            : ['x', 'y', 'z'].map((key) => ({
+                key,
+                label: `Siirtymä · ${key.toUpperCase()}`,
+                value: fields[key as 'x' | 'y' | 'z'],
+                unit: 'mm',
+                testId: `move-${key}`,
+                signed: true,
+              }));
   const removeBody = async () => {
     if (!body) return;
     if (
@@ -683,6 +828,7 @@ export default function App() {
   }, [project.bodies, selected]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       const target = event.target as HTMLElement;
       if (target.closest('input, textarea, select, [contenteditable]')) return;
       const key = event.key.toLowerCase();
@@ -712,9 +858,9 @@ export default function App() {
         event.preventDefault();
         void apply();
       }
-      if (key === 'r' && tool === 'measure') {
+      if (key === 'r' && (tool === 'measure' || selectedGuideId)) {
         event.preventDefault();
-        rotateGuide();
+        rotateGuide(event.shiftKey);
         return;
       }
       if (key === 'backspace' && tool === 'pen') {
@@ -735,6 +881,16 @@ export default function App() {
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
   });
+  useEffect(() => {
+    if (tool === 'measure' && axis && guideRef.current) {
+      const draft = guideRef.current;
+      draft.direction = axisVector(axis);
+      draft.plane = planeForDirection(draft.direction, draft.plane);
+      lockRef.current.delete('angle');
+      writeFields({ angle: String(angleBetween([0, 0, 0], draft.direction, draft.plane, true)) });
+      setGuideDraft({ ...draft });
+    }
+  }, [axis, tool]);
 
   return (
     <div className="app-shell">
@@ -861,6 +1017,23 @@ export default function App() {
             <Redo2 />
           </IconButton>
           <span className="vertical-rule" />
+          <details className="viewport-settings">
+            <summary>Asetukset</summary>
+            <label>
+              <CommitCheckbox
+                label="Kaikki apuviivat x-ray"
+                disabled={busy}
+                checked={project.settings.guideXray}
+                onChange={(checked) =>
+                  editor.transact(
+                    { ...project, settings: { ...project.settings, guideXray: checked } },
+                    'Apuviivojen näkyvyys muutettu.',
+                  )
+                }
+              />
+              Kaikki apuviivat x-ray
+            </label>
+          </details>
           <IconButton
             label={panelOpen ? 'Piilota ominaisuudet' : 'Näytä ominaisuudet'}
             aria-pressed={panelOpen}
@@ -879,11 +1052,7 @@ export default function App() {
               className={`tool-button ${mode === 'model' && tool === t.id ? 'active' : ''}`}
               aria-label={t.label}
               aria-pressed={mode === 'model' && tool === t.id}
-              disabled={
-                busy ||
-                (['extrude', 'move'].includes(t.id) && !body) ||
-                (t.id === 'extrude' && body?.feature.type === 'union')
-              }
+              disabled={busy || (t.id === 'move' && !body)}
               onClick={() => begin(t.id)}
               title={`${t.label} (${t.shortcut})`}
             >
@@ -1005,6 +1174,30 @@ export default function App() {
               onSelect={select}
               onSnap={setSnapLabel}
               onGesture={gesture}
+              faceTarget={faceTarget}
+              faceDistance={faceDistance}
+              guideXray={project.settings.guideXray}
+              selectedGuideId={selectedGuideId}
+              freeRotate={freeRotate}
+              onFaceTarget={(target) => {
+                faceRef.current = target;
+                setFaceTarget(target);
+                setSelected(target.bodyId);
+                setSelectedIds([target.bodyId]);
+                setSelectedFace(target.face);
+                clearLocks();
+                writeFields({ height: '0' });
+              }}
+              onSelectGuide={(id) => {
+                const g = project.guides.find((g) => g.id === id);
+                if (g) editGuide(g);
+              }}
+              onAxis={setAxis}
+              onConstraint={(direction) => {
+                constraintRef.current = direction;
+                setPenConstraint(direction);
+                lockRef.current.delete('length');
+              }}
               onAccept={() => void apply()}
               onPenHover={penMove}
               onReference={setReference}
@@ -1046,7 +1239,7 @@ export default function App() {
                     setMeasureMenu(false);
                   }}
                 >
-                  Apuviiva<small>Verteksistä lähtevä tartuntalinja</small>
+                  Apuviiva<small>Verteksistä tai reunasta lähtevä tartuntalinja</small>
                 </button>
                 <button
                   role="menuitemradio"
@@ -1061,7 +1254,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            {editing && (
+            {editing && tool !== 'extrude' && (
               <div className="reference-bar">
                 <button
                   aria-pressed={pickReference}
@@ -1073,6 +1266,11 @@ export default function App() {
                 {reference && (
                   <button data-testid="reference-lock" onClick={() => setReference(undefined)}>
                     Viite: {reference.label} <X size={14} />
+                  </button>
+                )}
+                {(axis || penConstraint) && (
+                  <button onClick={cancel} aria-label="Vapauta suuntalukko">
+                    {axis ? `${axis.toUpperCase()}-akseli` : 'Suunta lukittu'} · Esc <X size={14} />
                   </button>
                 )}
               </div>
@@ -1163,7 +1361,7 @@ export default function App() {
                       {tool === 'rectangle'
                         ? 'Suorakulmio'
                         : tool === 'extrude'
-                          ? 'Anna paksuus'
+                          ? 'Push / pull'
                           : tool === 'measure'
                             ? 'Mittatyökalu'
                             : tool === 'pen'
@@ -1177,12 +1375,12 @@ export default function App() {
                   {tool === 'rectangle'
                     ? 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
                     : tool === 'extrude'
-                      ? 'Esikatselu näyttää uuden paksuuden. Muutos tehdään vasta hyväksyttäessä.'
+                      ? 'E · Osoita pintaa: korostettu pinta liikkuu vetämällä normaalinsa suuntaan. Voit myös kirjoittaa siirtymän.'
                       : tool === 'pen'
-                        ? 'Aseta verteksit XY-tasolle. Suljettu muoto muodostaa oman pinnan.'
+                        ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
                         : tool === 'measure'
                           ? measureMode === 'guide'
-                            ? 'Aloita kappaleen verteksistä. Piirtäminen ja siirtäminen tarttuvat apuviivaan.'
+                            ? 'Aloita verteksistä tai vedä reunasta sen suuntainen apuviiva. Piirtäminen ja siirtäminen tarttuvat viivaan.'
                             : 'Valitse kaksi pistettä nähdäksesi niiden etäisyyden.'
                           : 'Anna siirtymä nykyisestä sijainnista tai vedä kappaletta näkymässä.'}
                 </p>
@@ -1201,22 +1399,44 @@ export default function App() {
                       </button>
                       <button
                         className="button outlined"
-                        onClick={rotateGuide}
+                        onClick={() => rotateGuide()}
                         disabled={!guideDraft}
                       >
                         <RotateCw size={16} />
                         Kierrä 45° · R
                       </button>
                       <p className="muted">
-                        Shift: vapaa kulma. Kulmakenttään voi kirjoittaa tarkan asteluvun.
+                        X/Y/Z lukitsee akselin. Esc vapauttaa. Shift+R käynnistää vapaan kierron;
+                        osoita suunta ja hyväksy.
                       </p>
+                      <button
+                        className="button outlined"
+                        aria-pressed={freeRotate}
+                        disabled={!guideDraft}
+                        onClick={() => rotateGuide(true)}
+                      >
+                        Vapaa kierto · Shift+R
+                      </button>
+                      {guideDraft && (
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={!!guideDraft.xray}
+                            onChange={(e) => {
+                              guideRef.current = { ...guideRef.current!, xray: e.target.checked };
+                              setGuideDraft(guideRef.current);
+                            }}
+                          />
+                          Tämä apuviiva x-ray
+                        </label>
+                      )}
                     </>
                   )}
                   {tool === 'pen' && (
                     <>
                       <p className="muted">
-                        {penPoints.length} verteksiä · XY-taso. Palaa ensimmäiseen verteksiin
-                        sulkeaksesi muodon.
+                        {penPoints.length} verteksiä. Palaa ensimmäiseen verteksiin sulkeaksesi
+                        muodon.
                       </p>
                       <button
                         className="button outlined"
@@ -1237,7 +1457,7 @@ export default function App() {
                       </button>
                     </>
                   )}
-                  {tool === 'move' && (
+                  {['move', 'pen', 'measure'].includes(tool) && (
                     <>
                       <span className="field-caption">Lukitse vetosuunta</span>
                       <div className="axis-locks">
@@ -1254,11 +1474,11 @@ export default function App() {
                       </div>
                     </>
                   )}
-                  {tool !== 'measure' && (
+                  {['rectangle', 'pen', 'move'].includes(tool) && (
                     <p className="muted">
-                      Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen
-                      suuntalinjat ohjaavat piirtämistä ja siirtoa. Kosketuksella käytä Poimi viite
-                      -painiketta.
+                      {tool === 'pen' && penPoints.length
+                        ? 'Shift lukitsee piirtosuunnan pituuden poimimista varten. Erillisen viitepisteen saat Poimi viite -painikkeesta.'
+                        : 'Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen suuntalinjat ohjaavat piirtämistä ja siirtoa. Kosketuksella käytä Poimi viite -painiketta.'}
                     </p>
                   )}
                 </div>
@@ -1279,7 +1499,7 @@ export default function App() {
                 {body ? (
                   <div className="selection-info">
                     <span className="selection-tag">
-                      {body.feature.height ? 'CAD-kappale' : 'Tasoluonnos'}
+                      {featureIsSolid(body.feature) ? 'CAD-kappale' : 'Tasoluonnos'}
                       {selectedFace ? ` · ${faceNames[selectedFace] ?? 'Valittu pinta'}` : ''}
                     </span>
                     <div className="dimensions-grid">
@@ -1313,11 +1533,11 @@ export default function App() {
                       <>
                         <button
                           className="button outlined full"
-                          disabled={busy || body.feature.type === 'union'}
+                          disabled={busy}
                           onClick={() => begin('extrude')}
                         >
                           <ArrowUpFromLine size={17} />
-                          {body.feature.height ? 'Muuta paksuutta' : 'Anna paksuus'}
+                          {featureIsSolid(body.feature) ? 'Muokkaa pintaa' : 'Anna paksuus'}
                         </button>
                         <div className="selection-actions">
                           <IconButton
@@ -1420,7 +1640,7 @@ export default function App() {
                         selectedIds.length < 2 ||
                         project.bodies
                           .filter((b) => selectedIds.includes(b.id))
-                          .some((b) => !b.feature.height)
+                          .some((b) => !featureIsSolid(b.feature))
                       }
                       onClick={() => void mergeSelected()}
                     >
@@ -1457,7 +1677,11 @@ export default function App() {
                             <Box size={16} />
                             <span>{b.name}</span>
                             <small>
-                              {b.feature.type === 'union' ? '∪' : b.feature.height ? '3D' : '2D'}
+                              {b.feature.type === 'union'
+                                ? '∪'
+                                : featureIsSolid(b.feature)
+                                  ? '3D'
+                                  : '2D'}
                             </small>
                           </button>
                         ))
@@ -1477,7 +1701,12 @@ export default function App() {
                       {project.guides.map((g) => {
                         const points = guidePoints(project.bodies, g);
                         return (
-                          <div key={g.id} className={!points ? 'broken' : ''}>
+                          <div
+                            key={g.id}
+                            className={
+                              !points ? 'broken' : selectedGuideId === g.id ? 'selected' : ''
+                            }
+                          >
                             <button onClick={() => editGuide(g)}>
                               <Ruler size={15} />
                               <span>
@@ -1489,6 +1718,25 @@ export default function App() {
                                 </small>
                               </span>
                             </button>
+                            <label className="guide-xray" title="Näytä tämä viiva kappaleiden läpi">
+                              <CommitCheckbox
+                                label="Viivan x-ray"
+                                disabled={busy}
+                                checked={!!g.xray}
+                                onChange={(checked) =>
+                                  editor.transact(
+                                    {
+                                      ...project,
+                                      guides: project.guides.map((line) =>
+                                        line.id === g.id ? { ...line, xray: checked } : line,
+                                      ),
+                                    },
+                                    'Viivan x-ray muutettu.',
+                                  )
+                                }
+                              />
+                              X-ray
+                            </label>
                             <IconButton
                               label="Poista viiva"
                               disabled={busy}
@@ -1574,7 +1822,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.2</span>
+                  <span>v0.3</span>
                 </div>
               </>
             )}
@@ -1592,7 +1840,7 @@ export default function App() {
           </span>
         </div>
         <span className="status-right">
-          {mode === 'model' ? 'XY · Z ylöspäin' : 'A4 · Ortografinen'}
+          {mode === 'model' ? 'Z ylöspäin' : 'A4 · Ortografinen'}
           <span className="status-divider" />1 yksikkö = 1 mm
         </span>
       </footer>
@@ -1622,8 +1870,8 @@ export default function App() {
                 muodon.
               </li>
               <li>
-                <strong>Muotoile.</strong> Valitse Push / pull ja anna paksuus. Siirrä ja kopioi
-                levyjä.
+                <strong>Muotoile.</strong> Paina E, osoita pintaa ja vedä. Positiivinen siirtymä
+                vetää pintaa ulos ja negatiivinen työntää sisään. Siirrä ja kopioi osia.
               </li>
               <li>
                 <strong>Mitoita.</strong> Avaa Mittakuva, valitse kappale ja lisää mitat. Vie SVG.
@@ -1635,13 +1883,15 @@ export default function App() {
             </p>
             <p>
               <strong>Apuviivat:</strong> mittatyökalun ensimmäinen painallus valitsee apuviivan,
-              toinen avaa tilavalinnan. R kiertää 45°, Shift sallii vapaan kulman. Voit myös
-              kirjoittaa asteluvun.
+              toinen avaa tilavalinnan. Reunasta vedetty viiva pysyy reunan suuntaisena. R kiertää
+              45°, Shift+R sallii vapaan kierron. X/Y/Z lukitsee akselin ja Esc vapauttaa. Voit myös
+              kirjoittaa asteluvun. X-ray valitaan Viivat-listasta tai kaikille asetuksista.
             </p>
             <p>
               <strong>Hae viite:</strong> vie kohdistin kappaleen keskipisteen, reunan keskipisteen
               tai verteksin päälle ja pidä Shift pohjassa. Viitteestä lähtevät suuntalinjat ohjaavat
-              piirtämistä ja siirtoa. Kosketuksella käytä Poimi viite -painiketta.
+              piirtämistä ja siirtoa. Kesken kynän viivan Shift lukitsee viivan suunnan: voit poimia
+              pituuden aiemmasta pisteestä. Kosketuksella käytä Poimi viite- ja akselipainikkeita.
             </p>
             <p>
               <strong>Yhdistä:</strong> valitse useita osia Monivalinnalla tai Shift-napsautuksilla
@@ -1660,8 +1910,9 @@ export default function App() {
               Lataa lisäksi .nivo-projektitiedosto omalle laitteellesi.
             </p>
             <p className="muted">
-              Piirtäminen tapahtuu XY-tasolla. Yhdistettävillä osilla pitää olla paksuus. Pintaan
-              piirtäminen, vapaa kierto, komponentit ja materiaalit tulevat myöhemmin.
+              Suorakulmio piirretään XY-tasolle. Kynällä voi piirtää myös pystysuuntaisen pinnan;
+              suljettavan muodon tulee olla tasomainen. Push/pull tukee tasopintoja. Pintaan
+              piirtäminen, kappaleiden vapaa kierto, komponentit ja materiaalit tulevat myöhemmin.
             </p>
             <a href="https://github.com/alluharju-bot/nivo" target="_blank" rel="noreferrer">
               Avoin lähdekoodi ↗

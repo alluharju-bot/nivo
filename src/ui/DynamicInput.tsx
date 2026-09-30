@@ -112,7 +112,7 @@ export function DynamicInput({
                 onChange(f.key, f.value.startsWith('-') ? f.value.slice(1) : `-${f.value}`)
               }
             >
-              ± {f.label.split('·').at(-1)}
+              ± {f.label.includes('·') ? f.label.split('·').at(-1) : ''}
             </button>
           ))}
         <span className="dynamic-spacer" />

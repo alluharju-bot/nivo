@@ -1,7 +1,7 @@
 import initOpenCascade from 'replicad-opencascadejs';
 import wasmUrl from 'replicad-opencascadejs/wasm?url';
 import { setOC, type AnyShape } from 'replicad';
-import { createShape, meshBody, projectShapes, runProbe } from './kernel';
+import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
 import type { BodyMesh, CadRequest, CadReply } from './protocol';
 import type { Body } from '../model/project';
 
@@ -41,6 +41,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
+      else if (request.type === 'push-pull')
+        reply.result = pushPullFace(request.body, request.face, request.distance);
       else {
         const entries = build(request.bodies);
         reply.result =

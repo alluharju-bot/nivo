@@ -66,14 +66,20 @@ export function useEditor() {
   }, [cad, history]);
 
   const transact = useCallback(
-    async (candidate: Project, label: string, mode: 'commit' | 'undo' | 'redo' = 'commit') => {
+    async (
+      candidate: Project | (() => Promise<Project>),
+      label: string,
+      mode: 'commit' | 'undo' | 'redo' = 'commit',
+    ) => {
       const current = ++revision.current;
       setBusy(true);
       setError('');
       setMessage('Lasketaan tarkkaa geometriaa…');
       try {
+        const resolved = typeof candidate === 'function' ? await candidate() : candidate;
+        if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
-          ...candidate,
+          ...resolved,
           updatedAt: new Date().toISOString(),
         });
         if (!validated.success)

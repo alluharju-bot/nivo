@@ -28,12 +28,52 @@ describe('editable objects and migration', () => {
     const current = { ...freshProject(), bodies: [makeBody()] };
     const { guides, ...legacy } = current;
     const result = parseProject(JSON.stringify({ ...legacy, version: 1 }));
-    expect(result.version).toBe(2);
+    expect(result.version).toBe(3);
     expect(result.bodies).toEqual(current.bodies);
     expect(result.guides).toEqual([]);
   });
 });
 describe('pen geometry', () => {
+  it('validates imported vertical face extents and coplanarity before replacing a project', () => {
+    const body = makePolygonBody([
+      [0, 0, 0],
+      [200, 0, 0],
+      [200, 0, 150],
+      [0, 0, 150],
+    ]);
+    const project = { ...freshProject(), bodies: [body] };
+    expect(parseProject(JSON.stringify(project))).toEqual(project);
+    expect(() =>
+      parseProject(
+        JSON.stringify({
+          ...project,
+          bodies: [{ ...body, feature: { ...body.feature, height: 140 } }],
+        }),
+      ),
+    ).toThrow();
+    expect(() =>
+      parseProject(
+        JSON.stringify({
+          ...project,
+          bodies: [
+            {
+              ...body,
+              feature: {
+                ...body.feature,
+                depth: 10,
+                points: [
+                  [0, 0, 0],
+                  [200, 0, 0],
+                  [200, 10, 150],
+                  [0, 0, 150],
+                ],
+              },
+            },
+          ],
+        }),
+      ),
+    ).toThrow();
+  });
   it('accepts a concave polygon and rejects crossing or degenerate outlines', () => {
     const polygon = makePolygonBody([
       [0, 0, 0],
@@ -72,6 +112,43 @@ describe('pen geometry', () => {
   });
 });
 describe('guides and acquired references', () => {
+  it('keeps an edge guide parallel and anchored when a box moves and changes width', () => {
+    const body = makeBody(100, 100, 20);
+    const guide: Guide = {
+      id: 'edge',
+      mode: 'guide',
+      anchor: {
+        edge: {
+          from: { bodyId: body.id, key: 'corner:0', local: [0, 0, 0] },
+          to: { bodyId: body.id, key: 'corner:4', local: [100, 0, 0] },
+          t: 0.25,
+        },
+      },
+      direction: [1, 0, 0],
+      offset: [0, 40, 0],
+      length: 100,
+      angle: 0,
+      plane: 'XY',
+      xray: true,
+    };
+    const changed = {
+      ...body,
+      origin: [20, 30, 0] as [number, number, number],
+      feature: { ...body.feature, width: 200 },
+    };
+    expect(guidePoints([body], guide)).toEqual([
+      [25, 40, 0],
+      [125, 40, 0],
+    ]);
+    expect(guidePoints([changed], guide)).toEqual([
+      [70, 70, 0],
+      [170, 70, 0],
+    ]);
+    expect(
+      parseProject(JSON.stringify({ ...freshProject(), bodies: [changed], guides: [guide] }))
+        .guides[0].xray,
+    ).toBe(true);
+  });
   const body = makeBody(100, 100, 20);
   const guide: Guide = {
     id: 'g',

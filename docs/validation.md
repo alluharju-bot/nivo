@@ -1,4 +1,4 @@
-# Validointi — 30.9.2026
+# Validointi — 1.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
@@ -8,16 +8,19 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 | Tarkistus                    | Tulos                                                                                                                                          |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm test`                   | 21 testiä hyväksytty.                                                                                                                          |
+| `npm test`                   | 27 testiä hyväksytty.                                                                                                                          |
 | Kehitystilan selaintestit    | Aiemmat työnkulut, CAD-worker ja uudet vuorovaikutukset ajettu molemmilla profiileilla; korjatut tapaukset varmennettu kohdistetuilla ajoilla. |
 | `npm run build`              | TypeScript ja tuotantopaketointi hyväksytty.                                                                                                   |
 | Tuotantopaketin selaintestit | Mittasyöttö, apuviivat, Shift-viite, kynä, yhdistäminen sekä aiemmat työnkulut työpöydällä ja tablettiprofiilissa. Ajotulokset alla.           |
 | `npm run format:check`       | Lähdekoodin ja dokumentaation muotoilutarkistus.                                                                                               |
 
-Lopullinen `NIVO_PREVIEW=1 npm run test:e2e`: **18 hyväksytty, 4 tarkoituksella
-ohitettu**. Ohitukset ovat kaksi vain kehitystilassa ajettavaa worker-koetta ja
-kaksi vain tablettiprofiilille tarkoitettua kosketustestiä työpöytäprofiilissa.
+V0.3:n koko `NIVO_PREVIEW=1 npm run test:e2e` -ajo: **30 hyväksytty,
+4 tarkoituksella ohitettu** (3,2 min). Viimeisen pikanäppäinkorjauksen jälkeen
+tuotantopaketti rakennettiin uudelleen ja pintatyökalun sekä Shift-piirron
+testit ajettiin molemmilla profiileilla: **4 hyväksytty** (34,2 s).
 TypeScript, tuotantopaketointi ja muotoilutarkistus hyväksytty.
+Ohitukset ovat kaksi vain kehitystilassa ajettavaa worker-koetta ja
+kaksi vain tablettiprofiilille tarkoitettua kosketustestiä työpöytäprofiilissa.
 
 Geometriatestit käyttävät aitoa OpenCascade-WASM-ydintä:
 
@@ -35,6 +38,13 @@ Geometriatestit käyttävät aitoa OpenCascade-WASM-ydintä:
 - 200 erillistä levyä rakentuu workerissa. Virheellinen seuraava pyyntö
   hylätään ja kelvollisen geometrian käsittely jatkuu.
 - Laskennan peruminen pysäyttää workerin; seuraava pyyntö käynnistää ytimen uudelleen.
+- Laatikon kaikki kuusi pintaa: ulosveto ja sisääntyöntö muuttavat oikeaa mittaa,
+  origon paikkaa ja tilavuutta.
+- Vinon monikulmion sivupinta ja yhdistetyn osan pinta: positiivinen muutos,
+  BRep-tallennus/avaaminen sekä seuraava negatiivinen muutos ovat kelvollisia.
+- Pystysuuntainen kynäpinta pursottuu. Epätasomainen muoto ja väärennetyt
+  tallennetun pinnan tai BRepin rajalaatikon mitat hylätään.
+- Reuna-ankkuri seuraa laatikon siirtoa ja leveyden muutosta. X-ray tallentuu.
 
 Selaimessa ajetut työnkulut:
 
@@ -59,6 +69,24 @@ Selaimessa ajetut työnkulut:
     virheellinen mittasyöte hylätään.
 14. Kosketuksen Poimi viite sekä kahden sormen navigointi: keskeneräistä
     piirtoelettä ei hyväksytä navigoinnin päätteeksi.
+15. E ensin → etupinnan hover-korostus → veto 40 mm → valitun pinnan
+    numerotyöntö −40 mm palauttaa alkuperäiset mitat.
+16. Reunasta vedetty apuviiva säilyy rinnakkaisena ja saa 80 mm offsetin;
+    R ja Shift+R toimivat luonnin jälkeen. Akselilukko ja Esc säilyttävät työkalun.
+    Valmista viivaa voi valita suoraan näkymästä.
+17. Kappaleen alle jäävä apuviiva peittyy, viivakohtainen x-ray näyttää sen,
+    globaali x-ray säilyy uudelleenlatauksessa.
+18. Kynän kolmas viiva lukittuu Shiftillä. Ensimmäisestä pisteestä poimittu
+    pituus on täsmälleen 200 mm ja tuottaa oikean neljännen kulman. Shiftin
+    vapautuksen jälkeen aloitusverteksiin tarttuminen sulkee muodon.
+    Ctrl/Cmd+Z ja Ctrl/Cmd+Shift+Z säilyvät historiaoikoteinä myös kynän ja
+    mittatyökalun aikana; Z-akselin lukko ei kaappaa niitä.
+19. X/Z-lukoilla tehty pystypinta, lukon vapautus Escillä, E-pursotus 20 mm
+    ja syntyneen BRep-kappaleen palautuminen uudelleenlatauksessa.
+20. 80 000 × 60 000 × 18 mm levyn ja seinämän neljä kamerakulmaa sekä
+    rinnakkaisprojektio renderöityvät ilman selainvirheitä. Kuvantarkistus
+    täydentää automaatiota; yksittäiset kuvat eivät todista kaikkien laitteiden
+    tai jokaisen animaatioruudun välkkymättömyyttä.
 
 SVG-tarkistus varmistaa A4:n `297mm × 210mm`-koon ja vastaavan viewBoxin.
 600 mm leveä kappale mittakaavassa 1:5 käyttää 120 mm paperileveyttä.
@@ -78,12 +106,14 @@ Mittatekstin koko määritellään paperiyksiköissä eikä kamerasta tai piksel
   selainhaaran toiminnan.
 - Semanttiset pintatunnisteet toimivat suorakulmaisille, akselien suuntaisille osille.
   Yleisten boolean-muutosten topologinen nimeäminen on jatkotyötä.
-- Piirtotaso on XY. Siirto on tasossa ja Z-lukolla korkeussuunnassa;
-  numerosyöttö mahdollistaa kaikki kolme akselia. Vapaa kierto ei ole vielä mukana.
+- Suorakulmion piirtotaso on XY. Kynän vapaa taso seuraa näkymää ja edellistä
+  pistettä, X/Y/Z sekä geometriapisteet mahdollistavat 3D-pisteiden asettamisen.
+  Suljettavan muodon on oltava tasomainen. Kappaleen vapaa kierto ei ole mukana.
 - Apuviivan tartunta edellyttää samaa tasoa. Haettu 3D-viite projisoidaan
   aktiiviseen tasoon. Keskipiste on kappaleen rajalaatikon keskipiste.
-- Yhdistäminen edellyttää tilavuuskappaleita. Yhdistetyn objektin paksuuden
-  muuttaminen ja topologiaviitteiden siirtäminen yhdistämisen yli ovat jatkotyötä.
+- Yhdistäminen edellyttää tilavuuskappaleita. Tasopinnan push/pull toimii myös
+  yhdistetylle osalle, kaareville pinnoille ei vielä. Yleisten pintamuutosten
+  ja yhdistämisen yli säilyvät topologiaviitteet ovat jatkotyötä.
 - Arkilla on yksi näkymä. Useiden päällekkäisten mittaviivojen automaattinen
   sijoittelu ei ole valmis; käytä ensimmäisessä versiossa muutamaa kokonaismittaa.
 - Esimerkkikaappi todentaa kuuden levyn rungon. Täydelliset hyväksymisesimerkit

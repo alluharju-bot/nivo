@@ -142,8 +142,8 @@ export function snapPoint(
       dy = point[v] - start[v];
     const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
     const direction = [0, 0, 0] as Vec3;
-    direction[u] = Math.cos(angle);
-    direction[v] = Math.sin(angle);
+    direction[u] = Math.abs(Math.cos(angle)) < 1e-12 ? 0 : Math.cos(angle);
+    direction[v] = Math.abs(Math.sin(angle)) < 1e-12 ? 0 : Math.sin(angle);
     const along = dx * direction[u] + dy * direction[v];
     const projected = start.map((n, i) => n + direction[i] * along) as Vec3;
     if (options.forceDirection) point = projected;
@@ -173,13 +173,28 @@ export function snapPoint(
   const stable =
     previous &&
     eligible.find((c) => c.key === previous.key && distance(c.point, point) < threshold * 1.5);
-  if (stable) return stable;
-  const closest = eligible
-    .filter((c) => distance(c.point, point) < threshold)
-    .sort(
-      (a, b) => a.priority - b.priority || distance(a.point, point) - distance(b.point, point),
-    )[0];
-  if (closest) return closest;
+  const closest =
+    stable ??
+    eligible
+      .filter((c) => distance(c.point, point) < threshold)
+      .sort(
+        (a, b) => a.priority - b.priority || distance(a.point, point) - distance(b.point, point),
+      )[0];
+  if (closest) {
+    if (grid && closest.key.startsWith('direction:') && options.inferenceOrigin) {
+      const start = options.inferenceOrigin,
+        delta = closest.point.map((n, i) => n - start[i]),
+        length = Math.hypot(...delta);
+      if (length > 1e-8)
+        return {
+          ...closest,
+          point: start.map(
+            (n, i) => n + (delta[i] / length) * Math.round(length / 10) * 10,
+          ) as Vec3,
+        };
+    }
+    return closest;
+  }
   if (grid && !options.forceDirection)
     return {
       point: point.map((n, i) =>

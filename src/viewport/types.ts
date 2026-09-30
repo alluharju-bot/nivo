@@ -1,5 +1,5 @@
 import type { Anchor, Axis, Body, FaceRef, Guide, Vec3, View, WorkPlane } from '../model/project';
-import type { BodyMesh } from '../cad/protocol';
+import type { BodyMesh, FaceTarget } from '../cad/protocol';
 import type { ReferencePoint } from '../model/snap';
 export type Tool = 'select' | 'rectangle' | 'extrude' | 'move' | 'navigate' | 'measure' | 'pen';
 export interface CameraCommand {
@@ -10,7 +10,7 @@ export interface CameraCommand {
 }
 export type Gesture =
   | { type: 'rectangle'; origin: Vec3; start?: Vec3; width: number; depth: number }
-  | { type: 'extrude'; height: number }
+  | { type: 'extrude'; distance: number }
   | { type: 'move'; origin: Vec3 }
   | {
       type: 'measure';
@@ -19,6 +19,9 @@ export type Gesture =
       plane: WorkPlane;
       freeAngle: boolean;
       endAnchor?: Anchor;
+      direction?: Vec3;
+      offset?: Vec3;
+      edgeLength?: number;
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
@@ -35,6 +38,11 @@ export interface ViewportProps {
   command?: CameraCommand;
   guides: Guide[];
   guidePreview?: Guide;
+  guideXray: boolean;
+  selectedGuideId?: string;
+  freeRotate: boolean;
+  faceTarget?: FaceTarget;
+  faceDistance: number;
   measureMode: 'guide' | 'free';
   penPoints: Vec3[];
   penHover?: Vec3;
@@ -49,4 +57,8 @@ export interface ViewportProps {
   onReference: (point?: ReferencePoint) => void;
   onReferencePicked: () => void;
   onPopup: (point: [number, number]) => void;
+  onFaceTarget: (target: FaceTarget) => void;
+  onSelectGuide: (id: string) => void;
+  onAxis: (axis?: Axis) => void;
+  onConstraint: (direction?: Vec3) => void;
 }

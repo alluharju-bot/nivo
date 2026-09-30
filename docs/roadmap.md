@@ -11,6 +11,15 @@ mittatyökalun apuviiva/vapaa mittaviiva, apuviivoihin tarttuva piirto ja siirto
 haettava Shift-viite (kosketuksella Poimi viite), 45° ennakointi, kelluva
 numero-/Tab-syöttö, Enter/vapautus-hyväksyntä sekä sulkeutuva Kynä ja pursotus.
 
+Versiossa 0.3 toteutettu: E-työkalun hover-pintavalinta ja suora veto kaikille
+nykyisten mallien tasopinnoille, myös vinoille ja yhdistetyille osille.
+Reunasta vedettävä rinnakkainen apuviiva, R/45° ja Shift+R/vapaa kierto,
+X/Y/Z-lukot ja Esc-vapautus, siniset viivat ja globaali/viivakohtainen x-ray.
+Kynän Shift-suuntalukko ja pituuden poiminta toisesta pisteestä, aloituspisteeseen
+sulkeminen sekä pystysuuntaiset tasomuodot. Suurten pintojen syvyystarkkuutta
+ja korostusten piirtotapaa korjattu. Projektiformaatti V3 säilyttää tarkan BRepin
+pintamuutoksissa ja tuo V1/V2-projektit migraatiolla.
+
 Seuraavaksi: pintaan piirtäminen, piirtotason valinta, viitteiden poiminnan
 käyttökokeet, kierto, leikkaus ja muut perustyökalut. Fyysinen tabletti ja Safari
 varmennetaan erikseen. Ryhmittely tulee tämän jälkeen.

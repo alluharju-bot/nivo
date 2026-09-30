@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { bounds, type Vec3 } from '../model/project';
+import { bounds, featureIsSolid, type Vec3 } from '../model/project';
 import { guidePoints } from '../model/guides';
 import { formatLength } from '../model/units';
 import { installInteractions } from './interactions';
@@ -45,12 +45,24 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   controls.minDistance = 2;
   controls.maxDistance = 250_000;
   controls.screenSpacePanning = true;
-  const labels: { element: HTMLDivElement; point: THREE.Vector3 }[] = [];
+  const labels: { element: HTMLDivElement; point: THREE.Vector3; xray: boolean }[] = [];
+  let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
+  const clippingSphere = new THREE.Sphere(new THREE.Vector3(300, 200, 200), 1000);
   const render = () => {
+    // Keep useful depth precision at CAD scales instead of a fixed 1:10,000,000 range.
+    const distance = camera.position.distanceTo(clippingSphere.center),
+      extent = Math.max(clippingSphere.radius * 1.8, 100);
+    const near = Math.max(0.1, distance - extent),
+      far = Math.max(near + 1000, distance + extent);
+    if (camera.near !== near || camera.far !== far) {
+      camera.near = near;
+      camera.far = far;
+      camera.updateProjectionMatrix();
+    }
     renderer.render(scene, camera);
     for (const label of labels) {
       const p = label.point.clone().project(camera);
-      label.element.hidden = Math.abs(p.z) > 1;
+      label.element.hidden = Math.abs(p.z) > 1 || (!label.xray && !!labelOccluded?.(label.point));
       label.element.style.left = `${((p.x + 1) * container.clientWidth) / 2}px`;
       label.element.style.top = `${((1 - p.y) * container.clientHeight) / 2}px`;
     }
@@ -94,7 +106,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   scene.add(fill);
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(200000, 200000),
-    new THREE.ShadowMaterial({ opacity: 0.12 }),
+    new THREE.ShadowMaterial({ opacity: 0.12, depthWrite: false }),
   );
   floor.position.z = -0.3;
   floor.receiveShadow = true;
@@ -109,6 +121,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const bodies = new THREE.Group(),
     ghost = new THREE.Group();
   scene.add(bodies, ghost);
+  const labelRay = new THREE.Raycaster();
+  labelOccluded = (point) => {
+    const projected = point.clone().project(camera);
+    labelRay.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera);
+    const hit = labelRay
+      .intersectObjects(bodies.children)
+      .find((h) => h.object instanceof THREE.Mesh);
+    return !!hit && hit.distance < labelRay.ray.origin.distanceTo(point) - 0.05;
+  };
   const disposeGroup = (group: THREE.Group) => {
     group.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
@@ -121,6 +142,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const sync = () => {
     disposeGroup(bodies);
     const props = current();
+    const box = bounds(props.bodies),
+      min = new THREE.Vector3(...box.min),
+      max = new THREE.Vector3(...box.max);
+    clippingSphere.center.copy(min).add(max).multiplyScalar(0.5);
+    clippingSphere.radius = Math.max(100, min.distanceTo(max) / 2);
     for (const data of props.meshes) {
       const body = props.bodies.find((b) => b.id === data.id);
       if (!body) continue;
@@ -139,13 +165,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           polygonOffset: true,
           polygonOffsetFactor: 1,
           polygonOffsetUnits: 1,
-          transparent: body.feature.height === 0,
-          opacity: body.feature.height === 0 ? 0.65 : 1,
+          transparent: false,
+          opacity: 1,
         });
       });
       const mesh = new THREE.Mesh(geometry, materials);
       mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      // Self-shadow acne on broad coplanar CAD faces caused view-dependent striping.
+      // Parts still cast a ground shadow; their own surfaces use stable direct lighting.
+      mesh.receiveShadow = false;
       mesh.userData = { id: body.id, faces: data.faces };
       bodies.add(mesh);
       const edges = new THREE.BufferGeometry();
@@ -172,6 +200,53 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   const preview = () => {
     disposeGroup(ghost);
+    const target = current().faceTarget;
+    if (current().tool === 'extrude' && target) {
+      const data = current().meshes.find((m) => m.id === target.bodyId),
+        face = data?.faces.find((f) => f.ref === target.face);
+      if (data && face) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
+        geometry.setIndex(data.triangles.slice(face.start, face.start + face.count));
+        const mesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshBasicMaterial({
+            color: '#128dec',
+            transparent: true,
+            opacity: 0.45,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            polygonOffset: true,
+            polygonOffsetFactor: -3,
+            polygonOffsetUnits: -3,
+          }),
+        );
+        mesh.position.set(...target.normal).multiplyScalar(current().faceDistance);
+        ghost.add(mesh);
+        const wire = new THREE.LineSegments(
+          new THREE.EdgesGeometry(geometry),
+          new THREE.LineBasicMaterial({ color: '#0069c8', depthTest: false }),
+        );
+        wire.position.copy(mesh.position);
+        ghost.add(wire);
+        const segments: number[] = [];
+        for (const i of new Set(data.triangles.slice(face.start, face.start + face.count))) {
+          const p = data.vertices.slice(i * 3, i * 3 + 3);
+          segments.push(...p, ...p.map((n, j) => n + target.normal[j] * current().faceDistance));
+        }
+        ghost.add(
+          new THREE.LineSegments(
+            new THREE.BufferGeometry().setAttribute(
+              'position',
+              new THREE.Float32BufferAttribute(segments, 3),
+            ),
+            new THREE.LineBasicMaterial({ color: '#0069c8', depthTest: false }),
+          ),
+        );
+      }
+      render();
+      return;
+    }
     const body = current().preview;
     if (body) {
       const { width, depth, height } = body.feature;
@@ -182,7 +257,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         geometry = height
           ? new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1 })
           : new THREE.ShapeGeometry(shape);
-      } else if (body.feature.type === 'union') {
+      } else if (
+        body.feature.type === 'union' ||
+        body.feature.type === 'brep' ||
+        body.feature.type === 'planar-polygon'
+      ) {
         const data = current().meshes.find((m) => m.id === body.id),
           source = current().bodies.find((b) => b.id === body.id);
         if (!data || !source) return;
@@ -229,19 +308,23 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (!points) continue;
       const vectors = points.map((p) => new THREE.Vector3(...p));
       const isGuide = guide.mode === 'guide';
+      const xray = props.guideXray || !!guide.xray;
+      const color = props.selectedGuideId === guide.id ? '#0047ff' : '#008de0';
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(vectors),
         isGuide
           ? new THREE.LineDashedMaterial({
-              color: '#b98236',
+              color,
               dashSize: 14,
               gapSize: 8,
-              depthTest: false,
+              depthTest: !xray,
+              depthWrite: false,
             })
-          : new THREE.LineBasicMaterial({ color: '#357e70', depthTest: false }),
+          : new THREE.LineBasicMaterial({ color: '#008bbd', depthTest: !xray, depthWrite: false }),
       );
       line.computeLineDistances();
       line.renderOrder = 80;
+      line.userData = { guideId: guide.id, xray };
       guides.add(line);
       if (isGuide) {
         const direction = vectors[1].clone().sub(vectors[0]).normalize();
@@ -251,23 +334,27 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
             vectors[1].clone().addScaledVector(direction, 20000),
           ]),
           new THREE.LineDashedMaterial({
-            color: '#b98236',
+            color,
             dashSize: 14,
             gapSize: 8,
             transparent: true,
-            opacity: 0.25,
-            depthTest: false,
+            opacity: 0.7,
+            depthTest: !xray,
+            depthWrite: false,
           }),
         );
         extension.computeLineDistances();
+        extension.userData = { guideId: guide.id, xray };
+        extension.renderOrder = 79;
         guides.add(extension);
       }
       const element = document.createElement('div');
       element.className = 'guide-label';
+      element.dataset.xray = String(xray);
       element.dataset.testid = 'guide-label';
       element.textContent = `${formatLength(vectors[0].distanceTo(vectors[1]))} mm${isGuide ? ' · ' + formatLength(guide.angle) + '°' : ''}`;
       container.append(element);
-      labels.push({ element, point: vectors[0].clone().add(vectors[1]).multiplyScalar(0.5) });
+      labels.push({ element, point: vectors[0].clone().add(vectors[1]).multiplyScalar(0.5), xray });
     }
     if (props.penPoints.length) {
       const points = [...props.penPoints];
@@ -355,6 +442,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     canvas: renderer.domElement,
     scene,
     bodies,
+    guides,
     camera: () => camera,
     current,
     render,
@@ -409,11 +497,25 @@ export function Viewport(props: Props) {
     if (props.meshes.length && !hadGeometry.current) api.current?.command({ id: 0, type: 'fit' });
     hadGeometry.current = props.meshes.length > 0;
   }, [props.bodies, props.meshes, props.selectedIds, props.selectedFace, props.tool, props.epoch]);
-  useEffect(() => api.current?.preview(), [props.preview]);
-  useEffect(() => api.current?.interactionSync(), [props.reference]);
+  useEffect(
+    () => api.current?.preview(),
+    [props.preview, props.faceTarget, props.faceDistance, props.tool],
+  );
+  useEffect(
+    () => api.current?.interactionSync(),
+    [props.reference, props.axis, props.penPoints.length, props.freeRotate],
+  );
   useEffect(
     () => api.current?.annotations(),
-    [props.guides, props.guidePreview, props.penPoints, props.penHover, props.bodies],
+    [
+      props.guides,
+      props.guidePreview,
+      props.penPoints,
+      props.penHover,
+      props.bodies,
+      props.guideXray,
+      props.selectedGuideId,
+    ],
   );
   useEffect(() => {
     if (props.command) api.current?.command(props.command);

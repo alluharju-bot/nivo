@@ -1,4 +1,25 @@
 import type { Body, FaceRef, Vec3, VertexAnchor } from '../model/project';
+export interface CadFace {
+  start: number;
+  count: number;
+  ref: FaceRef;
+  index: number;
+  normal: Vec3;
+  center: Vec3;
+  planar: boolean;
+}
+export interface FaceTarget {
+  bodyId: string;
+  face: FaceRef;
+  normal: Vec3;
+  point: Vec3;
+}
+export interface CadEdge {
+  start: Vec3;
+  end: Vec3;
+  from: VertexAnchor;
+  to: VertexAnchor;
+}
 
 export interface BodyMesh {
   id: string;
@@ -6,10 +27,11 @@ export interface BodyMesh {
   normals: number[];
   triangles: number[];
   edges: number[];
-  faces: { start: number; count: number; ref: FaceRef }[];
+  faces: CadFace[];
   volume: number;
   verticesCAD: { point: Vec3; anchor: VertexAnchor }[];
   midpointsCAD: Vec3[];
+  edgesCAD: CadEdge[];
 }
 export interface Projection {
   visible: string[];
@@ -20,7 +42,8 @@ export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
   | { type: 'build'; bodies: Body[] }
   | { type: 'project'; bodies: Body[]; view: DrawingView }
-  | { type: 'probe' };
+  | { type: 'probe' }
+  | { type: 'push-pull'; body: Body; face: FaceRef; distance: number };
 export interface ProbeResult {
   boxVolume: number;
   cutVolume: number;
@@ -33,6 +56,6 @@ export interface ProbeResult {
 }
 export interface CadReply {
   id: number;
-  result?: BodyMesh[] | Projection | ProbeResult;
+  result?: BodyMesh[] | Projection | ProbeResult | Body;
   error?: string;
 }

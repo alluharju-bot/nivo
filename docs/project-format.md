@@ -1,16 +1,17 @@
-# .nivo-projektiformaatti v2
+# .nivo-projektiformaatti v3
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 2`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 3`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
 ```json
 {
   "format": "nivo",
-  "version": 2,
+  "version": 3,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",
-  "updatedAt": "2026-09-30T12:00:00.000Z",
+  "updatedAt": "2026-10-01T12:00:00.000Z",
+  "settings": { "guideXray": false },
   "bodies": [
     {
       "id": "body-uuid",
@@ -35,33 +36,59 @@ millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen
 ```
 
 `origin` on kappaleen pienimmän X/Y/Z-koordinaatin kulma. Leveys kulkee X-,
-syvyys Y- ja paksuus Z-suunnassa. Nollapaksuus tarkoittaa tasoluonnosta.
-Leveys ja syvyys ovat 0,1–100 000 mm, paksuus 0–100 000 mm. Sijainti on
-−100 000…100 000 mm per akseli. UI:n pursotuksen vähimmäispaksuus on 0,1 mm.
+syvyys Y- ja korkeus Z-suunnassa. Suorakulmiossa ja XY-monikulmiossa
+nollakorkeus tarkoittaa tasoluonnosta; leveys ja syvyys ovat 0,1–100 000 mm,
+korkeus 0–100 000 mm. Muissa tyypeissä rajalaatikon kukin mitta voi olla nolla.
+Sijainti on −100 000…100 000 mm per akseli. Push/pull-siirtymän itseisarvo
+on 0,1–100 000 mm, eikä koko kappaleen poistavaa työntöä hyväksytä.
 
-V1-tiedosto ja selaimen V1-tallennus muunnetaan avattaessa V2:ksi lisäämällä
-tyhjä `guides`-taulukko. Kappaleiden ja mittojen tunnisteet säilyvät.
+V1-tiedostoon lisätään tyhjä `guides`-taulukko. V2 muunnetaan V3:ksi lisäämällä
+`settings: {guideXray:false}`. Migraatiot koskevat myös selaintallennusta,
+säilyttävät olemassa olevat tunnisteet eivätkä kirjoita alkuperäistä tiedostoa.
 
 `polygon-extrusion` sisältää lisäksi paikalliset XY-verteksit `points`.
 Rajalaatikon minimi on [0,0], maksimi [width,depth]. Sulkemispistettä ei
 toisteta. Muodossa on 3–300 verteksiä, ja itsensä leikkaavat muodot hylätään.
 
-`union` sisältää `operands`-taulukon: jokaisessa on suorakulmio- tai
-monikulmioresepti sekä `origin` suhteessa yhdistetyn osan origoon. Sisäkkäiset
+`planar-polygon` sisältää paikalliset 3D-verteksit `points` (3–300).
+Rajalaatikko alkaa [0,0,0]:sta. Pisteiden on oltava samalla tasolla ja
+rajalaatikon mittojen on vastattava pisteitä; itsensä leikkaava muoto hylätään.
+Tämä on pinta, vaikka sen Z-korkeus olisi positiivinen.
+
+`brep` sisältää Replicadin serialisoiman paikallisen OCCT-geometrian `data`
+(enintään 8 Mt), tilavuuskappaleen lipun `solid` sekä `topologyId`-tunnisteen.
+CAD tarkistaa geometrian, rajalaatikon ja solid-tyypin ennen hyväksyntää.
+Yleinen pintamuokkaus muuttaa kappaleen tähän muotoon ja uusii `topologyId`:n.
+Kappaleen UUID säilyy. Laatikon kuusi pintaa ja XY-pursotuksen pohja/kansi
+säilyvät reseptimuotoisina tavallisissa mittamuutoksissa.
+
+`union` sisältää `operands`-taulukon: jokaisessa on suorakulmio-,
+monikulmio- tai BRep-kappale sekä `origin` suhteessa yhdistetyn osan origoon. Sisäkkäiset
 yhdistelmät litistetään. CAD laskee unionin uudelleen avattaessa. Osilla pitää
 olla paksuus; yhden objektin sisällä sallitaan erilliset solidit.
 
 `guides` sisältää enintään 1000 viivaa. Viivalla on `id`, `mode` (`guide` tai
 `free`), `plane` (`XY`, `XZ` tai `YZ`), `angle` asteina, `length` millimetreinä
-ja `anchor`. Ankkuri on vapaa `{point:[x,y,z]}` tai
-`{bodyId,key,local:[x,y,z]}`. `corner:n` viittaa laatikon semanttiseen kulmaan,
+ja `anchor`. Valinnainen `direction:[x,y,z]` määrittää viivan suunnan
+(normalisoidaan käytössä); muuten käytetään tasoa ja kulmaa. `offset:[x,y,z]`
+siirtää viivan alkua ankkurista, esimerkiksi reunasta vedetty etäisyys.
+`xray:true` näyttää tämän viivan kappaleiden läpi. Projektin
+`settings.guideXray:true` näyttää kaikki apuviivat läpi.
+
+Ankkuri on vapaa `{point:[x,y,z]}`, verteksi `{bodyId,key,local:[x,y,z]}` tai
+reuna `{edge:{from:VertexAnchor,to:VertexAnchor,t:0..1}}`.
+Reuna-ankkuri interpoloi kahden ratkaistun verteksin välistä.
+`corner:n` viittaa laatikon semanttiseen kulmaan,
 `polygon:n:bottom/top` monikulmion verteksiin ja `vertex:x,y,z` yhdistetyn osan
-paikalliseen CAD-verteksiin. Vapaa mittaviiva voi sisältää myös `endAnchor`-viitteen.
+paikalliseen CAD-verteksiin. Tasomuodon avain on `point:n`; BRep-kappaleen
+`brep:topologyId:x,y,z`. Vapaa mittaviiva voi sisältää myös `endAnchor`-viitteen.
 
 Apuviiva jatkuu tartuntaa varten molempiin suuntiin. Viite seuraa osan siirtoa;
 suorakulmion ja monikulmion viite seuraa myös paksuuden muutosta. Yhdistäminen
 luo uuden objektin, joten aiemmat lähdeviitteet näytetään rikkoutuneina.
-Undo palauttaa ne. Haettu Shift-viite on väliaikainen eikä tallennu projektiin.
+Undo palauttaa ne. BRep-verteksiviite ratkaistaan vain samalla `topologyId`:llä,
+jotta pintamuutos ei siirrä viitettä hiljaisesti väärään pisteeseen.
+Haettu Shift-viite ja kynän suuntalukko ovat väliaikaisia eivätkä tallennu projektiin.
 
 Mittaviite on semanttinen. Puuttuvaan kappaleeseen viittaava mitta sallitaan
 tuonnissa, jotta virhe voidaan näyttää käyttäjälle ja korjata. UUID:t ovat
@@ -77,5 +104,5 @@ aktiivinen avain `active`. Jokainen onnistunut muutos tallennetaan
 transaktiona. Undo/redo on istuntokohtainen, enintään 100 askelta.
 
 Layerit, hierarkia, komponentit, materiaalit, tekstuurit, scenet, piirustusarkit
-ja vapaan mallinnuksen BRep/operaatiohistoria lisätään myöhemmissä versioissa
+ja muokattava operaatiohistoria lisätään myöhemmissä versioissa
 migraatioineen. Tekstuurit pakataan projektin mukaan, ei blob-URL:eina.

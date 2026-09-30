@@ -3,7 +3,8 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.2 painottaa piirtämistä, tarkkaa mittasyöttöä ja tartuntoja.
+Versio 0.3 tuo pintakohtaisen push/pullin, reunasta vedettävät apuviivat ja
+kynän suunnan lukituksen sekä pituuden poiminnan.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
@@ -32,7 +33,8 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
 ## Ensimmäinen työnkulku
 
 1. Piirrä suorakulmio XY-tasolle vetämällä tai kirjoittamalla tarkat mitat.
-2. Enter tai vedon päättäminen hyväksyy luonnoksen. Anna sille paksuus **Push / pull** -työkalulla.
+2. Enter tai vedon päättäminen hyväksyy luonnoksen. Paina **E**, osoita pintaa
+   ja vedä sille paksuus. Samalla työkalulla voi muokata kappaleen muitakin tasopintoja.
 3. Valitse kappale tai pinta, siirrä, kopioi ja poista kappaleita.
 4. Tartu verteksiin, reunojen keskipisteisiin, apuviivoihin tai 10 mm ruudukkoon.
    Hae toisen osan keskipiste kohdistimella ja pidä Shift pohjassa: pisteestä
@@ -56,15 +58,29 @@ komponentteja.
 
 ## Piirtämisen perustyökalut
 
-- **Kynä:** aseta verteksit XY-tasolle. Napsauta ensimmäistä pistettä tai sulje
-  muoto Enterillä. Pinta on oma objekti ja sen voi pursottaa. Numeroilla annetut
-  X/Y-siirtymät ovat suhteessa edelliseen pisteeseen; Enter lisää tarkan pisteen.
+- **Push / pull (E):** pinnan korostus seuraa kohdistinta. Paina ja vedä pintaa
+  normaalinsa suunnassa tai valitse pinta, paina E ja kirjoita siirtymä. Positiivinen
+  arvo vetää ulospäin, negatiivinen työntää sisään. Toimii laatikon kaikilla kuudella
+  pinnalla, kynämuodoilla ja yhdistettyjen osien tasopinnoilla.
+- **Kynä:** aseta verteksit näkymän tasolle tai tartu mallin pisteisiin. X/Y/Z
+  lukitsee akselin. Shift lukitsee aloitetun viivan suunnan: toisen pisteen
+  napsautus projisoi sen lukitulle viivalle ja määrää pituuden. Esimerkiksi
+  suorakulmion kolmannen sivun pituuden voi poimia ensimmäisestä pisteestä.
+  Vapauta Shift ja sulje muoto tarttumalla aloitusverteksiin. Myös pysty- ja
+  vinotasot käyvät, kun kaikki suljettavan muodon pisteet ovat samalla tasolla.
+  Numeroilla annetut X/Y/Z-siirtymät ovat suhteessa edelliseen pisteeseen;
+  lukitussa suunnassa syötetään yksi pituus. Enter lisää tarkan pisteen tai sulkee muodon.
 - **Mittatyökalu:** ensimmäinen painallus aktivoi apuviivan. Toinen painallus
   avaa valinnan apuviivan ja vapaan mittaviivan välillä. Apuviiva alkaa kappaleen
-  verteksistä ja siihen voi tarttua myös jatkeen kohdalta. Vapaa mittaviiva näyttää
+  verteksistä tai reunasta. Reunasta vetäminen tekee reunan suuntaisen apuviivan
+  halutulle etäisyydelle. Siihen voi tarttua myös jatkeen kohdalta. Vapaa mittaviiva näyttää
   kahden pisteen etäisyyden. Vedä tai napsauta alku- ja loppupisteet.
-- **Apuviivan suunta:** oletuksena 45° suunnat, R kiertää 45°, Shift sallii vapaan
-  kulman. Kulman ja pituuden voi kirjoittaa. Viivaa voi muokata Viivat-listasta.
+- **Apuviivan suunta:** oletuksena 45° suunnat; X/Y/Z lukitsee akselin, Esc vapauttaa.
+  R kiertää 45°, Shift+R käynnistää vapaan kierron. Kulman, pituuden tai reunaetäisyyden
+  voi kirjoittaa. Valmista viivaa voi valita näkymästä tai Viivat-listasta ja kiertää.
+- **Apuviivan näkyvyys:** sininen katkoviiva peittyy normaalisti kappaleen taakse.
+  Viivat-listan x-ray näyttää valitun viivan kappaleiden läpi. Näkymän asetuksista
+  saa x-rayn kaikille apuviivoille. Molemmat asetukset tallentuvat projektiin.
 - **Kelluva mittaikkuna:** numero aloittaa ensimmäisestä kentästä, Tab vaihtaa
   kenttää, Enter hyväksyy. Hiiren vapautus hyväksyy vedon. Kirjoitetut mitat eivät
   muutu hiiren liikkeestä. Kenttää voi valita myös napsauttamalla.
@@ -75,6 +91,8 @@ komponentteja.
 
 ![Kelluva mittaikkuna ja kirjoittamalla lukitut mitat](docs/images/nivo-input.png)
 
+![Kolmannen kynäviivan suunta lukittuna, 200 mm pituus poimittu ensimmäisestä pisteestä](docs/images/nivo-inference.png)
+
 ## Ohjaus
 
 - Napautus valitsee. Työkalun yhden sormen veto hyväksytään sormen noustessa.
@@ -82,9 +100,10 @@ komponentteja.
 - Kahden sormen ele panoroi ja zoomaa. **Navigoi**-tilassa yksi sormi kiertää.
 - Hiiren oikea painike kiertää, keskipainike panoroi ja rulla zoomaa.
   Navigoi-tilassa myös vasen painike kiertää.
-- V = valitse, R = suorakulmio, P = push/pull, M = siirrä, K = kynä,
+- V = valitse, R = suorakulmio (apuviivaa muokattaessa kierto), E = push/pull, M = siirrä, K = kynä,
   T = mittatyökalu, H = navigoi.
-  X/Y/Z lukitsevat siirtoakselin. Enter hyväksyy, Esc peruu työkalun.
+  X/Y/Z lukitsevat siirron, kynän tai apuviivan akselin. Enter hyväksyy.
+  Esc vapauttaa ensin suuntalukon; ilman lukkoa se peruu työkalun.
   Ctrl/Cmd+Z peruu, Ctrl/Cmd+Shift+Z palauttaa.
 - Keskeiset toiminnot löytyvät painikkeista ilman näppäimistöä.
 
@@ -105,12 +124,13 @@ ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testatt
 
 ## Rajaus ja jatko
 
-V0.2 tukee suorakulmioita ja suljettuja monikulmioita XY-tasolla, pursottamista
-sekä tilavuuskappaleiden yhdistämistä. Apuviivat ovat XY/XZ/YZ-tasoissa kameran
-suunnan mukaan; tartunta edellyttää samaa tasoa. Haettu viitepiste projisoidaan
-piirtotasoon. Yhdistetyn osan paksuutta ei voi muuttaa yhtenä pursotuksena.
-Viitteet yhdistämisessä poistuneisiin osiin näytetään rikkoutuneina.
-Vapaa pintamuokkaus, leikkaukset,
+V0.3 tukee suorakulmioita, tasomaisia kynämuotoja, kaikkien nykyisten mallien
+tasopintojen push/pullia sekä tilavuuskappaleiden yhdistämistä. Kaarevien pintojen
+muokkaus ei ole mukana. Apuviivoihin tartunta edellyttää samaa piirtotasoa;
+haettu viitepiste projisoidaan piirtotasoon. Reunan tartunta tukee suoria CAD-reunoja.
+Yleinen pintamuokkaus tallentaa tarkan BRep-geometrian. Sen muuttamien vanhojen
+verteksiviitteiden sekä yhdistämisessä poistuneiden osien viitteet näytetään
+rikkoutuneina; undo palauttaa ne. Pintaan piirtäminen ja sen jakaminen, leikkaukset,
 mesh-tuonti, layerit, ryhmät, komponentit, pintamateriaalit, scenet sekä PDF-,
 STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
 
@@ -121,7 +141,7 @@ Layerit, ryhmät ja komponentit seuraavat toimivaa mallinnuksen perustaa.
 
 - [Alkuperäinen määrittely](docs/requirements.fi.md)
 - [Arkkitehtuuri ja päätökset](docs/architecture.md)
-- [Projektiformaatti v2](docs/project-format.md)
+- [Projektiformaatti v3](docs/project-format.md)
 - [Toteutusvaiheet](docs/roadmap.md)
 
 ## Lisenssi

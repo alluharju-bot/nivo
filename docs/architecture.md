@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.2
+# Arkkitehtuuri — v0.3
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -40,11 +40,14 @@ src/useEditor  atominen muutos, vanhojen vastausten hylkäys, historia, tallennu
 src/App        työkalutila, paneelit, käyttöohjeet
 ```
 
-V2:n auktoritatiivinen geometria on suorakulmion tai monikulmion pursotuksen
-tarkka resepti ja sijainti, tai yhdistämisen litistetty lähdejoukko.
-Worker rakentaa siitä aidon BRep-kappaleen. Näyttöverkkoa ei käytetä
-geometrian ainoana lähteenä. Vapaan mallinnuksen BRep/operaatiohistoria tulee
-lisätä projektiformaatin migraation kautta.
+V3:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
+litistetty lähdejoukko tai serialisoitu OCCT-BRep. Tasomainen kynämuoto voi
+sisältää paikallisia 3D-pisteitä. Worker rakentaa ja tarkistaa geometrian;
+näyttöverkko on sen johdannainen. Yleisen tasopinnan push/pull pursottaa
+valitun CAD-pinnan normaalinsa suuntaan ja yhdistää tai vähentää prisman.
+Laatikon pintamuutokset ja XY-pursotuksen pohja/kansi säilyttävät reseptin.
+Muut muutokset tallentuvat paikallisena BRepinä samoilla kappaleen UUID:llä
+ja värillä. Muokattava operaatiohistoria on jatkotyötä.
 
 ## Atominen laskenta ja resurssit
 
@@ -52,6 +55,9 @@ Validointi → ehdokasprojekti → worker → geometrian kelvollisuus → projek
 meshien yhteinen commit → historia → automaattitallennus.
 Virhe säilyttää edellisen projektin. Undo/redo vaihtaa historiaa vasta ehjän
 geometrian valmistuttua.
+Transaktio voi ottaa asynkronisen ehdokasprojektin rakentajan: pintamuutoksen
+CAD-operaatio ja sitä seuraava mallin rakentaminen kuuluvat samaan revisioon.
+Peruminen tai virhe kummassakaan vaiheessa säilyttää aiemman projektin.
 
 Worker käsittelee pyynnöt jonossa. Pääsäie hyväksyy vain nykyisen revision
 vastauksen. Peruminen kasvattaa revisiota ja pysäyttää workerin. Uusi toiminto
@@ -73,24 +79,27 @@ ei vaadi File System Access API:a. Automaattitallennus ei ole varmuuskopio.
 
 Kappaleella on UUID. Nykyisen suorakulmaisen pursotuksen pinnat ovat `x:min`,
 `x:max`, `y:min`, `y:max`, `z:min`, `z:max`. CAD-meshin faceGroup liitetään
-semanttiseen pintaan normaalista, ei pysyvänä pidettävästä kolmionumerosta.
-Tämä menetelmä koskee vain nykyisiä akselien suuntaisia levyjä.
+CAD-pintaan hashCode/faceId:n kautta. Sen mukana välitetään CAD-pinnan indeksi,
+ulospäin osoittava normaali, keskipiste ja tasomaisuustieto. Laatikon
+semanttinen pintanimi päätellään normaalista. Muiden mallien `surface:n` on
+vain hetkellinen valinta nykyiseen geometriaan, ei pysyvä topologiaviite.
 
 Mittaus viittaa UUID:hen, akseliin ja min/max-rajoihin. Uudelleenkolmiointi tai
 mitan muuttuminen ei katkaise viitettä. Poistettu kappale jättää näkyvän
 rikkoutuneen mittaviitteen ja estää viennin, kunnes viite on korjattu/peruttu
 tai mitta poistettu. Viitettä ei siirretä hiljaisesti toiseen kappaleeseen.
 
-Apuviiva viittaa kappaleen UUID:hen ja verteksiin. Laatikossa käytetään
+Apuviiva viittaa kappaleen UUID:hen ja verteksiin tai reunan kahteen
+verteksiin ja niiden väliseen parametriin. Laatikossa käytetään
 semanttista kulmaa, monikulmiossa pisteindeksiä ja pohja/kansi-tietoa.
 Yhdistetyssä osassa ankkuri on paikallinen CAD-verteksi; nykyiset siirrot
 säilyttävät sen. Yhdistäminen antaa uuden UUID:n eikä arvaa vanhojen viitteiden
-kohteita. Viivat-lista näyttää puuttuvan viitteen. Kynän ja yhdistelmän
-`surface:n`-tunnisteet ovat vain hetkellistä pintavalintaa.
+kohteita. BRepin uusi `topologyId` estää vanhan verteksiankkurin käytön
+yleisen pintamuutoksen jälkeen. Viivat-lista näyttää puuttuvan viitteen.
 Tartuntapisteet otetaan CAD-reunoista, eivät rajalaatikon kuvitteellisista kulmista.
 Kappaleen keskipiste tarkoittaa rajalaatikon keskipistettä.
 
-Vaiheen 3 leikkaukset ja jaetut pinnat tarvitsevat operaatiokohtaisen
+Yleisten pintamuutosten yli säilyvät ankkurit, leikkaukset ja jaetut pinnat tarvitsevat operaatiokohtaisen
 topologian muunnoskartan. Mesh-tuonti saa oman tyypin ja toimintovalikoiman.
 
 ## Piirustus ja kosketus
@@ -111,13 +120,32 @@ Keskeiset painikkeet ovat kosketuksella vähintään 44 CSS-pikseliä.
 Tartunnat suosivat todellisia verteksiä ja reunojen keskipisteitä ennen
 apuviivoja, viitteen suuntia ja 45° ennakointia. Hystereesi vähentää värähtelyä.
 Shift poimii juuri haetun pisteen ja vapautus poistaa viitteen; kosketuksella
-viite poimitaan painikkeella. Mittatyökalussa Shift tarkoittaa vapaata kulmaa.
+viite poimitaan painikkeella. Kesken kynän viivan Shift lukitsee nykyisen
+piirtosuunnan. Toinen piste, reuna tai pinta antaa pituuden projisoimalla
+poimitun pisteen lukitulle suoralle. X/Y/Z käyttää samaa projektiota kiinteällä
+akselilla. Esc vapauttaa lukon säilyttäen luonnoksen. Aloituspiste sulkee
+muodon vain, jos myös rajoitettu päätepiste osuu aloitusverteksiin.
+Mittatyökalussa Shift sallii vapaan kulman; Shift+R kytkee vapaan kierron
+myös valmiille viivalle. Reunasta aloitettu apuviiva säilyttää reunan suunnan
+ja saa kohtisuoran offsetin, kunnes käyttäjä kiertää sen tai valitsee akselin.
 
 Numerosyöttö lukitsee kirjoitetut kentät, Tab kiertää kenttiä.
 Osoittimen vapautus ja Enter käyttävät samaa atomista hyväksyntää;
 synkroniset luonnosviitteet estävät vanhan React-tilan tallentumisen.
 Kynän itsensä leikkaava tai degeneroitunut ääriviiva hylätään ennen CAD-laskentaa.
 Päällekkäisten kohteiden kierrätys ja mielivaltaiset piirtotasot ovat jatkotyötä.
+
+## Syvyys ja näkyvyys
+
+Kameran near/far mukautuvat mallin rajapalloon ja kameran etäisyyteen. Tämä
+parantaa syvyysbufferin tarkkuutta suurissa malleissa. Tasoluonnokset piirretään
+peittävinä, varjotaso ei kirjoita syvyyttä ja kappaleiden itsevarjostus on pois.
+Pinnan hover-korostus muuttaa olemassa olevan materiaalin emissive-väriä,
+joten samaan tasoon ei lisätä kilpailevaa korostuspintaa.
+
+Apuviivat käyttävät normaalisti syvyystestiä. Projektin tai yksittäisen
+viivan x-ray poistaa sen kyseisiltä viivoilta; myös mittalapun peittyminen
+noudattaa asetusta. Tartunta ja valinta käyttävät CAD-pisteitä ja -reunoja.
 
 ## Tuotantopaketti ja kirjaston vaihto
 

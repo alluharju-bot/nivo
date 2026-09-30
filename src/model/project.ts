@@ -34,7 +34,43 @@ const polygonFeature = z
         ctx.addIssue({ code: 'custom', message: 'Monikulmion rajat eivät vastaa verteksiä.' });
     }
   });
-const primitiveFeature = z.discriminatedUnion('type', [rectangleFeature, polygonFeature]);
+const extent = z.number().finite().min(0).max(100_000);
+const planarFeature = z
+  .object({
+    type: z.literal('planar-polygon'),
+    width: extent,
+    depth: extent,
+    height: extent,
+    points: z.array(pointSchema).min(3).max(300),
+  })
+  .superRefine((feature, ctx) => {
+    try {
+      validatePlanarPolygon(feature.points);
+    } catch (error) {
+      ctx.addIssue({ code: 'custom', message: (error as Error).message });
+    }
+    const sizes = [feature.width, feature.depth, feature.height];
+    for (let i = 0; i < 3; i++) {
+      const values = feature.points.map((p) => p[i]);
+      if (Math.abs(Math.min(...values)) > 1e-5 || Math.abs(Math.max(...values) - sizes[i]) > 1e-5)
+        ctx.addIssue({ code: 'custom', message: 'Tasomuodon rajat eivät vastaa verteksiä.' });
+    }
+  });
+const brepFeature = z.object({
+  type: z.literal('brep'),
+  width: extent,
+  depth: extent,
+  height: extent,
+  data: z.string().min(1).max(8_000_000),
+  solid: z.boolean(),
+  topologyId: id,
+});
+const primitiveFeature = z.discriminatedUnion('type', [
+  rectangleFeature,
+  polygonFeature,
+  planarFeature,
+  brepFeature,
+]);
 const unionFeature = z
   .object({
     type: z.literal('union'),
@@ -61,14 +97,20 @@ const unionFeature = z
           message: 'Yhdistetyn kappaleen rajat eivät vastaa geometriaa.',
         });
     }
-    if (feature.operands.some((o) => o.feature.height < 0.1))
+    if (feature.operands.some((o) => !featureIsSolid(o.feature)))
       ctx.addIssue({ code: 'custom', message: 'Yhdistä vain tilavuuskappaleita.' });
   });
 export const bodySchema = z.object({
   id,
   name: z.string().min(1).max(120),
   kind: z.literal('cad'),
-  feature: z.discriminatedUnion('type', [rectangleFeature, polygonFeature, unionFeature]),
+  feature: z.discriminatedUnion('type', [
+    rectangleFeature,
+    polygonFeature,
+    planarFeature,
+    brepFeature,
+    unionFeature,
+  ]),
   origin: pointSchema,
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
 });
@@ -77,7 +119,14 @@ const vertexAnchorSchema = z.object({
   key: z.string().min(1).max(150),
   local: pointSchema,
 });
-export const anchorSchema = z.union([vertexAnchorSchema, z.object({ point: pointSchema })]);
+export const edgeAnchorSchema = z.object({
+  edge: z.object({ from: vertexAnchorSchema, to: vertexAnchorSchema, t: z.number().min(0).max(1) }),
+});
+export const anchorSchema = z.union([
+  vertexAnchorSchema,
+  edgeAnchorSchema,
+  z.object({ point: pointSchema }),
+]);
 export const guideSchema = z.object({
   id,
   anchor: anchorSchema,
@@ -86,6 +135,11 @@ export const guideSchema = z.object({
   length,
   mode: z.enum(['guide', 'free']),
   endAnchor: anchorSchema.optional(),
+  direction: pointSchema
+    .refine((v) => Math.hypot(...v) > 1e-9, 'Suunnan tulee olla nollasta poikkeava.')
+    .optional(),
+  offset: pointSchema.optional(),
+  xray: z.boolean().optional(),
 });
 export const dimensionSchema = z.object({
   id,
@@ -98,13 +152,14 @@ export const dimensionSchema = z.object({
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(2),
+    version: z.literal(3),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
     bodies: z.array(bodySchema).max(1000),
     dimensions: z.array(dimensionSchema).max(3000),
     guides: z.array(guideSchema).max(1000),
+    settings: z.object({ guideXray: z.boolean() }).default({ guideXray: false }),
     updatedAt: z.string().datetime(),
   })
   .superRefine((p, ctx) => {
@@ -118,6 +173,7 @@ export type Dimension = z.infer<typeof dimensionSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Guide = z.infer<typeof guideSchema>;
 export type VertexAnchor = z.infer<typeof vertexAnchorSchema>;
+export type EdgeAnchor = z.infer<typeof edgeAnchorSchema>;
 export type Anchor = z.infer<typeof anchorSchema>;
 export type WorkPlane = Guide['plane'];
 export type Vec3 = [number, number, number];
@@ -129,13 +185,14 @@ export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 2,
+  version: 3,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
   bodies: [],
   dimensions: [],
   guides: [],
+  settings: { guideXray: false },
   updatedAt: new Date().toISOString(),
 });
 export function makeBody(
@@ -186,13 +243,15 @@ export function parseProject(text: string): Project {
   // V1 files are migrated in memory; the original file is never rewritten implicitly.
   if (value && typeof value === 'object' && 'version' in value && value.version === 1)
     value = { ...value, version: 2, guides: [] };
+  if (value && typeof value === 'object' && 'version' in value && value.version === 2)
+    value = { ...value, version: 3, settings: { guideXray: false } };
   const result = projectSchema.safeParse(value);
   if (!result.success)
     throw new Error('Projektin versio tai sisältö ei ole tuettu. Nykyinen työ säilyi.');
   return result.data;
 }
 export function mergeBodies(bodies: Body[]): Body {
-  if (bodies.length < 2 || bodies.some((b) => b.feature.height < 0.1))
+  if (bodies.length < 2 || bodies.some((b) => !featureIsSolid(b.feature)))
     throw new Error('Valitse vähintään kaksi kappaletta, joilla on paksuus.');
   const box = bounds(bodies);
   const operands = bodies.flatMap((body) => {
@@ -221,13 +280,30 @@ export function mergeBodies(bodies: Body[]): Body {
   });
 }
 export function makePolygonBody(points: Vec3[], name = 'Kynämuoto'): Body {
+  if (points.some((p) => Math.abs(p[2] - points[0][2]) > 1e-6)) {
+    validatePlanarPolygon(points);
+    const origin = [0, 1, 2].map((i) => Math.min(...points.map((p) => p[i]))) as Vec3;
+    const sizes = [0, 1, 2].map((i) => Math.max(...points.map((p) => p[i])) - origin[i]);
+    return bodySchema.parse({
+      id: uid(),
+      name,
+      kind: 'cad',
+      origin,
+      color: '#c3a57e',
+      feature: {
+        type: 'planar-polygon',
+        width: sizes[0],
+        depth: sizes[1],
+        height: sizes[2],
+        points: points.map((p) => p.map((n, i) => n - origin[i])),
+      },
+    });
+  }
   const minX = Math.min(...points.map((p) => p[0])),
     minY = Math.min(...points.map((p) => p[1]));
   const local = points.map((p) => [p[0] - minX, p[1] - minY] as [number, number]);
   const error = polygonError(local);
   if (error) throw new Error(error);
-  if (points.some((p) => Math.abs(p[2] - points[0][2]) > 1e-6))
-    throw new Error('Verteksien tulee olla samalla piirtotasolla.');
   return bodySchema.parse({
     id: uid(),
     name,
@@ -242,6 +318,35 @@ export function makePolygonBody(points: Vec3[], name = 'Kynämuoto'): Body {
       points: local,
     },
   });
+}
+export function featureIsSolid(feature: Body['feature']): boolean {
+  return feature.type === 'brep'
+    ? feature.solid
+    : feature.type === 'planar-polygon'
+      ? false
+      : feature.height > 0;
+}
+export function validatePlanarPolygon(points: Vec3[]) {
+  if (points.length < 3) throw new Error('Muoto tarvitsee vähintään kolme verteksiä.');
+  const start = points[0],
+    a = points[1].map((n, i) => n - start[i]);
+  let normal: number[] = [0, 0, 0];
+  for (const p of points.slice(2)) {
+    const b = p.map((n, i) => n - start[i]);
+    normal = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    if (Math.hypot(...normal) > 1e-8) break;
+  }
+  const size = Math.hypot(...normal);
+  if (size < 1e-8) throw new Error('Verteksit eivät muodosta pinta-alaa.');
+  normal = normal.map((n) => n / size);
+  if (points.some((p) => Math.abs(p.reduce((s, n, i) => s + (n - start[i]) * normal[i], 0)) > 1e-5))
+    throw new Error(
+      'Suljettavan muodon pisteiden tulee olla samalla tasolla. Voit jatkaa tai poistaa viimeisen pisteen.',
+    );
+  const omit = normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs)));
+  const axes = [0, 1, 2].filter((i) => i !== omit);
+  const error = polygonError(points.map((p) => [p[axes[0]], p[axes[1]]]));
+  if (error) throw new Error(error);
 }
 export function cabinetProject(): Project {
   return {
