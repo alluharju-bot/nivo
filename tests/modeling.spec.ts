@@ -165,6 +165,12 @@ test('Cut accepts two targets and two cutters, consumes tools only when requeste
   await page.getByRole('checkbox', { name: 'Säilytä työstökappaleet', exact: true }).uncheck();
   await page.screenshot({ path: info.outputPath('cut-groups.png') });
   await page.getByRole('button', { name: 'Hyväksy Cut', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Muotoile', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Kohteet 0', exact: true })).toBeVisible();
+  await page.keyboard.press('v');
   await expect(page.locator('.object-list>button')).toHaveCount(2);
   let model = await save(page);
   expect(model.bodies.map((b) => b.id).sort()).toEqual(targets.map((b) => b.id).sort());
@@ -197,6 +203,12 @@ test('viewport group picking, reverse Cut with kept tool, and Join use the same 
   await expect(page.getByRole('checkbox', { name: 'Kohde: B', exact: true })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Työstökappale: A', exact: true })).toBeChecked();
   await page.getByRole('button', { name: 'Hyväksy Cut', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Muotoile', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Kohteet 0', exact: true })).toBeVisible();
+  await page.keyboard.press('v');
   await expect(page.locator('.object-list>button')).toHaveCount(2);
   let model = await save(page),
     result = model.bodies.find((body) => body.id === b.id)!;
@@ -212,6 +224,12 @@ test('viewport group picking, reverse Cut with kept tool, and Join use the same 
   await page.getByRole('checkbox', { name: 'Työstökappale: B', exact: true }).check();
   await page.getByRole('checkbox', { name: 'Säilytä työstökappaleet', exact: true }).uncheck();
   await page.getByRole('button', { name: 'Hyväksy Join', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Muotoile', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Kohteet 0', exact: true })).toBeVisible();
+  await page.keyboard.press('v');
   await expect(page.locator('.object-list>button')).toHaveCount(1);
   model = await save(page);
   expect(model.bodies[0].feature.width).toBeCloseTo(110, 5);

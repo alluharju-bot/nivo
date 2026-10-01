@@ -76,6 +76,29 @@ export function installInteractions({
   );
   line.renderOrder = 99;
   overlay.add(line);
+  const edgeHighlight = new THREE.Mesh(
+    new THREE.CylinderGeometry(1, 1, 1, 8),
+    new THREE.MeshBasicMaterial({ color: '#f0a12c', depthTest: false }),
+  );
+  edgeHighlight.visible = false;
+  edgeHighlight.renderOrder = 98;
+  overlay.add(edgeHighlight);
+  const highlightEdge = (edge?: { start: Vec3; end: Vec3 }) => {
+    edgeHighlight.visible = !!edge;
+    canvas.dataset.hoverEdge = edge ? JSON.stringify([edge.start, edge.end]) : '';
+    if (edge) {
+      const a = new THREE.Vector3(...edge.start),
+        b = new THREE.Vector3(...edge.end);
+      edgeHighlight.position.copy(a).add(b).multiplyScalar(0.5);
+      edgeHighlight.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        b.clone().sub(a).normalize(),
+      );
+      const radius = worldPerPixel(edgeHighlight.position.toArray() as Vec3) * 1.8;
+      edgeHighlight.scale.set(radius, a.distanceTo(b), radius);
+    }
+    render();
+  };
   let lastSnap: Snap | undefined,
     acquired: ReferencePoint | undefined,
     hoveredReference: ReferencePoint | undefined,
@@ -86,7 +109,16 @@ export function installInteractions({
     tool = current().tool;
   let externalReference = current().reference;
   let measureSession:
-    | { anchor: Anchor; plane: WorkPlane; direction?: Vec3; edgeLength?: number; editing?: boolean }
+    | {
+        anchor: Anchor;
+        plane: WorkPlane;
+        direction?: Vec3;
+        edgeLength?: number;
+        editing?: boolean;
+        frame?: SketchFrame;
+        adjacent?: BodyMesh['faces'];
+        surfaceChosen?: boolean;
+      }
     | undefined;
   let lastEvent: PointerEvent | undefined,
     shiftDirection: Vec3 | undefined,
@@ -135,6 +167,10 @@ export function installInteractions({
     camera().updateMatrixWorld();
     scene.updateMatrixWorld();
     raycaster.setFromCamera(pointer, camera());
+  };
+  const normalPlane = (normal: Vec3): WorkPlane => {
+    const [x, y, z] = normal.map(Math.abs);
+    return z >= x && z >= y ? 'XY' : y >= x ? 'XZ' : 'YZ';
   };
   const workPlane = (): WorkPlane => {
     if (current().tool === 'rectangle') return 'XY';
@@ -285,12 +321,38 @@ export function installInteractions({
             0,
             Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / (dx * dx + dy * dy || 1)),
           );
-          return { edge, distance: Math.hypot(x - a.x - t * dx, y - a.y - t * dy) };
+          return {
+            edge,
+            mesh: m,
+            depth: a.z + t * (b.z - a.z),
+            distance: Math.hypot(x - a.x - t * dx, y - a.y - t * dy),
+          };
         }),
       )
-      .filter((e) => e.distance < 12)
-      .sort((a, b) => a.distance - b.distance);
-    const found = candidates[0];
+      .filter((e) => e.distance < 12 && e.depth >= -1 && e.depth <= 1)
+      .sort((a, b) =>
+        Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
+      );
+    const found = candidates.find((candidate) => {
+      const point = new THREE.Vector3();
+      raycaster.ray.distanceSqToSegment(
+        new THREE.Vector3(...candidate.edge.start),
+        new THREE.Vector3(...candidate.edge.end),
+        undefined,
+        point,
+      );
+      const projected = point.clone().project(camera());
+      const visibility = new THREE.Raycaster();
+      visibility.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
+      const obstruction = visibility
+        .intersectObjects(bodies.children)
+        .find((h) => h.object instanceof THREE.Mesh);
+      return (
+        !obstruction ||
+        obstruction.distance >=
+          visibility.ray.origin.distanceTo(point) - worldPerPixel(point.toArray() as Vec3) * 2
+      );
+    });
     if (!found) return;
     const p = new THREE.Vector3();
     raycaster.ray.distanceSqToSegment(
@@ -405,13 +467,6 @@ export function installInteractions({
     show(lastSnap, plane);
     return lastSnap.point;
   };
-  const popup = (event: PointerEvent) => {
-    const rect = canvas.getBoundingClientRect();
-    current().onPopup([
-      Math.max(10, Math.min(event.clientX - rect.left + 25, rect.width - 255)),
-      Math.max(105, Math.min(event.clientY - rect.top + 25, rect.height - 200)),
-    ]);
-  };
   const sync = () => {
     if (externalReference !== current().reference) {
       externalReference = current().reference;
@@ -428,12 +483,13 @@ export function installInteractions({
       acquired = undefined;
       hoveredReference = undefined;
       shiftDirection = undefined;
-      drawingPlane = undefined;
-      drawingTarget = undefined;
+      drawingPlane = current().sketchFrame;
+      drawingTarget = current().sketchTarget;
       lastPenPoint = undefined;
       previousPenCount = current().penPoints.length;
       current().onConstraint(undefined);
       highlightFace();
+      highlightEdge();
       pointers.clear();
       blocked = false;
       show();
@@ -525,10 +581,60 @@ export function installInteractions({
     if (!start) return;
     let plane = measureSession.plane;
     const axis = props.axis ? axisVector(props.axis) : undefined;
-    if (axis) plane = planeForDirection(axis, plane);
     const existing = props.guidePreview;
     const base = add(start, existing?.offset ?? [0, 0, 0]);
-    const raw = axis ? linePoint(event, base, axis) : planePoint(event, plane, start);
+    const isEdge = props.measureMode === 'guide' && 'edge' in measureSession.anchor;
+    if (isEdge && !props.freeRotate) {
+      const direction = existing?.direction ?? measureSession.direction;
+      if (!direction) return;
+      if (
+        !axis &&
+        !measureSession.surfaceChosen &&
+        drag &&
+        Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4
+      ) {
+        const hit = faceAt(event);
+        if (hit && measureSession.adjacent?.includes(hit.face)) {
+          measureSession.frame = sketchFrame(start, hit.face.normal);
+          measureSession.plane = plane = normalPlane(hit.face.normal);
+          measureSession.surfaceChosen = true;
+        }
+      }
+      let raw = axis
+        ? linePoint(event, start, axis)
+        : measureSession.frame
+          ? framePoint(event, measureSession.frame)
+          : planePoint(event, plane, start);
+      if (!raw) return;
+      if (!axis && measureSession.frame) raw = frameSnap(raw, measureSession.frame);
+      let offset = axis ? sub(raw, start) : sub(raw, projectOnLine(raw, start, direction));
+      if (axis && props.gridSnap) offset = scale(axis, Math.round(dot(offset, axis) / 10) * 10);
+      const end = add(start, offset);
+      show(
+        {
+          point: end,
+          key: 'edge-offset',
+          label: axis
+            ? `${props.axis!.toUpperCase()} · Siirtosuunta lukittu`
+            : 'Reunan suuntainen apuviiva',
+          line: [start, end],
+        },
+        plane,
+      );
+      props.onGesture({
+        type: 'measure',
+        anchor: measureSession.anchor,
+        end,
+        plane,
+        freeAngle: false,
+        direction,
+        offset,
+        edgeLength: measureSession.edgeLength,
+      });
+      return;
+    }
+    if (axis && !isEdge) plane = planeForDirection(axis, plane);
+    const raw = axis && !isEdge ? linePoint(event, start, axis) : planePoint(event, plane, base);
     if (!raw) return;
     const found = vertexAt(event);
     const vertex =
@@ -539,24 +645,13 @@ export function installInteractions({
         ? found
         : undefined;
     const end = vertex && !axis ? vertex.point : axis ? raw : snap(raw, plane);
-    let direction = axis,
-      offset: Vec3 | undefined;
-    const isEdge = 'edge' in measureSession.anchor;
-    if (isEdge && !props.freeRotate) {
-      direction = axis ?? existing?.direction ?? measureSession.direction;
-      if (direction) {
-        const free = planePoint(event, plane, start) ?? raw;
-        offset = sub(free, projectOnLine(free, start, direction));
-      }
-    } else {
-      const from = props.freeRotate ? base : start;
-      direction =
-        axis ??
-        guideDirection(
-          plane,
-          angleBetween(from, end, plane, props.freeRotate || shift || props.measureMode === 'free'),
-        );
-    }
+    const from = props.freeRotate ? base : start;
+    const direction =
+      (!isEdge && axis) ||
+      guideDirection(
+        plane,
+        angleBetween(from, end, plane, props.freeRotate || shift || props.measureMode === 'free'),
+      );
     props.onGesture({
       type: 'measure',
       anchor: measureSession.anchor,
@@ -565,7 +660,6 @@ export function installInteractions({
       freeAngle: shift || props.freeRotate,
       endAnchor: vertex?.anchor,
       direction,
-      offset,
       edgeLength: measureSession.edgeLength,
     });
   };
@@ -605,7 +699,7 @@ export function installInteractions({
       }
       props.onFaceTarget(picked.target);
       highlightFace(picked.target);
-      popup(event);
+      props.onStart();
       drag = {
         start: picked.target.point,
         origin: picked.target.point,
@@ -644,7 +738,7 @@ export function installInteractions({
           frame = { ...drawingPlane, origin: start };
         props.onSketchPlane(frame, drawingTarget);
         if (props.tool !== 'pen') {
-          popup(event);
+          props.onStart();
           drag = {
             start,
             origin: start,
@@ -672,8 +766,10 @@ export function installInteractions({
         }
       }
     }
-    popup(event);
-    const selected = props.bodies.find((b) => b.id === props.selected),
+    props.onStart();
+    const moveTarget = props.tool === 'move' ? faceAt(event)?.target.bodyId : undefined;
+    if (moveTarget) props.onMoveTarget(moveTarget);
+    const selected = props.bodies.find((b) => b.id === (moveTarget ?? props.selected)),
       origin = selected?.origin ?? ([0, 0, 0] as Vec3);
     let plane = workPlane(),
       point = planePoint(
@@ -691,12 +787,35 @@ export function installInteractions({
           return;
         }
         if (!vertex && !point) return;
-        if (edge) plane = planeForDirection(edge.direction, plane);
+        const adjacent = edge?.mesh.faces.filter(
+          (f) =>
+            f.planar &&
+            Math.abs(dot(sub(edge.edge.start, f.center), f.normal)) < 1e-5 &&
+            Math.abs(dot(sub(edge.edge.end, f.center), f.normal)) < 1e-5,
+        );
+        const hit = faceAt(event);
+        const face =
+          adjacent?.find((f) => f === hit?.face) ??
+          adjacent
+            ?.slice()
+            .sort(
+              (a, b) =>
+                Math.abs(
+                  dot(b.normal, camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3),
+                ) -
+                Math.abs(
+                  dot(a.normal, camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3),
+                ),
+            )[0];
+        if (edge)
+          plane = face ? normalPlane(face.normal) : planeForDirection(edge.direction, plane);
         measureSession = {
           anchor: vertex?.anchor ?? edge?.anchor ?? { point: snap(point!, plane) },
           plane,
           direction: edge?.direction,
-          edgeLength: edge?.length,
+          edgeLength: props.measureMode === 'guide' ? edge?.length : undefined,
+          frame: edge && face ? sketchFrame(edge.point, face.normal) : undefined,
+          adjacent,
         };
       }
       plane = measureSession.plane;
@@ -783,6 +902,16 @@ export function installInteractions({
     ) {
       const hit = props.drawOnSurface ? faceAt(event) : undefined;
       highlightFace(hit?.face.planar ? hit.target : undefined);
+    }
+    if (props.tool === 'measure' && !measureSession && !props.pickReference) {
+      const vertex = vertexAt(event),
+        edge = vertex ? undefined : edgeAt(event);
+      highlightEdge(edge?.edge);
+      if (edge)
+        show({ point: edge.point, key: 'edge', label: 'Reuna · vedä rinnakkainen apuviiva' });
+      else if (vertex) show({ point: vertex.point, key: 'vertex', label: 'Verteksi' });
+      else show();
+      return;
     }
     const hovered = nearest(event);
     hoveredReference = hovered;
@@ -906,16 +1035,6 @@ export function installInteractions({
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const props = current(),
       key = event.key.toLowerCase();
-    if (key === 'escape' && (props.axis || shiftDirection)) {
-      event.preventDefault();
-      event.stopPropagation();
-      props.onAxis(undefined);
-      shiftDirection = undefined;
-      props.onConstraint(undefined);
-      lastSnap = undefined;
-      show();
-      return;
-    }
     if (['x', 'y', 'z'].includes(key) && ['pen', 'measure'].includes(props.tool)) {
       event.preventDefault();
       props.onAxis(props.axis === key ? undefined : (key as Axis));
@@ -966,6 +1085,14 @@ export function installInteractions({
     blocked = false;
     show();
   };
+  const leave = () => {
+    if (!drag && !measureSession) {
+      highlightEdge();
+      highlightFace();
+      show();
+    }
+  };
+  canvas.addEventListener('pointerleave', leave);
   canvas.addEventListener('pointerdown', down);
   canvas.addEventListener('pointermove', move);
   canvas.addEventListener('pointerup', up);
@@ -976,6 +1103,7 @@ export function installInteractions({
   return {
     sync,
     dispose() {
+      canvas.removeEventListener('pointerleave', leave);
       canvas.removeEventListener('pointerdown', down);
       canvas.removeEventListener('pointermove', move);
       canvas.removeEventListener('pointerup', up);

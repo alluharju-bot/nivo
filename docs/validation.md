@@ -6,6 +6,13 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.4.2:n selaintestit kattavat reunan korostuksen kohdistimen kohdalla,
+perspektiivissä kannen ja sivupinnan suuntaan vedetyn apuviivan sekä X/Y/Z-siirron,
+joka säilyttää viivan alkuperäisen suunnan. Peräkkäiset siirrot, suorakulmiot,
+viivat ja pintamuokkaukset käyttävät samaa aktiivista työkalua. Esc tyhjentää
+myös lukitun luonnoksen. Mittaikkunan sivutelakka, siirto, paikan säilyminen,
+uuden muodon aloittaminen numeroilla ja paluu sivupaneeliin tarkistetaan.
+
 V0.4.1:n lisäys: 652 mm kappaleen lopullinen mitta voidaan kirjoittaa suoraan.
 Uudet CAD-testit muuttavat 652 mm → 150/550/750 mm kaikilta kuudelta pinnalta
 ja varmistavat vastakkaisen pinnan pysymisen paikallaan. Lisäksi varmennetaan
@@ -26,6 +33,14 @@ Kolme uutta työnkulkua hyväksytty ensin työpöytäprofiilin kohdistetussa ajo
 | `npm run build`              | TypeScript ja tuotantopaketointi hyväksytty.                                                                                         |
 | Tuotantopaketin selaintestit | Mittasyöttö, apuviivat, Shift-viite, kynä, yhdistäminen sekä aiemmat työnkulut työpöydällä ja tablettiprofiilissa. Ajotulokset alla. |
 | `npm run format:check`       | Lähdekoodin ja dokumentaation muotoilutarkistus.                                                                                     |
+
+V0.4.2:n tuotantotarkistus: **58 hyväksyttyä työnkulkua, 4 tarkoituksella
+ohitettua**. Koko 62 tapauksen ajossa 56 hyväksyttiin; sama tilavalikkotesti
+molemmilla profiileilla odotti työkalun vanhaa nollautumista. Testi päivitettiin
+aktiivisena pysyvän työkalun yhden painalluksen tilavalikkoon, ja kohdistettu
+uusinta hyväksyttiin molemmilla profiileilla (2/2). Sovelluskoodi ei muuttunut
+ajojen välillä. 40 yksikkötestiä, TypeScript, tuotantopaketointi ja
+muotoilutarkistus hyväksyttiin.
 
 V0.4.1:n koko tuotantotestisarja:
 `NIVO_PREVIEW=1 npm run test:e2e` — **52 hyväksytty, 4 tarkoituksella ohitettu**
@@ -102,7 +117,8 @@ Selaimessa ajetut työnkulut:
 15. E ensin → etupinnan hover-korostus → veto 40 mm → valitun pinnan
     numerotyöntö −40 mm palauttaa alkuperäiset mitat.
 16. Reunasta vedetty apuviiva säilyy rinnakkaisena ja saa 80 mm offsetin;
-    R ja Shift+R toimivat luonnin jälkeen. Akselilukko ja Esc säilyttävät työkalun.
+    R ja Shift+R toimivat luonnin jälkeen. Sama akselinäppäin vapauttaa lukon;
+    Esc päättää työkalun.
     Valmista viivaa voi valita suoraan näkymästä.
 17. Kappaleen alle jäävä apuviiva peittyy, viivakohtainen x-ray näyttää sen,
     globaali x-ray säilyy uudelleenlatauksessa.
@@ -111,7 +127,7 @@ Selaimessa ajetut työnkulut:
     vapautuksen jälkeen aloitusverteksiin tarttuminen sulkee muodon.
     Ctrl/Cmd+Z ja Ctrl/Cmd+Shift+Z säilyvät historiaoikoteinä myös kynän ja
     mittatyökalun aikana; Z-akselin lukko ei kaappaa niitä.
-19. X/Z-lukoilla tehty pystypinta, lukon vapautus Escillä, E-pursotus 20 mm
+19. X/Z-lukoilla tehty pystypinta, lukon vapautus samalla akselinäppäimellä, E-pursotus 20 mm
     ja syntyneen BRep-kappaleen palautuminen uudelleenlatauksessa.
 20. 80 000 × 60 000 × 18 mm levyn ja seinämän neljä kamerakulmaa sekä
     rinnakkaisprojektio renderöityvät ilman selainvirheitä. Kuvantarkistus

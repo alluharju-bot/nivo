@@ -34,6 +34,13 @@ materiaalin mitan näyttö. Vastapinta mitataan tarkasta geometriasta valitun
 pinnan normaalin suunnassa. Etumerkitön mitta seuraa vetosuuntaa, etumerkki
 määrää sen suoraan. Sama toiminto toimii vinoilla pinnoilla ja taskun pohjalla.
 
+Versiossa 0.4.2 toteutettu: koko reunan korostus ja tartuntapiste kohdistimen
+kohdalla, apuviivan veto reunan viereistä pintaa pitkin sekä erillinen
+X/Y/Z-siirtolukko. Hyväksytyn toiminnon jälkeen työkalu pysyy aktiivisena;
+Esc päättää työkalun ja tyhjentää valinnan. Mittaikkuna on oikeassa sivupaneelissa
+ja sen voi siirtää otsikosta. Aiempi Escillä tehty pelkän akselilukon vapautus
+korvautuu saman akselinäppäimen uudella painalluksella.
+
 Seuraavaksi: kierto, kohdistus ja kopiointi, viitteiden poiminnan käyttökokeet
 sekä työkalujen viimeistely oikeilla malleilla. Fyysinen tabletti ja Safari
 varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
@@ -53,3 +60,23 @@ Jokainen vaihe pysyy ajettavana. Uusi toteutus ei saa rikkoa aiempien projektien
 tuontia, historiaa tai mitoitusta. Hyväksymisesimerkit A–C täydennetään työkalujen
 valmistuessa. Nykyinen kaappiesimerkki on kuuden itsenäisen levyn runko eikä
 vielä täytä esimerkin A ovi-, layer-, komponentti- tai tekstuurivaatimuksia.
+
+## Backlog: mittakaavaan kalibroitava referenssikuva
+
+Pohjakuva tuodaan XY-tasolle ylänäkymään. Julkisivu-/naamakuva tuodaan
+pystytasolle etunäkymään; sama työnkulku soveltuu sivukuvaan.
+
+1. Käyttäjä avaa kuvan ja valitsee tason.
+2. Hän osoittaa kuvasta tunnetun mitan kaksi päätepistettä ja kirjoittaa
+   todellisen mitan millimetreinä tai muussa tuetussa yksikössä.
+3. Nivo skaalaa kuvan yhtenäisesti niin, että tunnettu väli on mallissa
+   täsmälleen annettu mitta (1:1). Myös korkeus skaalautuu samalla kertoimella.
+4. Kuvan sijainti ja kierto voidaan kohdistaa origoon tai mallin pisteisiin.
+   Kuvan päälle voi heti piirtää ja rakentaa oikean kokoisia osia.
+5. Referenssikuva voidaan lukita, piilottaa ja näyttää läpikuultavana.
+   Kuva ja kalibrointi säilyvät tallennuksessa, avauksessa ja undo/redo-toiminnoissa.
+
+Hyväksyntäesimerkki: pohjakuvan kahden pisteen väliksi annetaan 4 200 mm.
+Samoihin päätepisteisiin piirretyn malliviivan tulee olla 4 200 mm pitkä.
+Sama tarkistus tehdään julkisivukuvan pystymitalle. Epäkelpo tai nollapituinen
+kalibrointi ei muuta nykyistä kuvaa tai mallia.

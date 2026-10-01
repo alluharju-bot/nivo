@@ -92,6 +92,7 @@ test('E selects the hovered side face and dragging pulls it; selected-face numer
   expect(model.bodies[0].feature.depth).toBeCloseTo(340, 1);
   expect(model.bodies[0].origin[1]).toBeCloseTo(-40, 1);
   expect(model.bodies[0].feature.height).toBe(200);
+  await page.keyboard.press('v');
   await click(page, start);
   await expect(page.locator('.selection-tag')).toContainText('Etupinta');
   await page.keyboard.press('e');
@@ -103,7 +104,7 @@ test('E selects the hovered side face and dragging pulls it; selected-face numer
   expect(model.bodies[0].origin[1]).toBeCloseTo(0, 1);
 });
 
-test('drag an edge-parallel guide, rotate after creation, lock an axis and Escape only unlocks', async ({
+test('drag an edge-parallel guide, rotate after creation, lock and unlock a translation axis', async ({
   page,
 }, info) => {
   const body = makeBody(400, 300, 0);
@@ -141,7 +142,7 @@ test('drag an edge-parallel guide, rotate after creation, lock an axis and Escap
     'aria-pressed',
     'true',
   );
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('y');
   await expect(page.getByRole('button', { name: 'Lukitse Y-akseli', exact: true })).toHaveAttribute(
     'aria-pressed',
     'false',
@@ -241,7 +242,7 @@ test('Shift locks the third pen segment while the first vertex supplies its exac
   }
 });
 
-test('X and Z construct a vertical pen face, Escape preserves the pen, E extrudes the face', async ({
+test('X and Z construct a vertical pen face, toggling the axis preserves the pen, E extrudes the face', async ({
   page,
 }) => {
   await ready(page);
@@ -254,7 +255,7 @@ test('X and Z construct a vertical pen face, Escape preserves the pen, E extrude
   await click(page, point(200, 0, 150));
   await page.keyboard.press('x');
   await click(page, point(0, 0, 150));
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('x');
   await expect(page.getByRole('button', { name: 'Kynä', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',

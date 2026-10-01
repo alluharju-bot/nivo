@@ -467,6 +467,51 @@ p {
   box-shadow: 0 8px 28px #243c2f20;
   backdrop-filter: blur(12px);
 }
+.dynamic-input.docked {
+  position: relative;
+  flex: none;
+  width: calc(100% - 32px);
+  max-width: none;
+  margin: 16px 16px 0;
+}
+.dynamic-input.floating {
+  position: fixed;
+  z-index: 25;
+  margin: 0;
+}
+.dynamic-input.undocked {
+  right: 16px;
+  top: 80px;
+}
+.dynamic-drag {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  border: 0;
+  padding: 5px 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  touch-action: none;
+}
+.dynamic-drag:active {
+  cursor: grabbing;
+}
+.dynamic-redock {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  padding: 5px;
+  background: transparent;
+  color: #526953;
+}
+.dynamic-redock:hover {
+  background: #e3eadf;
+}
 .dynamic-title,
 .dynamic-footer {
   display: flex;
@@ -726,6 +771,8 @@ p {
     font-size: 16px;
   }
   .dynamic-footer button,
+  .dynamic-drag,
+  .dynamic-redock,
   .reference-bar button,
   .multi-actions button {
     min-height: 44px;

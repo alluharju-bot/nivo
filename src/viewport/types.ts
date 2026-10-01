@@ -68,7 +68,8 @@ export interface ViewportProps {
   onSnap: (label: string) => void;
   onReference: (point?: ReferencePoint) => void;
   onReferencePicked: () => void;
-  onPopup: (point: [number, number]) => void;
+  onStart: () => void;
+  onMoveTarget: (id: string) => void;
   onFaceTarget: (target: FaceTarget) => void;
   onSelectGuide: (id: string) => void;
   onAxis: (axis?: Axis) => void;

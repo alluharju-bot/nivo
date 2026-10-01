@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowDownToLine,
@@ -131,9 +132,9 @@ const instructions: Record<Tool, string> = {
   extrude:
     'E · Osoita pintaa ja vedä normaalin suuntaan. Positiivinen lisää, negatiivinen poistaa. Enter hyväksyy.',
   move: 'Vedä kappaletta tai anna siirtymä. Hyväksy uusi sijainti.',
-  pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Esc vapauttaa lukon.',
+  pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc päättää työkalun.',
   measure:
-    'Vedä verteksistä tai reunasta. X/Y/Z lukitsee akselin, Esc vapauttaa. R kiertää 45°, Shift+R vapaasti.',
+    'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc päättää työkalun. R kiertää 45°, Shift+R vapaasti.',
   navigate: 'Vedä yhdellä sormella kiertääksesi. Kahdella sormella panoroit ja zoomaat.',
 };
 type Fields = {
@@ -190,7 +191,7 @@ export default function App() {
   const [reference, setReference] = useState<ReferencePoint>();
   const [pickReference, setPickReference] = useState(false);
   const [epoch, setEpoch] = useState(0);
-  const [popup, setPopup] = useState<[number, number]>([24, 120]);
+  const [popup, setPopup] = useState<[number, number]>();
   const [penPoints, setPenPoints] = useState<Vec3[]>([]);
   const penRef = useRef<Vec3[]>([]);
   const [penHover, setPenHover] = useState<Vec3>();
@@ -259,7 +260,9 @@ export default function App() {
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
-  const editing = ['rectangle', 'circle', 'extrude', 'move', 'measure', 'pen'].includes(tool);
+  const [awaitingStart, setAwaitingStart] = useState(false);
+  const editing =
+    !awaitingStart && ['rectangle', 'circle', 'extrude', 'move', 'measure', 'pen'].includes(tool);
   const writeFields = (patch: Partial<Fields>) => {
     fieldsRef.current = { ...fieldsRef.current, ...patch };
     setFields(fieldsRef.current);
@@ -419,7 +422,7 @@ export default function App() {
     }
     setSelected(id);
     setSelectedFace(face);
-    setTool('select');
+    setAwaitingStart(true);
     setMeasureMenu(false);
     setSelectedIds((previous) =>
       id
@@ -434,6 +437,17 @@ export default function App() {
     );
     resetGesture();
   };
+  const finishOperation = (id?: string, face?: FaceRef) => {
+    select(id, face, false, true);
+    setDraftId(uid());
+    writeFields({ ...defaults, ...(tool === 'circle' ? { width: '100', depth: '60' } : {}) });
+    setShapeName('');
+    if (tool === 'boolean') {
+      setBooleanTargets([]);
+      setBooleanTools([]);
+      setBooleanActive('targets');
+    }
+  };
   const fit = () => setCameraCommand({ id: performance.now(), type: 'fit' });
   const changeView = (next: View) => {
     setView(next);
@@ -446,11 +460,8 @@ export default function App() {
       setMeasureMenu(!measureMenu);
       return;
     }
-    if (next === 'move' && !body) {
-      editor.setMessage('Valitse ensin kappale.');
-      return;
-    }
     resetGesture();
+    setAwaitingStart(false);
     setTool(next);
     setMode('model');
     setMeasureMenu(false);
@@ -573,6 +584,7 @@ export default function App() {
     }
   }, [
     tool,
+    awaitingStart,
     fields,
     body,
     draftId,
@@ -676,14 +688,14 @@ export default function App() {
           ? 'Pintaan tehty muotoilu.'
           : 'Pinta jaettu. Rajattu alue on valittu; paina E muokataksesi sitä.',
       );
-      if (committed) select(source.id, distance ? undefined : selectedRegion, false, true);
+      if (committed) finishOperation(source.id, distance ? undefined : selectedRegion);
     } else if (
       await editor.transact(
         { ...project, bodies: [...project.bodies, candidate] },
         'Muoto valmis. Voit muokata pintaa E:llä tai käyttää kappaletta Cut/Join-työkalussa.',
       )
     )
-      select(candidate.id, undefined, false, true);
+      finishOperation(candidate.id);
   };
   const applyBooleanOperation = async () => {
     const targets = project.bodies.filter((b) => booleanTargets.includes(b.id)),
@@ -714,7 +726,7 @@ export default function App() {
       },
       booleanOperation === 'cut' ? 'Leikkaus valmis.' : 'Kappaleet yhdistetty.',
     );
-    if (success) select(nextSelected, undefined, false, true);
+    if (success) finishOperation(nextSelected);
   };
   const apply = async (forceClose = false) => {
     if (committing.current || busy) return;
@@ -732,7 +744,7 @@ export default function App() {
         const distance = extrusionValue();
         if (Math.abs(distance) < 1e-8) {
           editor.setMessage('Mitta on jo haluttu. Kappale säilyi ennallaan.');
-          select(source.id);
+          finishOperation(source.id);
           return;
         }
         committing.current = true;
@@ -742,7 +754,7 @@ export default function App() {
             return { ...project, bodies: project.bodies.map((b) => (b.id === next.id ? next : b)) };
           }, 'Pintaa muokattu.')
         )
-          select(source.id);
+          finishOperation(source.id);
       } else if (tool === 'pen') {
         if (!forceClose && lockRef.current.size && hoverRef.current) {
           const point = precisePenPoint(hoverRef.current);
@@ -805,7 +817,7 @@ export default function App() {
               : 'Mittaviiva lisätty.',
           )
         ) {
-          select();
+          finishOperation();
           setSelectedGuideId(candidate.id);
           setTab('guides');
         }
@@ -821,7 +833,7 @@ export default function App() {
           ...project,
           bodies: project.bodies.map((b) => (b.id === candidate.id ? candidate : b)),
         };
-        if (await editor.transact(next, 'Muokkaus valmis.')) select(candidate.id);
+        if (await editor.transact(next, 'Muokkaus valmis.')) finishOperation(candidate.id);
       }
     } catch (e) {
       editor.setError((e as Error).message);
@@ -830,16 +842,13 @@ export default function App() {
     }
   };
   const cancel = () => {
-    if (axis || penConstraint) {
-      setAxis(undefined);
-      constraintRef.current = undefined;
-      setPenConstraint(undefined);
-      setEpoch((e) => e + 1);
-      return;
-    }
     if (busy) editor.cancel();
     resetGesture();
     setTool('select');
+    setAwaitingStart(false);
+    setSelected(undefined);
+    setSelectedIds([]);
+    setSelectedFace(undefined);
     setMeasureMenu(false);
     editor.setError('');
   };
@@ -1013,6 +1022,7 @@ export default function App() {
   const editGuide = (guide: Guide) => {
     resetGesture();
     setTool('measure');
+    setAwaitingStart(false);
     setMode('model');
     setMeasureMode(guide.mode);
     setDraftId(guide.id);
@@ -1172,7 +1182,7 @@ export default function App() {
         'Uusi projekti. Aiemman työn saat takaisin Peru-toiminnolla.',
       )
     ) {
-      select();
+      finishOperation();
       setMode('model');
     }
   };
@@ -1183,7 +1193,7 @@ export default function App() {
         'Esimerkkikaappi avattu. Jokainen levy on erillinen muokattava kappale.',
       )
     ) {
-      select();
+      finishOperation();
       setMode('model');
       changeView('iso');
     }
@@ -1195,7 +1205,7 @@ export default function App() {
         throw new Error('Projektitiedosto on liian suuri (enintään 10 Mt).');
       const loaded = parseProject(await file.text());
       if (await editor.transact(loaded, 'Projekti avattu.')) {
-        select();
+        finishOperation();
         setMode('model');
         changeView('iso');
       }
@@ -1239,6 +1249,10 @@ export default function App() {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        cancel();
+        return;
+      }
       const target = event.target as HTMLElement;
       if (target.closest('input, textarea, select, [contenteditable]')) return;
       const key = event.key.toLowerCase();
@@ -1251,19 +1265,34 @@ export default function App() {
         );
         return;
       }
-      if (key === 'escape') {
-        cancel();
-        return;
-      }
       if (busy) return;
       if ((event.ctrlKey || event.metaKey) && key === 'z') {
         event.preventDefault();
-        setTool('select');
+        resetGesture();
+        setAwaitingStart(true);
         if (event.shiftKey) void editor.redo();
         else void editor.undo();
         return;
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (
+        awaitingStart &&
+        numericFields.length &&
+        /^[\d.,+\-]$/.test(event.key) &&
+        ['rectangle', 'circle', 'move', 'pen'].includes(tool)
+      ) {
+        event.preventDefault();
+        flushSync(() => {
+          setAwaitingStart(false);
+          field(numericFields[0].key, event.key);
+        });
+        const input = document.querySelector<HTMLInputElement>(
+          `[data-testid="${numericFields[0].testId}"]`,
+        );
+        input?.focus();
+        input?.setSelectionRange(input.value.length, input.value.length);
+        return;
+      }
       if (key === 'enter' && (editing || tool === 'boolean')) {
         event.preventDefault();
         void apply();
@@ -1292,7 +1321,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', keydown);
   });
   useEffect(() => {
-    if (tool === 'measure' && axis && guideRef.current) {
+    if (tool === 'measure' && axis && guideRef.current && !('edge' in guideRef.current.anchor)) {
       const draft = guideRef.current;
       draft.direction = axisVector(axis);
       draft.plane = planeForDirection(draft.direction, draft.plane);
@@ -1301,6 +1330,41 @@ export default function App() {
       setGuideDraft({ ...draft });
     }
   }, [axis, tool]);
+
+  const numericInput = editing && numericFields.length > 0 && (
+    <DynamicInput
+      fields={numericFields}
+      position={popup}
+      onPositionChange={setPopup}
+      docked={panelOpen}
+      locked={locked}
+      onChange={field}
+      activeKey={tool === 'extrude' ? extrusionMode : undefined}
+      onActivate={tool === 'extrude' ? activateExtrusion : undefined}
+      onAccept={() => void apply()}
+      onCancel={cancel}
+      busy={busy}
+      title={
+        tool === 'rectangle'
+          ? 'Suorakulmio'
+          : tool === 'circle'
+            ? shapeKind === 'circle'
+              ? 'Ympyrä'
+              : shapeKind === 'ellipse'
+                ? 'Ellipsi'
+                : 'Monikulmio'
+            : tool === 'measure'
+              ? measureMode === 'guide'
+                ? 'Apuviiva'
+                : 'Vapaa mittaviiva'
+              : tool === 'pen'
+                ? 'Kynä · seuraava piste'
+                : tool === 'move'
+                  ? 'Siirrä'
+                  : 'Push / pull'
+      }
+    />
+  );
 
   return (
     <div className="app-shell">
@@ -1410,7 +1474,8 @@ export default function App() {
             label="Peru"
             disabled={busy || !editor.canUndo}
             onClick={() => {
-              setTool('select');
+              resetGesture();
+              setAwaitingStart(true);
               void editor.undo();
             }}
           >
@@ -1420,7 +1485,8 @@ export default function App() {
             label="Palauta"
             disabled={busy || !editor.canRedo}
             onClick={() => {
-              setTool('select');
+              resetGesture();
+              setAwaitingStart(true);
               void editor.redo();
             }}
           >
@@ -1462,7 +1528,7 @@ export default function App() {
               className={`tool-button ${mode === 'model' && tool === t.id ? 'active' : ''}`}
               aria-label={t.label}
               aria-pressed={mode === 'model' && tool === t.id}
-              disabled={busy || (t.id === 'move' && !body)}
+              disabled={busy}
               onClick={() => begin(t.id)}
               title={`${t.label} (${t.shortcut})`}
             >
@@ -1621,7 +1687,10 @@ export default function App() {
                 const g = project.guides.find((g) => g.id === id);
                 if (g) editGuide(g);
               }}
-              onAxis={setAxis}
+              onAxis={(next) => {
+                setAxis(next);
+                if (next) setFreeRotate(false);
+              }}
               onConstraint={(direction) => {
                 constraintRef.current = direction;
                 setPenConstraint(direction);
@@ -1631,40 +1700,14 @@ export default function App() {
               onPenHover={penMove}
               onReference={setReference}
               onReferencePicked={() => setPickReference(false)}
-              onPopup={setPopup}
+              onStart={() => setAwaitingStart(false)}
+              onMoveTarget={(id) => {
+                setSelected(id);
+                setSelectedIds([id]);
+                setSelectedFace(undefined);
+              }}
             />
-            {editing && numericFields.length > 0 && (
-              <DynamicInput
-                fields={numericFields}
-                position={popup}
-                locked={locked}
-                onChange={field}
-                activeKey={tool === 'extrude' ? extrusionMode : undefined}
-                onActivate={tool === 'extrude' ? activateExtrusion : undefined}
-                onAccept={() => void apply()}
-                onCancel={cancel}
-                busy={busy}
-                title={
-                  tool === 'rectangle'
-                    ? 'Suorakulmio'
-                    : tool === 'circle'
-                      ? shapeKind === 'circle'
-                        ? 'Ympyrä'
-                        : shapeKind === 'ellipse'
-                          ? 'Ellipsi'
-                          : 'Monikulmio'
-                      : tool === 'measure'
-                        ? measureMode === 'guide'
-                          ? 'Apuviiva'
-                          : 'Vapaa mittaviiva'
-                        : tool === 'pen'
-                          ? 'Kynä · seuraava piste'
-                          : tool === 'move'
-                            ? 'Siirrä'
-                            : 'Push / pull'
-                }
-              />
-            )}
+            {!panelOpen && numericInput}
             {tool === 'measure' && measureMenu && (
               <div className="measure-mode-menu" role="menu" aria-label="Mittatyökalun tila">
                 <button
@@ -1672,6 +1715,7 @@ export default function App() {
                   aria-checked={measureMode === 'guide'}
                   onClick={() => {
                     resetGesture();
+                    setAwaitingStart(false);
                     setMeasureMode('guide');
                     setMeasureMenu(false);
                   }}
@@ -1683,6 +1727,7 @@ export default function App() {
                   aria-checked={measureMode === 'free'}
                   onClick={() => {
                     resetGesture();
+                    setAwaitingStart(false);
                     setMeasureMode('free');
                     setMeasureMenu(false);
                   }}
@@ -1706,8 +1751,17 @@ export default function App() {
                   </button>
                 )}
                 {(axis || penConstraint) && (
-                  <button onClick={cancel} aria-label="Vapauta suuntalukko">
-                    {axis ? `${axis.toUpperCase()}-akseli` : 'Suunta lukittu'} · Esc <X size={14} />
+                  <button
+                    onClick={() => {
+                      setAxis(undefined);
+                      constraintRef.current = undefined;
+                      setPenConstraint(undefined);
+                      setEpoch((e) => e + 1);
+                    }}
+                    aria-label="Vapauta suuntalukko"
+                  >
+                    {axis ? `${axis.toUpperCase()}-akseli` : 'Suunta lukittu'} · Vapauta{' '}
+                    <X size={14} />
                   </button>
                 )}
               </div>
@@ -1789,6 +1843,7 @@ export default function App() {
 
         {panelOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
+            {numericInput}
             {tool === 'boolean' ? (
               <BooleanPanel
                 bodies={project.bodies}
@@ -1961,8 +2016,8 @@ export default function App() {
                         Kierrä 45° · R
                       </button>
                       <p className="muted">
-                        X/Y/Z lukitsee akselin. Esc vapauttaa. Shift+R käynnistää vapaan kierron;
-                        osoita suunta ja hyväksy.
+                        X/Y/Z lukitsee siirtosuunnan; sama näppäin vapauttaa. Esc päättää työkalun.
+                        Shift+R käynnistää vapaan kierron; osoita suunta ja hyväksy.
                       </p>
                       <button
                         className="button outlined"
@@ -2021,7 +2076,10 @@ export default function App() {
                             key={a}
                             aria-label={`Lukitse ${a.toUpperCase()}-akseli`}
                             aria-pressed={axis === a}
-                            onClick={() => setAxis(axis === a ? undefined : a)}
+                            onClick={() => {
+                              setAxis(axis === a ? undefined : a);
+                              setFreeRotate(false);
+                            }}
                           >
                             {a.toUpperCase()}
                           </button>
@@ -2396,7 +2454,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.4.1</span>
+                  <span>v0.4.2</span>
                 </div>
               </>
             )}
@@ -2468,8 +2526,9 @@ export default function App() {
             <p>
               <strong>Apuviivat:</strong> mittatyökalun ensimmäinen painallus valitsee apuviivan,
               toinen avaa tilavalinnan. Reunasta vedetty viiva pysyy reunan suuntaisena. R kiertää
-              45°, Shift+R sallii vapaan kierron. X/Y/Z lukitsee akselin ja Esc vapauttaa. Voit myös
-              kirjoittaa asteluvun. X-ray valitaan Viivat-listasta tai kaikille asetuksista.
+              45°, Shift+R sallii vapaan kierron. X/Y/Z lukitsee akselin ja sama näppäin vapauttaa.
+              Esc päättää työkalun. Voit myös kirjoittaa asteluvun. X-ray valitaan Viivat-listasta
+              tai kaikille asetuksista.
             </p>
             <p>
               <strong>Hae viite:</strong> vie kohdistin kappaleen keskipisteen, reunan keskipisteen

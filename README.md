@@ -7,6 +7,9 @@ Versio 0.4 tuo pintaan piirtämisen, tarkat ympyrät ja ellipsit, rajattujen alu
 syvennykset ja läpireiät sekä usean kappaleen Cut/Join-työkalun.
 Versio 0.4.1 lisää push/pullin lopullisen mitan: 652 mm osan voi muuttaa suoraan
 550 mm pituiseksi laskematta erotusta. Vihreä mittaviiva näyttää jäljelle jäävän osuuden.
+Versio 0.4.2 korjaa reunan poiminnan ja pintaa pitkin vedettävät apuviivat.
+Työkalut pysyvät aktiivisina hyväksynnän jälkeen, ja siirrettävä mittaikkuna
+on oletuksena oikeassa sivupaneelissa.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
@@ -104,17 +107,28 @@ komponentteja.
 - **Mittatyökalu:** ensimmäinen painallus aktivoi apuviivan. Toinen painallus
   avaa valinnan apuviivan ja vapaan mittaviivan välillä. Apuviiva alkaa kappaleen
   verteksistä tai reunasta. Reunasta vetäminen tekee reunan suuntaisen apuviivan
-  halutulle etäisyydelle. Siihen voi tarttua myös jatkeen kohdalta. Vapaa mittaviiva näyttää
+  halutulle etäisyydelle. Koko reuna korostuu ja tartuntapiste seuraa kohdistinta.
+  Vedä kannen tai sivupinnan puolelle: siirto seuraa kyseistä pintaa.
+  Siihen voi tarttua myös jatkeen kohdalta. Vapaa mittaviiva näyttää
   kahden pisteen etäisyyden. Vedä tai napsauta alku- ja loppupisteet.
-- **Apuviivan suunta:** oletuksena 45° suunnat; X/Y/Z lukitsee akselin, Esc vapauttaa.
+- **Apuviivan suunta:** reunasta vedettäessä X/Y/Z lukitsee **siirtosuunnan**;
+  viiva säilyttää reunan suunnan. Sama näppäin vapauttaa lukon. Verteksistä
+  alkavan viivan X/Y/Z lukitsee viivan suunnan; oletuksena 45° ennakointi.
   R kiertää 45°, Shift+R käynnistää vapaan kierron. Kulman, pituuden tai reunaetäisyyden
   voi kirjoittaa. Valmista viivaa voi valita näkymästä tai Viivat-listasta ja kiertää.
 - **Apuviivan näkyvyys:** sininen katkoviiva peittyy normaalisti kappaleen taakse.
   Viivat-listan x-ray näyttää valitun viivan kappaleiden läpi. Näkymän asetuksista
   saa x-rayn kaikille apuviivoille. Molemmat asetukset tallentuvat projektiin.
-- **Kelluva mittaikkuna:** numero aloittaa ensimmäisestä kentästä, Tab vaihtaa
+- **Mittaikkuna:** oletuksena oikeassa sivupaneelissa, mallin ulkopuolella.
+  Vedä otsikosta haluamaasi paikkaan; paikka säilyy työkalujen välillä.
+  Palautuspainike telakoi ikkunan takaisin oikeaan reunaan.
+  Numero aloittaa ensimmäisestä kentästä, Tab vaihtaa
   kenttää, Enter hyväksyy. Hiiren vapautus hyväksyy vedon. Kirjoitetut mitat eivät
   muutu hiiren liikkeestä. Kenttää voi valita myös napsauttamalla.
+- **Jatkuvat työkalut:** hyväksytty toiminto päättää vain nykyisen vedon.
+  Aloita seuraava piirto, siirto, apuviiva tai pintamuokkaus samalla työkalulla.
+  Siirrä-työkalulla voi tarttua suoraan seuraavaan kappaleeseen.
+  Esc peruu keskeneräisen luonnoksen, tyhjentää valinnan ja palauttaa valintatyökaluun.
 - **Erilliset osat:** jokaisella objektilla on oma mesh. Monivalinta tai
   Shift/Ctrl/Cmd-napsautus valitsee useita osia. Yhdistä tekee niistä yhden
   CAD-kappaleen ja meshin; päällekkäiset tilavuudet yhdistyvät. Peru palauttaa
@@ -154,7 +168,7 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
 - V = valitse, R = suorakulmio (apuviivaa muokattaessa kierto), E = push/pull, M = siirrä, K = kynä,
   C = ympyrä/muut muodot, B = Muotoile (Cut/Join), T = mittatyökalu, H = navigoi.
   X/Y/Z lukitsevat siirron, kynän tai apuviivan akselin. Enter hyväksyy.
-  Esc vapauttaa ensin suuntalukon; ilman lukkoa se peruu työkalun.
+  Sama X/Y/Z vapauttaa akselilukon. Esc päättää työkalun myös lukon ollessa päällä.
   Ctrl/Cmd+Z peruu, Ctrl/Cmd+Shift+Z palauttaa.
 - Keskeiset toiminnot löytyvät painikkeista ilman näppäimistöä.
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { Check, X, LockKeyhole } from 'lucide-react';
+import { Check, X, LockKeyhole, GripHorizontal, PanelRightClose } from 'lucide-react';
 export interface NumericField {
   key: string;
   label: string;
@@ -12,6 +12,8 @@ export interface NumericField {
 export function DynamicInput({
   fields,
   position,
+  onPositionChange,
+  docked,
   locked,
   onChange,
   onAccept,
@@ -22,7 +24,9 @@ export function DynamicInput({
   onActivate,
 }: {
   fields: NumericField[];
-  position: [number, number];
+  position?: [number, number];
+  onPositionChange: (point?: [number, number]) => void;
+  docked: boolean;
   locked: Set<string>;
   onChange: (key: string, value: string) => void;
   onAccept: () => void;
@@ -32,10 +36,33 @@ export function DynamicInput({
   activeKey?: string;
   onActivate?: (key: string, transfer: boolean) => void;
 }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ pointer: number; x: number; y: number } | undefined>(undefined);
+  const clamp = (x: number, y: number): [number, number] => {
+    const rect = panel.current?.getBoundingClientRect();
+    return [
+      Math.max(8, Math.min(x, window.innerWidth - (rect?.width ?? 236) - 8)),
+      Math.max(8, Math.min(y, window.innerHeight - (rect?.height ?? 140) - 8)),
+    ];
+  };
+  useEffect(() => {
+    if (!position) return;
+    const adjust = () => {
+      const next = clamp(...position);
+      if (next[0] !== position[0] || next[1] !== position[1]) onPositionChange(next);
+    };
+    const observer = new ResizeObserver(adjust);
+    if (panel.current) observer.observe(panel.current);
+    window.addEventListener('resize', adjust);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', adjust);
+    };
+  }, [position, onPositionChange]);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (busy || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.defaultPrevented || busy || event.ctrlKey || event.metaKey || event.altKey) return;
       if ((event.target as HTMLElement).closest('input,textarea,select,[contenteditable]')) return;
       if (/^[\d.,+\-]$/.test(event.key)) {
         event.preventDefault();
@@ -58,14 +85,59 @@ export function DynamicInput({
   }, [fields, onChange, busy, activeKey]);
   return (
     <div
-      className="dynamic-input"
+      ref={panel}
+      className={`dynamic-input ${position ? 'floating' : docked ? 'docked' : 'undocked'}`}
       data-testid="dynamic-input"
-      style={{ left: position[0], top: position[1] }}
+      style={position ? { left: position[0], top: position[1] } : undefined}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="dynamic-title">
-        <span>{title}</span>
-        <small>Tab →</small>
+        <button
+          type="button"
+          className="dynamic-drag"
+          aria-label="Siirrä mittaikkunaa"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            const rect = panel.current!.getBoundingClientRect();
+            drag.current = {
+              pointer: event.pointerId,
+              x: event.clientX - rect.left,
+              y: event.clientY - rect.top,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+            onPositionChange(clamp(rect.left, rect.top));
+          }}
+          onPointerMove={(event) => {
+            const active = drag.current;
+            if (active?.pointer === event.pointerId)
+              onPositionChange(clamp(event.clientX - active.x, event.clientY - active.y));
+          }}
+          onPointerUp={(event) => {
+            if (drag.current?.pointer === event.pointerId) {
+              drag.current = undefined;
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+          }}
+          onPointerCancel={() => {
+            drag.current = undefined;
+          }}
+        >
+          <GripHorizontal size={14} />
+          <span>{title}</span>
+        </button>
+        {position ? (
+          <button
+            type="button"
+            className="dynamic-redock"
+            aria-label="Palauta mittaikkuna oikeaan reunaan"
+            onClick={() => onPositionChange(undefined)}
+          >
+            <PanelRightClose size={16} />
+          </button>
+        ) : (
+          <small>Tab →</small>
+        )}
       </div>
       <div className="dynamic-fields">
         {fields.map((field, i) => (

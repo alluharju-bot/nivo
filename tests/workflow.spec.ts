@@ -106,6 +106,7 @@ test('complete precise modelling, history, drawing, export and recovery workflow
   ).toBeVisible();
   await page.getByRole('button', { name: 'Edestä', exact: true }).click();
   const canvas = await page.getByTestId('viewport').boundingBox();
+  await page.keyboard.press('v');
   await page.mouse.click(canvas!.x + canvas!.width / 2, canvas!.y + canvas!.height / 2);
   await expect(page.locator('.selection-tag')).toContainText('Etupinta');
   await page.getByRole('button', { name: 'Mittakuva', exact: true }).click();

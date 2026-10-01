@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.4.1
+# Arkkitehtuuri — v0.4.2
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -155,11 +155,23 @@ Shift poimii juuri haetun pisteen ja vapautus poistaa viitteen; kosketuksella
 viite poimitaan painikkeella. Kesken kynän viivan Shift lukitsee nykyisen
 piirtosuunnan. Toinen piste, reuna tai pinta antaa pituuden projisoimalla
 poimitun pisteen lukitulle suoralle. X/Y/Z käyttää samaa projektiota kiinteällä
-akselilla. Esc vapauttaa lukon säilyttäen luonnoksen. Aloituspiste sulkee
+akselilla. Sama akselinäppäin vapauttaa lukon; Esc päättää koko työkalun. Aloituspiste sulkee
 muodon vain, jos myös rajoitettu päätepiste osuu aloitusverteksiin.
 Mittatyökalussa Shift sallii vapaan kulman; Shift+R kytkee vapaan kierron
 myös valmiille viivalle. Reunasta aloitettu apuviiva säilyttää reunan suunnan
-ja saa kohtisuoran offsetin, kunnes käyttäjä kiertää sen tai valitsee akselin.
+ja saa pinnan tasossa kohtisuoran offsetin. Reunan viereinen tasopinta valitaan
+ensimmäisestä vedosta pinnan puolelle. X/Y/Z rajoittaa offsetin akselille
+muuttamatta viivan suuntaa; R/Shift+R muuttaa suuntaa erikseen.
+Reunavalinta käyttää kohdistimen lähintä CAD-reunan pistettä, tarkistaa peittymisen
+ja korostaa koko reunan; päällekkäisistä reunaprojektioista suositaan näkyvää.
+
+Aktiivinen työkalu ja keskeneräinen luonnos ovat erillisiä tiloja. Hyväksyntä
+nollaa luonnosviitteet ja lukot, luo uuden luonnostunnisteen ja jättää työkalun
+odottamaan seuraavaa alkupistettä. Enter ja osoittimen vapautus eivät siten
+hyväksy samaa luonnosta uudelleen. Esc tyhjentää luonnoksen ja valinnan.
+Mittaikkuna on normaalisti sivupaneelin asettelussa. Otsikon pointer capture
+siirtää sen fixed-sijaintiin; sovellustila säilyttää paikan työkalun vaihtuessa.
+ResizeObserver ja ikkunan resize pitävät siirretyn paneelin ruudun sisällä.
 
 Numerosyöttö lukitsee kirjoitetut kentät, Tab kiertää kenttiä.
 Osoittimen vapautus ja Enter käyttävät samaa atomista hyväksyntää;

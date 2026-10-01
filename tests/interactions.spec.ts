@@ -130,7 +130,7 @@ test('measurement default, second-click mode menu, R rotation, Shift free angle 
   expect(model.guides[0].angle).toBe(22.5);
   expect(model.guides[0].mode).toBe('guide');
   expect(model.guides[0].anchor).toMatchObject({ bodyId: body.id });
-  await tool.click();
+  // The tool remains active after acceptance; one click opens its mode menu.
   await tool.click();
   await page.getByRole('menuitemradio', { name: /Vapaa mittaviiva/ }).click();
   const a = point(430, 80),
