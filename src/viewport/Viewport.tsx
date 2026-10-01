@@ -47,6 +47,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   controls.maxDistance = 250_000;
   controls.screenSpacePanning = true;
   const labels: { element: HTMLDivElement; point: THREE.Vector3; xray: boolean }[] = [];
+  const extrusionLabels: typeof labels = [];
   let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
   const clippingSphere = new THREE.Sphere(new THREE.Vector3(300, 200, 200), 1000);
   const render = () => {
@@ -61,7 +62,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       camera.updateProjectionMatrix();
     }
     renderer.render(scene, camera);
-    for (const label of labels) {
+    for (const label of [...labels, ...extrusionLabels]) {
       const p = label.point.clone().project(camera);
       label.element.hidden = Math.abs(p.z) > 1 || (!label.xray && !!labelOccluded?.(label.point));
       label.element.style.left = `${((p.x + 1) * container.clientWidth) / 2}px`;
@@ -234,6 +235,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   const preview = () => {
     disposeGroup(ghost);
+    extrusionLabels.forEach((label) => label.element.remove());
+    extrusionLabels.length = 0;
     const target = current().faceTarget;
     if (current().tool === 'extrude' && target) {
       const data = current().meshes.find((m) => m.id === target.bodyId),
@@ -277,6 +280,74 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
             new THREE.LineBasicMaterial({ color: '#0069c8', depthTest: false }),
           ),
         );
+        const span = current().faceSpan;
+        if (span) {
+          const distance = current().faceDistance;
+          const start = new THREE.Vector3(...span.start),
+            base = new THREE.Vector3(...span.end),
+            end = start.clone().addScaledVector(new THREE.Vector3(...target.normal), distance);
+          const final = span.solid ? Math.max(0, span.depth + distance) : Math.abs(distance);
+          const cameraDirection = new THREE.Vector3();
+          camera.getWorldDirection(cameraDirection);
+          const side = new THREE.Vector3(...target.normal).cross(cameraDirection);
+          if (side.lengthSq() < 1e-8) side.set(1, 0, 0).cross(new THREE.Vector3(...target.normal));
+          const pixels =
+            camera instanceof THREE.OrthographicCamera
+              ? (2 * halfHeight) / camera.zoom / container.clientHeight
+              : (2 * camera.position.distanceTo(start) * Math.tan(Math.PI / 9)) /
+                container.clientHeight;
+          side.normalize().multiplyScalar(pixels * 5);
+          const dimension = (
+            a: THREE.Vector3,
+            b: THREE.Vector3,
+            text: string,
+            kind: string,
+            color: string,
+          ) => {
+            const coordinates = [
+              ...a.toArray(),
+              ...b.toArray(),
+              ...a.clone().sub(side).toArray(),
+              ...a.clone().add(side).toArray(),
+              ...b.clone().sub(side).toArray(),
+              ...b.clone().add(side).toArray(),
+            ];
+            ghost.add(
+              new THREE.LineSegments(
+                new THREE.BufferGeometry().setAttribute(
+                  'position',
+                  new THREE.Float32BufferAttribute(coordinates, 3),
+                ),
+                new THREE.LineBasicMaterial({ color, depthTest: false, depthWrite: false }),
+              ),
+            );
+            const element = document.createElement('div');
+            element.className = `extrusion-label ${kind}`;
+            element.dataset.testid = `extrusion-${kind}`;
+            element.textContent = text;
+            container.append(element);
+            extrusionLabels.push({
+              element,
+              point: a.clone().add(b).multiplyScalar(0.5),
+              xray: true,
+            });
+          };
+          dimension(
+            base,
+            final > 0 ? end : base,
+            `Jäljelle ${formatLength(final)} mm`,
+            'remaining',
+            '#137d52',
+          );
+          if (Math.abs(distance) >= 0.001)
+            dimension(
+              start,
+              end,
+              `${distance > 0 ? '+' : ''}${formatLength(distance)} mm`,
+              'delta',
+              distance < 0 ? '#bd5a30' : '#1268b2',
+            );
+        }
       }
       render();
       return;
@@ -516,6 +587,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       interactions.dispose();
       disposeGroup(guides);
       labels.forEach((l) => l.element.remove());
+      extrusionLabels.forEach((l) => l.element.remove());
       disposeGroup(bodies);
       disposeGroup(ghost);
       scene.traverse((obj) => {
@@ -563,7 +635,7 @@ export function Viewport(props: Props) {
   ]);
   useEffect(
     () => api.current?.preview(),
-    [props.preview, props.faceTarget, props.faceDistance, props.tool],
+    [props.preview, props.faceTarget, props.faceDistance, props.faceSpan, props.tool],
   );
   useEffect(
     () => api.current?.interactionSync(),

@@ -6,8 +6,9 @@ import type {
   ProbeResult,
   DrawingView,
   SplitResult,
+  FaceSpan,
 } from './protocol';
-import type { Body, FaceRef } from '../model/project';
+import type { Body, FaceRef, Vec3 } from '../model/project';
 
 export class CadClient {
   private worker?: Worker;
@@ -58,6 +59,9 @@ export class CadClient {
   }
   pushPull(body: Body, face: FaceRef, distance: number) {
     return this.request<Body>({ type: 'push-pull', body, face, distance });
+  }
+  faceSpan(body: Body, face: FaceRef, point?: Vec3) {
+    return this.request<FaceSpan>({ type: 'face-span', body, face, point });
   }
   boolean(targets: Body[], tools: Body[], operation: 'cut' | 'join') {
     return this.request<Body[]>({ type: 'boolean', targets, tools, operation });

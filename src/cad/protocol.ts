@@ -14,6 +14,12 @@ export interface FaceTarget {
   normal: Vec3;
   point: Vec3;
 }
+export interface FaceSpan {
+  start: Vec3;
+  end: Vec3;
+  depth: number;
+  solid: boolean;
+}
 export interface SplitResult {
   body: Body;
   face: FaceRef;
@@ -49,6 +55,7 @@ export type CadRequest =
   | { type: 'probe' }
   | { type: 'boolean'; targets: Body[]; tools: Body[]; operation: 'cut' | 'join' }
   | { type: 'split-face'; body: Body; face: FaceRef; profile: Body }
+  | { type: 'face-span'; body: Body; face: FaceRef; point?: Vec3 }
   | { type: 'push-pull'; body: Body; face: FaceRef; distance: number };
 export interface ProbeResult {
   boxVolume: number;
@@ -62,6 +69,6 @@ export interface ProbeResult {
 }
 export interface CadReply {
   id: number;
-  result?: BodyMesh[] | Projection | ProbeResult | Body | Body[] | SplitResult;
+  result?: BodyMesh[] | Projection | ProbeResult | Body | Body[] | SplitResult | FaceSpan;
   error?: string;
 }

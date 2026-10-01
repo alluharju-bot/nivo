@@ -5,6 +5,8 @@
 
 Versio 0.4 tuo pintaan piirtämisen, tarkat ympyrät ja ellipsit, rajattujen alueiden
 syvennykset ja läpireiät sekä usean kappaleen Cut/Join-työkalun.
+Versio 0.4.1 lisää push/pullin lopullisen mitan: 652 mm osan voi muuttaa suoraan
+550 mm pituiseksi laskematta erotusta. Vihreä mittaviiva näyttää jäljelle jäävän osuuden.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
@@ -79,6 +81,18 @@ komponentteja.
   normaalinsa suunnassa tai valitse pinta, paina E ja kirjoita siirtymä. Positiivinen
   arvo vetää ulospäin, negatiivinen työntää sisään. Toimii laatikon kaikilla kuudella
   pinnalla, kynämuodoilla ja yhdistettyjen osien tasopinnoilla.
+- **Lopullinen mitta:** push/pull näyttää siirtymän ja lopullisen mitan.
+  652 mm osassa siirtymä `−150` jättää 502 mm. Paina Tab: sama luku muuttuu
+  lopulliseksi mitaksi 150 mm, ja siirtymäksi lasketaan −502 mm. Shift+Tab
+  vaihtaa takaisin. Kenttää napsauttamalla voit syöttää lopullisen mitan suoraan.
+  Suurempi mitta pidentää osaa; vastapinta säilyy paikallaan myös vastakkaisilta
+  sivuilta muokattaessa. Etumerkitön siirtymä seuraa vedon suuntaa (ilman vetoa
+  ulospäin), `+` ja `−` määräävät suunnan erikseen. Lopullinen mitta on aina
+  positiivinen; kokonaan läpi leikkaamiseen on oma painike.
+  Vihreä mittaviiva kulkee ensimmäisestä vastapinnasta uuteen pintaan.
+  Syvennyksessä voi näin jättää esimerkiksi 5 mm materiaalia. Vaihtelevan
+  paksuuden osassa mitta koskee osoitettua kohtaa ja valitun pinnan normaalin suuntaa.
+  Tyhjä tila tai erillinen solidi vastapinnan takana ei kasvata tätä mittaa.
 - **Kynä:** aseta verteksit näkymän tasolle tai tartu mallin pisteisiin. X/Y/Z
   lukitsee akselin. Shift lukitsee aloitetun viivan suunnan: toisen pisteen
   napsautus projisoi sen lukitulle viivalle ja määrää pituuden. Esimerkiksi
@@ -107,6 +121,8 @@ komponentteja.
   erilliset osat. Yhdistäminen vaatii paksuuden.
 
 ![Kelluva mittaikkuna ja kirjoittamalla lukitut mitat](docs/images/nivo-input.png)
+
+![652 mm osan lopullinen mitta 550 mm ja automaattisesti laskettu −102 mm siirtymä](docs/images/nivo-final-size.png)
 
 ![Kolmannen kynäviivan suunta lukittuna, 200 mm pituus poimittu ensimmäisestä pisteestä](docs/images/nivo-inference.png)
 

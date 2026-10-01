@@ -61,7 +61,14 @@ import {
 } from './model/project';
 import { formatLength, parseLength } from './model/units';
 import { downloadFile, safeFilename } from './storage/projects';
-import type { DrawingView, FaceTarget } from './cad/protocol';
+import type { DrawingView, FaceTarget, FaceSpan } from './cad/protocol';
+import {
+  extrusionDistance,
+  distanceToSize,
+  transferExtrusionValue,
+  inputNumber,
+  type ExtrusionMode,
+} from './model/extrusion';
 import { DynamicInput, type NumericField } from './ui/DynamicInput';
 import { CommitCheckbox } from './ui/CommitCheckbox';
 import { BooleanPanel, ShapeProperties, type Operation } from './ui/ModelingPanel';
@@ -130,6 +137,7 @@ const instructions: Record<Tool, string> = {
   navigate: 'Vedä yhdellä sormella kiertääksesi. Kahdella sormella panoroit ja zoomaat.',
 };
 type Fields = {
+  remaining: string;
   thickness: string;
   width: string;
   depth: string;
@@ -142,6 +150,7 @@ type Fields = {
   offset: string;
 };
 const defaults: Fields = {
+  remaining: '0',
   thickness: '0',
   width: '600',
   depth: '400',
@@ -189,6 +198,14 @@ export default function App() {
   const constraintRef = useRef<Vec3 | undefined>(undefined);
   const [faceTarget, setFaceTarget] = useState<FaceTarget>();
   const faceRef = useRef<FaceTarget | undefined>(undefined);
+  const [faceSpan, setFaceSpan] = useState<FaceSpan>();
+  const spanRef = useRef<FaceSpan | undefined>(undefined);
+  const spanRequest = useRef(0);
+  const [spanError, setSpanError] = useState('');
+  const [spanLoading, setSpanLoading] = useState(false);
+  const [extrusionMode, setExtrusionMode] = useState<ExtrusionMode>('height');
+  const extrusionModeRef = useRef<ExtrusionMode>('height');
+  const dragDirection = useRef(1);
   const [selectedGuideId, setSelectedGuideId] = useState<string>();
   const [freeRotate, setFreeRotate] = useState(false);
   const [shapeFrame, setShapeFrame] = useState<SketchFrame>();
@@ -247,7 +264,84 @@ export default function App() {
     fieldsRef.current = { ...fieldsRef.current, ...patch };
     setFields(fieldsRef.current);
   };
+  const extrusionValue = () => {
+    if (extrusionModeRef.current === 'remaining') {
+      if (!spanRef.current) throw new Error('Odota vastapinnan mittausta.');
+      return distanceToSize(
+        fieldsRef.current.remaining,
+        spanRef.current.depth,
+        spanRef.current.solid,
+        dragDirection.current,
+      );
+    }
+    return extrusionDistance(fieldsRef.current.height, dragDirection.current);
+  };
+  const measureTarget = (target: FaceTarget, picked = false) => {
+    const request = ++spanRequest.current;
+    spanRef.current = undefined;
+    setFaceSpan(undefined);
+    setSpanError('');
+    setSpanLoading(true);
+    extrusionModeRef.current = 'height';
+    setExtrusionMode('height');
+    dragDirection.current = 1;
+    const source = project.bodies.find((b) => b.id === target.bodyId)!;
+    void editor.cad
+      .faceSpan(source, target.face, picked ? target.point : undefined)
+      .then((span) => {
+        if (request !== spanRequest.current) return;
+        spanRef.current = span;
+        setFaceSpan(span);
+        setSpanLoading(false);
+      })
+      .catch((e: Error) => {
+        if (request !== spanRequest.current) return;
+        setSpanLoading(false);
+        setSpanError(e.message);
+      });
+  };
+  const activateExtrusion = (key: string, transfer = false) => {
+    if (key !== 'height' && key !== 'remaining') return;
+    if (key === extrusionModeRef.current || (key === 'remaining' && !spanRef.current)) return;
+    const old = extrusionModeRef.current;
+    let value: string;
+    if (transfer && lockRef.current.has(old))
+      value = transferExtrusionValue(fieldsRef.current[old], key);
+    else {
+      try {
+        const distance = extrusionValue();
+        value =
+          key === 'height'
+            ? `${distance >= 0 ? '+' : ''}${inputNumber(distance)}`
+            : inputNumber(
+                spanRef.current!.solid
+                  ? Math.max(0, spanRef.current!.depth + distance)
+                  : Math.abs(distance),
+              );
+      } catch {
+        value = key === 'height' ? '0' : inputNumber(spanRef.current?.depth ?? 0);
+      }
+    }
+    const wasLocked = lockRef.current.has(old);
+    lockRef.current.delete(old);
+    if (wasLocked) lockRef.current.add(key);
+    extrusionModeRef.current = key;
+    setExtrusionMode(key);
+    setLocked(new Set(lockRef.current));
+    writeFields({ [key]: value });
+  };
   const field = (key: string, value: string) => {
+    if (tool === 'extrude' && (key === 'height' || key === 'remaining')) {
+      if (key === 'height' && /^[+-]/.test(value.trim())) {
+        try {
+          const distance = parseLength(value, true, true);
+          if (Math.abs(distance) > 1e-8) dragDirection.current = Math.sign(distance);
+        } catch {}
+      }
+      extrusionModeRef.current = key;
+      setExtrusionMode(key);
+      lockRef.current.delete(key === 'height' ? 'remaining' : 'height');
+    }
     if (key === 'thickness') {
       writeFields({ thickness: value });
       return;
@@ -284,6 +378,14 @@ export default function App() {
     setPickReference(false);
     faceRef.current = undefined;
     setFaceTarget(undefined);
+    spanRequest.current++;
+    spanRef.current = undefined;
+    setFaceSpan(undefined);
+    setSpanError('');
+    setSpanLoading(false);
+    extrusionModeRef.current = 'height';
+    setExtrusionMode('height');
+    dragDirection.current = 1;
     setSelectedGuideId(undefined);
     setFreeRotate(false);
     constraintRef.current = undefined;
@@ -389,6 +491,8 @@ export default function App() {
           };
           faceRef.current = target;
           setFaceTarget(target);
+          writeFields({ height: '0' });
+          measureTarget(target);
         }
       }
       if (next === 'rectangle' || next === 'circle' || next === 'pen') {
@@ -481,11 +585,16 @@ export default function App() {
   ]);
   const faceDistance = useMemo(() => {
     try {
-      return parseLength(fields.height, true, true);
+      return extrusionValue();
     } catch {
       return 0;
     }
-  }, [fields.height]);
+  }, [fields.height, fields.remaining, extrusionMode, faceSpan]);
+  const finalSize = faceSpan
+    ? faceSpan.solid
+      ? Math.max(0, faceSpan.depth + faceDistance)
+      : Math.abs(faceDistance)
+    : undefined;
 
   const makeGuide = (): Guide | undefined => {
     const draft = guideRef.current;
@@ -620,7 +729,12 @@ export default function App() {
           editor.setMessage('Osoita pintaa ja aloita veto.');
           return;
         }
-        const distance = parseLength(fieldsRef.current.height, true);
+        const distance = extrusionValue();
+        if (Math.abs(distance) < 1e-8) {
+          editor.setMessage('Mitta on jo haluttu. Kappale säilyi ennallaan.');
+          select(source.id);
+          return;
+        }
         committing.current = true;
         if (
           await editor.transact(async () => {
@@ -818,7 +932,12 @@ export default function App() {
       patch.y = String(origin[1]);
       writeFields(patch);
     } else if (event.type === 'extrude') {
-      if (!lockRef.current.has('height')) writeFields({ height: String(event.distance) });
+      if (!lockRef.current.has('height') && !lockRef.current.has('remaining')) {
+        if (Math.abs(event.distance) > 0.01) dragDirection.current = Math.sign(event.distance);
+        extrusionModeRef.current = 'height';
+        setExtrusionMode('height');
+        writeFields({ height: `${event.distance >= 0 ? '+' : ''}${inputNumber(event.distance)}` });
+      }
     } else if (event.type === 'move' && body) {
       for (const [i, key] of ['x', 'y', 'z'].entries())
         if (!lockRef.current.has(key))
@@ -960,11 +1079,28 @@ export default function App() {
                 {
                   key: 'height',
                   label: 'Pinnan siirtymä',
-                  value: fields.height,
+                  value:
+                    extrusionMode === 'height'
+                      ? fields.height
+                      : `${faceDistance >= 0 ? '+' : ''}${inputNumber(faceDistance)}`,
                   unit: 'mm',
                   testId: 'height-input',
                   signed: true,
                 },
+                ...(faceSpan
+                  ? [
+                      {
+                        key: 'remaining',
+                        label: 'Lopullinen mitta',
+                        value:
+                          extrusionMode === 'remaining'
+                            ? fields.remaining
+                            : inputNumber(finalSize!),
+                        unit: 'mm',
+                        testId: 'remaining-input',
+                      },
+                    ]
+                  : []),
               ]
             : []
           : tool === 'measure'
@@ -1454,9 +1590,7 @@ export default function App() {
               booleanTools={booleanTools}
               pickDepth={pickDepth}
               onDepthPicked={(distance) => {
-                writeFields({ height: String(Math.round(distance * 100) / 100) });
-                lockRef.current.add('height');
-                setLocked(new Set(lockRef.current));
+                field('height', `${distance >= 0 ? '+' : ''}${inputNumber(distance)}`);
                 setPickDepth(false);
               }}
               onSketchPlane={(frame, target) => {
@@ -1469,6 +1603,7 @@ export default function App() {
               onGesture={gesture}
               faceTarget={faceTarget}
               faceDistance={faceDistance}
+              faceSpan={faceSpan}
               guideXray={project.settings.guideXray}
               selectedGuideId={selectedGuideId}
               freeRotate={freeRotate}
@@ -1480,6 +1615,7 @@ export default function App() {
                 setSelectedFace(target.face);
                 clearLocks();
                 writeFields({ height: '0' });
+                measureTarget(target, true);
               }}
               onSelectGuide={(id) => {
                 const g = project.guides.find((g) => g.id === id);
@@ -1503,6 +1639,8 @@ export default function App() {
                 position={popup}
                 locked={locked}
                 onChange={field}
+                activeKey={tool === 'extrude' ? extrusionMode : undefined}
+                onActivate={tool === 'extrude' ? activateExtrusion : undefined}
                 onAccept={() => void apply()}
                 onCancel={cancel}
                 busy={busy}
@@ -1743,6 +1881,36 @@ export default function App() {
                   )}
                   {tool === 'extrude' && faceTarget && (
                     <div className="shape-properties">
+                      <div className="extrusion-readout" data-testid="extrusion-readout">
+                        {faceSpan ? (
+                          <>
+                            <span>
+                              Nykyinen mitta <strong>{formatLength(faceSpan.depth)} mm</strong>
+                            </span>
+                            <span>
+                              Lopullinen mitta <strong>{formatLength(finalSize!)} mm</strong>
+                            </span>
+                            <span>
+                              Siirtymä{' '}
+                              <strong>
+                                {faceDistance > 0 ? '+' : ''}
+                                {formatLength(faceDistance)} mm
+                              </strong>
+                            </span>
+                          </>
+                        ) : (
+                          <span>{spanLoading ? 'Mitataan vastapintaa…' : spanError}</span>
+                        )}
+                      </div>
+                      <p className="muted">
+                        Tab vaihtaa siirtymän ja lopullisen mitan välillä ja säilyttää kirjoittamasi
+                        luvun. Miinus työntää sisään, plus vetää ulos. Ilman etumerkkiä luku seuraa
+                        vedon suuntaa.
+                      </p>
+                      <p className="muted">
+                        Vihreä mittaviiva näyttää jäljelle jäävän materiaalin mitan tässä kohdassa,
+                        kohtisuoraan valittua pintaa vastaan.
+                      </p>
                       <button
                         className="button outlined full"
                         aria-pressed={pickDepth}
@@ -1763,6 +1931,8 @@ export default function App() {
                               ) - 1,
                             ),
                           });
+                          extrusionModeRef.current = 'height';
+                          setExtrusionMode('height');
                           void apply();
                         }}
                       >
@@ -2226,7 +2396,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.4</span>
+                  <span>v0.4.1</span>
                 </div>
               </>
             )}
@@ -2287,6 +2457,13 @@ export default function App() {
             <p>
               <strong>Tarkat mitat:</strong> aloita kirjoittamalla numero. Tab siirtyy seuraavaan
               kenttään. Kirjoitettu mitta säilyy hiiren liikkuessa.
+            </p>
+            <p>
+              <strong>Push/pullin lopullinen mitta:</strong> siirtymä −150 lyhentää osaa 150 mm. Tab
+              siirtää saman luvun Lopullinen mitta -kenttään: osan mitaksi jää 150 mm. Voit myös
+              napsauttaa kenttää ja kirjoittaa esimerkiksi 550. Vihreä mittaviiva näyttää mitan
+              vastapinnasta valitussa kohdassa. Ilman etumerkkiä siirtymä seuraa vedon suuntaa; +
+              vetää ulos ja − työntää sisään. Lopullinen mitta on positiivinen.
             </p>
             <p>
               <strong>Apuviivat:</strong> mittatyökalun ensimmäinen painallus valitsee apuviivan,

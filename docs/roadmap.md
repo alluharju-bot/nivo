@@ -28,6 +28,12 @@ Yhteisessä paneelissa nimi, mitat, paksuus ja käyttötarkoitus: kappale,
 rakentamisen apumuoto, piirros tai nimetty itsenäinen osa. V4 tallentaa tarkat
 käyräprofiilit ja BRep-tulokset sekä säilyneet verteksiviitteet.
 
+Versiossa 0.4.1 toteutettu: push/pullin siirtymä ja lopullinen mitta,
+kirjoitetun luvun merkityksen vaihto Tabilla sekä nykyisen ja jäljelle jäävän
+materiaalin mitan näyttö. Vastapinta mitataan tarkasta geometriasta valitun
+pinnan normaalin suunnassa. Etumerkitön mitta seuraa vetosuuntaa, etumerkki
+määrää sen suoraan. Sama toiminto toimii vinoilla pinnoilla ja taskun pohjalla.
+
 Seuraavaksi: kierto, kohdistus ja kopiointi, viitteiden poiminnan käyttökokeet
 sekä työkalujen viimeistely oikeilla malleilla. Fyysinen tabletti ja Safari
 varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.

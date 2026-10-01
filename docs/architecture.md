@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.4
+# Arkkitehtuuri — v0.4.1
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -91,6 +91,18 @@ Tallennusvirhe näkyy käyttäjälle ja malli säilyy muistissa. Ladattava tiedo
 ei vaadi File System Access API:a. Automaattitallennus ei ole varmuuskopio.
 
 ## Topologia
+
+Push/pullin lopullinen mitta haetaan valintahetkellä workerin `face-span`-pyynnöllä.
+CAD-pinnan normaalin suuntainen suora leikataan tarkalla BRepillä, ja valintapisteestä
+alkavan ensimmäisen yhtenäisen materiaaliosuuden pituus on nykyinen mitta.
+Erillisiä solideja tai niiden välisiä tyhjiä kohtia ei lasketa mukaan.
+Automaattivalinnassa reiän kohdalle osuva pinnan keskipiste korvataan pinnan
+sisäpisteellä; käyttäjän osoittamaa pistettä ei siirretä huomaamatta.
+Jälkimmäinen syöttötila muuntaa tavoitemitan siirtymäksi, joten geometriaoperaatio
+ja tallennusformaatti säilyvät samoina. Uusi valinta tai peruminen mitätöi
+vanhan mittausvastauksen. Syöttötilalla on synkroninen viite Enter/vapautus-kilpailun
+estämiseksi. Tab voi vaihtaa kirjoitetun luvun merkityksen; hiirellä kenttää
+vaihdettaessa nykyinen esikatselugeometria säilyy.
 
 Kappaleella on UUID. Nykyisen suorakulmaisen pursotuksen pinnat ovat `x:min`,
 `x:max`, `y:min`, `y:max`, `z:min`, `z:max`. CAD-meshin faceGroup liitetään

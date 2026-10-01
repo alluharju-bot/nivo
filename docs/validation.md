@@ -6,31 +6,33 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.4.1:n lisäys: 652 mm kappaleen lopullinen mitta voidaan kirjoittaa suoraan.
+Uudet CAD-testit muuttavat 652 mm → 150/550/750 mm kaikilta kuudelta pinnalta
+ja varmistavat vastakkaisen pinnan pysymisen paikallaan. Lisäksi varmennetaan
+vinon levyn tarkka paksuus, taskun pohjalle jäävä 5 mm materiaali, reiän kohdalle
+osuvan automaattisen pintakeskipisteen käsittely sekä erillisen solidin jättäminen
+mittauksen ulkopuolelle. Etumerkit, yksiköt, Tab-vaihto ja virheelliset tavoitemitat
+testataan samoilla siirtymälaskelmilla joita sovellus käyttää.
+
+Uusissa selaintesteissä 652 → 550, −150 → Tab → 150 mm, Shift+Tab,
+automaattitallennus, vedon suunnan mukainen 150, sen ohittava +150,
+hiiren vapautuksella hyväksyntä sekä 5 mm taskunpohja ja muuttumaton mitta.
+Kolme uutta työnkulkua hyväksytty ensin työpöytäprofiilin kohdistetussa ajossa.
+
 | Tarkistus                    | Tulos                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm test`                   | 36 testiä hyväksytty.                                                                                                                |
+| `npm test`                   | 40 testiä hyväksytty.                                                                                                                |
 | Kehitystilan selaintestit    | V0.4:n kahdeksan uutta mallinnustyönkulkua hyväksytty työpöydällä kohdistetuissa ajoissa. Aiemmat CAD-worker-kokeet säilyvät.        |
 | `npm run build`              | TypeScript ja tuotantopaketointi hyväksytty.                                                                                         |
 | Tuotantopaketin selaintestit | Mittasyöttö, apuviivat, Shift-viite, kynä, yhdistäminen sekä aiemmat työnkulut työpöydällä ja tablettiprofiilissa. Ajotulokset alla. |
 | `npm run format:check`       | Lähdekoodin ja dokumentaation muotoilutarkistus.                                                                                     |
 
-V0.4:n koko tuotantotestisarja ajetaan komennolla
-`NIVO_PREVIEW=1 npm run test:e2e` (50 tapausta). Viimeinen koko ajo:
-**45 hyväksytty, 4 tarkoituksella ohitettu, 1 testin odotusvirhe** (5,3 min).
-Tabletin ympyräreiän testi latasi sivun uudelleen ennen redo-laskennan valmistumista:
-vanha tallennustila oli vielä näkyvissä. Testi odottaa nyt ensin operaation
-valmistumisen ja sitten automaattitallennuksen. Aiemman ajon paneelin peittämä
-kappalerivi ja toisen testin undo-odotus korjattiin; nämä menivät koko uusinta-ajossa läpi.
-
-Korjattu ympyräreiän testi ajettiin tuotantopaketilla kahdesti kummallakin
-profiililla: **4 hyväksytty** (37,9 s). Odotus kohdistuu alapalkin tilaviestiin,
-ei laskennan aikana näkyvään toiseen status-elementtiin. Vinon pinnan
-testi meni myös kahdesti läpi kummallakin profiililla (**4 hyväksytty**).
-Pinnan tunnistus hylkää operaation, jos rajattua aluetta ei löydy; tällöin
-toimintoa ei kohdisteta satunnaiseen pintaan. Viimeisen koodimuutoksen jälkeen
-36 yksikkötestiä, TypeScript, tuotantopaketointi ja muotoilutarkistus hyväksyttiin.
-Kaikki 46 varsinaista selaintapausta on näin varmennettu koko ajon ja
-kohdistettujen korjausajojen yhdistelmällä.
+V0.4.1:n koko tuotantotestisarja:
+`NIVO_PREVIEW=1 npm run test:e2e` — **52 hyväksytty, 4 tarkoituksella ohitettu**
+(6,5 min). Kaikki uudet ja aiemmat työnkulut ajettiin työpöytä- ja
+tablettiprofiileissa. 40 yksikkötestiä, TypeScript, tuotantopaketointi ja
+muotoilutarkistus hyväksyttiin. Uuden lopullisen mitan tiedostokierto,
+Tab/Shift+Tab, hiiren vapautus, etumerkit ja jäljelle jäävä materiaali sisältyvät ajoon.
 
 Ohitukset ovat kaksi vain kehitystilassa ajettavaa worker-koetta ja
 kaksi vain tablettiprofiilille tarkoitettua kosketustestiä työpöytäprofiilissa.

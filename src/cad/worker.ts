@@ -5,6 +5,7 @@ import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './
 import type { BodyMesh, CadRequest, CadReply } from './protocol';
 import type { Body } from '../model/project';
 import { booleanBodies, splitFace } from './operations';
+import { measureFaceSpan } from './measurement';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 type Entry = { key: string; shape: AnyShape; mesh: BodyMesh };
@@ -42,6 +43,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
+      else if (request.type === 'face-span')
+        reply.result = measureFaceSpan(request.body, request.face, request.point);
       else if (request.type === 'push-pull')
         reply.result = pushPullFace(request.body, request.face, request.distance);
       else if (request.type === 'boolean')

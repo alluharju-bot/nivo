@@ -1,5 +1,5 @@
 import type { Anchor, Axis, Body, FaceRef, Guide, Vec3, View, WorkPlane } from '../model/project';
-import type { BodyMesh, FaceTarget } from '../cad/protocol';
+import type { BodyMesh, FaceTarget, FaceSpan } from '../cad/protocol';
 import type { ReferencePoint } from '../model/snap';
 import type { SketchFrame } from '../model/sketch';
 export type Tool =
@@ -54,6 +54,7 @@ export interface ViewportProps {
   freeRotate: boolean;
   faceTarget?: FaceTarget;
   faceDistance: number;
+  faceSpan?: FaceSpan;
   measureMode: 'guide' | 'free';
   penPoints: Vec3[];
   penHover?: Vec3;
