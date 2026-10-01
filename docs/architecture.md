@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.6.0
+# Arkkitehtuuri — v0.6.1
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -59,7 +59,17 @@ ilman kolmioverkkoa tai toleranssilaajennusta, myös kaareville pinnoille.
 Pintaan piirretty profiili leikataan valitulla pinnalla ja jaetaan
 BRepAlgoAPI_Splitterillä. Alue tunnistetaan uudelleen tallennetusta BRepistä,
 jotta E kohdistuu sisäalueeseen. Paksuus voidaan toteuttaa samassa transaktiossa
-pinnan jaon kanssa. Cut vähentää kaikki työstökappaleet jokaisesta kohteesta;
+pinnan jaon kanssa. Piirtotason poiminta on erillään osan luontitavasta.
+Automaattisessa tilassa split-face voi palauttaa unchanged-tuloksen, kun
+profiili ulottuu tyhjään tilaan/reunan yli tai pinnanjako ei lisää alueita.
+Profiilin ja leikkausalueen pinta-aloja verrataan ennen pinnanjakoa. App lisää silloin
+alkuperäisen kokonaisen profiilin itsenäisenä osana samassa transaktiossa;
+virheellistä geometriaa tai muita CAD-virheitä ei muuteta uudeksi osaksi.
+Eksplisiittinen Pinnan alue ja Offset vaativat edelleen todellisen jaon.
+Uusi osa käyttää samaa piirtotasoa kutsumatta pinnanjakoa.
+Suorakulmion/ympyrän luonnos säilyy ensimmäisen napsautuksen jälkeen:
+mousemove päivittää, toinen napsautus tai veto hyväksyy ja epoch/Esc peruu.
+Numerolukot ja synkroniset luonnosviitteet ovat yhteisiä molemmille eleille. Cut vähentää kaikki työstökappaleet jokaisesta kohteesta;
 Join yhdistää kaikki valitut osat ensimmäiseen kohteeseen. Roolien vaihto,
 työstökappaleiden säilyttäminen ja historia käsitellään projektitasolla.
 
@@ -131,6 +141,15 @@ ja tallennusformaatti säilyvät samoina. Uusi valinta tai peruminen mitätöi
 vanhan mittausvastauksen. Syöttötilalla on synkroninen viite Enter/vapautus-kilpailun
 estämiseksi. Tab voi vaihtaa kirjoitetun luvun merkityksen; hiirellä kenttää
 vaihdettaessa nykyinen esikatselugeometria säilyy.
+
+Tavallinen E-veto käyttää eleen alussa lukittua, kameran projektiosta laskettua
+normaalin suuntaista näyttövektoria. Lähes katselusuunnan suuntainen normaali
+käyttää pystysuuntaista hiiriliikettä ja paikallista mm/pikseli-suhdetta.
+Laskenta ei vaihdu liikkuvan osoitinsäteen mukaan, mikä poistaa perspektiivin
+lähes yhdensuuntaisten suorien singulariteetin. Shift kytkee pintakohdistuksen
+päälle ja päivittää kohteen myös ilman hiiren liikettä. Vapautus alustaa vapaan
+vedon hiiriankkurin ja perusmitan viimeiseen arvoon. Tyhjä/oma pinta ei muuta
+hakutilan mittaa, eikä virheellinen kohde hyväksy elettä. Numerolukitus on etusijalla.
 
 Pintakohdistus käyttää lähtöpinnan tarkkaa normaalia ja kohdepinnalle projisoitua
 raycast-pistettä: siirtymä on `(kohde − lähtö) · normaali`. Yhdensuuntaiset

@@ -270,6 +270,66 @@ describe('face regions and exact boolean modelling', () => {
     expect(restored.guides[0].anchor).toMatchObject({ bodyId: a.id });
     expect(resolveAnchor(restored.bodies, restored.guides[0].anchor)).toEqual([150, 0, 0]);
   });
+  it('distinguishes a cabinet door or opening from a region that actually splits the front rim', () => {
+    const box = makeBody(600, 600, 2400);
+    const inset = offsetFace(box, 'y:min', 18);
+    const cabinet = pushPullFace(inset.body, inset.face, -582);
+    const shape = createShape(cabinet);
+    let front;
+    try {
+      front = meshBody(cabinet, shape).faces.find(
+        (f) => f.planar && f.normal[1] < -0.99 && Math.abs(f.center[1]) < 1e-5,
+      )!;
+    } finally {
+      shape.delete();
+    }
+    const door = makeProfileBody(
+      { kind: 'rectangle', width: 600, depth: 2400 },
+      sketchFrame([0, 0, 0], [0, -1, 0]),
+    );
+    expect(splitFace(cabinet, front.ref, door, true)).toEqual({
+      body: cabinet,
+      face: front.ref,
+      unchanged: true,
+    });
+    expect(() => splitFace(cabinet, front.ref, door)).toThrow('Uusi osa');
+    const smallerDoor = makeProfileBody(
+      { kind: 'rectangle', width: 590, depth: 2390 },
+      sketchFrame([5, 0, 5], [0, -1, 0]),
+    );
+    expect(splitFace(cabinet, front.ref, smallerDoor, true).unchanged).toBe(true);
+    const opening = makeProfileBody(
+      { kind: 'rectangle', width: 100, depth: 100 },
+      sketchFrame([100, 0, 100], [0, -1, 0]),
+    );
+    expect(splitFace(cabinet, front.ref, opening, true).unchanged).toBe(true);
+    const region = makeProfileBody(
+      { kind: 'rectangle', width: 10, depth: 100 },
+      sketchFrame([4, 0, 100], [0, -1, 0]),
+    );
+    const divided = splitFace(cabinet, front.ref, region, true);
+    expect(divided.unchanged).toBeUndefined();
+    expect(divided.body.feature).not.toEqual(cabinet.feature);
+    expect(volume(divided.body)).toBeCloseTo(volume(cabinet), 4);
+    expect(() => splitFace(cabinet, front.ref, makeBody(10, 10, 10), true)).toThrow(
+      'ilman paksuutta',
+    );
+  });
+  it('keeps a LED strip across cabinet undersides whole in automatic mode; explicit region mode still clips', () => {
+    const cabinet = makeBody(300, 400, 600);
+    const strip = makeProfileBody(
+      { kind: 'rectangle', width: 500, depth: 40 },
+      sketchFrame([50, 50, 0], [0, 0, -1]),
+    );
+    expect(splitFace(cabinet, 'z:min', strip, true)).toEqual({
+      body: cabinet,
+      face: 'z:min',
+      unchanged: true,
+    });
+    const region = splitFace(cabinet, 'z:min', strip);
+    expect(region.unchanged).toBeUndefined();
+    expect(volume(region.body)).toBeCloseTo(volume(cabinet), 5);
+  });
   it('splits a circular region without changing volume, then cuts a blind pocket and a through hole', () => {
     const plate = makeBody(100, 100, 20),
       circle = makeProfileBody({ kind: 'circle', radius: 10 }, sketchFrame([50, 50, 20]));

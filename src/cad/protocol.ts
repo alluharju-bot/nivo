@@ -23,6 +23,7 @@ export interface FaceSpan {
 export interface SplitResult {
   body: Body;
   face: FaceRef;
+  unchanged?: boolean;
 }
 export interface CadEdge {
   start: Vec3;
@@ -55,7 +56,7 @@ export type CadRequest =
   | { type: 'probe' }
   | { type: 'rotate'; bodies: Body[]; pivot: Vec3; axis: Vec3; angle: number }
   | { type: 'boolean'; targets: Body[]; tools: Body[]; operation: 'cut' | 'join' }
-  | { type: 'split-face'; body: Body; face: FaceRef; profile: Body }
+  | { type: 'split-face'; body: Body; face: FaceRef; profile: Body; allowUnsplit?: boolean }
   | { type: 'offset-face'; body: Body; face: FaceRef; distance: number }
   | { type: 'offset-outline'; body: Body; face: FaceRef; distance: number }
   | { type: 'face-span'; body: Body; face: FaceRef; point?: Vec3 }

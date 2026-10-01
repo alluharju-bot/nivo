@@ -69,8 +69,8 @@ export class CadClient {
   boolean(targets: Body[], tools: Body[], operation: 'cut' | 'join') {
     return this.request<Body[]>({ type: 'boolean', targets, tools, operation });
   }
-  split(body: Body, face: FaceRef, profile: Body) {
-    return this.request<SplitResult>({ type: 'split-face', body, face, profile });
+  split(body: Body, face: FaceRef, profile: Body, allowUnsplit = false) {
+    return this.request<SplitResult>({ type: 'split-face', body, face, profile, allowUnsplit });
   }
   offset(body: Body, face: FaceRef, distance: number) {
     return this.request<SplitResult>({ type: 'offset-face', body, face, distance });

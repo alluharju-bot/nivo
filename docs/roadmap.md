@@ -56,6 +56,11 @@ Versiossa 0.6 toteutettu: push/pullin kahden klikkauksen pintakohdistus ja
 Toteutuva kokonaismitta -sanasto, osien yhteiset X/Y/Z-ulkomitat 3D:ssä ja
 mittakuvassa, mittojen riveihin sijoittelu sekä osavärit monivalinnalla.
 
+Versiossa 0.6.1 toteutettu: vapaa E-veto ja Shiftillä haettava tavoitepinta,
+perspektiivin vakaa hiiriohjaus, suorakulmion/ympyrän kahden napsautuksen piirto
+sekä piirtotavan Automaattinen / Uusi osa / Pinnan alue. Kaapin aukon päälle
+piirretty ovi syntyy automaattisesti itsenäiseksi osaksi.
+
 Mitoituksen jatkokehitys: vapaasti poimitut kaksi pistettä, vinon reunan oma
 pituus, halkaisija/säde ja kulma, mittalapun siirtäminen sekä usean näkymän arkit.
 
@@ -63,6 +68,37 @@ Seuraava korkean prioriteetin työkalukokonaisuus on **viisteet ja pyöristykset
 Mitoituksen, osavärien ja pintakohdistuksen jälkeen viitteiden poimintaa
 ja muita perustyökaluja viimeistellään oikeilla malleilla. Fyysinen tabletti
 ja Safari varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
+
+## Ehdotus: osan muokkaustila ja geometrian korjaus
+
+Käyttäjän LED-nauha- ja kaappiesimerkit osoittavat, että pinnan käyttäminen
+piirtotasona ja sen muokkaaminen tarvitsevat näkyvän toimintarajan.
+Tämä osio on jatkotyön ehdotus, ei nykyisen version toteutettu muokkaustila.
+
+- Normaalitilassa piirtäminen luo uuden osan, myös olemassa olevan osan pinnalle.
+- Tuplaklikkaus tai Muokkaa osaa avaa yhden osan muokkaustilaan. Näkyvä
+  muokkausraja, osan nimi ja Valmis-painike kertovat kohteen. Muut osat
+  himmenevät ja tarjoavat tartuntoja; niiden geometria ei muutu.
+- Muokkaustilassa piirrot jakavat vain avattua osaa. Uusi osa on edelleen
+  eksplisiittisesti valittavissa esimerkiksi erilliselle LED-nauhalle.
+- E/O-pikatoiminnot säilyvät suorina: osoitus ja E/O kohdistavat kyseisen
+  toiminnon näkyvästi yhteen osaan. Tämä ei jätä seuraavaa piirtotyökalua
+  muokkaamaan osaa; pysyvä piirtomuokkaus avataan tuplaklikkauksella.
+- Valmis sulkee muokkaustilan. Esc peruu ensin keskeneräisen eleen; ilman
+  keskeneräistä elettä Esc sulkee muokkaustilan.
+- Nivon kaikki kappaleet ovat itsenäisiä objekteja, joten suositus on soveltaa
+  muokkaustilaa kaikkiin osiin. Komponenttityyppi ja myöhemmät linkitetyt
+  instanssit ovat erillisiä käsitteitä.
+- Ensimmäinen kumitustoiminto: **Poista rajaus**. Valitaan saman tasopinnan
+  sisäinen jakoviiva, näytetään yhdistyvä alue ja yhdistetään viereiset
+  samantasoiset pinnat. Tilavuus, mitat, nimi ja väri säilyvät. Toiminta perustuu
+  tallennettuun CAD-geometriaan ja toimii myös uudelleenavaamisen jälkeen.
+- Rakenteellisten reunojen poistaminen, taskujen/aukkojen täyttö ja piirretyn
+  luonnoksen poistaminen ovat eri toimintoja. Pelkkä viivan piilottaminen ei
+  saa esittää geometrian korjaamista.
+- Undo/redo-historian säilyttäminen selaimen päivityksen yli tukee palautusta;
+  geometriaa pitää silti pystyä korjaamaan ilman vanhaa historiaa. Historian
+  tallennusbudjetti, formaatti ja virhetilanteet määritellään erikseen.
 
 ## Backlog: viisteet ja pyöristykset — erittäin korkea prioriteetti
 

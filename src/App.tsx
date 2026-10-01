@@ -158,12 +158,12 @@ const instructions: Record<Tool, string> = {
   select:
     'Klikkaus valitsee koko kappaleen. Osoita pintaa ja paina E tai O muokataksesi sitä. Shift+klikkaus lisää valintaan.',
   rectangle:
-    'Vedä tai kirjoita X ja Tab → Y. Enter tai hiiren vapautus hyväksyy. Shift lukitsee haetun viitepisteen.',
+    'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. Myös veto tai numerosarja X → Tab → Y toimii. Enter hyväksyy.',
   circle:
-    'C · Valitse keskipiste ja vedä säde. Kirjoita halkaisija, Tab vaihtaa kenttää. Enter hyväksyy.',
+    'C · Klikkaa keskipistettä ja sitten reunaa tai vedä säde. Kirjoita halkaisija, Tab vaihtaa kenttää. Enter hyväksyy.',
   boolean: 'Valitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.',
   extrude:
-    'E · Klikkaa lähtöpintaa ja tavoitepintaa tai vedä. Kirjoitettu mitta ohittaa tartunnan. Enter tai toinen klikkaus hyväksyy.',
+    'E · Vedä vapaasti. Pidä Shift pohjassa poimiaksesi tavoitepinnan. Kirjoitettu mitta ohittaa tartunnan. Enter tai klikkaus hyväksyy.',
   move: 'Vedä tartuntapisteestä tai kirjoita siirtymä. Ctrl vedon aikana tekee kopion; alkuperäinen jää paikalleen. Esc peruu.',
   pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc päättää työkalun.',
   measure:
@@ -248,7 +248,7 @@ export default function App() {
   const shapeFrameRef = useRef<SketchFrame | undefined>(undefined);
   const [sketchTarget, setSketchTarget] = useState<FaceTarget>();
   const sketchTargetRef = useRef<FaceTarget | undefined>(undefined);
-  const [drawOnSurface, setDrawOnSurface] = useState(true);
+  const [surfaceMode, setSurfaceMode] = useState<'auto' | 'new' | 'region'>('auto');
   const [shapeKind, setShapeKind] = useState<'circle' | 'ellipse' | 'polygon'>('circle');
   const [shapeSides, setShapeSides] = useState(6);
   const [shapePurpose, setShapePurpose] = useState<Body['purpose']>('model');
@@ -804,11 +804,19 @@ export default function App() {
     setBooleanOperation(operation);
   };
   const commitShape = async (candidate: Body) => {
-    const target = drawOnSurface && shapePurpose === 'model' ? sketchTargetRef.current : undefined;
+    const target =
+      surfaceMode !== 'new' && shapePurpose === 'model' ? sketchTargetRef.current : undefined;
     const source = project.bodies.find((b) => b.id === target?.bodyId),
       distance = parseLength(fieldsRef.current.thickness, true, true);
+    if (surfaceMode === 'region' && shapePurpose === 'model' && !source)
+      throw new Error('Aloita kappaleen tasopinnalta tai valitse piirtotavaksi Uusi osa.');
     let selectedRegion: FaceRef | undefined;
-    if (target && source) {
+    let independent = false;
+    if (target && source?.locked && surfaceMode === 'region')
+      throw new Error(
+        'Kappale on kiinnitetty. Valitse Uusi osa tai vapauta kappale G-näppäimellä.',
+      );
+    if (target && source && !source.locked) {
       let flat = candidate;
       if (candidate.feature.type === 'profile-extrusion')
         flat = makeProfileBody(
@@ -824,7 +832,11 @@ export default function App() {
         flat = { ...candidate, feature: { ...candidate.feature, height: 0 } };
       const committed = await editor.transact(
         async () => {
-          const split = await editor.cad.split(source, target.face, flat);
+          const split = await editor.cad.split(source, target.face, flat, surfaceMode === 'auto');
+          if (split.unchanged) {
+            independent = true;
+            return { ...project, bodies: [...project.bodies, candidate] };
+          }
           selectedRegion = split.face;
           const next = distance
             ? await editor.cad.pushPull(split.body, split.face, distance)
@@ -835,7 +847,16 @@ export default function App() {
           ? 'Pintaan tehty muotoilu.'
           : 'Pinta jaettu. Rajattu alue on valittu; paina E muokataksesi sitä.',
       );
-      if (committed) finishOperation(source.id, distance ? undefined : selectedRegion);
+      if (committed) {
+        if (independent)
+          editor.setMessage(
+            'Uusi osa luotu pinnan tasolle. Alkuperäinen kappale säilyi ennallaan.',
+          );
+        finishOperation(
+          independent ? candidate.id : source.id,
+          distance ? undefined : selectedRegion,
+        );
+      }
     } else if (
       await editor.transact(
         { ...project, bodies: [...project.bodies, candidate] },
@@ -2105,7 +2126,6 @@ export default function App() {
               pickReference={pickReference}
               epoch={epoch}
               onSelect={select}
-              drawOnSurface={drawOnSurface}
               radialShape={shapeKind}
               sketchFrame={shapeFrame}
               sketchTarget={sketchTarget}
@@ -2404,7 +2424,7 @@ export default function App() {
                       : tool === 'circle'
                         ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
                         : tool === 'extrude'
-                          ? 'E · Vedä pintaa tai klikkaa lähtöpintaa ja sitten tavoitepintaa. Sininen korostus näyttää kohteen. Voit myös kirjoittaa siirtymän tai toteutuvan kokonaismitan.'
+                          ? 'E · Vedä pintaa vapaasti. Pidä Shift pohjassa ja osoita tavoitepintaa: sininen korostus näyttää kohteen. Vapauta Shift jatkaaksesi vapaata vetoa samasta mitasta. Voit myös kirjoittaa mitan.'
                           : tool === 'pen'
                             ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
                             : tool === 'measure'
@@ -2443,8 +2463,8 @@ export default function App() {
                       onPurpose={setShapePurpose}
                       name={shapeName}
                       onName={setShapeName}
-                      attach={drawOnSurface}
-                      onAttach={setDrawOnSurface}
+                      surfaceMode={surfaceMode}
+                      onSurfaceMode={setSurfaceMode}
                       sides={shapeSides}
                       onSides={setShapeSides}
                       onOperation={changeOperation}
@@ -2954,7 +2974,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.6.0</span>
+                  <span>v0.6.1</span>
                 </div>
               </>
             )}
@@ -3002,8 +3022,9 @@ export default function App() {
             <ol>
               <li>
                 <strong>Piirrä.</strong> Valitse Suorakulmio, Ympyrä (C) tai Kynä. Aloita kappaleen
-                tasopinnalta piirtääksesi siihen muokattavan alueen. Muotovalikosta löytyvät myös
-                ellipsi ja säännöllinen monikulmio. Enter tai vedon päättäminen hyväksyy.
+                tasopinnalta käyttääksesi sitä piirtotasona. Klikkaa alkupistettä, siirrä osoitinta
+                ja klikkaa loppupistettä. Muotovalikosta löytyvät myös ellipsi ja säännöllinen
+                monikulmio. Myös veto tai Enter hyväksyy.
               </li>
               <li>
                 <strong>Muotoile.</strong> Paina E, osoita pintaa ja vedä. Positiivinen siirtymä
@@ -3015,6 +3036,13 @@ export default function App() {
                 ja vie SVG.
               </li>
             </ol>
+            <p>
+              <strong>Ovi tai uusi osa pinnan tasolle:</strong> automaattisessa piirtotavassa koko
+              pinnan kokoinen tai aukon peittävä muoto syntyy omaksi osakseen. Pinnan sisään rajattu
+              muoto tekee muokattavan alueen. Piirtotapa-valikon Uusi osa pitää muodon aina
+              erillisenä; Pinnan alue jakaa olemassa olevaa pintaa. E antaa uudelle osalle
+              paksuuden.
+            </p>
             <p>
               <strong>Tarkat mitat:</strong> aloita kirjoittamalla numero. Tab siirtyy seuraavaan
               kenttään. Kirjoitettu mitta säilyy hiiren liikkuessa.
@@ -3028,11 +3056,14 @@ export default function App() {
               alueen vastapinnan läpi.
             </p>
             <p>
-              <strong>Pintaan kohdistus:</strong> E → klikkaa lähtöpintaa → osoita tavoitepintaa →
-              klikkaa hyväksyäksesi. Myös vedon vapautus tavoitepinnan päällä hyväksyy. Sininen
-              korostus ja vihjeteksti näyttävät kohteen. Yhdensuuntaiset tasopinnat osuvat samalle
-              tasolle; vinosta tasopinnasta poimitaan osoitetun pisteen taso lähdepinnan normaalin
-              suunnassa. Kirjoitettu mitta ohittaa tartunnan. Esc peruu.
+              <strong>Pintaan kohdistus:</strong> E → klikkaa lähtöpintaa → pidä Shift pohjassa ja
+              osoita tavoitepintaa → klikkaa hyväksyäksesi. Myös vedon vapautus Shift pohjassa
+              tavoitepinnan päällä hyväksyy. Ilman Shiftiä veto on vapaa. Lähtöpinta ei kelpaa
+              tavoitteeksi. Shiftin vapautus jatkaa saavutetusta mitasta ilman hyppyä. Kosketuksella
+              käytä Poimi syvyys pinnasta -painiketta. Sininen korostus ja vihjeteksti näyttävät
+              kohteen. Yhdensuuntaiset tasopinnat osuvat samalle tasolle; vinosta tasopinnasta
+              poimitaan osoitetun pisteen taso lähdepinnan normaalin suunnassa. Kirjoitettu mitta
+              ohittaa tartunnan. Esc peruu.
             </p>
             <p>
               <strong>Mitat ja värit:</strong> valitse osa tai useita osia ja paina Lisää

@@ -53,7 +53,7 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
       else if (request.type === 'boolean')
         reply.result = booleanBodies(request.targets, request.tools, request.operation);
       else if (request.type === 'split-face')
-        reply.result = splitFace(request.body, request.face, request.profile);
+        reply.result = splitFace(request.body, request.face, request.profile, request.allowUnsplit);
       else if (request.type === 'offset-face')
         reply.result = offsetFace(request.body, request.face, request.distance);
       else if (request.type === 'offset-outline')

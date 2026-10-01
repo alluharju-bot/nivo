@@ -6,6 +6,37 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.6.1:n yksikkö- ja CAD-tarkistukset: **55 hyväksytty**. TypeScript ja
+tuotantopaketointi hyväksytty. Uusi CAD-koe rakentaa 600 × 600 × 2400 mm
+kaapin Offsetilla ja push/pullilla sekä erottaa koko oven, pienemmän aukon
+ylittävän oven ja varsinaisen kehykseen rajatun pinta-alueen. Toinen koe
+varmentaa alapinnalta usean kaapin yli ulottuvan nauhan: automaattinen tila
+säilyttää koko profiilin omaksi osaksi, eksplisiittinen Pinnan alue säilyttää
+aiemman pintaan leikkaavan toiminnan.
+
+Tuotantopaketin kohdistettu selaintarkistus (42 tapausta, 7,6 min):
+**41 hyväksytty, 1 tarkoituksella ohitettu**. Uudet työnkulut sekä piirron,
+push/pullin, mittasyötön ja työkalujen pysyvyyden regressiot ajettiin
+työpöytä- ja tablettiprofiileilla. Ohitus on työpöydälle soveltumaton
+kosketuskoe. Muotoilutarkistus hyväksytty.
+
+Uudet selaintarkistukset:
+
+- Vapaa E-veto ei tartu toiseen pintaan; Shift poimii kohteen myös ilman uutta
+  hiiren liikettä. Vapautus säilyttää mitan ja seuraava vapaa liike jatkuu siitä.
+- Perspektiivissä suoraan pintaa kohti katsottaessa samanmittaiset hiiriliikkeet
+  tuottavat samanmittaisia siirtymiä, myös alkuperäisen pinnan sisäpuolella.
+  Oma pinta ei kelpaa Shift-kohteeksi eikä sen napsautus hyväksy virheellistä kohdetta.
+- Offset-kaapin etukulmista kahdella napsautuksella piirretty ovi on itsenäinen
+  600 × 2400 mm pinta. E antaa sille 18 mm paksuuden; kaappi säilyy täsmälleen
+  ennallaan. Undo/redo ja selaimen uudelleenlataus säilyttävät molemmat osat.
+- Hold-osa sopii uuden osan piirtotasoksi. Kirjoitetut mitat säilyvät hiiren
+  liikkuessa ja toisella napsautuksella hyväksyttäessä.
+- Ympyrän kahden napsautuksen piirto tekee edelleen pintaan E:llä muokattavan
+  alueen. Ellipsin keskeneräinen piirto perutaan Escillä ilman projektimuutosta.
+- Kahden vierekkäisen kaapin yli piirretty 500 mm nauha säilyy kokonaisena uutena
+  osana; kumpikin kaappi ja tiedostokierros säilyvät muuttumattomina.
+
 V0.6: **53 yksikkötestiä hyväksytty**, TypeScript ja tuotantopaketointi
 hyväksytty. Tuotantopaketin kohdistettu selaintarkistus (52 tapausta, 9,7 min):
 **50 hyväksytty, 2 tarkoituksella ohitettu**. Ajo kattaa uudet työnkulut

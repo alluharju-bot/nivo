@@ -103,7 +103,6 @@ export interface ViewportProps {
   onSelectGuide: (id: string) => void;
   onAxis: (axis?: Axis) => void;
   onConstraint: (direction?: Vec3) => void;
-  drawOnSurface: boolean;
   radialShape: 'circle' | 'ellipse' | 'polygon';
   sketchFrame?: SketchFrame;
   sketchTarget?: FaceTarget;

@@ -70,7 +70,7 @@ async function save(page: Page): Promise<Project> {
   return JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
 }
 
-test('E clicks or drags to a locked target face, grows and shrinks exactly, and keeps the target intact', async ({
+test('Shift with E clicks or drags to a locked target face, grows and shrinks exactly, and keeps the target intact', async ({
   page,
 }) => {
   const source = makeBody(200, 200, 40, [0, 0, 0], 'Muokattava');
@@ -83,6 +83,7 @@ test('E clicks or drags to a locked target face, grows and shrinks exactly, and 
     c = point(350, 160, 18);
   await page.keyboard.press('e');
   await click(page, a);
+  await page.keyboard.down('Shift');
   await page.mouse.move(b.x, b.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute(
     'data-depth-target',
@@ -95,6 +96,7 @@ test('E clicks or drags to a locked target face, grows and shrinks exactly, and 
     'Toteutuva kokonaismitta',
   );
   await click(page, b);
+  await page.keyboard.up('Shift');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   let model = await save(page);
   expect(model.bodies[0].feature.height).toBe(90);
@@ -102,9 +104,11 @@ test('E clicks or drags to a locked target face, grows and shrinks exactly, and 
   // A new drag uses the same active tool and can shorten the source to another part.
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
+  await page.keyboard.down('Shift');
   await page.mouse.move(c.x, c.y, { steps: 5 });
   await expect(page.getByTestId('height-input')).toHaveValue('-72');
   await page.mouse.up();
+  await page.keyboard.up('Shift');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   model = await save(page);
   expect(model.bodies[0].feature.height).toBe(18);
@@ -124,17 +128,21 @@ test('typed push/pull wins over target snapping and Escape cancels a live target
     b = point(350, 50, 90);
   await page.keyboard.press('e');
   await click(page, a);
+  await page.keyboard.down('Shift');
   await page.mouse.move(b.x, b.y);
   await expect(page.getByTestId('height-input')).toHaveValue('+50');
   await page.keyboard.press('Escape');
+  await page.keyboard.up('Shift');
   expect((await save(page)).bodies).toEqual([source, target]);
   await page.keyboard.press('e');
   await click(page, a);
   await page.keyboard.type('25');
+  await page.keyboard.down('Shift');
   await page.mouse.move(b.x, b.y);
   await expect(page.getByTestId('height-input')).toHaveValue('25');
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-depth-target', '');
   await click(page, b);
+  await page.keyboard.up('Shift');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   const model = await save(page);
   expect(model.bodies[0].feature.height).toBe(65);
@@ -158,12 +166,14 @@ test('a nonparallel target supplies the pointed level without tilting the source
   const level = fromUV([75, 75], top);
   await page.keyboard.press('e');
   await click(page, point(100, 100, 40));
+  await page.keyboard.down('Shift');
   const end = point(...level);
   await page.mouse.move(end.x, end.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-depth-kind', 'point');
   const measured = Number(await page.getByTestId('height-input').inputValue());
   expect(measured).toBeCloseTo(level[2] - 40, 4);
   await click(page, end);
+  await page.keyboard.up('Shift');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   const model = await save(page);
   expect(model.bodies[0].feature).toMatchObject({
@@ -173,4 +183,80 @@ test('a nonparallel target supplies the pointed level without tilting the source
   });
   expect(model.bodies[0].feature.height).toBeCloseTo(level[2], 4);
   expect(model.bodies[1]).toEqual(target);
+});
+
+test('free E ignores other faces; Shift searches immediately and release continues without a jump', async ({
+  page,
+}) => {
+  const source = makeBody(200, 200, 40),
+    target = makeBody(100, 100, 90, [300, 0, 0]);
+  await ready(page, [source, target]);
+  const point = await view(page, [source, target]);
+  const a = point(100, 100, 40),
+    b = point(350, 50, 90);
+  const field = page.getByTestId('height-input'),
+    canvas = page.getByTestId('viewport');
+  await page.keyboard.press('e');
+  await click(page, a);
+  await page.mouse.move(b.x, b.y);
+  await expect(canvas).toHaveAttribute('data-depth-target', '');
+  await expect(field).toHaveValue('-50'); // 50 mm free downward motion, regardless of target height.
+  // The target's lower edge supplies a different free depth, but the same target plane.
+  await page.mouse.move(b.x, b.y + 10);
+  const free = Number(await field.inputValue());
+  expect(free).toBeLessThan(-50);
+  await page.keyboard.down('Shift'); // No extra pointer movement is needed.
+  await expect(canvas).toHaveAttribute('data-depth-target', `${target.id}:z:max`);
+  await expect(field).toHaveValue('+50');
+  await page.keyboard.up('Shift');
+  await expect(canvas).toHaveAttribute('data-depth-target', '');
+  await expect(field).toHaveValue('+50');
+  await page.mouse.move(b.x, b.y + 10);
+  await expect(field).toHaveValue('+50');
+  await page.mouse.move(b.x, b.y);
+  const continued = Number(await field.inputValue());
+  expect(continued - 50).toBeCloseTo(-50 - free, 1);
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
+  const model = await save(page);
+  expect(model.bodies[0].feature.height).toBeCloseTo(40 + continued, 4);
+  expect(model.bodies[1]).toEqual(target);
+});
+
+test('perspective E grows smoothly while the cursor stays inside its own face, which Shift never targets', async ({
+  page,
+}) => {
+  const source = makeBody(600, 400, 18);
+  await ready(page, [source]);
+  const point = await view(page, [source]);
+  await page.locator('.projection-button').click();
+  const a = point(300, 200, 18);
+  await page.keyboard.press('e');
+  await click(page, a);
+  const field = page.getByTestId('height-input'),
+    canvas = page.getByTestId('viewport');
+  const values: number[] = [];
+  for (const pixels of [20, 40, 60, 80, 100, 120, 140]) {
+    await page.mouse.move(a.x, a.y - pixels);
+    await expect
+      .poll(async () => Number(await field.inputValue()))
+      .toBeGreaterThan(values.at(-1) ?? 0);
+    values.push(Number(await field.inputValue()));
+    await expect(canvas).toHaveAttribute('data-depth-target', '');
+  }
+  for (let i = 1; i < values.length; i++)
+    expect(values[i] - values[i - 1]).toBeCloseTo(values[0], 1);
+  const depth = values.at(-1)!;
+  await page.keyboard.down('Shift');
+  await page.mouse.move(a.x, a.y); // Original source face is still visible under the preview.
+  await expect(canvas).toHaveAttribute('data-depth-target', '');
+  await expect.poll(async () => Number(await field.inputValue())).toBe(depth);
+  await click(page, a); // Invalid reference must not commit even the previous free depth.
+  await expect(page.getByTestId('dynamic-input')).toBeVisible();
+  await expect(canvas).toHaveAttribute('data-depth-target', '');
+  await page.keyboard.up('Shift');
+  await page.mouse.move(a.x, a.y);
+  await expect.poll(async () => Number(await field.inputValue())).toBe(depth);
+  await page.keyboard.press('Escape');
+  expect((await save(page)).bodies).toEqual([source]);
 });

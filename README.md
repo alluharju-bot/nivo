@@ -3,12 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.6.0 lisää osien näkyvät kokonaismitat 3D-näkymään ja mittakuvaan,
-yhteisen väripaletin sekä push/pullin kohdistuksen toiseen pintaan.
-**Lisää kokonaismitat** merkitsee valittujen osien X/Y/Z-ulkomitat yhdellä painalluksella.
-Mitat seuraavat muokkausta ja siirtyvät SVG-vientiin. **E** toimii myös kahdella
-klikkauksella: lähtöpinta → tavoitepinta. Vihreä mitta ja numerokenttä käyttävät
-samaa nimeä **Toteutuva kokonaismitta**.
+Versio 0.6.1 tekee tavallisesta push/pull-vedosta vapaan: **Shift** hakee
+tavoitepinnan. Lähes suoraan pintaa kohti katsottaessa veto toimii tasaisesti.
+Suorakulmio ja ympyrämuodot syntyvät myös kahdella napsautuksella ilman
+hiiren painikkeen pitämistä pohjassa. Automaattinen piirtotapa tunnistaa
+esimerkiksi kaapin aukon päälle piirretyn oven uudeksi osaksi.
+Osien yhteiset X/Y/Z-ulkomitat, värit ja **Toteutuva kokonaismitta** ovat mukana.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
@@ -36,8 +36,9 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
 
 ## Ensimmäinen työnkulku
 
-1. Piirrä suorakulmio XY-tasolle vetämällä tai kirjoittamalla tarkat mitat.
-2. Enter tai vedon päättäminen hyväksyy luonnoksen. Paina **E**, osoita pintaa
+1. Piirrä suorakulmio: napsauta alkukulmaa, siirrä osoitinta ja napsauta vastakulmaa.
+   Voit myös vetää painike pohjassa tai kirjoittaa tarkat mitat.
+2. Toinen napsautus, Enter tai vedon päättäminen hyväksyy luonnoksen. Paina **E**, osoita pintaa
    ja vedä sille paksuus. Samalla työkalulla voi muokata kappaleen muitakin tasopintoja.
 3. Klikkaa koko kappale valituksi. M siirtää; pidä Ctrl pohjassa vedon aikana
    tehdäksesi kopion. Osoita pintaa ja paina E tai O pinnan muokkaamiseen.
@@ -103,13 +104,22 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
 
 ## Piirtämisen perustyökalut
 
-- **Pintaan piirtäminen:** pidä Muoto-valikon **Piirrä kappaleen pinnalle** päällä.
-  Aloita suorakulmio, ympyrä tai kynämuoto kappaleen tasopinnasta. Ensimmäinen
-  piste valitsee piirtotason; myös pysty- ja vinopinnat toimivat. Paksuus **0**
-  jakaa pinnan ja valitsee rajatun alueen. Paina E ja vedä vain tätä aluetta.
-  **Leikkaa läpi** tekee läpireiän; **Poimi syvyys pinnasta** asettaa siirtymän
-  toisen pinnan osoitetusta pisteestä.
-- **Ympyrä (C):** vedä keskipisteestä säde tai kirjoita halkaisija. Muoto-valikosta
+- **Pintaan piirtäminen:** ensimmäinen napsautus valitsee piirtotason;
+  myös pysty- ja vinopinnat sekä Hold-kappaleet sopivat viitteiksi. Kulmassa
+  käytetään kameraa kohti olevaa viereistä pintaa. Piirtotapa-valikossa on
+  **Automaattinen**, **Uusi osa** ja **Pinnan alue**. Automaattinen jakaa
+  pinnan, kun rajaus muodostaa siihen uuden alueen ja on kokonaan pinnan sisällä.
+  Pinnan reunan tai aukon yli ulottuva sekä koko pinnan kokoinen muoto syntyy
+  omaksi objektiksi. Näin kahden kaapin yli piirretty LED-nauha säilyy kokonaisena. Uusi osa tekee aina erillisen
+  objektin, Pinnan alue vaatii pintaan uuden rajauksen. Hold-kappaletta ei jaeta.
+  Alueen paksuus **0** jakaa pinnan; E muokkaa valittua aluetta. **Leikkaa läpi**
+  tekee läpireiän. Uudelle osalle E antaa oman paksuuden.
+- **Ovi onttoon kaappiin:** valitse Suorakulmio, napsauta etukehyksen vasenta
+  yläkulmaa, siirrä osoitin oikeaan alakulmaan ja napsauta. Automaattinen
+  piirtotapa luo oven omaksi osaksi, ja kaappi säilyy ennallaan. Paina E ja anna
+  esimerkiksi 18 mm paksuudeksi. Piirtotapa → Uusi osa sopii myös pienemmälle
+  erilliselle ovelle tai levylle saman pinnan tasossa.
+- **Ympyrä (C):** napsauta keskipistettä ja reunaa, vedä säde tai kirjoita halkaisija. Muoto-valikosta
   saa myös ellipsin kahdella halkaisijalla ja säännöllisen 3–64-sivuisen monikulmion.
   Kynällä voi tehdä muun tasomaisen suljetun ääriviivan. Ympyrät ja ellipsit ovat
   tarkkoja CAD-käyriä.
@@ -133,8 +143,12 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
   arvo vetää ulospäin, negatiivinen työntää sisään. Toimii laatikon kaikilla kuudella
   pinnalla, kynämuodoilla ja yhdistettyjen osien tasopinnoilla.
 - **Push/pull tavoitepintaan:** klikkaa E-työkalulla lähtöpintaa, osoita toisen
-  osan tai saman osan toista tasopintaa ja klikkaa hyväksyäksesi. Myös veto ja
-  vapautus tavoitepinnan päällä toimii. Sininen korostus näyttää kohteen.
+  osan tai saman osan toista tasopintaa **Shift pohjassa** ja klikkaa hyväksyäksesi.
+  Myös vedon vapautus Shift pohjassa tavoitepinnan päällä toimii. Sininen korostus
+  näyttää kohteen. Tavallinen veto ei tartu pintoihin. Lähtöpinta ja liikkuva
+  esikatselu eivät kelpaa tavoitteiksi. Shiftin aikana tyhjä tila tai lähtöpinta
+  säilyttää edellisen mitan; Shiftin vapautus jatkaa siitä vapaasti ilman hyppyä.
+  Kosketuksella **Poimi syvyys pinnasta** → pinta → Enter toimii ilman näppäimistöä.
   Yhdensuuntaiset pinnat tulevat samalle tasolle. Vinosta tavoitepinnasta
   poimitaan osoitetun pisteen taso lähtöpinnan normaalin suunnassa;
   lähtöpinta ei kallistu. Myös Hold-osa käy viitteeksi. Kirjoitettu mitta
@@ -188,6 +202,8 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
   Shift/Ctrl/Cmd-napsautus valitsee useita osia. Yhdistä tekee niistä yhden
   CAD-kappaleen ja meshin; päällekkäiset tilavuudet yhdistyvät. Peru palauttaa
   erilliset osat. Yhdistäminen vaatii paksuuden.
+
+![Offset-kaappi ja omaksi osaksi piirretty 18 mm ovi](docs/images/nivo-cabinet-door.png)
 
 ![Kelluva mittaikkuna ja kirjoittamalla lukitut mitat](docs/images/nivo-input.png)
 

@@ -114,7 +114,12 @@ export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' |
   }
 }
 
-export function splitFace(body: Body, ref: FaceRef, profile: Body): SplitResult {
+export function splitFace(
+  body: Body,
+  ref: FaceRef,
+  profile: Body,
+  allowUnsplit = false,
+): SplitResult {
   if (featureIsSolid(profile.feature))
     throw new Error('Pinnan rajaamiseen tarvitaan luonnos ilman paksuutta.');
   const shape = createShape(body),
@@ -133,7 +138,18 @@ export function splitFace(body: Body, ref: FaceRef, profile: Body): SplitResult 
       common.delete();
     }
     const area = measureArea(clipped as Shape3D);
-    if (area < 1e-6) throw new Error('Piirros ei osu valitulle pinnalle.');
+    // Automatic drawing keeps the whole profile as a new part whenever it
+    // crosses the source boundary or spans a hole. Never silently crop a strip
+    // spanning several objects down to the first object's face.
+    if (allowUnsplit) {
+      const profileArea = measureArea(sketch as Shape3D);
+      if (profileArea - area > Math.max(1e-5, profileArea * 1e-8))
+        return { body, face: ref, unchanged: true };
+    }
+    if (area < 1e-6) {
+      if (allowUnsplit) return { body, face: ref, unchanged: true };
+      throw new Error('Piirros ei osu valitulle pinnalle. Valitse piirtotavaksi Uusi osa.');
+    }
     const argumentsList = splitter.Arguments(),
       toolList = splitter.Tools();
     try {
@@ -151,8 +167,10 @@ export function splitFace(body: Body, ref: FaceRef, profile: Body): SplitResult 
     const resultFaces = result.faces,
       count = resultFaces.length;
     resultFaces.forEach((f) => f.delete());
-    if (count <= faces.length)
-      throw new Error('Rajaus ei jaa pintaa. Piirrä pienempi muoto tai ylitä pinnan reuna.');
+    if (count <= faces.length) {
+      if (allowUnsplit) return { body, face: ref, unchanged: true };
+      throw new Error('Rajaus ei jaa pintaa. Valitse Uusi osa tai piirrä raja pinnan sisälle.');
+    }
     const next = bodyFromShape(body, result),
       restored = createShape(next),
       restoredFaces = restored.faces;
