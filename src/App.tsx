@@ -49,6 +49,16 @@ import {
   CheckCircle2,
   LoaderCircle,
 } from 'lucide-react';
+import {
+  bodyLocked,
+  groupAncestors,
+  groupBodies,
+  groupContains,
+  reparentGroup,
+  dissolveGroup,
+  translateSelection,
+} from './model/groups';
+import { GroupActions } from './ui/GroupActions';
 import { Viewport, type CameraCommand, type Tool } from './viewport/Viewport';
 import { DrawingPanel } from './drawing/DrawingPanel';
 import { recommendedScale, type Sheet } from './drawing/svg';
@@ -225,6 +235,7 @@ export default function App() {
   const [selected, setSelected] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [multiSelect, setMultiSelect] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>();
   const [measureMode, setMeasureMode] = useState<'guide' | 'free'>('guide');
   const [measureMenu, setMeasureMenu] = useState(false);
   const [reference, setReference] = useState<ReferencePoint>();
@@ -340,11 +351,15 @@ export default function App() {
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
+  const selectedGroup = project.groups.find((g) => g.id === selectedGroupId);
   const editingBody = project.bodies.find((b) => b.id === editingBodyId);
   const selectedGuide = project.guides.find((g) => g.id === selectedGuideId);
   const [awaitingStart, setAwaitingStart] = useState(false);
   const visibleBodies = useMemo(
-    () => project.bodies.filter((b) => bodyVisible(b, project.groups)),
+    () =>
+      project.bodies
+        .filter((b) => bodyVisible(b, project.groups))
+        .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
     [project.bodies, project.groups],
   );
   const visibleMeshes = useMemo(
@@ -544,22 +559,23 @@ export default function App() {
       if (id) toggleBoolean(id);
       return;
     }
-    setSelected(id);
+    const extend = !force && (additive || multiSelect || !!selectedGroupId);
+    const ids = id
+      ? extend
+        ? selectedIds.includes(id)
+          ? selectedIds.filter((v) => v !== id)
+          : [...selectedIds, id]
+        : [id]
+      : additive
+        ? selectedIds
+        : [];
+    setSelected(ids.includes(id!) ? id : ids[0]);
+    setSelectedIds(ids);
+    if (!extend || !id) setSelectedGroupId(undefined);
     pickedFaceRef.current = id && face ? { bodyId: id, face } : undefined;
     setSelectedFace(force ? face : undefined);
     setAwaitingStart(true);
     setMeasureMenu(false);
-    setSelectedIds((previous) =>
-      id
-        ? additive || multiSelect
-          ? previous.includes(id)
-            ? previous.filter((v) => v !== id)
-            : [...previous, id]
-          : [id]
-        : additive
-          ? previous
-          : [],
-    );
     resetGesture();
     if (tool === 'rotate' && id && !force) startRotation([id]);
   };
@@ -585,7 +601,7 @@ export default function App() {
   const openBodyEdit = (id: string) => {
     if (busy) return;
     const target = project.bodies.find((b) => b.id === id);
-    if (!target || target.locked || !bodyVisible(target, project.groups)) {
+    if (!target || bodyLocked(target, project.groups) || !bodyVisible(target, project.groups)) {
       editor.setMessage('Vapauta ja näytä osa ennen muokkaamista.');
       return;
     }
@@ -621,7 +637,12 @@ export default function App() {
   const eraseBoundary = async (target: BoundaryTarget) => {
     if (busy || committing.current) return;
     const source = project.bodies.find((b) => b.id === target.bodyId);
-    if (!source || source.locked || (editingBodyId && source.id !== editingBodyId)) return;
+    if (
+      !source ||
+      bodyLocked(source, project.groups) ||
+      (editingBodyId && source.id !== editingBodyId)
+    )
+      return;
     committing.current = true;
     try {
       if (
@@ -649,7 +670,7 @@ export default function App() {
   const startRotation = (ids: string[]) => {
     const parts = project.bodies.filter((b) => ids.includes(b.id));
     try {
-      requireMovable(parts);
+      requireMovable(parts, project.groups);
       rotationRef.current = { ids, pivot: bodiesCenter(parts), axis: [0, 0, 1] };
       setRotationDraft(rotationRef.current);
       setAwaitingStart(false);
@@ -671,6 +692,7 @@ export default function App() {
     resetGesture();
     setAwaitingStart(false);
     setTool(next);
+    if (!['select', 'move', 'rotate'].includes(next)) setSelectedGroupId(undefined);
     setMode('model');
     setMeasureMenu(false);
     editor.setError('');
@@ -705,7 +727,7 @@ export default function App() {
       if (
         (next === 'extrude' || (next === 'offset' && hovered)) &&
         faceBody &&
-        !faceBody.locked &&
+        !bodyLocked(faceBody, project.groups) &&
         (!editingBodyId || faceBody.id === editingBodyId)
       ) {
         const mesh = editor.meshes.find((m) => m.id === faceBody.id);
@@ -800,8 +822,12 @@ export default function App() {
         purpose: shapePurpose,
       };
     }
-    if (!body || body.hidden) return;
-    if (body.locked)
+    if (!body) return;
+    requireMovable(
+      project.bodies.filter((b) => (selectedIds.length ? selectedIds : [body.id]).includes(b.id)),
+      project.groups,
+    );
+    if (bodyLocked(body, project.groups))
       throw new Error('Kappale on kiinnitetty paikalleen. Vapauta se G-näppäimellä.');
     return {
       ...body,
@@ -905,11 +931,11 @@ export default function App() {
     )
       throw new Error('Aloita muokattavan osan tasopinnalta tai valitse piirtotavaksi Uusi osa.');
     let selectedRegion: FaceRef | undefined;
-    if (target && source?.locked && surfaceMode === 'region')
+    if (target && source && bodyLocked(source, project.groups) && surfaceMode === 'region')
       throw new Error(
         'Kappale on kiinnitetty. Valitse Uusi osa tai vapauta kappale G-näppäimellä.',
       );
-    if (target && source && !source.locked) {
+    if (target && source && !bodyLocked(source, project.groups)) {
       let flat = candidate;
       if (candidate.feature.type === 'profile-extrusion')
         flat = makeProfileBody(
@@ -951,6 +977,8 @@ export default function App() {
     let nextSelected: string | undefined;
     const success = await editor.transact(
       async () => {
+        requireMovable(targets, project.groups);
+        if (booleanOperation === 'join' || !keepTools) requireMovable(tools, project.groups);
         const results = await editor.cad.boolean(targets, tools, booleanOperation);
         nextSelected = results[0]?.id;
         if (
@@ -979,6 +1007,11 @@ export default function App() {
   const apply = async (forceClose = false) => {
     if (committing.current || busy) return;
     try {
+      if (['extrude', 'offset'].includes(tool) && faceRef.current)
+        requireMovable(
+          project.bodies.filter((b) => b.id === faceRef.current!.bodyId),
+          project.groups,
+        );
       if (tool === 'rotate') {
         const draft = rotationRef.current;
         if (!draft) {
@@ -987,7 +1020,7 @@ export default function App() {
         }
         const rotation = { ...draft, angle: rotationAngle(fieldsRef.current.angle) };
         const parts = project.bodies.filter((b) => draft.ids.includes(b.id));
-        requireMovable(parts);
+        requireMovable(parts, project.groups);
         committing.current = true;
         const success =
           Math.abs(rotation.angle % 360) < 1e-9 ||
@@ -1003,6 +1036,7 @@ export default function App() {
         if (success) {
           finishOperation(draft.ids[0]);
           setSelectedIds(draft.ids);
+          setSelectedGroupId(selectedGroupId);
         }
       } else if (tool === 'boolean') {
         committing.current = true;
@@ -1019,6 +1053,7 @@ export default function App() {
         let region: FaceRef | undefined;
         if (
           await editor.transact(async () => {
+            requireMovable([source], project.groups);
             const result = await editor.cad.offset(source, target.face, distance);
             region = result.face;
             return {
@@ -1125,24 +1160,26 @@ export default function App() {
           await commitShape(candidate);
           return;
         }
-        const result = copyMoveRef.current
-          ? { ...candidate, id: draftId, name: `${candidate.name.slice(0, 110)} kopio` }
-          : candidate;
-        const next = {
-          ...project,
-          bodies: copyMoveRef.current
-            ? [...project.bodies, result]
-            : project.bodies.map((b) => (b.id === result.id ? result : b)),
-        };
+        const source = project.bodies.find((b) => b.id === candidate.id)!;
+        const result = translateSelection(
+          project,
+          selectedIds.length ? selectedIds : [source.id],
+          sub(candidate.origin, source.origin),
+          copyMoveRef.current,
+          selectedGroupId,
+        );
         if (
           await editor.transact(
-            next,
+            result.project,
             copyMoveRef.current
-              ? 'Kopio sijoitettu. Alkuperäinen säilyi paikallaan.'
-              : 'Kappale siirretty.',
+              ? 'Valinnan kopio sijoitettu. Alkuperäiset säilyivät paikallaan.'
+              : 'Valitut osat siirretty.',
           )
-        )
-          finishOperation(result.id);
+        ) {
+          finishOperation(result.ids[0]);
+          setSelectedIds(result.ids);
+          setSelectedGroupId(result.groupId);
+        }
       }
     } catch (e) {
       editor.setError((e as Error).message);
@@ -1155,6 +1192,8 @@ export default function App() {
     if (busy) editor.cancel();
     resetGesture();
     setTool('select');
+    setSelectedGroupId(undefined);
+    setMultiSelect(false);
     pickedFaceRef.current = undefined;
     setAwaitingStart(false);
     setSelected(undefined);
@@ -1539,21 +1578,13 @@ export default function App() {
     )
       select();
   };
-  const copyBody = async () => {
-    if (!body) return;
-    const copy = {
-      ...body,
-      id: uid(),
-      name: `${body.name.slice(0, 110)} kopio`,
-      origin: [body.origin[0] + body.feature.width + 50, body.origin[1], body.origin[2]] as Vec3,
-    };
-    if (
-      await editor.transact(
-        { ...project, bodies: [...project.bodies, copy] },
-        'Itsenäinen kopio lisätty.',
-      )
-    )
-      select(copy.id);
+  const copyBody = () => {
+    if (!selectedIds.length && !body) return;
+    begin('move');
+    changeCopyMove(true);
+    editor.setMessage(
+      'Kopioi valinta: tartu osan kulmaan tai anna siirtymä. Enter hyväksyy, Esc peruu.',
+    );
   };
   const patchBodies = async (ids: string[], patch: Partial<Body>) => {
     if (busy) return;
@@ -1574,7 +1605,20 @@ export default function App() {
     }
   };
   const holdSelected = () => {
+    if (selectedGroup) {
+      void patchGroup(selectedGroup.id, { locked: !selectedGroup.locked });
+      return;
+    }
     const ids = selectedIds.length ? selectedIds : selected ? [selected] : [];
+    if (
+      ids.some((id) => {
+        const b = project.bodies.find((b) => b.id === id);
+        return b && groupAncestors(project.groups, b.groupId).some((g) => g.locked);
+      })
+    ) {
+      editor.setError('Vapauta ensin osan ylemmän ryhmän Hold.');
+      return;
+    }
     if (ids.length)
       void patchBodies(ids, {
         locked: !project.bodies.filter((b) => ids.includes(b.id)).every((b) => b.locked),
@@ -1594,9 +1638,31 @@ export default function App() {
       editor.setError((error as Error).message);
     }
   };
-  const createGroup = async () => {
+  const patchGroup = async (id: string, patch: Partial<import('./model/project').BodyGroup>) => {
     if (busy) return;
-    const group = { id: uid(), name: `Ryhmä ${project.groups.length + 1}`, hidden: false };
+    try {
+      const next = 'parentId' in patch ? reparentGroup(project, id, patch.parentId) : project;
+      if (
+        await editor.transact(
+          { ...next, groups: next.groups.map((g) => (g.id === id ? { ...g, ...patch } : g)) },
+          'Ryhmän tiedot päivitetty.',
+        )
+      ) {
+        resetGesture();
+        setAwaitingStart(true);
+      }
+    } catch (e) {
+      editor.setError((e as Error).message);
+    }
+  };
+  const createGroup = async (parentId?: string) => {
+    if (busy) return;
+    const group = {
+      id: uid(),
+      name: `Ryhmä ${project.groups.length + 1}`,
+      hidden: false,
+      parentId,
+    };
     await editor.transact(
       {
         ...project,
@@ -1609,14 +1675,13 @@ export default function App() {
     );
   };
   const removeGroup = async (id: string) => {
-    await editor.transact(
-      {
-        ...project,
-        groups: project.groups.filter((g) => g.id !== id),
-        bodies: project.bodies.map((b) => (b.groupId === id ? { ...b, groupId: undefined } : b)),
-      },
-      'Ryhmä purettu. Kappaleet säilyivät.',
-    );
+    if (
+      await editor.transact(
+        dissolveGroup(project, id),
+        'Ryhmä purettu. Osat ja alaryhmät säilyivät.',
+      )
+    )
+      setSelectedGroupId(undefined);
   };
   const newProject = async () => {
     if (
@@ -1705,6 +1770,9 @@ export default function App() {
   }, [editNotice]);
   useEffect(() => setEditNotice(undefined), [editingBodyId, tool]);
   useEffect(() => {
+    if (selectedGroupId && !selectedGroup) setSelectedGroupId(undefined);
+  }, [selectedGroupId, selectedGroup]);
+  useEffect(() => {
     setSelectedIds((ids) => ids.filter((id) => project.bodies.some((b) => b.id === id)));
     if (selected && !project.bodies.some((b) => b.id === selected)) {
       setSelected(undefined);
@@ -1714,7 +1782,9 @@ export default function App() {
   useEffect(() => {
     if (
       editingBodyId &&
-      (!editingBody || editingBody.locked || !bodyVisible(editingBody, project.groups))
+      (!editingBody ||
+        bodyLocked(editingBody, project.groups) ||
+        !bodyVisible(editingBody, project.groups))
     ) {
       setEditingBodyId(undefined);
       setSurfaceMode('new');
@@ -1797,7 +1867,8 @@ export default function App() {
         setAxis(axis === key ? undefined : (key as Axis));
       if (key === 'delete' || key === 'backspace') {
         event.preventDefault();
-        void removeBody();
+        if (selectedGuideId) void removeGuide(selectedGuideId);
+        else void removeBody();
       }
     };
     window.addEventListener('keydown', keydown);
@@ -1826,29 +1897,27 @@ export default function App() {
           editor.setMessage('Päätä osan muokkaus ennen ryhmän valintaa.');
           return;
         }
-        const ids = project.bodies.filter((b) => b.groupId === id).map((b) => b.id);
+        const ids = groupBodies(project, id).map((b) => b.id);
         if (tool === 'boolean') {
           ids.forEach((id) => toggleBoolean(id));
           return;
         }
         select(ids[0], undefined, false, true);
         setSelectedIds(ids);
+        setSelectedGroupId(id);
+        setMultiSelect(true);
         if (tool === 'rotate') startRotation(ids);
       }}
       onBody={(id, patch) => void patchBodies([id], patch)}
-      onGroup={(id, patch) =>
-        void editor.transact(
-          { ...project, groups: project.groups.map((g) => (g.id === id ? { ...g, ...patch } : g)) },
-          'Ryhmän tiedot päivitetty.',
-        )
-      }
+      onGroup={(id, patch) => void patchGroup(id, patch)}
+      selectedGroupId={selectedGroupId}
       onNewGroup={() => void createGroup()}
       onRemoveGroup={(id) => void removeGroup(id)}
     />
   );
-  const objectActions = body && mode === 'model' && (
+  const objectActions = body && !selectedGroup && mode === 'model' && (
     <ObjectActions
-      body={body}
+      body={{ ...body, locked: bodyLocked(body, project.groups) }}
       groups={project.groups}
       count={selectedIds.length}
       mixedColor={project.bodies.some(
@@ -2306,6 +2375,7 @@ export default function App() {
               meshes={visibleMeshes}
               selected={selected}
               selectedIds={selectedIds}
+              selectedGroupId={selectedGroupId}
               selectedFace={selectedFace}
               tool={tool}
               preview={preview}
@@ -2404,7 +2474,10 @@ export default function App() {
               }}
               onMoveTarget={(id) => {
                 setSelected(id);
-                setSelectedIds([id]);
+                if (!selectedIds.includes(id)) {
+                  setSelectedIds([id]);
+                  setSelectedGroupId(undefined);
+                }
                 setSelectedFace(undefined);
               }}
             />
@@ -2880,11 +2953,11 @@ export default function App() {
                 <div className="panel-title">
                   <div>
                     <span className="eyebrow">{body ? 'VALINTA' : 'PROJEKTI'}</span>
-                    <h2>{body ? body.name : 'Kokonaisuus'}</h2>
+                    <h2>{selectedGroup?.name ?? body?.name ?? 'Kokonaisuus'}</h2>
                   </div>
                   <Box size={21} />
                 </div>
-                {body ? (
+                {body && !selectedGroup ? (
                   <div className="selection-info">
                     <span className="selection-tag">
                       {featureIsSolid(body.feature) ? 'CAD-kappale' : 'Tasoluonnos'}
@@ -3044,6 +3117,20 @@ export default function App() {
                   </div>
                 )}
 
+                {selectedGroup && mode === 'model' && (
+                  <GroupActions
+                    group={selectedGroup}
+                    groups={project.groups}
+                    count={selectedIds.length}
+                    total={groupBodies(project, selectedGroup.id).length}
+                    busy={busy}
+                    onChange={(patch) => void patchGroup(selectedGroup.id, patch)}
+                    onMove={() => begin('move')}
+                    onCopy={copyBody}
+                    onFit={fit}
+                    onSubgroup={() => void createGroup(selectedGroup.id)}
+                  />
+                )}
                 <div className="object-panel">
                   <div className="multi-actions">
                     <button aria-pressed={multiSelect} onClick={() => setMultiSelect(!multiSelect)}>

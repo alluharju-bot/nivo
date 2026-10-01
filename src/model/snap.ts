@@ -140,6 +140,7 @@ interface Options {
   inferenceOrigin?: Vec3;
   forceDirection?: boolean;
   excludeId?: string;
+  excludeIds?: string[];
   projectGuides?: boolean;
 }
 const distance = (a: Vec3, b: Vec3) => Math.hypot(...a.map((v, i) => v - b[i]));
@@ -202,7 +203,7 @@ export function snapPoint(
   const candidates: (Snap & { priority: number })[] = [
     { point: [0, 0, 0], label: 'Origo', key: 'origin', priority: 0 },
     ...modelSnapPoints(
-      bodies.filter((b) => b.id !== options.excludeId),
+      bodies.filter((b) => b.id !== options.excludeId && !options.excludeIds?.includes(b.id)),
       options.meshes,
     ).map((p) => ({ ...p, priority: 0 })),
   ];

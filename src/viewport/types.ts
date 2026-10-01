@@ -67,6 +67,7 @@ export interface ViewportProps {
   meshes: BodyMesh[];
   selected?: string;
   selectedIds: string[];
+  selectedGroupId?: string;
   selectedFace?: FaceRef;
   tool: Tool;
   preview?: Body;

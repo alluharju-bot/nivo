@@ -6,6 +6,17 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+Sisäkkäiset ryhmät: **76 yksikkö- ja CAD-testiä hyväksytty**, TypeScript ja
+paketointi hyväksytty. Kuusi uutta logiikkakoetta kattaa 15 osan siirron,
+ryhmähierarkian kopioinnin ja viitteiden uudelleenkohdistuksen, osittaisen
+ryhmävalinnan, näkyvyyden/Holdin periytymisen, ryhmän purkamisen ja
+syklien sekä puuttuvien vanhempien hylkäämisen. Työpöydän vanha ryhmä-,
+nimeämis-, origoon siirto- ja Hold-koe hyväksyttiin. Uudet ryhmäkokeet ja
+olemassa olevat Ctrl-kopiointi-/peruutuskokeet hyväksyttiin molemmissa
+selainprofiileissa: **10/10**. Kopioitavasta 15 puun ryhmästä poistettiin yksi
+puu ja lisättiin ulkopuolinen osa; kopio ja seuraava siirto kattoivat koko
+muutetun valinnan. Myös Ctrl-veto, tallennus, undo/redo ja päivitys varmennettiin.
+
 Muokkaustilan ja apuviivojen viimeistely: **70 yksikkö- ja CAD-testiä
 hyväksytty** sekä TypeScript ja tuotantopaketointi hyväksytty. Uudet kokeet
 varmentavat offsetin lähtöetäisyyden neljässä suunnassa, aidot 3D-risteykset

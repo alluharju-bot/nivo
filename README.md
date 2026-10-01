@@ -80,6 +80,30 @@ siirtymän tai käyttää toimintoa kosketuksella. Esc peruu keskeneräisen kopi
 Peru poistaa hyväksytyn kopion yhdellä askeleella. Kopio säilyttää tarkan
 geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
 
+## Ryhmät ja yhteinen siirto
+
+Kappalelistan **Ryhmä** kokoaa valitut osat. Ryhmän nimen voi kirjoittaa suoraan
+listaan. Ryhmän valinta ottaa mukaan myös alaryhmien osat. **Yläryhmä** siirtää
+ryhmän toisen sisään tai takaisin päätasolle; omaa alaryhmää ei voi valita
+vanhemmaksi. **Luo alaryhmä** kokoaa valitut osat uuden alaryhmän alle.
+
+Ryhmän silmä ja lukko koskevat koko hierarkiaa. Ryhmän näyttäminen tai
+vapauttaminen säilyttää osien omat piilotukset ja lukot. **Pura ryhmä** säilyttää
+osat ja nostaa sen suorat osat sekä alaryhmät ylemmälle tasolle.
+
+Valitse ryhmä ja napsauta osia ilman lisänäppäintä poistaaksesi tai lisätäksesi
+niitä valintaan. Sininen korostus kertoo valitun joukon. **Sovita valinta** tuo
+kaikki valitut osat näkymään. **Siirrä valinta** tai **M** siirtää koko joukkoa;
+**Ctrl vedon aikana** tekee kopion. **Kopioi valinta** aloittaa saman työkalun
+kopiointitilassa. Kirjoita X/Y/Z-siirtymät ja hyväksy Enterillä tai vedä halutusta
+tartuntapisteestä. Esc peruu keskeneräisen sijoituksen. Myös yksittäisen osan
+Kopioi-painike aloittaa sijoituksen näin.
+
+Ryhmän kopio säilyttää alaryhmät, osien geometrian, värit, kokonaismitat sekä
+kopioituihin osiin ankkuroidut apuviivat. Kopiot ovat itsenäisiä osia. Yksi Peru
+palauttaa koko siirron tai kopioinnin. Tallennus ja tiedoston uudelleenavaus
+säilyttävät hierarkian.
+
 ## Uusi osa, muokkaustila ja kumitus
 
 **Normaalitilassa piirtäminen luo uuden osan.** Kaapin pinta antaa piirtotason

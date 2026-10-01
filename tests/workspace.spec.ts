@@ -117,9 +117,7 @@ test('origin, hold, hide, names and groups survive undo and reload', async ({ pa
   await page.getByRole('button', { name: 'Uusi ryhmä', exact: true }).click();
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Ryhmä 1', exact: true }).fill('Keittiö');
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Ryhmä 1', exact: true }).press('Enter');
-  await expect(page.getByRole('combobox', { name: 'Kappaleen ryhmä', exact: true })).toHaveValue(
-    /.+/,
-  );
+  await expect(page.getByRole('region', { name: 'Ryhmän toiminnot' })).toBeVisible();
   await page.getByRole('button', { name: 'Piilota ryhmä: Keittiö', exact: true }).click();
   let model = await save(page);
   expect(model.groups[0]).toMatchObject({ name: 'Keittiö', hidden: true });

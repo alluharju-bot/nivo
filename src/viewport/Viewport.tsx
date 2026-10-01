@@ -211,7 +211,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                     : selected && face.ref === props.selectedFace
                       ? '#e1bd7b'
                       : selected && !props.selectedFace
-                        ? new THREE.Color(body.color).lerp(new THREE.Color('#56a58b'), 0.3)
+                        ? new THREE.Color(body.color).lerp(
+                            new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
+                            0.3,
+                          )
                         : body.color,
           roughness: 0.8,
           metalness: 0,
@@ -252,7 +255,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                     : body.locked
                       ? '#684294'
                       : selected
-                        ? '#237b65'
+                        ? props.selectedGroupId
+                          ? '#356eab'
+                          : '#237b65'
                         : '#766851',
           transparent: true,
           opacity: reference
@@ -306,7 +311,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
     for (const object of bodies.children)
       object.visible = !(
-        (moved && !current().copyMove && object.userData.id === moving.id) ||
+        (moved && !current().copyMove && current().selectedIds.includes(object.userData.id)) ||
         (rotation &&
           !rotation.picking &&
           Math.abs(rotation.angle % 360) > 1e-8 &&
@@ -516,6 +521,41 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       render();
       return;
     }
+    if (moving && source) {
+      const delta = new THREE.Vector3(...moving.origin).sub(new THREE.Vector3(...source.origin));
+      for (const data of current().meshes.filter((m) => current().selectedIds.includes(m.id))) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
+        geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
+        geometry.setIndex(data.triangles);
+        geometry.translate(delta.x, delta.y, delta.z);
+        const mesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshBasicMaterial({
+            color: current().selectedGroupId ? '#447ead' : '#3b967a',
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          }),
+        );
+        ghost.add(mesh);
+        const outline = new THREE.BufferGeometry();
+        outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
+        outline.translate(delta.x, delta.y, delta.z);
+        ghost.add(
+          new THREE.LineSegments(
+            outline,
+            new THREE.LineBasicMaterial({
+              color: current().selectedGroupId ? '#356eab' : '#17755d',
+              depthTest: false,
+            }),
+          ),
+        );
+      }
+      render();
+      return;
+    }
     const body = current().preview;
     if (body) {
       const { width, depth, height } = body.feature;
@@ -719,8 +759,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     else {
       const props = current();
       const items =
-        command.type === 'fit' && props.selected
-          ? props.bodies.filter((b) => b.id === props.selected)
+        command.type === 'fit' && props.selectedIds.length
+          ? props.bodies.filter((b) => props.selectedIds.includes(b.id))
           : props.bodies;
       const box = bounds(items),
         min = new THREE.Vector3(...box.min),
@@ -816,6 +856,7 @@ export function Viewport(props: Props) {
     props.bodies,
     props.meshes,
     props.selectedIds,
+    props.selectedGroupId,
     props.selectedFace,
     props.editingBodyId,
     props.tool,
@@ -838,6 +879,8 @@ export function Viewport(props: Props) {
       props.rotation,
       props.meshes,
       props.copyMove,
+      props.selectedIds,
+      props.selectedGroupId,
       props.offsetOutline,
       props.offsetPreviewDistance,
     ],

@@ -6,19 +6,25 @@ import {
   freshProject,
   makeBody,
   type Body,
+  type BodyGroup,
   type Guide,
   type Project,
   type Vec3,
 } from '../src/model/project';
 
-export async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
+export async function ready(
+  page: Page,
+  bodies: Body[] = [],
+  guides: Guide[] = [],
+  groups: BodyGroup[] = [],
+) {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
-  if (bodies.length || guides.length) {
+  if (bodies.length || guides.length || groups.length) {
     await page.getByTestId('project-file').setInputFiles({
       name: 'direct.nivo',
       mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies, guides })),
+      buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies, guides, groups })),
     });
     await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
   }

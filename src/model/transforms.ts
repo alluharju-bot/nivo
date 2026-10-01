@@ -1,6 +1,7 @@
 import { bounds, type Body, type BodyGroup, type Project, type Vec3 } from './project';
 import { add, sub, scale, dot, unit } from './geometry';
 import { guideVector } from './guides';
+import { groupAncestors, bodyLocked } from './groups';
 
 export interface Rotation {
   ids: string[];
@@ -42,10 +43,10 @@ export const rotationRadius = (bodies: Body[]) => {
   return Math.max(40, Math.hypot(...sub(max, min)) * 0.65);
 };
 export const bodyVisible = (body: Body, groups: BodyGroup[]) =>
-  !body.hidden && !groups.find((g) => g.id === body.groupId)?.hidden;
-export function requireMovable(bodies: Body[]) {
+  !body.hidden && !groupAncestors(groups, body.groupId).some((g) => g.hidden);
+export function requireMovable(bodies: Body[], groups: BodyGroup[] = []) {
   if (!bodies.length) throw new Error('Valitse ensin kappale.');
-  if (bodies.some((b) => b.locked))
+  if (bodies.some((b) => bodyLocked(b, groups)))
     throw new Error(
       'Valinnassa on paikalleen kiinnitetty osa. Vapauta se G-näppäimellä tai lukkopainikkeesta.',
     );
@@ -56,7 +57,7 @@ export function moveToOrigin(
   reference: 'min' | 'center',
 ): Project {
   const chosen = project.bodies.filter((b) => ids.includes(b.id));
-  requireMovable(chosen);
+  requireMovable(chosen, project.groups);
   const anchor = reference === 'center' ? bodiesCenter(chosen) : bounds(chosen).min;
   return {
     ...project,

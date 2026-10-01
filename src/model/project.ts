@@ -184,6 +184,8 @@ export const groupSchema = z.object({
   id,
   name: z.string().trim().min(1).max(120),
   hidden: z.boolean().default(false),
+  locked: z.boolean().optional(),
+  parentId: id.optional(),
 });
 export type BodyGroup = z.infer<typeof groupSchema>;
 export const projectSchema = z
@@ -219,6 +221,22 @@ export const projectSchema = z
     }
     if (p.bodies.some((body) => body.groupId && !p.groups.some((g) => g.id === body.groupId)))
       ctx.addIssue({ code: 'custom', message: 'Kappale viittaa puuttuvaan ryhmään.' });
+    const groups = new Map(p.groups.map((g) => [g.id, g]));
+    for (const group of p.groups) {
+      const visited = new Set([group.id]);
+      let parent = group.parentId;
+      while (parent) {
+        if (!groups.has(parent) || visited.has(parent)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Ryhmähierarkiassa on puuttuva tai kiertävä viite.',
+          });
+          break;
+        }
+        visited.add(parent);
+        parent = groups.get(parent)!.parentId;
+      }
+    }
   });
 export type Body = z.infer<typeof bodySchema>;
 export type Dimension = z.infer<typeof dimensionSchema>;

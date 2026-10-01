@@ -282,7 +282,11 @@ test('pen closure creates one mesh, extrudes, merges selected parts, undo restor
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('selected-height')).toContainText('20');
   await page.getByRole('button', { name: 'Kopioi kappale', exact: true }).click();
+  await page.getByTestId('move-x').fill('250');
+  await page.getByTestId('move-x').press('Enter');
+  await page.keyboard.press('Escape');
   await expect(page.locator('.object-list .object-select')).toHaveCount(2);
+  await page.locator('.object-list .object-select').last().click();
   await page.getByRole('button', { name: 'Monivalinta', exact: true }).click();
   await page.locator('.object-list .object-select').first().click();
   await page.getByRole('button', { name: 'Yhdistä valitut', exact: true }).click();

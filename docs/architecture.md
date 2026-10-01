@@ -325,3 +325,14 @@ välin. Samat päät palvelevat 3D-tekstiä ja Viivat-listaa. `lineIntersection`
 hylkää yhdensuuntaiset ja ristikkäiset, eri syvyydellä kulkevat 3D-suorat.
 Tartunnat tutkivat vain kohdistimen lähellä olevien apuviivojen pareja.
 Valinta ja muokkaus ovat erillisiä: viivan napsautus ei luo mittaluonnosta.
+
+Ryhmän valinnainen `parentId` muodostaa hierarkian; tiedoston validointi hylkää
+puuttuvat ja kiertävät viitteet. `groupAncestors` määrittää periytyvän näkyvyyden
+ja Holdin. Osan omia lippuja ei muuteta ryhmän lipun mukana. Geometriatyökalut
+ja työtilan pintapoiminta tarkistavat myös perityn Holdin.
+
+`translateSelection` suorittaa siirron/kopioinnin yhdellä projektitransaktiolla.
+Ryhmäkopio saa omat ryhmä- ja osatunnisteet, ja mitat sekä osiin sidotut
+apuviitteet kohdistetaan kopioihin. Siirron esikatselu käyttää kaikkien
+valittujen osien alkuperäisiä CAD-verkkoja yhteisellä siirtymällä. Tartunnat
+jättävät siirrettävän valinnan omat pisteet pois, ellei kopiointitila ole päällä.

@@ -320,7 +320,7 @@ export function installInteractions({
       : [
           ...modelSnapPoints(
             props.bodies.filter(
-              (b) => props.tool !== 'move' || props.copyMove || b.id !== props.selected,
+              (b) => props.tool !== 'move' || props.copyMove || !props.selectedIds.includes(b.id),
             ),
             props.meshes,
           ),
@@ -816,6 +816,7 @@ export function installInteractions({
         reference: reference(),
         inferenceOrigin: inference,
         excludeId: props.tool === 'move' && !props.copyMove ? props.selected : undefined,
+        excludeIds: props.tool === 'move' && !props.copyMove ? props.selectedIds : undefined,
         projectGuides: props.tool === 'move',
         forceDirection: shift && !reference() && ['move', 'pen', 'rectangle'].includes(props.tool),
       },
