@@ -3,8 +3,8 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.3 tuo pintakohtaisen push/pullin, reunasta vedettävät apuviivat ja
-kynän suunnan lukituksen sekä pituuden poiminnan.
+Versio 0.4 tuo pintaan piirtämisen, tarkat ympyrät ja ellipsit, rajattujen alueiden
+syvennykset ja läpireiät sekä usean kappaleen Cut/Join-työkalun.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
@@ -58,6 +58,23 @@ komponentteja.
 
 ## Piirtämisen perustyökalut
 
+- **Pintaan piirtäminen:** pidä Muoto-valikon **Piirrä kappaleen pinnalle** päällä.
+  Aloita suorakulmio, ympyrä tai kynämuoto kappaleen tasopinnasta. Ensimmäinen
+  piste valitsee piirtotason; myös pysty- ja vinopinnat toimivat. Paksuus **0**
+  jakaa pinnan ja valitsee rajatun alueen. Paina E ja vedä vain tätä aluetta.
+  **Leikkaa läpi** tekee läpireiän; **Poimi syvyys pinnasta** asettaa siirtymän
+  toisen pinnan osoitetusta pisteestä.
+- **Ympyrä (C):** vedä keskipisteestä säde tai kirjoita halkaisija. Muoto-valikosta
+  saa myös ellipsin kahdella halkaisijalla ja säännöllisen 3–64-sivuisen monikulmion.
+  Kynällä voi tehdä muun tasomaisen suljetun ääriviivan. Ympyrät ja ellipsit ovat
+  tarkkoja CAD-käyriä.
+- **Muodon ominaisuudet:** anna nimi, mitat ja paksuus samassa valikossa.
+  Pintaan liitetyn mallinnettavan muodon positiivinen paksuus lisää materiaalia,
+  negatiivinen tekee syvennyksen. Muut muodot syntyvät itsenäisinä objekteina.
+  **Rakentamisen apumuoto** näkyy sinisinä ääriviivoina ja tarjoaa tartunnat;
+  se ei tule mittakuvaan. **Piirros** näkyy ääriviivoina myös mittakuvassa.
+  **Nimetty osa** on itsenäinen osa; kopiot eivät ole linkitettyjä komponentteja.
+
 - **Push / pull (E):** pinnan korostus seuraa kohdistinta. Paina ja vedä pintaa
   normaalinsa suunnassa tai valitse pinta, paina E ja kirjoita siirtymä. Positiivinen
   arvo vetää ulospäin, negatiivinen työntää sisään. Toimii laatikon kaikilla kuudella
@@ -95,13 +112,31 @@ komponentteja.
 
 ## Ohjaus
 
+![Pintaan piirretty ympyrä ja E-työkalulla leikattu läpireikä](docs/images/nivo-surface.png)
+
+**Cut ja Join:** avaa **Muotoile (B)** tai muotovalikon Toiminto-kenttä.
+Valitse ensin **Kohteet (Target bodies)** ja sitten **Työstökappaleet (Tool bodies)**
+listasta tai näkymästä. Kumpikin joukko voi sisältää useita tilavuuskappaleita.
+Sininen korostaa kohteet, punainen työstökappaleet. **Vaihda keskenään** kääntää
+leikkauksen suunnan. **Säilytä työstökappaleet** on oletuksena päällä.
+
+Cut vähentää kaikkien työstökappaleiden tilavuuden jokaisesta kohteesta. Join
+yhdistää molemmat joukot yhdeksi osaksi; erilliset soliditkin sallitaan.
+Undo palauttaa koko operaation, myös poistuneet lähteet. Ympyräpursotus sopii
+lieriöreiän leikkuriksi, ellipsi soikeaan läpäisyyn ja kynämuoto vapaaseen ääriviivaan.
+Paksuudettomat luonnokset eivät kelpaa. Jos leikkurit eivät osu kohteisiin,
+sovellus ilmoittaa siitä ja säilyttää lähteet. Kokonaan leikattu kohde poistuu;
+sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto perutaan.
+
+![Kaksi kohdelevyä ja kaksi sylinterimäistä työstökappaletta Cut-valikossa](docs/images/nivo-cut.png)
+
 - Napautus valitsee. Työkalun yhden sormen veto hyväksytään sormen noustessa.
   Kosketuksella **Poimi viite** ja pisteen napautus korvaavat Shiftillä poimimisen.
 - Kahden sormen ele panoroi ja zoomaa. **Navigoi**-tilassa yksi sormi kiertää.
 - Hiiren oikea painike kiertää, keskipainike panoroi ja rulla zoomaa.
   Navigoi-tilassa myös vasen painike kiertää.
 - V = valitse, R = suorakulmio (apuviivaa muokattaessa kierto), E = push/pull, M = siirrä, K = kynä,
-  T = mittatyökalu, H = navigoi.
+  C = ympyrä/muut muodot, B = Muotoile (Cut/Join), T = mittatyökalu, H = navigoi.
   X/Y/Z lukitsevat siirron, kynän tai apuviivan akselin. Enter hyväksyy.
   Esc vapauttaa ensin suuntalukon; ilman lukkoa se peruu työkalun.
   Ctrl/Cmd+Z peruu, Ctrl/Cmd+Shift+Z palauttaa.
@@ -124,14 +159,17 @@ ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testatt
 
 ## Rajaus ja jatko
 
-V0.3 tukee suorakulmioita, tasomaisia kynämuotoja, kaikkien nykyisten mallien
-tasopintojen push/pullia sekä tilavuuskappaleiden yhdistämistä. Kaarevien pintojen
-muokkaus ei ole mukana. Apuviivoihin tartunta edellyttää samaa piirtotasoa;
+V0.4 tukee suorakulmioita, ympyröitä, ellipsejä, tasomaisia kynämuotoja,
+tasopintojen jakoa ja push/pullia sekä Cut/Join-operaatioita. Kaarevalle pinnalle
+piirtäminen ja kaarevan sivupinnan push/pull eivät ole mukana.
+Apuviivoihin tartunta edellyttää samaa piirtotasoa;
 haettu viitepiste projisoidaan piirtotasoon. Reunan tartunta tukee suoria CAD-reunoja.
-Yleinen pintamuokkaus tallentaa tarkan BRep-geometrian. Sen muuttamien vanhojen
-verteksiviitteiden sekä yhdistämisessä poistuneiden osien viitteet näytetään
-rikkoutuneina; undo palauttaa ne. Pintaan piirtäminen ja sen jakaminen, leikkaukset,
-mesh-tuonti, layerit, ryhmät, komponentit, pintamateriaalit, scenet sekä PDF-,
+Yleinen pintamuokkaus tallentaa tarkan BRep-geometrian. Ennallaan säilyvät
+CAD-verteksit säilyttävät viitteensä; poistuneet kohteet näytetään rikkoutuneina.
+Join siirtää säilyvät lähdeviitteet tuloskappaleeseen. Siirtyvien tai muuttuvien
+topologiakohteiden yleinen nimeäminen on jatkotyötä.
+Kappaleiden kierto, tarkka kopiointi, mesh-tuonti, layerit, ryhmät,
+linkitetyt komponentit, pintamateriaalit, scenet sekä PDF-,
 STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
 
 Piirustus sisältää yhden ortografisen näkymän ja osien kokonaismittoja. Monien
@@ -141,7 +179,7 @@ Layerit, ryhmät ja komponentit seuraavat toimivaa mallinnuksen perustaa.
 
 - [Alkuperäinen määrittely](docs/requirements.fi.md)
 - [Arkkitehtuuri ja päätökset](docs/architecture.md)
-- [Projektiformaatti v3](docs/project-format.md)
+- [Projektiformaatti v4](docs/project-format.md)
 - [Toteutusvaiheet](docs/roadmap.md)
 
 ## Lisenssi

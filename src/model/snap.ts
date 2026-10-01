@@ -9,6 +9,8 @@ import {
 } from './project';
 import { guidePoints, planeAxes } from './guides';
 import type { BodyMesh } from '../cad/protocol';
+import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
+import { dot, sub, projectOnLine } from './geometry';
 export interface Snap {
   point: Vec3;
   label: string;
@@ -19,6 +21,89 @@ export interface ReferencePoint {
   point: Vec3;
   label: string;
   key: string;
+}
+export function snapOnSketchPlane(
+  raw: Vec3,
+  frame: SketchFrame,
+  bodies: Body[],
+  meshes: BodyMesh[],
+  guides: Guide[],
+  threshold: number,
+  grid: boolean,
+  reference?: ReferencePoint,
+  start?: Vec3,
+  extra: ReferencePoint[] = [],
+): Snap {
+  const onPlane = (p: Vec3) => Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5;
+  const candidates: (Snap & { priority: number })[] = [...modelSnapPoints(bodies, meshes), ...extra]
+    .filter((p) => onPlane(p.point))
+    .map((p) => ({ ...p, priority: 0 }));
+  for (const guide of guides) {
+    if (guide.mode !== 'guide') continue;
+    const ends = guidePoints(bodies, guide);
+    if (!ends || !ends.every(onPlane)) continue;
+    candidates.push({
+      point: projectOnLine(raw, ends[0], sub(ends[1], ends[0])),
+      key: `${guide.id}:line`,
+      label: 'Apuviiva',
+      line: ends,
+      priority: 1,
+    });
+  }
+  const uv = toUV(raw, frame);
+  if (reference) {
+    const p = ontoFrame(reference.point, frame),
+      r = toUV(p, frame);
+    for (const point of [fromUV([r[0], uv[1]], frame), fromUV([uv[0], r[1]], frame)])
+      candidates.push({
+        point,
+        label: `Viite · ${reference.label}`,
+        key: 'reference',
+        line: [p, point],
+        priority: 1,
+      });
+  }
+  if (start) {
+    const s = toUV(start, frame),
+      dx = uv[0] - s[0],
+      dy = uv[1] - s[1],
+      angle = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI) / 4,
+      c = Math.cos(angle),
+      v = Math.sin(angle),
+      along = dx * c + dy * v;
+    candidates.push({
+      point: fromUV([s[0] + c * along, s[1] + v * along], frame),
+      key: 'direction',
+      label: `Suunta ${Math.round((angle * 180) / Math.PI)}°`,
+      line: [start, fromUV([s[0] + c * along, s[1] + v * along], frame)],
+      priority: 2,
+    });
+  }
+  const near = candidates
+    .filter((p) => Math.hypot(...sub(p.point, raw)) < threshold)
+    .sort(
+      (a, b) =>
+        a.priority - b.priority ||
+        Math.hypot(...sub(a.point, raw)) - Math.hypot(...sub(b.point, raw)),
+    )[0];
+  if (near) {
+    if (near.key === 'direction' && grid && start) {
+      const delta = sub(near.point, start),
+        length = Math.hypot(...delta);
+      if (length > 1e-8)
+        near.point = start.map(
+          (n, i) => n + (delta[i] / length) * Math.round(length / 10) * 10,
+        ) as Vec3;
+    }
+    return near;
+  }
+  return grid
+    ? {
+        point: fromUV([Math.round(uv[0] / 10) * 10, Math.round(uv[1] / 10) * 10], frame),
+        label: 'Ruudukko · 10 mm',
+        key: 'grid',
+      }
+    : { point: raw, label: 'Piirtotaso', key: 'free' };
 }
 interface Options {
   plane?: WorkPlane;

@@ -19,7 +19,14 @@ import {
   projectOnLine,
   planeForDirection,
 } from '../model/geometry';
-import { modelSnapPoints, snapPoint, type ReferencePoint, type Snap } from '../model/snap';
+import {
+  modelSnapPoints,
+  snapPoint,
+  snapOnSketchPlane,
+  type ReferencePoint,
+  type Snap,
+} from '../model/snap';
+import { sketchFrame, toUV, fromUV, type SketchFrame } from '../model/sketch';
 import type { ViewportProps } from './types';
 
 export function installInteractions({
@@ -86,6 +93,8 @@ export function installInteractions({
     lastPenPoint: Vec3 | undefined;
   let previousAxis = current().axis,
     previousPenCount = current().penPoints.length;
+  let drawingPlane: SketchFrame | undefined;
+  let drawingTarget: FaceTarget | undefined;
   type Drag = {
     start: Vec3;
     origin: Vec3;
@@ -95,6 +104,7 @@ export function installInteractions({
     plane: WorkPlane;
     second: boolean;
     face?: FaceTarget;
+    sketch?: SketchFrame;
   };
   let drag: Drag | undefined,
     blocked = false;
@@ -140,6 +150,37 @@ export function installInteractions({
       new THREE.Vector3(),
     );
     return result?.toArray() as Vec3 | undefined;
+  };
+  const framePoint = (event: PointerEvent, frame: SketchFrame): Vec3 | undefined => {
+    setRay(event);
+    return raycaster.ray
+      .intersectPlane(
+        new THREE.Plane(new THREE.Vector3(...frame.normal), -dot(frame.normal, frame.origin)),
+        new THREE.Vector3(),
+      )
+      ?.toArray() as Vec3 | undefined;
+  };
+  const frameSnap = (point: Vec3, frame: SketchFrame, start?: Vec3) => {
+    const p = current(),
+      extra = p.penPoints.slice(0, -1).map((point, i) => ({
+        point,
+        key: `pen:${i}`,
+        label: i === 0 ? 'Aloituspiste' : 'Kynän piste',
+      }));
+    const snapped = snapOnSketchPlane(
+      point,
+      frame,
+      p.bodies,
+      p.meshes,
+      p.guides,
+      worldPerPixel(point) * 12,
+      p.gridSnap,
+      reference(),
+      start,
+      extra,
+    );
+    show(snapped);
+    return snapped.point;
   };
   const nearest = (event: PointerEvent, verticesOnly = false) => {
     const props = current(),
@@ -201,7 +242,15 @@ export function installInteractions({
             bodyId: data.id,
             face: face.ref,
             normal: face.normal,
-            point: hit.point.toArray() as Vec3,
+            point: face.planar
+              ? sub(
+                  hit.point.toArray() as Vec3,
+                  scale(
+                    face.normal,
+                    dot(sub(hit.point.toArray() as Vec3, face.center), face.normal),
+                  ),
+                )
+              : (hit.point.toArray() as Vec3),
           },
         }
       : undefined;
@@ -379,6 +428,8 @@ export function installInteractions({
       acquired = undefined;
       hoveredReference = undefined;
       shiftDirection = undefined;
+      drawingPlane = undefined;
+      drawingTarget = undefined;
       lastPenPoint = undefined;
       previousPenCount = current().penPoints.length;
       current().onConstraint(undefined);
@@ -443,6 +494,14 @@ export function installInteractions({
         referenceMarker.scale.setScalar(worldPerPixel(picked) * 5);
         render();
       }
+      props.onPenHover(point);
+      lastPenPoint = point;
+      return point;
+    }
+    if (drawingPlane && drawingTarget) {
+      const raw = framePoint(event, drawingPlane);
+      if (!raw) return;
+      const point = frameSnap(raw, drawingPlane, start);
       props.onPenHover(point);
       lastPenPoint = point;
       return point;
@@ -535,6 +594,15 @@ export function installInteractions({
     if (props.tool === 'extrude') {
       const picked = faceAt(event);
       if (!picked?.face.planar) return;
+      if (props.pickDepth && props.faceTarget) {
+        const distance = dot(
+          sub(picked.target.point, props.faceTarget.point),
+          props.faceTarget.normal,
+        );
+        if (Math.abs(distance) >= 0.1) props.onDepthPicked(distance);
+        else props.onSnap('Valitse toinen pinta syvyyden päätepisteeksi.');
+        return;
+      }
       props.onFaceTarget(picked.target);
       highlightFace(picked.target);
       popup(event);
@@ -551,6 +619,58 @@ export function installInteractions({
       canvas.setPointerCapture(event.pointerId);
       canvas.focus({ preventScroll: true });
       return;
+    }
+    if (
+      props.tool === 'rectangle' ||
+      props.tool === 'circle' ||
+      (props.tool === 'pen' && !props.penPoints.length)
+    ) {
+      const hit = props.drawOnSurface ? faceAt(event) : undefined;
+      const source = props.bodies.find((b) => b.id === hit?.target.bodyId);
+      if (hit?.face.planar && source?.purpose !== 'construction' && source?.purpose !== 'drawing') {
+        drawingTarget = hit.target;
+        drawingPlane = sketchFrame(
+          scale(hit.target.normal, dot(hit.target.normal, hit.target.point)),
+          hit.target.normal,
+        );
+      } else {
+        drawingTarget = undefined;
+        drawingPlane = props.tool === 'pen' ? undefined : sketchFrame([0, 0, 0]);
+      }
+      if (drawingPlane) {
+        const raw = framePoint(event, drawingPlane);
+        if (!raw) return;
+        const start = frameSnap(raw, drawingPlane),
+          frame = { ...drawingPlane, origin: start };
+        props.onSketchPlane(frame, drawingTarget);
+        if (props.tool !== 'pen') {
+          popup(event);
+          drag = {
+            start,
+            origin: start,
+            screenX: event.clientX,
+            screenY: event.clientY,
+            height: 0,
+            plane: 'XY',
+            second: false,
+            sketch: drawingPlane,
+          };
+          props.onGesture({
+            type: 'profile',
+            frame,
+            width:
+              props.preview?.feature.type === 'profile-extrusion'
+                ? props.preview.feature.profile.kind === 'rectangle'
+                  ? props.preview.feature.profile.width
+                  : 100
+                : (props.preview?.feature.width ?? 100),
+            depth: props.preview?.feature.depth ?? 100,
+          });
+          canvas.setPointerCapture(event.pointerId);
+          canvas.focus({ preventScroll: true });
+          return;
+        }
+      }
     }
     popup(event);
     const selected = props.bodies.find((b) => b.id === props.selected),
@@ -585,7 +705,7 @@ export function installInteractions({
     }
     if (
       !point &&
-      !['extrude', 'select'].includes(props.tool) &&
+      !['extrude', 'select', 'boolean'].includes(props.tool) &&
       !(props.tool === 'move' && props.axis === 'z')
     )
       return;
@@ -627,6 +747,42 @@ export function installInteractions({
         else show();
       }
       return;
+    }
+    if ((props.tool === 'rectangle' || props.tool === 'circle') && drag?.sketch) {
+      const raw = framePoint(event, drag.sketch);
+      if (!raw) return;
+      const end = frameSnap(raw, drag.sketch, props.tool === 'rectangle' ? drag.start : undefined),
+        relative = { ...drag.sketch, origin: drag.start },
+        delta = toUV(end, relative);
+      const width =
+          props.tool === 'circle'
+            ? 2 * (props.radialShape === 'ellipse' ? Math.abs(delta[0]) : Math.hypot(...delta))
+            : Math.abs(delta[0]),
+        depth = props.tool === 'circle' ? 2 * Math.abs(delta[1]) : Math.abs(delta[1]);
+      if (width >= 0.1 && (props.tool === 'circle' || depth >= 0.1))
+        props.onGesture({
+          type: 'profile',
+          frame: {
+            ...drag.sketch,
+            origin:
+              props.tool === 'rectangle'
+                ? fromUV([Math.min(0, delta[0]), Math.min(0, delta[1])], relative)
+                : drag.start,
+          },
+          width,
+          depth: Math.max(0.1, depth),
+          start: drag.start,
+          end,
+        });
+      return;
+    }
+    if (
+      ['rectangle', 'circle', 'pen'].includes(props.tool) &&
+      !drag &&
+      (!props.penPoints.length || props.tool !== 'pen')
+    ) {
+      const hit = props.drawOnSurface ? faceAt(event) : undefined;
+      highlightFace(hit?.face.planar ? hit.target : undefined);
     }
     const hovered = nearest(event);
     hoveredReference = hovered;
@@ -678,7 +834,10 @@ export function installInteractions({
       active = drag;
     if (active && !blocked && !props.busy) {
       const moved = Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
-      if (props.tool === 'select' && !moved) {
+      if (props.tool === 'boolean' && !moved) {
+        const hit = faceAt(event);
+        if (hit) props.onSelect(hit.target.bodyId);
+      } else if (props.tool === 'select' && !moved) {
         setRay(event);
         raycaster.params.Line.threshold = worldPerPixel(props.bodies[0]?.origin ?? [0, 0, 0]) * 7;
         const guideHit = raycaster
@@ -727,7 +886,7 @@ export function installInteractions({
         updateMeasure(event);
         props.onAccept();
         measureSession = undefined;
-      } else if (moved && ['rectangle', 'move', 'extrude'].includes(props.tool)) {
+      } else if (moved && ['rectangle', 'circle', 'move', 'extrude'].includes(props.tool)) {
         move(event);
         props.onAccept();
       }

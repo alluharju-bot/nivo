@@ -6,6 +6,8 @@ import {
   Box,
   Check,
   CircleHelp,
+  Circle,
+  Scissors,
   Copy,
   Download,
   FilePlus2,
@@ -43,6 +45,7 @@ import {
   freshProject,
   makeBody,
   makePolygonBody,
+  makeProfileBody,
   mergeBodies,
   parseProject,
   featureIsSolid,
@@ -61,6 +64,17 @@ import { downloadFile, safeFilename } from './storage/projects';
 import type { DrawingView, FaceTarget } from './cad/protocol';
 import { DynamicInput, type NumericField } from './ui/DynamicInput';
 import { CommitCheckbox } from './ui/CommitCheckbox';
+import { BooleanPanel, ShapeProperties, type Operation } from './ui/ModelingPanel';
+import { applyBoolean, type BooleanOperation } from './model/operations';
+import {
+  sketchFrame as createSketchFrame,
+  toUV,
+  fromUV,
+  frameV,
+  cross,
+  type SketchFrame,
+  type Profile,
+} from './model/sketch';
 import {
   angleBetween,
   guidePoints,
@@ -92,9 +106,11 @@ const faceNames: Record<FaceRef, string> = {
 const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = [
   { id: 'select', label: 'Valitse', icon: <MousePointer2 />, shortcut: 'V' },
   { id: 'rectangle', label: 'Suorakulmio', icon: <Square />, shortcut: 'R' },
+  { id: 'circle', label: 'Ympyrä', icon: <Circle />, shortcut: 'C' },
   { id: 'extrude', label: 'Push / pull', icon: <ArrowUpFromLine />, shortcut: 'E' },
   { id: 'move', label: 'Siirrä', icon: <Move3D />, shortcut: 'M' },
   { id: 'pen', label: 'Kynä', icon: <Pencil />, shortcut: 'K' },
+  { id: 'boolean', label: 'Muotoile', icon: <Scissors />, shortcut: 'B' },
   { id: 'measure', label: 'Mittatyökalu', icon: <Ruler />, shortcut: 'T' },
   { id: 'navigate', label: 'Navigoi', icon: <Hand />, shortcut: 'H' },
 ];
@@ -102,6 +118,9 @@ const instructions: Record<Tool, string> = {
   select: 'Napauta kappaletta tai pintaa. Kahdella sormella voit panoroida ja zoomata.',
   rectangle:
     'Vedä tai kirjoita X ja Tab → Y. Enter tai hiiren vapautus hyväksyy. Shift lukitsee haetun viitepisteen.',
+  circle:
+    'C · Valitse keskipiste ja vedä säde. Kirjoita halkaisija, Tab vaihtaa kenttää. Enter hyväksyy.',
+  boolean: 'Valitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.',
   extrude:
     'E · Osoita pintaa ja vedä normaalin suuntaan. Positiivinen lisää, negatiivinen poistaa. Enter hyväksyy.',
   move: 'Vedä kappaletta tai anna siirtymä. Hyväksy uusi sijainti.',
@@ -111,6 +130,7 @@ const instructions: Record<Tool, string> = {
   navigate: 'Vedä yhdellä sormella kiertääksesi. Kahdella sormella panoroit ja zoomaat.',
 };
 type Fields = {
+  thickness: string;
   width: string;
   depth: string;
   height: string;
@@ -122,6 +142,7 @@ type Fields = {
   offset: string;
 };
 const defaults: Fields = {
+  thickness: '0',
   width: '600',
   depth: '400',
   height: '18',
@@ -170,6 +191,21 @@ export default function App() {
   const faceRef = useRef<FaceTarget | undefined>(undefined);
   const [selectedGuideId, setSelectedGuideId] = useState<string>();
   const [freeRotate, setFreeRotate] = useState(false);
+  const [shapeFrame, setShapeFrame] = useState<SketchFrame>();
+  const shapeFrameRef = useRef<SketchFrame | undefined>(undefined);
+  const [sketchTarget, setSketchTarget] = useState<FaceTarget>();
+  const sketchTargetRef = useRef<FaceTarget | undefined>(undefined);
+  const [drawOnSurface, setDrawOnSurface] = useState(true);
+  const [shapeKind, setShapeKind] = useState<'circle' | 'ellipse' | 'polygon'>('circle');
+  const [shapeSides, setShapeSides] = useState(6);
+  const [shapePurpose, setShapePurpose] = useState<Body['purpose']>('model');
+  const [shapeName, setShapeName] = useState('');
+  const [booleanOperation, setBooleanOperation] = useState<BooleanOperation>('cut');
+  const [booleanTargets, setBooleanTargets] = useState<string[]>([]);
+  const [booleanTools, setBooleanTools] = useState<string[]>([]);
+  const [booleanActive, setBooleanActive] = useState<'targets' | 'tools'>('targets');
+  const [keepTools, setKeepTools] = useState(true);
+  const [pickDepth, setPickDepth] = useState(false);
   const hoverRef = useRef<Vec3 | undefined>(undefined);
   const [guideDraft, setGuideDraft] = useState<{
     anchor: Anchor;
@@ -206,12 +242,16 @@ export default function App() {
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
-  const editing = ['rectangle', 'extrude', 'move', 'measure', 'pen'].includes(tool);
+  const editing = ['rectangle', 'circle', 'extrude', 'move', 'measure', 'pen'].includes(tool);
   const writeFields = (patch: Partial<Fields>) => {
     fieldsRef.current = { ...fieldsRef.current, ...patch };
     setFields(fieldsRef.current);
   };
   const field = (key: string, value: string) => {
+    if (key === 'thickness') {
+      writeFields({ thickness: value });
+      return;
+    }
     lockRef.current.add(key);
     setLocked(new Set(lockRef.current));
     writeFields({ [key]: value });
@@ -249,8 +289,32 @@ export default function App() {
     constraintRef.current = undefined;
     setPenConstraint(undefined);
     setAxis(undefined);
+    shapeFrameRef.current = undefined;
+    setShapeFrame(undefined);
+    sketchTargetRef.current = undefined;
+    setSketchTarget(undefined);
+    setPickDepth(false);
   };
-  const select = (id?: string, face?: FaceRef, additive = false) => {
+  const toggleBoolean = (id: string, group: 'targets' | 'tools' = booleanActive) => {
+    if (!featureIsSolid(project.bodies.find((b) => b.id === id)!.feature)) {
+      editor.setMessage('Anna luonnokselle ensin paksuus.');
+      return;
+    }
+    const change = (ids: string[]) =>
+      ids.includes(id) ? ids.filter((v) => v !== id) : [...ids, id];
+    if (group === 'targets') {
+      setBooleanTargets(change);
+      setBooleanTools((ids) => ids.filter((v) => v !== id));
+    } else {
+      setBooleanTools(change);
+      setBooleanTargets((ids) => ids.filter((v) => v !== id));
+    }
+  };
+  const select = (id?: string, face?: FaceRef, additive = false, force = false) => {
+    if (tool === 'boolean' && !force) {
+      if (id) toggleBoolean(id);
+      return;
+    }
     setSelected(id);
     setSelectedFace(face);
     setTool('select');
@@ -289,11 +353,27 @@ export default function App() {
     setMode('model');
     setMeasureMenu(false);
     editor.setError('');
+    if (next === 'boolean') {
+      setPanelOpen(true);
+      setBooleanTargets(
+        selectedIds.filter((id) =>
+          featureIsSolid(project.bodies.find((b) => b.id === id)!.feature),
+        ),
+      );
+      setBooleanTools([]);
+      setBooleanActive('targets');
+      return;
+    }
     if (next === 'measure') setMeasureMode('guide');
-    if (['rectangle', 'extrude', 'move', 'measure', 'pen'].includes(next)) {
+    if (['rectangle', 'circle', 'extrude', 'move', 'measure', 'pen'].includes(next)) {
       setPanelOpen(true);
       setDraftId(uid());
       writeFields({ ...defaults });
+      if (next === 'circle') writeFields({ width: '100', depth: '60' });
+      if (['rectangle', 'circle', 'pen'].includes(next))
+        setShapeName(
+          `${next === 'rectangle' ? 'Levy' : next === 'circle' ? 'Ympyrä' : 'Kynämuoto'} ${project.bodies.length + 1}`,
+        );
       if (next === 'extrude' && body) {
         const mesh = editor.meshes.find((m) => m.id === body.id);
         const face =
@@ -311,27 +391,66 @@ export default function App() {
           setFaceTarget(target);
         }
       }
-      if (next === 'rectangle' || next === 'pen') {
+      if (next === 'rectangle' || next === 'circle' || next === 'pen') {
         setSelected(undefined);
         setSelectedIds([]);
         setSelectedFace(undefined);
-        if (next === 'rectangle' && view !== 'iso' && view !== 'top') changeView('top');
       }
     }
   };
   const makePreview = (): Body | undefined => {
     const fields = fieldsRef.current;
     if (!editing || ['measure', 'pen', 'extrude'].includes(tool)) return;
-    if (tool === 'rectangle') {
+    if (tool === 'rectangle' || tool === 'circle') {
+      const frame =
+        shapeFrameRef.current ??
+        createSketchFrame([
+          parseLength(fields.x, true, true),
+          parseLength(fields.y, true, true),
+          parseLength(fields.z, true, true),
+        ]);
+      const width = parseLength(fields.width),
+        depth = parseLength(fields.depth),
+        distance = parseLength(fields.thickness, true, true);
+      if (tool === 'circle') {
+        const profile: Profile =
+          shapeKind === 'circle'
+            ? { kind: 'circle', radius: width / 2 }
+            : shapeKind === 'ellipse'
+              ? { kind: 'ellipse', radiusX: width / 2, radiusY: depth / 2 }
+              : {
+                  kind: 'polygon',
+                  points: Array.from({ length: shapeSides }, (_, i) => [
+                    (width / 2) * Math.cos((i / shapeSides) * Math.PI * 2),
+                    (width / 2) * Math.sin((i / shapeSides) * Math.PI * 2),
+                  ]),
+                };
+        return {
+          ...makeProfileBody(profile, frame, distance, shapeName || 'Muoto', shapePurpose),
+          id: draftId,
+        };
+      }
+      if (frame.normal[2] < 0.999999 || Math.abs(frame.u[0] - 1) > 1e-6 || distance < 0)
+        return {
+          ...makeProfileBody(
+            { kind: 'rectangle', width, depth },
+            frame,
+            distance,
+            shapeName || 'Levy',
+            shapePurpose,
+          ),
+          id: draftId,
+        };
       return {
         ...makeBody(
-          parseLength(fields.width),
-          parseLength(fields.depth),
-          0,
-          [parseLength(fields.x, true, true), parseLength(fields.y, true, true), 0],
-          `Levy ${project.bodies.length + 1}`,
+          width,
+          depth,
+          distance,
+          frame.origin,
+          shapeName || `Levy ${project.bodies.length + 1}`,
         ),
         id: draftId,
+        purpose: shapePurpose,
       };
     }
     if (!body) return;
@@ -348,7 +467,18 @@ export default function App() {
     } catch {
       return undefined;
     }
-  }, [tool, fields, body, draftId, project.bodies.length]);
+  }, [
+    tool,
+    fields,
+    body,
+    draftId,
+    project.bodies.length,
+    shapeFrame,
+    shapeKind,
+    shapeSides,
+    shapePurpose,
+    shapeName,
+  ]);
   const faceDistance = useMemo(() => {
     try {
       return parseLength(fields.height, true, true);
@@ -397,10 +527,93 @@ export default function App() {
         : n;
     }) as Vec3;
   };
+  const changeOperation = (operation: Operation) => {
+    if (operation === 'new') {
+      begin('rectangle');
+      return;
+    }
+    if (tool !== 'boolean') begin('boolean');
+    setBooleanOperation(operation);
+  };
+  const commitShape = async (candidate: Body) => {
+    const target = drawOnSurface && shapePurpose === 'model' ? sketchTargetRef.current : undefined;
+    const source = project.bodies.find((b) => b.id === target?.bodyId),
+      distance = parseLength(fieldsRef.current.thickness, true, true);
+    let selectedRegion: FaceRef | undefined;
+    if (target && source) {
+      let flat = candidate;
+      if (candidate.feature.type === 'profile-extrusion')
+        flat = makeProfileBody(
+          candidate.feature.profile,
+          {
+            ...candidate.feature.frame,
+            origin: add(candidate.origin, candidate.feature.frame.origin),
+          },
+          0,
+          candidate.name,
+        );
+      else if (candidate.feature.type === 'rectangle-extrusion')
+        flat = { ...candidate, feature: { ...candidate.feature, height: 0 } };
+      const committed = await editor.transact(
+        async () => {
+          const split = await editor.cad.split(source, target.face, flat);
+          selectedRegion = split.face;
+          const next = distance
+            ? await editor.cad.pushPull(split.body, split.face, distance)
+            : split.body;
+          return { ...project, bodies: project.bodies.map((b) => (b.id === source.id ? next : b)) };
+        },
+        distance
+          ? 'Pintaan tehty muotoilu.'
+          : 'Pinta jaettu. Rajattu alue on valittu; paina E muokataksesi sitä.',
+      );
+      if (committed) select(source.id, distance ? undefined : selectedRegion, false, true);
+    } else if (
+      await editor.transact(
+        { ...project, bodies: [...project.bodies, candidate] },
+        'Muoto valmis. Voit muokata pintaa E:llä tai käyttää kappaletta Cut/Join-työkalussa.',
+      )
+    )
+      select(candidate.id, undefined, false, true);
+  };
+  const applyBooleanOperation = async () => {
+    const targets = project.bodies.filter((b) => booleanTargets.includes(b.id)),
+      tools = project.bodies.filter((b) => booleanTools.includes(b.id));
+    let nextSelected: string | undefined;
+    const success = await editor.transact(
+      async () => {
+        const results = await editor.cad.boolean(targets, tools, booleanOperation);
+        nextSelected = results[0]?.id;
+        if (
+          booleanOperation === 'cut' &&
+          results.length === targets.length &&
+          results.every(
+            (b) =>
+              JSON.stringify(b.feature) ===
+              JSON.stringify(targets.find((t) => t.id === b.id)?.feature),
+          )
+        )
+          throw new Error('Työstökappaleet eivät leikkaa kohteita. Tarkista sijainnit.');
+        return applyBoolean(
+          project,
+          booleanTargets,
+          booleanTools,
+          results,
+          booleanOperation,
+          keepTools,
+        );
+      },
+      booleanOperation === 'cut' ? 'Leikkaus valmis.' : 'Kappaleet yhdistetty.',
+    );
+    if (success) select(nextSelected, undefined, false, true);
+  };
   const apply = async (forceClose = false) => {
     if (committing.current || busy) return;
     try {
-      if (tool === 'extrude') {
+      if (tool === 'boolean') {
+        committing.current = true;
+        await applyBooleanOperation();
+      } else if (tool === 'extrude') {
         const target = faceRef.current,
           source = project.bodies.find((b) => b.id === target?.bodyId);
         if (!target || !source) {
@@ -426,15 +639,36 @@ export default function App() {
           editor.setError('');
           return;
         }
-        const candidate = makePolygonBody(penRef.current, `Kynämuoto ${project.bodies.length + 1}`);
-        committing.current = true;
+        let candidate = {
+          ...makePolygonBody(penRef.current, shapeName || `Kynämuoto ${project.bodies.length + 1}`),
+          purpose: shapePurpose,
+        };
+        const distance = parseLength(fieldsRef.current.thickness, true, true),
+          frame = shapeFrameRef.current;
         if (
-          await editor.transact(
-            { ...project, bodies: [...project.bodies, candidate] },
-            'Muoto suljettu. Pinta on oma objekti; voit nyt antaa sille paksuuden.',
-          )
+          sketchTargetRef.current &&
+          frame &&
+          penRef.current.some((p) => Math.abs(dot(sub(p, frame.origin), frame.normal)) > 1e-5)
         )
-          select(candidate.id);
+          throw new Error('Pintaan piirretyn muodon pisteiden tulee pysyä piirtotasossa.');
+        if (distance) {
+          const points = penRef.current,
+            start = points[0],
+            normal = points
+              .slice(2)
+              .map((p) => cross(sub(points[1], start), sub(p, start)))
+              .find((n) => Math.hypot(...n) > 1e-8)!;
+          const plane = sketchTargetRef.current && frame ? frame : createSketchFrame(start, normal);
+          candidate = makeProfileBody(
+            { kind: 'polygon', points: points.map((p) => toUV(p, plane)) },
+            plane,
+            distance,
+            candidate.name,
+            shapePurpose,
+          );
+        }
+        committing.current = true;
+        await commitShape(candidate);
       } else if (tool === 'measure') {
         const candidate = makeGuide();
         if (!candidate) {
@@ -465,22 +699,15 @@ export default function App() {
         const candidate = makePreview();
         if (!candidate) return;
         committing.current = true;
+        if (tool === 'rectangle' || tool === 'circle') {
+          await commitShape(candidate);
+          return;
+        }
         const next = {
           ...project,
-          bodies:
-            tool === 'rectangle'
-              ? [...project.bodies, candidate]
-              : project.bodies.map((b) => (b.id === candidate.id ? candidate : b)),
+          bodies: project.bodies.map((b) => (b.id === candidate.id ? candidate : b)),
         };
-        if (
-          await editor.transact(
-            next,
-            tool === 'rectangle'
-              ? 'Suorakulmio valmis. Anna sille paksuus Push / pull -työkalulla.'
-              : 'Muokkaus valmis.',
-          )
-        )
-          select(candidate.id);
+        if (await editor.transact(next, 'Muokkaus valmis.')) select(candidate.id);
       }
     } catch (e) {
       editor.setError((e as Error).message);
@@ -550,7 +777,33 @@ export default function App() {
   };
   const gesture = (event: Gesture) => {
     const patch: Partial<Fields> = {};
-    if (event.type === 'rectangle') {
+    if (event.type === 'profile') {
+      if (!lockRef.current.has('width')) patch.width = String(Math.round(event.width * 100) / 100);
+      if (!lockRef.current.has('depth')) patch.depth = String(Math.round(event.depth * 100) / 100);
+      let frame = event.frame;
+      if (tool === 'rectangle' && event.start && event.end) {
+        const relative = { ...frame, origin: event.start },
+          delta = toUV(event.end, relative);
+        let w = event.width,
+          d = event.depth;
+        try {
+          if (lockRef.current.has('width')) w = parseLength(fieldsRef.current.width);
+          if (lockRef.current.has('depth')) d = parseLength(fieldsRef.current.depth);
+        } catch {
+          return;
+        }
+        frame = {
+          ...frame,
+          origin: fromUV([delta[0] < 0 ? -w : 0, delta[1] < 0 ? -d : 0], relative),
+        };
+      }
+      shapeFrameRef.current = frame;
+      setShapeFrame(frame);
+      patch.x = String(frame.origin[0]);
+      patch.y = String(frame.origin[1]);
+      patch.z = String(frame.origin[2]);
+      writeFields(patch);
+    } else if (event.type === 'rectangle') {
       if (!lockRef.current.has('width')) patch.width = String(event.width);
       if (!lockRef.current.has('depth')) patch.depth = String(event.depth);
       const origin = [...event.origin];
@@ -663,72 +916,93 @@ export default function App() {
     });
   };
   const numericFields: NumericField[] =
-    tool === 'rectangle'
+    tool === 'circle'
       ? [
           {
             key: 'width',
-            label: 'Leveys · X',
+            label: shapeKind === 'ellipse' ? 'Halkaisija · X' : 'Halkaisija',
             value: fields.width,
             unit: 'mm',
-            testId: 'width-input',
+            testId: 'diameter-input',
           },
-          {
-            key: 'depth',
-            label: 'Syvyys · Y',
-            value: fields.depth,
-            unit: 'mm',
-            testId: 'depth-input',
-          },
-        ]
-      : tool === 'extrude'
-        ? faceTarget
-          ? [
-              {
-                key: 'height',
-                label: 'Pinnan siirtymä',
-                value: fields.height,
-                unit: 'mm',
-                testId: 'height-input',
-                signed: true,
-              },
-            ]
-          : []
-        : tool === 'measure'
-          ? [
-              {
-                key: guideDraft?.offset ? 'offset' : 'length',
-                label: guideDraft?.offset ? 'Etäisyys reunasta' : 'Pituus',
-                value: guideDraft?.offset ? fields.offset : fields.length,
-                unit: 'mm',
-                testId: 'guide-length',
-              },
-              {
-                key: 'angle',
-                label: 'Kulma',
-                value: fields.angle,
-                unit: '°',
-                testId: 'guide-angle',
-              },
-            ]
-          : tool === 'pen' && penConstraint
+          ...(shapeKind === 'ellipse'
             ? [
                 {
-                  key: 'length',
-                  label: 'Pituus lukitulla suunnalla',
-                  value: fields.length,
+                  key: 'depth',
+                  label: 'Halkaisija · Y',
+                  value: fields.depth,
                   unit: 'mm',
-                  testId: 'pen-length',
+                  testId: 'ellipse-depth',
+                },
+              ]
+            : []),
+        ]
+      : tool === 'rectangle'
+        ? [
+            {
+              key: 'width',
+              label: 'Leveys · X',
+              value: fields.width,
+              unit: 'mm',
+              testId: 'width-input',
+            },
+            {
+              key: 'depth',
+              label: 'Syvyys · Y',
+              value: fields.depth,
+              unit: 'mm',
+              testId: 'depth-input',
+            },
+          ]
+        : tool === 'extrude'
+          ? faceTarget
+            ? [
+                {
+                  key: 'height',
+                  label: 'Pinnan siirtymä',
+                  value: fields.height,
+                  unit: 'mm',
+                  testId: 'height-input',
                   signed: true,
                 },
               ]
-            : ['x', 'y', 'z'].map((key) => ({
-                key,
-                label: `Siirtymä · ${key.toUpperCase()}`,
-                value: fields[key as 'x' | 'y' | 'z'],
-                unit: 'mm',
-                testId: `move-${key}`,
-                signed: true,
-              }));
+            : []
+          : tool === 'measure'
+            ? [
+                {
+                  key: guideDraft?.offset ? 'offset' : 'length',
+                  label: guideDraft?.offset ? 'Etäisyys reunasta' : 'Pituus',
+                  value: guideDraft?.offset ? fields.offset : fields.length,
+                  unit: 'mm',
+                  testId: 'guide-length',
+                },
+                {
+                  key: 'angle',
+                  label: 'Kulma',
+                  value: fields.angle,
+                  unit: '°',
+                  testId: 'guide-angle',
+                },
+              ]
+            : tool === 'pen' && penConstraint
+              ? [
+                  {
+                    key: 'length',
+                    label: 'Pituus lukitulla suunnalla',
+                    value: fields.length,
+                    unit: 'mm',
+                    testId: 'pen-length',
+                    signed: true,
+                  },
+                ]
+              : ['x', 'y', 'z'].map((key) => ({
+                  key,
+                  label: `Siirtymä · ${key.toUpperCase()}`,
+                  value: fields[key as 'x' | 'y' | 'z'],
+                  unit: 'mm',
+                  testId: `move-${key}`,
+                  signed: true,
+                }));
   const removeBody = async () => {
     if (!body) return;
     if (
@@ -854,7 +1128,7 @@ export default function App() {
         return;
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (key === 'enter' && editing) {
+      if (key === 'enter' && (editing || tool === 'boolean')) {
         event.preventDefault();
         void apply();
       }
@@ -1172,6 +1446,25 @@ export default function App() {
               pickReference={pickReference}
               epoch={epoch}
               onSelect={select}
+              drawOnSurface={drawOnSurface}
+              radialShape={shapeKind}
+              sketchFrame={shapeFrame}
+              sketchTarget={sketchTarget}
+              booleanTargets={booleanTargets}
+              booleanTools={booleanTools}
+              pickDepth={pickDepth}
+              onDepthPicked={(distance) => {
+                writeFields({ height: String(Math.round(distance * 100) / 100) });
+                lockRef.current.add('height');
+                setLocked(new Set(lockRef.current));
+                setPickDepth(false);
+              }}
+              onSketchPlane={(frame, target) => {
+                shapeFrameRef.current = frame;
+                setShapeFrame(frame);
+                sketchTargetRef.current = target;
+                setSketchTarget(target);
+              }}
               onSnap={setSnapLabel}
               onGesture={gesture}
               faceTarget={faceTarget}
@@ -1216,15 +1509,21 @@ export default function App() {
                 title={
                   tool === 'rectangle'
                     ? 'Suorakulmio'
-                    : tool === 'measure'
-                      ? measureMode === 'guide'
-                        ? 'Apuviiva'
-                        : 'Vapaa mittaviiva'
-                      : tool === 'pen'
-                        ? 'Kynä · seuraava piste'
-                        : tool === 'move'
-                          ? 'Siirrä'
-                          : 'Push / pull'
+                    : tool === 'circle'
+                      ? shapeKind === 'circle'
+                        ? 'Ympyrä'
+                        : shapeKind === 'ellipse'
+                          ? 'Ellipsi'
+                          : 'Monikulmio'
+                      : tool === 'measure'
+                        ? measureMode === 'guide'
+                          ? 'Apuviiva'
+                          : 'Vapaa mittaviiva'
+                        : tool === 'pen'
+                          ? 'Kynä · seuraava piste'
+                          : tool === 'move'
+                            ? 'Siirrä'
+                            : 'Push / pull'
                 }
               />
             )}
@@ -1352,7 +1651,30 @@ export default function App() {
 
         {panelOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
-            {editing ? (
+            {tool === 'boolean' ? (
+              <BooleanPanel
+                bodies={project.bodies}
+                operation={booleanOperation}
+                onOperation={changeOperation}
+                targets={booleanTargets}
+                tools={booleanTools}
+                active={booleanActive}
+                onActive={setBooleanActive}
+                onToggle={toggleBoolean}
+                onSwap={() => {
+                  setBooleanTargets(booleanTools);
+                  setBooleanTools(booleanTargets);
+                }}
+                keepTools={keepTools}
+                onKeepTools={setKeepTools}
+                onAccept={() => void apply()}
+                onCancel={() => {
+                  setTool('select');
+                  resetGesture();
+                }}
+                busy={busy}
+              />
+            ) : editing ? (
               <>
                 <div className="panel-title">
                   <div>
@@ -1360,13 +1682,19 @@ export default function App() {
                     <h2>
                       {tool === 'rectangle'
                         ? 'Suorakulmio'
-                        : tool === 'extrude'
-                          ? 'Push / pull'
-                          : tool === 'measure'
-                            ? 'Mittatyökalu'
-                            : tool === 'pen'
-                              ? 'Kynä'
-                              : 'Siirrä kappaletta'}
+                        : tool === 'circle'
+                          ? shapeKind === 'circle'
+                            ? 'Ympyrä'
+                            : shapeKind === 'ellipse'
+                              ? 'Ellipsi'
+                              : 'Monikulmio'
+                          : tool === 'extrude'
+                            ? 'Push / pull'
+                            : tool === 'measure'
+                              ? 'Mittatyökalu'
+                              : tool === 'pen'
+                                ? 'Kynä'
+                                : 'Siirrä kappaletta'}
                     </h2>
                   </div>
                   <span className="step-number">{tool === 'rectangle' ? '01' : '02'}</span>
@@ -1374,17 +1702,74 @@ export default function App() {
                 <p className="panel-description">
                   {tool === 'rectangle'
                     ? 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
-                    : tool === 'extrude'
-                      ? 'E · Osoita pintaa: korostettu pinta liikkuu vetämällä normaalinsa suuntaan. Voit myös kirjoittaa siirtymän.'
-                      : tool === 'pen'
-                        ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
-                        : tool === 'measure'
-                          ? measureMode === 'guide'
-                            ? 'Aloita verteksistä tai vedä reunasta sen suuntainen apuviiva. Piirtäminen ja siirtäminen tarttuvat viivaan.'
-                            : 'Valitse kaksi pistettä nähdäksesi niiden etäisyyden.'
-                          : 'Anna siirtymä nykyisestä sijainnista tai vedä kappaletta näkymässä.'}
+                    : tool === 'circle'
+                      ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
+                      : tool === 'extrude'
+                        ? 'E · Osoita pintaa: korostettu pinta liikkuu vetämällä normaalinsa suuntaan. Voit myös kirjoittaa siirtymän.'
+                        : tool === 'pen'
+                          ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
+                          : tool === 'measure'
+                            ? measureMode === 'guide'
+                              ? 'Aloita verteksistä tai vedä reunasta sen suuntainen apuviiva. Piirtäminen ja siirtäminen tarttuvat viivaan.'
+                              : 'Valitse kaksi pistettä nähdäksesi niiden etäisyyden.'
+                            : 'Anna siirtymä nykyisestä sijainnista tai vedä kappaletta näkymässä.'}
                 </p>
                 <div className="tool-fields">
+                  {['rectangle', 'circle', 'pen'].includes(tool) && (
+                    <ShapeProperties
+                      tool={tool as 'rectangle' | 'circle' | 'pen'}
+                      kind={shapeKind}
+                      onKind={setShapeKind}
+                      width={fields.width}
+                      depth={fields.depth}
+                      thickness={fields.thickness}
+                      onField={field}
+                      purpose={shapePurpose}
+                      onPurpose={setShapePurpose}
+                      name={shapeName}
+                      onName={setShapeName}
+                      attach={drawOnSurface}
+                      onAttach={setDrawOnSurface}
+                      sides={shapeSides}
+                      onSides={setShapeSides}
+                      onOperation={changeOperation}
+                      frameLabel={
+                        sketchTarget
+                          ? `Pinta: ${project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name}`
+                          : 'Valitse piste työtasolta tai kappaleen pinnalta'
+                      }
+                      onAccept={() => void apply(tool === 'pen')}
+                    />
+                  )}
+                  {tool === 'extrude' && faceTarget && (
+                    <div className="shape-properties">
+                      <button
+                        className="button outlined full"
+                        aria-pressed={pickDepth}
+                        onClick={() => setPickDepth(!pickDepth)}
+                      >
+                        {pickDepth ? 'Osoita päättävää pintaa' : 'Poimi syvyys pinnasta'}
+                      </button>
+                      <button
+                        className="button dark full"
+                        onClick={() => {
+                          const target = project.bodies.find((b) => b.id === faceTarget.bodyId)!;
+                          writeFields({
+                            height: String(
+                              -Math.hypot(
+                                target.feature.width,
+                                target.feature.depth,
+                                target.feature.height,
+                              ) - 1,
+                            ),
+                          });
+                          void apply();
+                        }}
+                      >
+                        Leikkaa läpi
+                      </button>
+                    </div>
+                  )}
                   <p className="muted">
                     Kirjoita numero aloittaaksesi ensimmäisestä kentästä. Tab siirtyy seuraavaan.
                     Enter tai vedon päättäminen hyväksyy osan.
@@ -1518,7 +1903,7 @@ export default function App() {
                         </strong>
                       </div>
                       <div>
-                        <span>Paksuus</span>
+                        <span>Korkeus · Z</span>
                         <strong data-testid="selected-height">
                           {formatLength(body.feature.height)}
                           <small>mm</small>
@@ -1531,6 +1916,14 @@ export default function App() {
                     </p>
                     {mode === 'model' && (
                       <>
+                        <button
+                          className="button outlined full"
+                          disabled={busy}
+                          onClick={() => begin('boolean')}
+                        >
+                          <Scissors size={17} />
+                          Cut / Join
+                        </button>
                         <button
                           className="button outlined full"
                           disabled={busy}
@@ -1582,7 +1975,7 @@ export default function App() {
                     <div className="dimension-buttons">
                       <button
                         className="button outlined"
-                        disabled={!body || busy}
+                        disabled={!body || busy || body.purpose === 'construction'}
                         onClick={() => void addDimension(drawingView === 'right' ? 'y' : 'x')}
                       >
                         <ArrowLeftRight size={16} />
@@ -1590,7 +1983,12 @@ export default function App() {
                       </button>
                       <button
                         className="button outlined"
-                        disabled={!body || busy || (drawingView !== 'top' && !body?.feature.height)}
+                        disabled={
+                          !body ||
+                          busy ||
+                          body.purpose === 'construction' ||
+                          (drawingView !== 'top' && !body?.feature.height)
+                        }
                         onClick={() => void addDimension(drawingView === 'top' ? 'y' : 'z')}
                       >
                         <Ruler size={16} />
@@ -1677,11 +2075,17 @@ export default function App() {
                             <Box size={16} />
                             <span>{b.name}</span>
                             <small>
-                              {b.feature.type === 'union'
-                                ? '∪'
-                                : featureIsSolid(b.feature)
-                                  ? '3D'
-                                  : '2D'}
+                              {b.purpose === 'construction'
+                                ? 'Apu'
+                                : b.purpose === 'drawing'
+                                  ? 'Piirros'
+                                  : b.purpose === 'component'
+                                    ? 'Osa'
+                                    : b.feature.type === 'union'
+                                      ? '∪'
+                                      : featureIsSolid(b.feature)
+                                        ? '3D'
+                                        : '2D'}
                             </small>
                           </button>
                         ))
@@ -1822,7 +2226,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.3</span>
+                  <span>v0.4</span>
                 </div>
               </>
             )}
@@ -1836,7 +2240,9 @@ export default function App() {
             {busy ? <LoaderCircle className="spin" size={14} /> : <CheckCircle2 size={14} />}
           </span>
           <span role="status">
-            {editing || tool === 'navigate' ? instructions[tool] : editor.message}
+            {editing || tool === 'navigate' || tool === 'boolean'
+              ? instructions[tool]
+              : editor.message}
           </span>
         </div>
         <span className="status-right">
@@ -1865,13 +2271,14 @@ export default function App() {
             </h2>
             <ol>
               <li>
-                <strong>Piirrä.</strong> Valitse Suorakulmio. Vedä XY-tasolle tai anna leveys ja
-                syvyys. Enter tai vedon päättäminen hyväksyy. Kynällä voit piirtää muun suljetun
-                muodon.
+                <strong>Piirrä.</strong> Valitse Suorakulmio, Ympyrä (C) tai Kynä. Aloita kappaleen
+                tasopinnalta piirtääksesi siihen muokattavan alueen. Muotovalikosta löytyvät myös
+                ellipsi ja säännöllinen monikulmio. Enter tai vedon päättäminen hyväksyy.
               </li>
               <li>
                 <strong>Muotoile.</strong> Paina E, osoita pintaa ja vedä. Positiivinen siirtymä
-                vetää pintaa ulos ja negatiivinen työntää sisään. Siirrä ja kopioi osia.
+                vetää pintaa ulos ja negatiivinen työntää sisään. Leikkaa läpi tekee aukon, ja Poimi
+                syvyys pinnasta määrää syvyyden toisesta pinnasta.
               </li>
               <li>
                 <strong>Mitoita.</strong> Avaa Mittakuva, valitse kappale ja lisää mitat. Vie SVG.
@@ -1894,8 +2301,15 @@ export default function App() {
               pituuden aiemmasta pisteestä. Kosketuksella käytä Poimi viite- ja akselipainikkeita.
             </p>
             <p>
-              <strong>Yhdistä:</strong> valitse useita osia Monivalinnalla tai Shift-napsautuksilla
-              ja paina Yhdistä. Peru palauttaa erilliset objektit.
+              <strong>Cut / Join (B):</strong> valitse ensin Kohteet, sitten Työstökappaleet.
+              Molempiin voi poimia useita osia näkymästä tai listasta. Cut vähentää työstökappaleet
+              kohteista, Join yhdistää ne. Vaihda keskenään kääntää leikkauksen. Säilytä
+              työstökappaleet jättää leikkurit jatkokäyttöön. Peru palauttaa lähteet.
+            </p>
+            <p>
+              <strong>Muodon ominaisuudet:</strong> anna nimi, mitat ja paksuus. Kappaleen lisäksi
+              voit tehdä rakentamisen apumuodon, piirroksen tai nimetyn itsenäisen osan.
+              Apumuotoihin voi tarttua, mutta ne eivät tule mittakuvaan.
             </p>
             <p>
               <strong>Kosketus:</strong> napautus valitsee, yksi sormi käyttää työkalua. Kaksi
@@ -1910,9 +2324,9 @@ export default function App() {
               Lataa lisäksi .nivo-projektitiedosto omalle laitteellesi.
             </p>
             <p className="muted">
-              Suorakulmio piirretään XY-tasolle. Kynällä voi piirtää myös pystysuuntaisen pinnan;
-              suljettavan muodon tulee olla tasomainen. Push/pull tukee tasopintoja. Pintaan
-              piirtäminen, kappaleiden vapaa kierto, komponentit ja materiaalit tulevat myöhemmin.
+              Piirtäminen tukee myös vinoja tasopintoja. Suljettavan kynämuodon tulee olla
+              tasomainen. Push/pull tukee tasopintoja. Kappaleiden vapaa kierto, linkitetyt
+              komponentit ja materiaalit tulevat myöhemmin.
             </p>
             <a href="https://github.com/alluharju-bot/nivo" target="_blank" rel="noreferrer">
               Avoin lähdekoodi ↗

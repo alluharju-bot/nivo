@@ -5,6 +5,7 @@ import type {
   Projection,
   ProbeResult,
   DrawingView,
+  SplitResult,
 } from './protocol';
 import type { Body, FaceRef } from '../model/project';
 
@@ -57,6 +58,12 @@ export class CadClient {
   }
   pushPull(body: Body, face: FaceRef, distance: number) {
     return this.request<Body>({ type: 'push-pull', body, face, distance });
+  }
+  boolean(targets: Body[], tools: Body[], operation: 'cut' | 'join') {
+    return this.request<Body[]>({ type: 'boolean', targets, tools, operation });
+  }
+  split(body: Body, face: FaceRef, profile: Body) {
+    return this.request<SplitResult>({ type: 'split-face', body, face, profile });
   }
   cancel(message = 'Laskenta peruttiin.') {
     this.worker?.terminate();

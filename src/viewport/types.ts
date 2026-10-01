@@ -1,7 +1,17 @@
 import type { Anchor, Axis, Body, FaceRef, Guide, Vec3, View, WorkPlane } from '../model/project';
 import type { BodyMesh, FaceTarget } from '../cad/protocol';
 import type { ReferencePoint } from '../model/snap';
-export type Tool = 'select' | 'rectangle' | 'extrude' | 'move' | 'navigate' | 'measure' | 'pen';
+import type { SketchFrame } from '../model/sketch';
+export type Tool =
+  | 'select'
+  | 'rectangle'
+  | 'circle'
+  | 'boolean'
+  | 'extrude'
+  | 'move'
+  | 'navigate'
+  | 'measure'
+  | 'pen';
 export interface CameraCommand {
   id: number;
   type: 'fit' | 'view' | 'projection';
@@ -9,6 +19,7 @@ export interface CameraCommand {
   projection?: 'perspective' | 'orthographic';
 }
 export type Gesture =
+  | { type: 'profile'; frame: SketchFrame; width: number; depth: number; start?: Vec3; end?: Vec3 }
   | { type: 'rectangle'; origin: Vec3; start?: Vec3; width: number; depth: number }
   | { type: 'extrude'; distance: number }
   | { type: 'move'; origin: Vec3 }
@@ -61,4 +72,13 @@ export interface ViewportProps {
   onSelectGuide: (id: string) => void;
   onAxis: (axis?: Axis) => void;
   onConstraint: (direction?: Vec3) => void;
+  drawOnSurface: boolean;
+  radialShape: 'circle' | 'ellipse' | 'polygon';
+  sketchFrame?: SketchFrame;
+  sketchTarget?: FaceTarget;
+  onSketchPlane: (frame: SketchFrame, target?: FaceTarget) => void;
+  booleanTargets: string[];
+  booleanTools: string[];
+  pickDepth: boolean;
+  onDepthPicked: (distance: number) => void;
 }

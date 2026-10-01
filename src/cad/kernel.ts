@@ -1,5 +1,8 @@
 import {
   drawRectangle,
+  drawCircle,
+  drawEllipse,
+  Plane,
   draw,
   deserializeShape,
   drawProjection,
@@ -26,15 +29,33 @@ import {
   type Vec3,
 } from '../model/project';
 import type { BodyMesh, DrawingView, Projection, ProbeResult } from './protocol';
+import { add, sub, unit, dot, scale } from '../model/geometry';
+
+export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
+  const oc = getOC(),
+    box = new oc.Bnd_Box();
+  try {
+    oc.BRepBndLib.AddOptimal(shape.wrapped, box, false, false);
+    if (box.IsVoid()) throw new Error('Työstö poistaisi koko kappaleen.');
+    const lo = box.CornerMin(),
+      hi = box.CornerMax();
+    try {
+      return { min: [lo.X(), lo.Y(), lo.Z()], max: [hi.X(), hi.Y(), hi.Z()] };
+    } finally {
+      lo.delete();
+      hi.delete();
+    }
+  } finally {
+    box.delete();
+  }
+}
 
 export function createShape(body: Body): AnyShape {
   bodySchema.parse(body);
   if (body.feature.type === 'brep') {
     const shape = deserializeShape(body.feature.data);
     try {
-      const box = shape.boundingBox;
-      const [min, max] = box.bounds;
-      box.delete();
+      const { min, max } = exactBounds(shape);
       const sizes = [body.feature.width, body.feature.depth, body.feature.height];
       if (min.some((n) => Math.abs(n) > 1e-4) || max.some((n, i) => Math.abs(n - sizes[i]) > 1e-4))
         throw new Error('CAD-kappaleen mitat eivät vastaa tallennettua geometriaa.');
@@ -47,6 +68,33 @@ export function createShape(body: Body): AnyShape {
     } catch (error) {
       shape.delete();
       throw error;
+    }
+  }
+  if (body.feature.type === 'profile-extrusion') {
+    const { profile, frame, distance } = body.feature;
+    const plane = new Plane(add(body.origin, frame.origin), frame.u, frame.normal);
+    try {
+      let drawing;
+      if (profile.kind === 'circle') drawing = drawCircle(profile.radius);
+      else if (profile.kind === 'ellipse')
+        drawing =
+          profile.radiusX >= profile.radiusY
+            ? drawEllipse(profile.radiusX, profile.radiusY)
+            : drawEllipse(profile.radiusY, profile.radiusX).rotate(90);
+      else if (profile.kind === 'rectangle')
+        drawing = drawRectangle(profile.width, profile.depth).translate(
+          profile.width / 2,
+          profile.depth / 2,
+        );
+      else {
+        const pen = draw(profile.points[0]);
+        for (const p of profile.points.slice(1)) pen.lineTo(p);
+        drawing = pen.close();
+      }
+      const sketch = drawing.sketchOnPlane(plane) as Sketch;
+      return distance ? sketch.extrude(distance) : sketch.face();
+    } finally {
+      plane.delete();
     }
   }
   if (body.feature.type === 'planar-polygon') {
@@ -108,7 +156,13 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     const face = cadFaces[index],
       center = face.center;
     const vertex = mesh.triangles[group.start];
-    const normal = mesh.normals.slice(vertex * 3, vertex * 3 + 3);
+    let normal = mesh.normals.slice(vertex * 3, vertex * 3 + 3) as Vec3;
+    if (face.geomType === 'PLANE') {
+      const exact = face.normalAt(),
+        direction = unit(exact.toTuple());
+      exact.delete();
+      normal = dot(direction, normal) < 0 ? scale(direction, -1) : direction;
+    }
     const axis = normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs)));
     const ref: FaceRef =
       body.feature.type !== 'rectangle-extrusion'
@@ -141,7 +195,12 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
         end = b.toTuple();
       a.delete();
       b.delete();
-      midpointsCAD.push(start.map((n, i) => (n + end[i]) / 2) as Vec3);
+      if (edge.geomType === 'LINE')
+        midpointsCAD.push(start.map((n, i) => (n + end[i]) / 2) as Vec3);
+      else if (edge.geomType === 'CIRCLE' || edge.geomType === 'ELLIPSE') {
+        const box = exactBounds(edge);
+        midpointsCAD.push(box.min.map((n, i) => (n + box.max[i]) / 2) as Vec3);
+      }
       for (const point of [start, end]) {
         const local = point.map((n, i) => n - body.origin[i]) as Vec3;
         const coordinateKey = local.map((n) => Math.round(n * 1e6) / 1e6).join(',');
@@ -163,6 +222,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
         if (body.feature.type === 'planar-polygon')
           key = `point:${body.feature.points.findIndex((p) => p.every((n, i) => Math.abs(n - local[i]) < 1e-5))}`;
         if (body.feature.type === 'brep') key = `brep:${body.feature.topologyId}:${coordinateKey}`;
+        if (body.feature.type === 'profile-extrusion') key = `profile:${coordinateKey}`;
         verticesCAD.push({ point, anchor: { bodyId: body.id, key, local } });
       }
       if (edge.geomType === 'LINE') {
@@ -190,6 +250,77 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     midpointsCAD,
     edgesCAD,
   };
+}
+/** Serialize exact geometry and retain only old vertex references that still exist. */
+export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [body]): Body {
+  if (!shapeIsValid(shape)) throw new Error('Työstö ei muodosta ehjää kappaletta.');
+  const { min: origin, max } = exactBounds(shape),
+    solids = shape.solids,
+    solid = solids.length > 0;
+  solids.forEach((s) => s.delete());
+  if (solid && measureVolume(shape.asShape3D()) < 1e-7)
+    throw new Error('Työstö poistaisi koko kappaleen.');
+  const edges = shape.edges,
+    points: Vec3[] = [],
+    linearEdges: [Vec3, Vec3][] = [];
+  try {
+    for (const edge of edges) {
+      const a = edge.startPoint,
+        b = edge.endPoint;
+      points.push(a.toTuple(), b.toTuple());
+      if (edge.geomType === 'LINE')
+        linearEdges.push([sub(a.toTuple(), origin), sub(b.toTuple(), origin)]);
+      a.delete();
+      b.delete();
+    }
+  } finally {
+    edges.forEach((e) => e.delete());
+  }
+  const vertexRefs: Record<string, Vec3> = {};
+  for (const source of sources) {
+    const old = createShape(source);
+    try {
+      const candidates = [
+        ...meshBody(source, old).verticesCAD.map((v) => ({ key: v.anchor.key, point: v.point })),
+        ...Object.entries(source.vertexRefs ?? {}).map(([key, local]) => ({
+          key,
+          point: add(source.origin, local),
+        })),
+      ];
+      for (const candidate of candidates) {
+        const match = points.find((p) =>
+          p.every((n, i) => Math.abs(n - candidate.point[i]) < 1e-5),
+        );
+        if (match)
+          vertexRefs[source.id === body.id ? candidate.key : `${source.id}:${candidate.key}`] = sub(
+            match,
+            origin,
+          );
+      }
+    } finally {
+      old.delete();
+    }
+  }
+  const local = shape.clone().translate(origin.map((n) => -n) as Vec3);
+  try {
+    return bodySchema.parse({
+      ...body,
+      origin,
+      vertexRefs,
+      linearEdges,
+      feature: {
+        type: 'brep',
+        width: max[0] - origin[0],
+        depth: max[1] - origin[1],
+        height: max[2] - origin[2],
+        data: local.serialize(),
+        solid,
+        topologyId: uid(),
+      },
+    });
+  } finally {
+    local.delete();
+  }
 }
 export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
   if (!Number.isFinite(distance) || Math.abs(distance) < 0.1 || Math.abs(distance) > 100000)
@@ -241,37 +372,7 @@ export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
       : prism.clone();
     if (!shapeIsValid(result) || measureVolume(result.asShape3D()) < 1e-7)
       throw new Error('Pursotus ei muodosta ehjää tilavuuskappaletta.');
-    // Current tools create straight-edged planar solids: use CAD endpoints, not float32 display vertices.
-    const resultEdges = result.edges,
-      vertices: Vec3[] = [];
-    try {
-      for (const edge of resultEdges) {
-        const a = edge.startPoint,
-          b = edge.endPoint;
-        vertices.push(a.toTuple(), b.toTuple());
-        a.delete();
-        b.delete();
-      }
-    } finally {
-      resultEdges.forEach((e) => e.delete());
-    }
-    if (!vertices.length) throw new Error('Pursotus poistaisi koko kappaleen.');
-    const origin = [0, 1, 2].map((i) => Math.min(...vertices.map((p) => p[i]))) as Vec3;
-    const sizes = [0, 1, 2].map((i) => Math.max(...vertices.map((p) => p[i])) - origin[i]);
-    result = result.translate(origin.map((n) => -n) as Vec3);
-    return bodySchema.parse({
-      ...body,
-      origin,
-      feature: {
-        type: 'brep',
-        width: sizes[0],
-        depth: sizes[1],
-        height: sizes[2],
-        data: result.serialize(),
-        solid: true,
-        topologyId: uid(),
-      },
-    });
+    return bodyFromShape(body, result);
   } finally {
     result?.delete();
     prism?.delete();
@@ -320,6 +421,7 @@ export function runProbe(): ProbeResult {
         name: 'Probe',
         kind: 'cad',
         color: '#ffffff',
+        purpose: 'model',
         origin: [-300, -200, 0],
         feature: { type: 'rectangle-extrusion', width: 600, depth: 400, height: 18 },
       },

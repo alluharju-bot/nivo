@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.3
+# Arkkitehtuuri — v0.4
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -40,7 +40,7 @@ src/useEditor  atominen muutos, vanhojen vastausten hylkäys, historia, tallennu
 src/App        työkalutila, paneelit, käyttöohjeet
 ```
 
-V3:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
+V4:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
 litistetty lähdejoukko tai serialisoitu OCCT-BRep. Tasomainen kynämuoto voi
 sisältää paikallisia 3D-pisteitä. Worker rakentaa ja tarkistaa geometrian;
 näyttöverkko on sen johdannainen. Yleisen tasopinnan push/pull pursottaa
@@ -48,6 +48,20 @@ valitun CAD-pinnan normaalinsa suuntaan ja yhdistää tai vähentää prisman.
 Laatikon pintamuutokset ja XY-pursotuksen pohja/kansi säilyttävät reseptin.
 Muut muutokset tallentuvat paikallisena BRepinä samoilla kappaleen UUID:llä
 ja värillä. Muokattava operaatiohistoria on jatkotyötä.
+
+Profiili sisältää suorakulmion, tarkan ympyrän/ellipsin tai monikulmion sekä
+kohtisuoran piirtokehyksen ja etumerkillisen paksuuden. Aloitus valitulta
+tasopinnalta lukitsee piirtotason myös vinoilla pinnoilla. Raycast-osuma
+projisoidaan CAD-pinnan tarkalle tasolle; näyttömeshin float32-normaalia ei
+käytetä CAD-tason määrittelyyn. Rajat lasketaan OCCT:n AddOptimal-operaatiolla
+ilman kolmioverkkoa tai toleranssilaajennusta, myös kaareville pinnoille.
+
+Pintaan piirretty profiili leikataan valitulla pinnalla ja jaetaan
+BRepAlgoAPI_Splitterillä. Alue tunnistetaan uudelleen tallennetusta BRepistä,
+jotta E kohdistuu sisäalueeseen. Paksuus voidaan toteuttaa samassa transaktiossa
+pinnan jaon kanssa. Cut vähentää kaikki työstökappaleet jokaisesta kohteesta;
+Join yhdistää kaikki valitut osat ensimmäiseen kohteeseen. Roolien vaihto,
+työstökappaleiden säilyttäminen ja historia käsitellään projektitasolla.
 
 ## Atominen laskenta ja resurssit
 
@@ -65,11 +79,12 @@ käynnistää uuden ytimen. 45 sekunnin aikaraja katkaisee jumittuneen laskennan
 
 Geometria välimuistitetaan UUID:n, reseptin ja sijainnin perusteella.
 Jokainen objekti tuottaa yhden Three.Meshin sekä erillisen reunaviivaesityksen.
-Yhdistäminen korvaa valitut lähteet uudella UUID:llä ja yhdellä CAD-tuloksella;
+Vanha Yhdistä-pikatoiminto korvaa valitut lähteet uudella UUID:llä ja yhdellä CAD-tuloksella;
 undo palauttaa lähteet. Erilliset solidit voivat olla saman objektin compoundissa.
 Muuttumattomia kappaleita ei lasketa uudelleen. Korvatut BRep- ja GPU-resurssit
-vapautetaan. Replicadin compound- ja boolean-operaatioille annetaan kopiot:
-ne voivat ottaa syöteolioiden omistajuuden. Näkymää renderöidään muutoksissa,
+vapautetaan. CAD-operaatiot käyttävät omia erikseen rakennettuja muotoja,
+eivät worker-välimuistin omistamia olioita. Välitulokset ja compoundien
+osamuodot vapautetaan operaation jälkeen. Näkymää renderöidään muutoksissa,
 ei jatkuvana animaationa paikallaan ollessa.
 
 Tallennusvirhe näkyy käyttäjälle ja malli säilyy muistissa. Ladattava tiedosto
@@ -92,21 +107,26 @@ tai mitta poistettu. Viitettä ei siirretä hiljaisesti toiseen kappaleeseen.
 Apuviiva viittaa kappaleen UUID:hen ja verteksiin tai reunan kahteen
 verteksiin ja niiden väliseen parametriin. Laatikossa käytetään
 semanttista kulmaa, monikulmiossa pisteindeksiä ja pohja/kansi-tietoa.
-Yhdistetyssä osassa ankkuri on paikallinen CAD-verteksi; nykyiset siirrot
-säilyttävät sen. Yhdistäminen antaa uuden UUID:n eikä arvaa vanhojen viitteiden
-kohteita. BRepin uusi `topologyId` estää vanhan verteksiankkurin käytön
-yleisen pintamuutoksen jälkeen. Viivat-lista näyttää puuttuvan viitteen.
+Yhdistetyssä osassa ankkuri on paikallinen CAD-verteksi; siirrot säilyttävät sen.
+Pinnan jako, push/pull ja Cut/Join kartoittavat muuttumattomat CAD-verteksit
+`vertexRefs`-taulukkoon. Join siirtää kulutettujen osien säilyneet ankkurit
+tuloskappaleeseen. BRepin `topologyId` estää vanhan ankkurin käytön ilman
+tarkistettua vastinetta. Reuna-ankkurin piste tarkistetaan tuloksen todellisilta
+suorilta reunoilta. Viivat-lista näyttää puuttuvan viitteen.
 Tartuntapisteet otetaan CAD-reunoista, eivät rajalaatikon kuvitteellisista kulmista.
 Kappaleen keskipiste tarkoittaa rajalaatikon keskipistettä.
 
-Yleisten pintamuutosten yli säilyvät ankkurit, leikkaukset ja jaetut pinnat tarvitsevat operaatiokohtaisen
-topologian muunnoskartan. Mesh-tuonti saa oman tyypin ja toimintovalikoiman.
+Muuttuneiden tai poistuneiden verteksien automaattinen uudelleenkohdistus
+ja pysyvät pintaviitteet ovat jatkotyötä. Mesh-tuonti saa oman tyypin.
 
 ## Piirustus ja kosketus
 
 OpenCascaden hidden-line-removal käsittelee koko kappalejoukon. Näkyvät ja
 piilossa olevat viivat erotetaan; renderöintikolmiot eivät siirry piirustukseen.
 Kukin piirustus käyttää erikseen määriteltyä ortografista kameraa.
+Rakentamisen apumuodot jätetään projektiosta pois; piirrosroolin kappaleet
+annetaan HLR:lle reunayhdistelmänä, jolloin ne eivät peitä varsinaisia osia.
+Nimetty osa on tässä vaiheessa itsenäinen kappale, ei linkitetty instanssi.
 
 SVG:n 297 × 210 mm ja vastaava viewBox tekevät yhdestä SVG-yksiköstä yhden
 paperimillimetrin. Mallipolut skaalataan `1/mittakaava`. Mittateksti (3,2 mm)
@@ -133,7 +153,8 @@ Numerosyöttö lukitsee kirjoitetut kentät, Tab kiertää kenttiä.
 Osoittimen vapautus ja Enter käyttävät samaa atomista hyväksyntää;
 synkroniset luonnosviitteet estävät vanhan React-tilan tallentumisen.
 Kynän itsensä leikkaava tai degeneroitunut ääriviiva hylätään ennen CAD-laskentaa.
-Päällekkäisten kohteiden kierrätys ja mielivaltaiset piirtotasot ovat jatkotyötä.
+Päällekkäisten kohteiden valintakierrätys ja erilliset muokattavat työskentelytasot
+ovat jatkotyötä. Nykyinen piirtotaso voidaan poimia mistä tahansa tasopinnasta.
 
 ## Syvyys ja näkyvyys
 

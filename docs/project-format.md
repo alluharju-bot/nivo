@@ -1,12 +1,12 @@
-# .nivo-projektiformaatti v3
+# .nivo-projektiformaatti v4
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 3`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 4`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
 ```json
 {
   "format": "nivo",
-  "version": 3,
+  "version": 4,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",
@@ -17,6 +17,7 @@ millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen
       "id": "body-uuid",
       "name": "Levy 1",
       "kind": "cad",
+      "purpose": "model",
       "feature": { "type": "rectangle-extrusion", "width": 600, "depth": 400, "height": 18 },
       "origin": [0, 0, 0],
       "color": "#c3a57e"
@@ -45,6 +46,22 @@ on 0,1–100 000 mm, eikä koko kappaleen poistavaa työntöä hyväksytä.
 V1-tiedostoon lisätään tyhjä `guides`-taulukko. V2 muunnetaan V3:ksi lisäämällä
 `settings: {guideXray:false}`. Migraatiot koskevat myös selaintallennusta,
 säilyttävät olemassa olevat tunnisteet eivätkä kirjoita alkuperäistä tiedostoa.
+V3 muunnetaan V4:ksi. Puuttuva `purpose` saa arvon `model`.
+
+Kappaleen `purpose` on `model`, `construction`, `drawing` tai `component`.
+Construction tarjoaa tartunnat mutta jää pois HLR-mittakuvasta; drawing
+projisoidaan pelkkinä reunoina. Component tarkoittaa tässä versiossa nimettyä
+itsenäistä osaa. Se ei sisällä komponenttimäärittelyä tai linkitettyjä instansseja.
+
+`profile-extrusion` sisältää `profile`-, `frame`- ja `distance`-kentät sekä
+maailman akselien suuntaisen rajalaatikon mitat. `profile.kind` on `rectangle`
+(width/depth), `circle` (radius), `ellipse` (radiusX/radiusY) tai `polygon`
+(2D-points). Säännöllinen monikulmio tallennetaan polygon-pisteinä.
+`frame` sisältää paikallisen origon, `u`-akselin ja `normal`-normaalin.
+Ne ovat kohtisuorat yksikkövektorit; v-akseli on normal × u.
+`distance` on etumerkillinen pursotuspituus normaalin suunnassa; nolla
+muodostaa pinnan. Rajalaatikko tarkistetaan analyyttisesti myös ympyrälle ja
+ellipsille. Kaikki käyrät rakentuvat tarkkoina OCCT-käyrinä.
 
 `polygon-extrusion` sisältää lisäksi paikalliset XY-verteksit `points`.
 Rajalaatikon minimi on [0,0], maksimi [width,depth]. Sulkemispistettä ei
@@ -58,12 +75,15 @@ Tämä on pinta, vaikka sen Z-korkeus olisi positiivinen.
 `brep` sisältää Replicadin serialisoiman paikallisen OCCT-geometrian `data`
 (enintään 8 Mt), tilavuuskappaleen lipun `solid` sekä `topologyId`-tunnisteen.
 CAD tarkistaa geometrian, rajalaatikon ja solid-tyypin ennen hyväksyntää.
-Yleinen pintamuokkaus muuttaa kappaleen tähän muotoon ja uusii `topologyId`:n.
+Pinnan jako, Cut, Join ja yleinen pintamuokkaus tallentavat tuloksen tähän
+muotoon ja uusivat `topologyId`:n. Cut säilyttää kohteiden UUID:t, Join ensimmäisen
+kohteen UUID:n. Kokonaan leikatut kohteet poistuvat. Työstökappaleet voidaan
+säilyttää. Tiedosto sisältää tulosgeometrian, ei muokattavaa operaatiohistoriaa.
 Kappaleen UUID säilyy. Laatikon kuusi pintaa ja XY-pursotuksen pohja/kansi
 säilyvät reseptimuotoisina tavallisissa mittamuutoksissa.
 
 `union` sisältää `operands`-taulukon: jokaisessa on suorakulmio-,
-monikulmio- tai BRep-kappale sekä `origin` suhteessa yhdistetyn osan origoon. Sisäkkäiset
+monikulmio-, profiili- tai BRep-kappale sekä `origin` suhteessa yhdistetyn osan origoon. Sisäkkäiset
 yhdistelmät litistetään. CAD laskee unionin uudelleen avattaessa. Osilla pitää
 olla paksuus; yhden objektin sisällä sallitaan erilliset solidit.
 
@@ -80,14 +100,21 @@ reuna `{edge:{from:VertexAnchor,to:VertexAnchor,t:0..1}}`.
 Reuna-ankkuri interpoloi kahden ratkaistun verteksin välistä.
 `corner:n` viittaa laatikon semanttiseen kulmaan,
 `polygon:n:bottom/top` monikulmion verteksiin ja `vertex:x,y,z` yhdistetyn osan
-paikalliseen CAD-verteksiin. Tasomuodon avain on `point:n`; BRep-kappaleen
+paikalliseen CAD-verteksiin. Profiilin avain on `profile:x,y,z`.
+Tasomuodon avain on `point:n`; BRep-kappaleen
 `brep:topologyId:x,y,z`. Vapaa mittaviiva voi sisältää myös `endAnchor`-viitteen.
 
 Apuviiva jatkuu tartuntaa varten molempiin suuntiin. Viite seuraa osan siirtoa;
-suorakulmion ja monikulmion viite seuraa myös paksuuden muutosta. Yhdistäminen
-luo uuden objektin, joten aiemmat lähdeviitteet näytetään rikkoutuneina.
-Undo palauttaa ne. BRep-verteksiviite ratkaistaan vain samalla `topologyId`:llä,
-jotta pintamuutos ei siirrä viitettä hiljaisesti väärään pisteeseen.
+suorakulmion ja monikulmion viite seuraa myös paksuuden muutosta. BRep-muokkauksessa
+kappaleen valinnainen `vertexRefs` yhdistää säilyneen vanhan ankkuriavaimen
+tuloksen paikalliseen CAD-verteksiin. Poistetut verteksit eivät saa vastinetta.
+Join siirtää kulutettujen lähteiden säilyneet viitteet ensimmäiseen kohteeseen
+avaimella `sourceId:oldKey`. Vanha Yhdistä-pikatoiminto tekee uuden UUID:n,
+eikä säilytä lähdeviitteitä. Ilman vastinetta BRep-ankkuri vaatii saman `topologyId`:n.
+Valinnainen `linearEdges` sisältää BRep-tuloksen suorat reunat paikallisina
+päätepistepareina: reuna-ankkurin interpoloidun pisteen tulee edelleen osua
+todelliseen reunaan. Näin reunan keskeltä poistettu kohta ei säily tartuntana.
+Rikkoutuneet viitteet näkyvät käyttäjälle; undo palauttaa ne.
 Haettu Shift-viite ja kynän suuntalukko ovat väliaikaisia eivätkä tallennu projektiin.
 
 Mittaviite on semanttinen. Puuttuvaan kappaleeseen viittaava mitta sallitaan
@@ -103,6 +130,6 @@ IndexedDB käyttää samaa JSON-muotoa: tietokanta `nivo`, object store `project
 aktiivinen avain `active`. Jokainen onnistunut muutos tallennetaan
 transaktiona. Undo/redo on istuntokohtainen, enintään 100 askelta.
 
-Layerit, hierarkia, komponentit, materiaalit, tekstuurit, scenet, piirustusarkit
+Layerit, hierarkia, linkitetyt komponentit, materiaalit, tekstuurit, scenet, piirustusarkit
 ja muokattava operaatiohistoria lisätään myöhemmissä versioissa
 migraatioineen. Tekstuurit pakataan projektin mukaan, ei blob-URL:eina.

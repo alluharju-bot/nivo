@@ -21,7 +21,7 @@ export function projectPoint(point: Vec3, view: DrawingView): [number, number] {
       : [point[0], -point[1]];
 }
 export function recommendedScale(project: Project, view: DrawingView): number {
-  const { min, max } = bounds(project.bodies);
+  const { min, max } = bounds(project.bodies.filter((b) => b.purpose !== 'construction'));
   const a = projectPoint(min, view),
     b = projectPoint(max, view);
   return (
@@ -52,6 +52,7 @@ export function createSheet(
     horizontalCount = 0,
     verticalCount = 0;
   for (const dimension of project.dimensions) {
+    if (project.bodies.find((b) => b.id === dimension.bodyId)?.purpose === 'construction') continue;
     const value = dimensionValue(project, dimension);
     if (value === null) {
       orphanCount++;

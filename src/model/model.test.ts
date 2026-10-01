@@ -6,6 +6,13 @@ import { snapPoint } from './snap';
 import { createSheet, projectPoint, recommendedScale } from '../drawing/svg';
 
 describe('precision and model persistence', () => {
+  it('migrates v3 parts to model purpose without changing their identity', () => {
+    const body = makeBody(600, 400, 18),
+      { purpose, ...old } = body;
+    const restored = parseProject(JSON.stringify({ ...freshProject(), version: 3, bodies: [old] }));
+    expect(restored.version).toBe(4);
+    expect(restored.bodies[0]).toEqual(body);
+  });
   it('accepts Finnish decimal units and rejects ambiguous or unsafe measurements', () => {
     expect(parseLength('2,4 m')).toBe(2400);
     expect(parseLength('18 mm')).toBe(18);

@@ -892,6 +892,116 @@ p {
   flex-direction: column;
   gap: 19px;
 }
+.shape-properties,
+.modeling-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modeling-panel {
+  padding: 0 20px 24px;
+  overflow-y: auto;
+}
+.modeling-panel .panel-title {
+  padding-left: 0;
+  padding-right: 0;
+}
+.modeling-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: #526556;
+  min-width: 0;
+}
+.modeling-field input,
+.modeling-field select {
+  border: 1px solid #d5dece;
+  background: #fff;
+  border-radius: 6px;
+  padding: 9px;
+  min-height: 42px;
+  width: 100%;
+  font-size: 13px;
+  color: #203c32;
+}
+.modeling-dimensions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.modeling-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.modeling-actions .button {
+  flex: 1;
+  white-space: nowrap;
+}
+.body-set {
+  border: 1px solid #d8dfd3;
+  border-radius: 8px;
+  padding: 9px;
+}
+.body-set.active {
+  border-width: 2px;
+  padding: 8px;
+}
+.body-set.targets.active {
+  border-color: #1471c5;
+}
+.body-set.tools.active {
+  border-color: #d85740;
+}
+.body-set-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.body-set.targets .body-set-heading {
+  color: #0866bc;
+}
+.body-set.tools .body-set-heading {
+  color: #bc422d;
+}
+.body-set > small {
+  font-size: 9px;
+  color: #758371;
+}
+.body-set-list {
+  max-height: 112px;
+  overflow: auto;
+  margin-top: 8px;
+}
+.body-set-list label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  font-size: 11px;
+}
+.body-set-list input {
+  width: 16px;
+  height: 16px;
+  accent-color: #227969;
+  flex: none;
+}
+.body-set-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.body-set-list small {
+  font-size: 9px;
+}
+.body-set-list .unavailable {
+  opacity: 0.5;
+}
 .measure-field {
   display: flex;
   flex-direction: column;
@@ -1049,7 +1159,7 @@ p {
 }
 .object-panel {
   border-top: 1px solid var(--line);
-  flex: 1;
+  flex: 1 0 auto;
   min-height: 180px;
 }
 .panel-tabs {

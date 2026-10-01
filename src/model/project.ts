@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import { polygonError } from './polygon';
+import {
+  frameSchema,
+  profileSchema,
+  profileBounds,
+  type Profile,
+  type SketchFrame,
+} from './sketch';
 
 const length = z.number().finite().min(0.1).max(100_000);
 const coordinate = z.number().finite().min(-100_000).max(100_000);
@@ -65,11 +72,28 @@ const brepFeature = z.object({
   solid: z.boolean(),
   topologyId: id,
 });
+const profileFeature = z
+  .object({
+    type: z.literal('profile-extrusion'),
+    width: extent,
+    depth: extent,
+    height: extent,
+    profile: profileSchema,
+    frame: frameSchema,
+    distance: z.number().finite().min(-100_000).max(100_000),
+  })
+  .superRefine((f, ctx) => {
+    const { min, max } = profileBounds(f.profile, f.frame, f.distance),
+      sizes = [f.width, f.depth, f.height];
+    if (min.some((n) => Math.abs(n) > 1e-5) || max.some((n, i) => Math.abs(n - sizes[i]) > 1e-5))
+      ctx.addIssue({ code: 'custom', message: 'Muodon mitat eivät vastaa piirtotasoa.' });
+  });
 const primitiveFeature = z.discriminatedUnion('type', [
   rectangleFeature,
   polygonFeature,
   planarFeature,
   brepFeature,
+  profileFeature,
 ]);
 const unionFeature = z
   .object({
@@ -109,14 +133,18 @@ export const bodySchema = z.object({
     polygonFeature,
     planarFeature,
     brepFeature,
+    profileFeature,
     unionFeature,
   ]),
   origin: pointSchema,
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  purpose: z.enum(['model', 'construction', 'drawing', 'component']).default('model'),
+  vertexRefs: z.record(z.string().max(512), pointSchema).optional(),
+  linearEdges: z.array(z.tuple([pointSchema, pointSchema])).optional(),
 });
 const vertexAnchorSchema = z.object({
   bodyId: id,
-  key: z.string().min(1).max(150),
+  key: z.string().min(1).max(512),
   local: pointSchema,
 });
 export const edgeAnchorSchema = z.object({
@@ -152,7 +180,7 @@ export const dimensionSchema = z.object({
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(3),
+    version: z.literal(4),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
@@ -185,7 +213,7 @@ export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 3,
+  version: 4,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
@@ -245,6 +273,8 @@ export function parseProject(text: string): Project {
     value = { ...value, version: 2, guides: [] };
   if (value && typeof value === 'object' && 'version' in value && value.version === 2)
     value = { ...value, version: 3, settings: { guideXray: false } };
+  if (value && typeof value === 'object' && 'version' in value && value.version === 3)
+    value = { ...value, version: 4 };
   const result = projectSchema.safeParse(value);
   if (!result.success)
     throw new Error('Projektin versio tai sisältö ei ole tuettu. Nykyinen työ säilyi.');
@@ -320,11 +350,39 @@ export function makePolygonBody(points: Vec3[], name = 'Kynämuoto'): Body {
   });
 }
 export function featureIsSolid(feature: Body['feature']): boolean {
-  return feature.type === 'brep'
-    ? feature.solid
-    : feature.type === 'planar-polygon'
-      ? false
-      : feature.height > 0;
+  return feature.type === 'profile-extrusion'
+    ? Math.abs(feature.distance) > 1e-8
+    : feature.type === 'brep'
+      ? feature.solid
+      : feature.type === 'planar-polygon'
+        ? false
+        : feature.height > 0;
+}
+export function makeProfileBody(
+  profile: Profile,
+  frame: SketchFrame,
+  distance = 0,
+  name = 'Muoto',
+  purpose: Body['purpose'] = 'model',
+): Body {
+  const { min, max } = profileBounds(profile, frame, distance);
+  return bodySchema.parse({
+    id: uid(),
+    name,
+    kind: 'cad',
+    origin: min,
+    color: '#c3a57e',
+    purpose,
+    feature: {
+      type: 'profile-extrusion',
+      width: max[0] - min[0],
+      depth: max[1] - min[1],
+      height: max[2] - min[2],
+      profile,
+      frame: { ...frame, origin: frame.origin.map((n, i) => n - min[i]) },
+      distance,
+    },
+  });
 }
 export function validatePlanarPolygon(points: Vec3[]) {
   if (points.length < 3) throw new Error('Muoto tarvitsee vähintään kolme verteksiä.');

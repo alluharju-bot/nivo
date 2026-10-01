@@ -1,5 +1,5 @@
 import { corners, type Anchor, type Body, type Guide, type Vec3, type WorkPlane } from './project';
-import { add, scale, sub, unit } from './geometry';
+import { add, dot, scale, sub, unit } from './geometry';
 
 export const planeAxes: Record<WorkPlane, [number, number, number]> = {
   XY: [0, 1, 2],
@@ -26,10 +26,34 @@ export function resolveAnchor(bodies: Body[], anchor: Anchor): Vec3 | undefined 
   if ('edge' in anchor) {
     const a = resolveAnchor(bodies, anchor.edge.from),
       b = resolveAnchor(bodies, anchor.edge.to);
-    return a && b ? add(a, scale(sub(b, a), anchor.edge.t)) : undefined;
+    if (!a || !b) return;
+    const point = add(a, scale(sub(b, a), anchor.edge.t)),
+      body = bodies.find((body) => body.id === anchor.edge.from.bodyId);
+    // Surviving endpoints alone do not prove the edge still exists after a cut.
+    if (body?.feature.type === 'brep' && body.linearEdges) {
+      const local = sub(point, body.origin);
+      if (
+        !body.linearEdges.some(([start, end]) => {
+          const direction = sub(end, start),
+            length2 = dot(direction, direction);
+          if (length2 < 1e-14) return false;
+          const t = dot(sub(local, start), direction) / length2;
+          return (
+            t >= -1e-7 &&
+            t <= 1 + 1e-7 &&
+            Math.hypot(...sub(local, add(start, scale(direction, t)))) < 1e-5
+          );
+        })
+      )
+        return;
+    }
+    return point;
   }
   const body = bodies.find((b) => b.id === anchor.bodyId);
   if (!body) return;
+  if (body.vertexRefs?.[anchor.key]) return add(body.origin, body.vertexRefs[anchor.key]);
+  if (body.feature.type === 'profile-extrusion' && anchor.key.startsWith('profile:'))
+    return add(body.origin, anchor.local);
   if (body.feature.type === 'rectangle-extrusion' && /^corner:[0-7]$/.test(anchor.key))
     return corners(body)[Number(anchor.key.slice(7))];
   if (body.feature.type === 'union' && anchor.key.startsWith('vertex:'))

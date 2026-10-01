@@ -6,6 +6,7 @@ import { guidePoints } from '../model/guides';
 import { formatLength } from '../model/units';
 import { installInteractions } from './interactions';
 import type { ViewportProps as Props, CameraCommand } from './types';
+import { profilePoints, frameV } from '../model/sketch';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   sync: () => void;
@@ -151,6 +152,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const body = props.bodies.find((b) => b.id === data.id);
       if (!body) continue;
       const selected = props.selectedIds.includes(data.id);
+      const target = props.tool === 'boolean' && props.booleanTargets.includes(data.id),
+        cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
+        auxiliary = body.purpose === 'construction' || body.purpose === 'drawing';
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
@@ -158,23 +162,35 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const materials = data.faces.map((face, index) => {
         geometry.addGroup(face.start, face.count, index);
         return new THREE.MeshStandardMaterial({
-          color: selected && face.ref === props.selectedFace ? '#e1bd7b' : body.color,
+          color: target
+            ? '#65a9ee'
+            : cutter
+              ? '#e6654e'
+              : auxiliary
+                ? body.purpose === 'construction'
+                  ? '#1289c6'
+                  : '#9865b4'
+                : selected && face.ref === props.selectedFace
+                  ? '#e1bd7b'
+                  : body.color,
           roughness: 0.8,
           metalness: 0,
           side: THREE.DoubleSide,
           polygonOffset: true,
           polygonOffsetFactor: 1,
           polygonOffsetUnits: 1,
-          transparent: false,
-          opacity: 1,
+          transparent: auxiliary || cutter,
+          opacity: cutter ? 0.22 : auxiliary ? 0.035 : 1,
+          depthWrite: !auxiliary && !cutter,
+          depthTest: !cutter,
         });
       });
       const mesh = new THREE.Mesh(geometry, materials);
-      mesh.castShadow = true;
+      mesh.castShadow = !auxiliary;
       // Self-shadow acne on broad coplanar CAD faces caused view-dependent striping.
       // Parts still cast a ground shadow; their own surfaces use stable direct lighting.
       mesh.receiveShadow = false;
-      mesh.userData = { id: body.id, faces: data.faces };
+      mesh.userData = { id: body.id, faces: data.faces, purpose: body.purpose };
       bodies.add(mesh);
       const edges = new THREE.BufferGeometry();
       edges.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
@@ -182,15 +198,33 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         new THREE.LineSegments(
           edges,
           new THREE.LineBasicMaterial({
-            color: selected ? '#237b65' : '#766851',
+            color: target
+              ? '#0066bf'
+              : cutter
+                ? '#cc3d28'
+                : auxiliary
+                  ? body.purpose === 'construction'
+                    ? '#1289c6'
+                    : '#9865b4'
+                  : selected
+                    ? '#237b65'
+                    : '#766851',
             transparent: true,
-            opacity: selected ? 1 : 0.5,
-            depthTest: true,
+            opacity: selected || target || cutter || auxiliary ? 1 : 0.5,
+            depthTest: !cutter,
           }),
         ),
       );
     }
-    const editing = ['rectangle', 'move', 'extrude', 'measure', 'pen'].includes(props.tool);
+    const editing = [
+      'rectangle',
+      'circle',
+      'boolean',
+      'move',
+      'extrude',
+      'measure',
+      'pen',
+    ].includes(props.tool);
     controls.mouseButtons.LEFT = editing || props.tool === 'select' ? null! : THREE.MOUSE.ROTATE;
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
     controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
@@ -252,7 +286,25 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const { width, depth, height } = body.feature;
       let geometry: THREE.BufferGeometry;
       const position = new THREE.Vector3(...body.origin);
-      if (body.feature.type === 'polygon-extrusion') {
+      if (body.feature.type === 'profile-extrusion') {
+        const { profile, frame, distance } = body.feature;
+        const shape = new THREE.Shape(profilePoints(profile).map((p) => new THREE.Vector2(...p)));
+        geometry = distance
+          ? new THREE.ExtrudeGeometry(shape, {
+              depth: Math.abs(distance),
+              bevelEnabled: false,
+              steps: 1,
+            })
+          : new THREE.ShapeGeometry(shape);
+        if (distance < 0) geometry.translate(0, 0, distance);
+        const matrix = new THREE.Matrix4().makeBasis(
+          new THREE.Vector3(...frame.u),
+          new THREE.Vector3(...frameV(frame)),
+          new THREE.Vector3(...frame.normal),
+        );
+        matrix.setPosition(...frame.origin);
+        geometry.applyMatrix4(matrix);
+      } else if (body.feature.type === 'polygon-extrusion') {
         const shape = new THREE.Shape(body.feature.points.map((p) => new THREE.Vector2(...p)));
         geometry = height
           ? new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1 })
@@ -281,6 +333,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           opacity: 0.22,
           depthWrite: false,
           side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
         }),
       );
       mesh.position.copy(position);
@@ -496,7 +551,16 @@ export function Viewport(props: Props) {
     api.current?.interactionSync();
     if (props.meshes.length && !hadGeometry.current) api.current?.command({ id: 0, type: 'fit' });
     hadGeometry.current = props.meshes.length > 0;
-  }, [props.bodies, props.meshes, props.selectedIds, props.selectedFace, props.tool, props.epoch]);
+  }, [
+    props.bodies,
+    props.meshes,
+    props.selectedIds,
+    props.selectedFace,
+    props.tool,
+    props.epoch,
+    props.booleanTargets,
+    props.booleanTools,
+  ]);
   useEffect(
     () => api.current?.preview(),
     [props.preview, props.faceTarget, props.faceDistance, props.tool],

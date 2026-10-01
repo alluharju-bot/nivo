@@ -26,7 +26,10 @@ export function DrawingPanel({
     setProjection(undefined);
     setError('');
     void cad
-      .project(project.bodies, view)
+      .project(
+        project.bodies.filter((b) => b.purpose !== 'construction'),
+        view,
+      )
       .then((result) => {
         if (active) setProjection(result);
       })

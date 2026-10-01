@@ -20,9 +20,17 @@ sulkeminen sekä pystysuuntaiset tasomuodot. Suurten pintojen syvyystarkkuutta
 ja korostusten piirtotapaa korjattu. Projektiformaatti V3 säilyttää tarkan BRepin
 pintamuutoksissa ja tuo V1/V2-projektit migraatiolla.
 
-Seuraavaksi: pintaan piirtäminen, piirtotason valinta, viitteiden poiminnan
-käyttökokeet, kierto, leikkaus ja muut perustyökalut. Fyysinen tabletti ja Safari
-varmennetaan erikseen. Ryhmittely tulee tämän jälkeen.
+Versiossa 0.4 toteutettu: suorakulmio, ympyrä, ellipsi ja monikulmio sekä
+kappaleen tasopintaan piirtäminen myös vinoilla pinnoilla. Jaetun alueen
+push/pull, taskut, läpiaukot ja syvyyden poiminta pinnasta. Cut/Join käyttää
+useita kohteita ja työstökappaleita; roolit voi vaihtaa ja työstökappaleet säilyttää.
+Yhteisessä paneelissa nimi, mitat, paksuus ja käyttötarkoitus: kappale,
+rakentamisen apumuoto, piirros tai nimetty itsenäinen osa. V4 tallentaa tarkat
+käyräprofiilit ja BRep-tulokset sekä säilyneet verteksiviitteet.
+
+Seuraavaksi: kierto, kohdistus ja kopiointi, viitteiden poiminnan käyttökokeet
+sekä työkalujen viimeistely oikeilla malleilla. Fyysinen tabletti ja Safari
+varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
 
 | Vaihe | Tila                 | Sisältö                                                                                                                         |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
