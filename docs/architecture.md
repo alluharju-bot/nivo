@@ -336,3 +336,12 @@ Ryhmäkopio saa omat ryhmä- ja osatunnisteet, ja mitat sekä osiin sidotut
 apuviitteet kohdistetaan kopioihin. Siirron esikatselu käyttää kaikkien
 valittujen osien alkuperäisiä CAD-verkkoja yhteisellä siirtymällä. Tartunnat
 jättävät siirrettävän valinnan omat pisteet pois, ellei kopiointitila ole päällä.
+
+Reunakäsittely käyttää tesselloinnista riippumattomia CAD-reunaindeksejä.
+`BodyMesh.detailEdges` sisältää kunkin reunan polylinjan poimintaa varten;
+kaarevat reunat kuuluvat samaan valintaan. Työkalun väliaikainen valinta
+nollautuu projektin geometrian vaihtuessa tai työkalun päättyessä.
+`edge-detail` valitsee alkuperäisen BRepin reunat EdgeFinderin kautta ja
+suorittaa OpenCascaden fillet-/chamfer-operaation. Tulos validoidaan ja
+sarjallistetaan BRepiksi. Esikatselut yhdistetään yhdeksi jonoksi ja vanhentuneet
+vastaukset ohitetaan. Hyväksyntä on yksi projektitransaktio.

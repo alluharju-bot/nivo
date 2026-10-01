@@ -185,11 +185,13 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   const verticesCAD: BodyMesh['verticesCAD'] = [];
   const midpointsCAD: Vec3[] = [];
   const edgesCAD: BodyMesh['edgesCAD'] = [];
+  const detailEdges: NonNullable<BodyMesh['detailEdges']> = [];
   const seen = new Set<string>();
   const boxCorners = corners(body);
   const edges = shape.edges;
   try {
-    for (const edge of edges) {
+    for (const [index, edge] of edges.entries()) {
+      detailEdges.push({ index, lines: edge.meshEdges({ tolerance: 0.15 }).lines });
       const a = edge.startPoint,
         b = edge.endPoint;
       const start = a.toTuple(),
@@ -250,6 +252,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     verticesCAD,
     midpointsCAD,
     edgesCAD,
+    detailEdges,
     boundaries: faceBoundaries(shape, faces),
   };
 }

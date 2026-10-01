@@ -7,6 +7,7 @@ import type {
   DrawingView,
   SplitResult,
   FaceSpan,
+  EdgeDetailResult,
 } from './protocol';
 import type { Body, FaceRef, Vec3 } from '../model/project';
 
@@ -80,6 +81,9 @@ export class CadClient {
   }
   removeBoundary(body: Body, faces: [FaceRef, FaceRef]) {
     return this.request<Body>({ type: 'remove-boundary', body, faces });
+  }
+  edgeDetail(body: Body, indices: number[], operation: 'fillet' | 'chamfer', size: number) {
+    return this.request<EdgeDetailResult>({ type: 'edge-detail', body, indices, operation, size });
   }
   cancel(message = 'Laskenta peruttiin.') {
     this.worker?.terminate();

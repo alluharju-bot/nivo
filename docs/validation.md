@@ -6,6 +6,16 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+Reunakäsittely: **81 yksikkö- ja CAD-testiä hyväksytty**, TypeScript ja
+paketointi hyväksytty. Viisi uutta CAD-koetta varmentaa laatikon kaikki
+reunat molemmilla operaatioilla, yhden viisteen tarkan poistetun tilavuuden,
+sylinterin pyöristetyn kaarireunan ja tallennetun BRepin uuden käsittelyn,
+sekä väärän koon, reunaviitteen, tasoluonnoksen ja Holdin hylkäämisen.
+Työpöytä- ja tablettiprofiilin reunatyönkulut: **4/4 hyväksytty**.
+Esikatselu pitää alkuperäisen projektin ennallaan, hyväksyntä tuottaa BRepin,
+virheellinen koko on peruttavissa, ja tallennus sekä undo/redo varmennettiin
+myös sivun uudelleenavauksen jälkeen.
+
 Sisäkkäiset ryhmät: **76 yksikkö- ja CAD-testiä hyväksytty**, TypeScript ja
 paketointi hyväksytty. Kuusi uutta logiikkakoetta kattaa 15 osan siirron,
 ryhmähierarkian kopioinnin ja viitteiden uudelleenkohdistuksen, osittaisen

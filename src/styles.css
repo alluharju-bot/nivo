@@ -2629,3 +2629,24 @@ p {
   width: 0;
   flex: 1;
 }
+
+.edge-detail-panel {
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+.edge-detail-panel h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.edge-detail-panel p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+.detail-error {
+  color: #925a3a;
+  background: #fff3e9;
+  padding: 10px;
+  border-radius: 6px;
+}

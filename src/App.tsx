@@ -58,6 +58,9 @@ import {
   dissolveGroup,
   translateSelection,
 } from './model/groups';
+import { useEdgeDetailPreview } from './ui/useEdgeDetailPreview';
+import { EdgeDetailPanel } from './ui/EdgeDetailPanel';
+import type { EdgeDetailTarget } from './cad/protocol';
 import { GroupActions } from './ui/GroupActions';
 import { Viewport, type CameraCommand, type Tool } from './viewport/Viewport';
 import { DrawingPanel } from './drawing/DrawingPanel';
@@ -155,6 +158,7 @@ const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = 
   { id: 'rectangle', label: 'Suorakulmio', icon: <Square />, shortcut: 'S' },
   { id: 'circle', label: 'Ympyrä', icon: <Circle />, shortcut: 'C' },
   { id: 'rotate', label: 'Kierrä', icon: <RotateCw />, shortcut: 'R' },
+  { id: 'detail', label: 'Reunat', icon: <SquareDashed />, shortcut: 'F' },
   { id: 'offset', label: 'Offset', icon: <SquareDashed />, shortcut: 'O' },
   { id: 'extrude', label: 'Push / pull', icon: <ArrowUpFromLine />, shortcut: 'E' },
   { id: 'move', label: 'Siirrä', icon: <Move3D />, shortcut: 'M' },
@@ -165,6 +169,8 @@ const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = 
   { id: 'navigate', label: 'Navigoi', icon: <Hand />, shortcut: 'H' },
 ];
 const instructions: Record<Tool, string> = {
+  detail:
+    'F · Valitse reunat, anna säde tai viisteen koko ja tarkista esikatselu. Enter hyväksyy, Esc peruu.',
   erase:
     'U · Osoita pintojen välistä jakoviivaa. Korostetut tasopinnat yhdistyvät klikkauksella. Kulmat ja aukot säilyvät.',
   rotate:
@@ -265,6 +271,8 @@ export default function App() {
   const shapeFrameRef = useRef<SketchFrame | undefined>(undefined);
   const [sketchTarget, setSketchTarget] = useState<FaceTarget>();
   const sketchTargetRef = useRef<FaceTarget | undefined>(undefined);
+  const [detailTarget, setDetailTarget] = useState<EdgeDetailTarget>();
+  const [detailOperation, setDetailOperation] = useState<'fillet' | 'chamfer'>('fillet');
   const [surfaceMode, setSurfaceMode] = useState<'new' | 'region'>('new');
   const [editingBodyId, setEditingBodyId] = useState<string>();
   const [editNotice, setEditNotice] = useState<{ x?: number; y?: number }>();
@@ -368,7 +376,17 @@ export default function App() {
   );
   const editing =
     !awaitingStart &&
-    ['rectangle', 'circle', 'extrude', 'offset', 'move', 'measure', 'pen', 'rotate'].includes(tool);
+    [
+      'rectangle',
+      'circle',
+      'extrude',
+      'offset',
+      'detail',
+      'move',
+      'measure',
+      'pen',
+      'rotate',
+    ].includes(tool);
   const offsetDistance = (() => {
     try {
       return parseLength(fields.offset);
@@ -382,6 +400,16 @@ export default function App() {
       ? project.bodies.find((b) => b.id === faceTarget?.bodyId)
       : undefined,
     faceTarget?.face,
+    offsetDistance,
+  );
+  const detailSource = project.bodies.find((b) => b.id === detailTarget?.bodyId);
+  const detailPreview = useEdgeDetailPreview(
+    editor.cad,
+    tool === 'detail' && detailSource && !bodyLocked(detailSource, project.groups) && !busy
+      ? detailSource
+      : undefined,
+    detailTarget?.indices ?? [],
+    detailOperation,
     offsetDistance,
   );
   const changeCopyMove = (copy: boolean) => {
@@ -496,6 +524,7 @@ export default function App() {
   };
   const resetGesture = () => {
     gestureActive.current = false;
+    setDetailTarget(undefined);
     copyMoveRef.current = false;
     setCopyMove(false);
     rotationRef.current = undefined;
@@ -589,7 +618,7 @@ export default function App() {
     writeFields({
       ...defaults,
       ...(tool === 'circle' ? { width: '100', depth: '60' } : {}),
-      ...(tool === 'offset' ? { offset: fieldsRef.current.offset } : {}),
+      ...(['offset', 'detail'].includes(tool) ? { offset: fieldsRef.current.offset } : {}),
     });
     setShapeName('');
     if (tool === 'boolean') {
@@ -707,6 +736,13 @@ export default function App() {
       setBooleanActive('targets');
       return;
     }
+    if (next === 'detail') {
+      setPanelOpen(true);
+      writeFields({ ...defaults, offset: '2' });
+      if (body && !bodyLocked(body, project.groups))
+        setDetailTarget({ bodyId: body.id, indices: [] });
+      return;
+    }
     if (next === 'measure') setMeasureMode('guide');
     if (
       ['rectangle', 'circle', 'extrude', 'offset', 'move', 'measure', 'pen', 'rotate'].includes(
@@ -769,7 +805,8 @@ export default function App() {
   };
   const makePreview = (): Body | undefined => {
     const fields = fieldsRef.current;
-    if (!editing || ['measure', 'pen', 'extrude', 'offset', 'rotate'].includes(tool)) return;
+    if (!editing || ['measure', 'pen', 'extrude', 'offset', 'detail', 'rotate'].includes(tool))
+      return;
     if (tool === 'rectangle' || tool === 'circle') {
       const frame =
         shapeFrameRef.current ??
@@ -1012,7 +1049,32 @@ export default function App() {
           project.bodies.filter((b) => b.id === faceRef.current!.bodyId),
           project.groups,
         );
-      if (tool === 'rotate') {
+      if (tool === 'detail') {
+        if (!detailSource || !detailTarget?.indices.length) {
+          editor.setMessage('Valitse ensin käsiteltävät reunat.');
+          return;
+        }
+        requireMovable([detailSource], project.groups);
+        committing.current = true;
+        if (
+          await editor.transact(
+            async () => {
+              const result = await editor.cad.edgeDetail(
+                detailSource,
+                detailTarget.indices,
+                detailOperation,
+                parseLength(fieldsRef.current.offset),
+              );
+              return {
+                ...project,
+                bodies: project.bodies.map((b) => (b.id === result.body.id ? result.body : b)),
+              };
+            },
+            detailOperation === 'fillet' ? 'Reunat pyöristetty.' : 'Reunat viistetty.',
+          )
+        )
+          finishOperation(detailSource.id);
+      } else if (tool === 'rotate') {
         const draft = rotationRef.current;
         if (!draft) {
           editor.setMessage('Valitse ensin kierrettävä kappale.');
@@ -1441,133 +1503,143 @@ export default function App() {
     }
   }, [rotationDraft, fields.angle, awaitingStart]);
   const numericFields: NumericField[] =
-    tool === 'offset'
-      ? faceTarget
-        ? [
-            {
-              key: 'offset',
-              label: 'Sisennys',
-              value: fields.offset,
-              unit: 'mm',
-              testId: 'offset-input',
-            },
-          ]
-        : []
-      : tool === 'rotate'
-        ? [
-            {
-              key: 'angle',
-              label: 'Kiertokulma',
-              value: fields.angle,
-              unit: '°',
-              testId: 'rotation-angle',
-              signed: true,
-            },
-          ]
-        : tool === 'circle'
+    tool === 'detail'
+      ? [
+          {
+            key: 'offset',
+            label: detailOperation === 'fillet' ? 'Säde' : 'Viisteen koko',
+            value: fields.offset,
+            unit: 'mm',
+            testId: 'detail-size',
+          },
+        ]
+      : tool === 'offset'
+        ? faceTarget
           ? [
               {
-                key: 'width',
-                label: shapeKind === 'ellipse' ? 'Halkaisija · X' : 'Halkaisija',
-                value: fields.width,
+                key: 'offset',
+                label: 'Sisennys',
+                value: fields.offset,
                 unit: 'mm',
-                testId: 'diameter-input',
+                testId: 'offset-input',
               },
-              ...(shapeKind === 'ellipse'
-                ? [
-                    {
-                      key: 'depth',
-                      label: 'Halkaisija · Y',
-                      value: fields.depth,
-                      unit: 'mm',
-                      testId: 'ellipse-depth',
-                    },
-                  ]
-                : []),
             ]
-          : tool === 'rectangle'
+          : []
+        : tool === 'rotate'
+          ? [
+              {
+                key: 'angle',
+                label: 'Kiertokulma',
+                value: fields.angle,
+                unit: '°',
+                testId: 'rotation-angle',
+                signed: true,
+              },
+            ]
+          : tool === 'circle'
             ? [
                 {
                   key: 'width',
-                  label: 'Leveys · X',
+                  label: shapeKind === 'ellipse' ? 'Halkaisija · X' : 'Halkaisija',
                   value: fields.width,
                   unit: 'mm',
-                  testId: 'width-input',
+                  testId: 'diameter-input',
                 },
-                {
-                  key: 'depth',
-                  label: 'Syvyys · Y',
-                  value: fields.depth,
-                  unit: 'mm',
-                  testId: 'depth-input',
-                },
-              ]
-            : tool === 'extrude'
-              ? faceTarget
-                ? [
-                    {
-                      key: 'height',
-                      label: 'Pinnan siirtymä',
-                      value:
-                        extrusionMode === 'height'
-                          ? fields.height
-                          : `${faceDistance >= 0 ? '+' : ''}${inputNumber(faceDistance)}`,
-                      unit: 'mm',
-                      testId: 'height-input',
-                      signed: true,
-                    },
-                    ...(faceSpan
-                      ? [
-                          {
-                            key: 'remaining',
-                            label: 'Toteutuva kokonaismitta',
-                            value:
-                              extrusionMode === 'remaining'
-                                ? fields.remaining
-                                : inputNumber(finalSize!),
-                            unit: 'mm',
-                            testId: 'remaining-input',
-                          },
-                        ]
-                      : []),
-                  ]
-                : []
-              : tool === 'measure'
-                ? [
-                    {
-                      key: guideDraft?.offset ? 'offset' : 'length',
-                      label: guideDraft?.offset ? 'Etäisyys lähtökohdasta' : 'Pituus',
-                      value: guideDraft?.offset ? fields.offset : fields.length,
-                      unit: 'mm',
-                      testId: 'guide-length',
-                    },
-                    {
-                      key: 'angle',
-                      label: 'Kulma',
-                      value: fields.angle,
-                      unit: '°',
-                      testId: 'guide-angle',
-                    },
-                  ]
-                : tool === 'pen' && penConstraint
+                ...(shapeKind === 'ellipse'
                   ? [
                       {
-                        key: 'length',
-                        label: 'Pituus lukitulla suunnalla',
-                        value: fields.length,
+                        key: 'depth',
+                        label: 'Halkaisija · Y',
+                        value: fields.depth,
                         unit: 'mm',
-                        testId: 'pen-length',
-                        signed: true,
+                        testId: 'ellipse-depth',
                       },
                     ]
-                  : ['x', 'y', 'z'].map((key) => ({
-                      key,
-                      label: `Siirtymä · ${key.toUpperCase()}`,
-                      value: fields[key as 'x' | 'y' | 'z'],
-                      unit: 'mm',
-                      testId: `move-${key}`,
-                      signed: true,
-                    }));
+                  : []),
+              ]
+            : tool === 'rectangle'
+              ? [
+                  {
+                    key: 'width',
+                    label: 'Leveys · X',
+                    value: fields.width,
+                    unit: 'mm',
+                    testId: 'width-input',
+                  },
+                  {
+                    key: 'depth',
+                    label: 'Syvyys · Y',
+                    value: fields.depth,
+                    unit: 'mm',
+                    testId: 'depth-input',
+                  },
+                ]
+              : tool === 'extrude'
+                ? faceTarget
+                  ? [
+                      {
+                        key: 'height',
+                        label: 'Pinnan siirtymä',
+                        value:
+                          extrusionMode === 'height'
+                            ? fields.height
+                            : `${faceDistance >= 0 ? '+' : ''}${inputNumber(faceDistance)}`,
+                        unit: 'mm',
+                        testId: 'height-input',
+                        signed: true,
+                      },
+                      ...(faceSpan
+                        ? [
+                            {
+                              key: 'remaining',
+                              label: 'Toteutuva kokonaismitta',
+                              value:
+                                extrusionMode === 'remaining'
+                                  ? fields.remaining
+                                  : inputNumber(finalSize!),
+                              unit: 'mm',
+                              testId: 'remaining-input',
+                            },
+                          ]
+                        : []),
+                    ]
+                  : []
+                : tool === 'measure'
+                  ? [
+                      {
+                        key: guideDraft?.offset ? 'offset' : 'length',
+                        label: guideDraft?.offset ? 'Etäisyys lähtökohdasta' : 'Pituus',
+                        value: guideDraft?.offset ? fields.offset : fields.length,
+                        unit: 'mm',
+                        testId: 'guide-length',
+                      },
+                      {
+                        key: 'angle',
+                        label: 'Kulma',
+                        value: fields.angle,
+                        unit: '°',
+                        testId: 'guide-angle',
+                      },
+                    ]
+                  : tool === 'pen' && penConstraint
+                    ? [
+                        {
+                          key: 'length',
+                          label: 'Pituus lukitulla suunnalla',
+                          value: fields.length,
+                          unit: 'mm',
+                          testId: 'pen-length',
+                          signed: true,
+                        },
+                      ]
+                    : ['x', 'y', 'z'].map((key) => ({
+                        key,
+                        label: `Siirtymä · ${key.toUpperCase()}`,
+                        value: fields[key as 'x' | 'y' | 'z'],
+                        unit: 'mm',
+                        testId: `move-${key}`,
+                        signed: true,
+                      }));
   const removeBody = async () => {
     if (!body) return;
     if (
@@ -1950,29 +2022,31 @@ export default function App() {
       onCancel={cancel}
       busy={busy}
       title={
-        tool === 'offset'
-          ? 'Offset · sisennys'
-          : tool === 'rotate'
-            ? 'Kierrä'
-            : tool === 'rectangle'
-              ? 'Suorakulmio'
-              : tool === 'circle'
-                ? shapeKind === 'circle'
-                  ? 'Ympyrä'
-                  : shapeKind === 'ellipse'
-                    ? 'Ellipsi'
-                    : 'Monikulmio'
-                : tool === 'measure'
-                  ? measureMode === 'guide'
-                    ? 'Apuviiva'
-                    : 'Vapaa mittaviiva'
-                  : tool === 'pen'
-                    ? 'Kynä · seuraava piste'
-                    : tool === 'move'
-                      ? copyMove
-                        ? 'Siirrä kopio'
-                        : 'Siirrä'
-                      : 'Push / pull'
+        tool === 'detail'
+          ? 'Viimeistele reunat'
+          : tool === 'offset'
+            ? 'Offset · sisennys'
+            : tool === 'rotate'
+              ? 'Kierrä'
+              : tool === 'rectangle'
+                ? 'Suorakulmio'
+                : tool === 'circle'
+                  ? shapeKind === 'circle'
+                    ? 'Ympyrä'
+                    : shapeKind === 'ellipse'
+                      ? 'Ellipsi'
+                      : 'Monikulmio'
+                  : tool === 'measure'
+                    ? measureMode === 'guide'
+                      ? 'Apuviiva'
+                      : 'Vapaa mittaviiva'
+                    : tool === 'pen'
+                      ? 'Kynä · seuraava piste'
+                      : tool === 'move'
+                        ? copyMove
+                          ? 'Siirrä kopio'
+                          : 'Siirrä'
+                        : 'Push / pull'
       }
     />
   );
@@ -2365,6 +2439,30 @@ export default function App() {
               </div>
             )}
             <Viewport
+              detailTarget={detailTarget}
+              detailPreview={tool === 'detail' ? detailPreview.result : undefined}
+              onDetailEdge={(id, index) => {
+                if (editingBodyId && id !== editingBodyId) {
+                  explainEditContext();
+                  return;
+                }
+                const source = project.bodies.find((b) => b.id === id);
+                if (!source || bodyLocked(source, project.groups)) return;
+                setDetailTarget((old) => ({
+                  bodyId: id,
+                  indices:
+                    old?.bodyId === id
+                      ? old.indices.includes(index)
+                        ? old.indices.filter((i) => i !== index)
+                        : [...old.indices, index]
+                      : [index],
+                }));
+                setSelected(id);
+                setSelectedIds([id]);
+                setSelectedGroupId(undefined);
+                setAwaitingStart(false);
+                gestureActive.current = true;
+              }}
               editingBodyId={editingBodyId}
               onEditBody={openBodyEdit}
               onCloseBodyEdit={closeBodyEdit}
@@ -2652,7 +2750,33 @@ export default function App() {
         {panelOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
             {numericInput}
-            {tool === 'rotate' && editing ? (
+            {tool === 'detail' ? (
+              <EdgeDetailPanel
+                operation={detailOperation}
+                onOperation={setDetailOperation}
+                count={detailTarget?.indices.length ?? 0}
+                bodyName={detailSource?.name}
+                busy={busy}
+                loading={detailPreview.loading}
+                error={detailPreview.error}
+                onAccept={() => void apply()}
+                onCancel={cancel}
+                all={() => {
+                  if (detailSource) {
+                    setDetailTarget({
+                      bodyId: detailSource.id,
+                      indices:
+                        editor.meshes
+                          .find((m) => m.id === detailSource.id)
+                          ?.detailEdges?.map((e) => e.index) ?? [],
+                    });
+                    setAwaitingStart(false);
+                    gestureActive.current = true;
+                  }
+                }}
+                clear={() => setDetailTarget((old) => (old ? { ...old, indices: [] } : undefined))}
+              />
+            ) : tool === 'rotate' && editing ? (
               <RotationPanel
                 rotation={rotation}
                 busy={busy}

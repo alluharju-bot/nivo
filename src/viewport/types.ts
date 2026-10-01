@@ -10,10 +10,18 @@ import type {
   View,
   WorkPlane,
 } from '../model/project';
-import type { BodyMesh, FaceTarget, FaceSpan, BoundaryTarget } from '../cad/protocol';
+import type {
+  BodyMesh,
+  FaceTarget,
+  FaceSpan,
+  BoundaryTarget,
+  EdgeDetailTarget,
+  EdgeDetailResult,
+} from '../cad/protocol';
 import type { ReferencePoint } from '../model/snap';
 import type { SketchFrame } from '../model/sketch';
 export type Tool =
+  | 'detail'
   | 'erase'
   | 'offset'
   | 'rotate'
@@ -55,6 +63,9 @@ export interface ViewportProps {
   onEditBody: (id: string) => void;
   onCloseBodyEdit: () => void;
   onEditBlocked: (position: { x: number; y: number }) => void;
+  detailTarget?: EdgeDetailTarget;
+  detailPreview?: EdgeDetailResult;
+  onDetailEdge: (bodyId: string, index: number) => void;
   onRemoveBoundary: (target: BoundaryTarget) => void;
   onRemoveGuide: (id: string) => void;
   rotation?: Rotation;

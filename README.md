@@ -104,6 +104,20 @@ kopioituihin osiin ankkuroidut apuviivat. Kopiot ovat itsenäisiä osia. Yksi Pe
 palauttaa koko siirron tai kopioinnin. Tallennus ja tiedoston uudelleenavaus
 säilyttävät hierarkian.
 
+## Viisteet ja pyöristykset
+
+**Reunat (F)** avaa reunakäsittelyn. Napsauta mallista yhtä tai useaa reunaa;
+uusi napsautus poistaa reunan valinnasta. Valitse **Pyöristys** tai **Viiste**,
+kirjoita säde tai viisteen koko millimetreinä ja tarkista tarkasta CAD-mallista
+laskettu esikatselu. Enter tai **Hyväksy reunakäsittely** tallentaa tuloksen,
+Esc peruu. **Kaikki reunat** valitsee nykyisen osan reunat kerralla.
+
+Pyöristyksen mitta on säde. Viiste käyttää samaa etäisyyttä reunan molemmilla
+pinnoilla. Suorat ja kaarevat CAD-reunat ovat valittavissa. Yhdellä toiminnolla
+käsitellään yhden osan reunat; seuraava osa voidaan valita samalla työkalulla.
+Liian suuri mitta tai geometrian kannalta mahdoton reunayhdistelmä näyttää
+virheen ja säilyttää alkuperäisen osan. Hold suojaa myös tältä muokkaukselta.
+
 ## Uusi osa, muokkaustila ja kumitus
 
 **Normaalitilassa piirtäminen luo uuden osan.** Kaapin pinta antaa piirtotason

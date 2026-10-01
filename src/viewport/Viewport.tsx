@@ -285,6 +285,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     }
     const editing = [
       'erase',
+      'detail',
       'rotate',
       'rectangle',
       'circle',
@@ -311,6 +312,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
     for (const object of bodies.children)
       object.visible = !(
+        (current().tool === 'detail' && current().detailPreview?.body.id === object.userData.id) ||
         (moved && !current().copyMove && current().selectedIds.includes(object.userData.id)) ||
         (rotation &&
           !rotation.picking &&
@@ -318,6 +320,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           rotation.ids.includes(object.userData.id))
       );
     renderer.domElement.dataset.copyMove = String(current().copyMove);
+    renderer.domElement.dataset.detailPreview = current().detailPreview?.body.id ?? '';
     renderer.domElement.dataset.offsetPreview = current().offsetOutline
       ? String(current().offsetPreviewDistance)
       : '';
@@ -336,6 +339,31 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       );
       outline.renderOrder = 96;
       ghost.add(outline);
+    }
+    if (current().tool === 'detail' && current().detailPreview) {
+      const { mesh: data, body } = current().detailPreview!;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
+      geometry.setIndex(data.triangles);
+      ghost.add(
+        new THREE.Mesh(
+          geometry,
+          new THREE.MeshStandardMaterial({
+            color: body.color,
+            roughness: 0.8,
+            side: THREE.DoubleSide,
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 1,
+          }),
+        ),
+      );
+      const outline = new THREE.BufferGeometry();
+      outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
+      ghost.add(new THREE.LineSegments(outline, new THREE.LineBasicMaterial({ color: '#267aa8' })));
+      render();
+      return;
     }
     if (rotation) {
       const transform = new THREE.Matrix4()
@@ -872,6 +900,7 @@ export function Viewport(props: Props) {
     () => api.current?.preview(),
     [
       props.preview,
+      props.detailPreview,
       props.faceTarget,
       props.faceDistance,
       props.faceSpan,
@@ -887,7 +916,7 @@ export function Viewport(props: Props) {
   );
   useEffect(
     () => api.current?.interactionSync(),
-    [props.reference, props.axis, props.penPoints.length, props.freeRotate],
+    [props.reference, props.axis, props.penPoints.length, props.freeRotate, props.detailTarget],
   );
   useEffect(
     () => api.current?.annotations(),

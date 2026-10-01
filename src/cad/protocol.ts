@@ -52,6 +52,15 @@ export interface BodyMesh {
   midpointsCAD: Vec3[];
   edgesCAD: CadEdge[];
   boundaries: FaceBoundary[];
+  detailEdges?: { index: number; lines: number[] }[];
+}
+export interface EdgeDetailTarget {
+  bodyId: string;
+  indices: number[];
+}
+export interface EdgeDetailResult {
+  body: Body;
+  mesh: BodyMesh;
 }
 export interface Projection {
   visible: string[];
@@ -69,6 +78,13 @@ export type CadRequest =
   | { type: 'offset-face'; body: Body; face: FaceRef; distance: number }
   | { type: 'offset-outline'; body: Body; face: FaceRef; distance: number }
   | { type: 'remove-boundary'; body: Body; faces: [FaceRef, FaceRef] }
+  | {
+      type: 'edge-detail';
+      body: Body;
+      indices: number[];
+      operation: 'fillet' | 'chamfer';
+      size: number;
+    }
   | { type: 'face-span'; body: Body; face: FaceRef; point?: Vec3 }
   | { type: 'push-pull'; body: Body; face: FaceRef; distance: number };
 export interface ProbeResult {
@@ -84,6 +100,14 @@ export interface ProbeResult {
 export interface CadReply {
   id: number;
   result?:
-    BodyMesh[] | Projection | ProbeResult | Body | Body[] | SplitResult | FaceSpan | number[];
+    | BodyMesh[]
+    | Projection
+    | ProbeResult
+    | Body
+    | Body[]
+    | SplitResult
+    | FaceSpan
+    | number[]
+    | EdgeDetailResult;
   error?: string;
 }

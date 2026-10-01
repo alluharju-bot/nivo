@@ -445,6 +445,7 @@ export function installInteractions({
     render();
   };
   const highlightBoundary = (target?: BoundaryTarget) => {
+    (boundaryHighlight.material as THREE.LineBasicMaterial).color.set('#cc672b');
     highlightFace();
     boundaryHighlight.visible = !!target;
     boundaryHighlight.geometry.dispose();
@@ -518,6 +519,79 @@ export function installInteractions({
           ray.ray.origin.distanceTo(point) - worldPerPixel(point.toArray() as Vec3) * 0.5
       );
     })?.target;
+  };
+  const detailEdgeAt = (event: PointerEvent) => {
+    const props = current(),
+      rect = container.getBoundingClientRect();
+    const x = event.clientX - rect.left,
+      y = event.clientY - rect.top;
+    const candidates: {
+      bodyId: string;
+      index: number;
+      point: Vec3;
+      distance: number;
+      depth: number;
+    }[] = [];
+    for (const mesh of props.meshes) {
+      if (
+        (props.editingBodyId && props.editingBodyId !== mesh.id) ||
+        props.bodies.find((b) => b.id === mesh.id)?.locked
+      )
+        continue;
+      for (const edge of mesh.detailEdges ?? [])
+        for (let i = 0; i < edge.lines.length; i += 6) {
+          const a = edge.lines.slice(i, i + 3) as Vec3,
+            b = edge.lines.slice(i + 3, i + 6) as Vec3;
+          const p = screen(a),
+            q = screen(b),
+            dx = q.x - p.x,
+            dy = q.y - p.y;
+          const t = Math.max(
+            0,
+            Math.min(1, ((x - p.x) * dx + (y - p.y) * dy) / (dx * dx + dy * dy || 1)),
+          );
+          const distance = Math.hypot(x - p.x - t * dx, y - p.y - t * dy),
+            depth = p.z + t * (q.z - p.z);
+          if (distance < 12 && depth >= -1 && depth <= 1)
+            candidates.push({
+              bodyId: mesh.id,
+              index: edge.index,
+              point: add(a, scale(sub(b, a), t)),
+              distance,
+              depth,
+            });
+        }
+    }
+    candidates.sort((a, b) =>
+      Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
+    );
+    return candidates.find(({ point }) => {
+      const p = new THREE.Vector3(...point),
+        projected = p.clone().project(camera());
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
+      const hit = ray.intersectObjects(bodies.children).find((h) => h.object instanceof THREE.Mesh);
+      return !hit || hit.distance >= ray.ray.origin.distanceTo(p) - worldPerPixel(point) * 0.5;
+    });
+  };
+  const highlightDetail = (hover?: { bodyId: string; index: number }) => {
+    const selected = current().detailTarget;
+    const lines = current().meshes.flatMap((m) =>
+      (m.detailEdges ?? [])
+        .filter(
+          (e) =>
+            (m.id === selected?.bodyId && selected.indices.includes(e.index)) ||
+            (m.id === hover?.bodyId && hover.index === e.index),
+        )
+        .flatMap((e) => e.lines),
+    );
+    boundaryHighlight.geometry.dispose();
+    boundaryHighlight.geometry = new THREE.BufferGeometry();
+    boundaryHighlight.geometry.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
+    (boundaryHighlight.material as THREE.LineBasicMaterial).color.set('#267aa8');
+    boundaryHighlight.visible = lines.length > 0;
+    canvas.dataset.detailHover = hover ? `${hover.bodyId}:${hover.index}` : '';
+    render();
   };
   const edgeAt = (event: PointerEvent) => {
     setRay(event);
@@ -887,6 +961,8 @@ export function installInteractions({
         else if (current().tool === 'measure' && measureSession) updateMeasure(lastEvent);
       }
     }
+    if (current().tool === 'detail')
+      highlightDetail(lastEvent ? detailEdgeAt(lastEvent) : undefined);
   };
   const updatePen = (event: PointerEvent): Vec3 | undefined => {
     const props = current(),
@@ -1150,6 +1226,22 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.tool === 'navigate') return;
+    if (props.tool === 'detail') {
+      const edge = detailEdgeAt(event);
+      highlightDetail(edge);
+      drag = {
+        start: [0, 0, 0],
+        origin: [0, 0, 0],
+        screenX: event.clientX,
+        screenY: event.clientY,
+        height: 0,
+        plane: 'XY',
+        second: false,
+      };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.focus({ preventScroll: true });
+      return;
+    }
     if (props.tool === 'erase') {
       const guide = selectableGuideAt(event);
       const face = faceAt(event);
@@ -1479,6 +1571,16 @@ export function installInteractions({
       drag.moved = true;
     const props = current();
     if (blocked || props.busy) return;
+    if (props.tool === 'detail') {
+      const edge = detailEdgeAt(event);
+      highlightDetail(edge);
+      props.onSnap(
+        edge
+          ? 'Reuna · napsauta lisätäksesi tai poistaaksesi valinnasta.'
+          : 'Valitse kappaleen reuna.',
+      );
+      return;
+    }
     if (props.tool === 'erase') {
       const guide = selectableGuideAt(event);
       const target = !guide ? boundaryAt(event) : undefined;
@@ -1662,7 +1764,10 @@ export function installInteractions({
       const moved =
         active.moved ||
         Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
-      if (props.tool === 'erase' && !moved) {
+      if (props.tool === 'detail' && !moved) {
+        const edge = detailEdgeAt(event);
+        if (edge) props.onDetailEdge(edge.bodyId, edge.index);
+      } else if (props.tool === 'erase' && !moved) {
         const guide = selectableGuideAt(event);
         if (guide) props.onRemoveGuide(guide.object.userData.guideId);
         else {
@@ -1853,6 +1958,10 @@ export function installInteractions({
     show();
   };
   const leave = () => {
+    if (current().tool === 'detail') {
+      highlightDetail();
+      return;
+    }
     if (!drag && !measureSession) {
       highlightGuide();
       highlightBoundary();

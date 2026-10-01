@@ -7,6 +7,7 @@ import type { Body } from '../model/project';
 import { booleanBodies, splitFace, offsetFace, offsetOutline, removeBoundary } from './operations';
 import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
+import { detailEdges } from './details';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 type Entry = { key: string; shape: AnyShape; mesh: BodyMesh };
@@ -60,6 +61,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = offsetOutline(request.body, request.face, request.distance);
       else if (request.type === 'remove-boundary')
         reply.result = removeBoundary(request.body, request.faces);
+      else if (request.type === 'edge-detail')
+        reply.result = detailEdges(request.body, request.indices, request.operation, request.size);
       else {
         const entries = build(request.bodies);
         if (request.type === 'build') reply.result = entries.map((e) => e.mesh);
