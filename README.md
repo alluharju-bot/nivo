@@ -3,17 +3,16 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.7.1 selkeyttää muokkaustilaa ja apuviivoja. Se erottaa uuden osan ja pinnan muokkauksen: normaalisti piirto luo
-itsenäisen osan, **tuplaklikkaus** avaa yhden osan muokattavaksi. Muut osat
-toimivat tartuntaviitteinä. **Poista rajaus (U)** yhdistää viereiset tasopinnat,
-myös tallennetussa mallissa. Peru/Palauta-historia säilyy selaimen päivityksen yli.
-E/O-pikatoiminnot, Shiftillä haettava tavoitepinta ja kahden napsautuksen piirto
-ovat käytettävissä molemmissa työtiloissa.
-Osien yhteiset X/Y/Z-ulkomitat, värit ja **Toteutuva kokonaismitta** ovat mukana.
+Versio **0.8.0** tuo sisäkkäiset ryhmät, koko valinnan siirron ja kopioinnin,
+tarkat CAD-viisteet ja pyöristykset sekä erillisen renderöintinäkymän ja PNG-viennin.
+Muokkaustila ja apuviivat ovat selkeämpiä: viivan valinta ei aloita siirtoa,
+apuviivojen risteyksiin voi tarttua ja kumitus poistaa myös apuviivan.
+Normaalisti piirto luo itsenäisen osan; **tuplaklikkaus** avaa yhden osan
+muokattavaksi. Peru/Palauta-historia säilyy selaimen päivityksen yli.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-![Osan väri ja samat kokonaismitat mallissa ja mittakuvassa](docs/images/nivo-dimensions.png)
+![Kaapin materiaalit studiovalaistuksessa](docs/images/nivo-render.png)
 
 ## Käynnistä
 
@@ -65,7 +64,7 @@ komponentteja.
 
 ## Työtila ja kopiointi
 
-Yksi 60 px yläpalkki sisältää Nivon, **Malli / Mittakuva** -vaihdon, projektin
+Yksi 60 px yläpalkki sisältää Nivon, **Malli / Mittakuva / Renderöi** -vaihdon, projektin
 nimen ja tallennustilan, tiedostopainikkeet, historian, asetukset ja avun.
 **Siirry koko näyttöön** piilottaa selaimen palkit. Sama painike tai Esc palauttaa
 tavallisen ikkunan. Kapealla näytöllä tiedostot ja muut lisätoiminnot avataan
@@ -117,6 +116,28 @@ pinnoilla. Suorat ja kaarevat CAD-reunat ovat valittavissa. Yhdellä toiminnolla
 käsitellään yhden osan reunat; seuraava osa voidaan valita samalla työkalulla.
 Liian suuri mitta tai geometrian kannalta mahdoton reunayhdistelmä näyttää
 virheen ja säilyttää alkuperäisen osan. Hold suojaa myös tältä muokkaukselta.
+
+## Renderöinti ja kuvavienti
+
+**Renderöi** avaa erillisen esitysnäkymän. Valitse materiaalin kohteeksi kaikki
+näkyvät osat, mallin nykyinen valinta tai yksittäinen osa. Osan voi valita myös
+kuvasta klikkaamalla. Materiaalit ovat **Matta, Maalattu, Puu, Metalli ja Lasi**;
+osaväri sävyttää materiaalia. Hold-merkintä säilyy mallissa, mutta esityskuva
+käyttää aina osan omaa väriä. Piilotetut osat sekä rakentamisen ja piirtämisen
+apumuodot jäävät esityskuvan ulkopuolelle.
+
+Valitse Studio-, Lämmin- tai Tumma-valaistus, säädä valotusta ja varjoja.
+Vedä kiertääksesi, zoomaa rullalla tai siirrä näkymää keskipainikkeella.
+Kosketuksella yksi sormi kiertää, kaksi siirtää ja zoomaa. **Sovita malli**
+palauttaa kokonaisuuden näkyviin. **Tallenna PNG** vie nykyisestä kuvakulmasta
+1 600 tai 2 400 pikseliä leveän kuvan. **Takaisin malliin** tai Esc palaa
+mallinnukseen. Materiaalit, osavärit ja valaistusasetukset tallentuvat projektiin
+ja kuuluvat Peru/Palauta-historiaan. Kuvakulma ei vielä tallennu.
+
+Ensimmäinen versio on reaaliaikainen, fyysisiin materiaaleihin perustuva
+studiorenderöinti. Puun syykuvio tuotetaan paikallisesti; sen suunta ja
+mittakaava ovat tässä versiossa kiinteät. Säteenjäljitys, omat tekstuurit,
+tallennettavat kamerat ja erilliset valaisimet ovat jatkokehitystä.
 
 ## Uusi osa, muokkaustila ja kumitus
 

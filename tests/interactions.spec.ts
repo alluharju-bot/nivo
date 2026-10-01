@@ -284,8 +284,8 @@ test('pen closure creates one mesh, extrudes, merges selected parts, undo restor
   await page.getByRole('button', { name: 'Kopioi kappale', exact: true }).click();
   await page.getByTestId('move-x').fill('250');
   await page.getByTestId('move-x').press('Enter');
-  await page.keyboard.press('Escape');
   await expect(page.locator('.object-list .object-select')).toHaveCount(2);
+  await page.keyboard.press('Escape');
   await page.locator('.object-list .object-select').last().click();
   await page.getByRole('button', { name: 'Monivalinta', exact: true }).click();
   await page.locator('.object-list .object-select').first().click();

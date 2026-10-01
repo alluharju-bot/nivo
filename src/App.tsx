@@ -16,6 +16,7 @@ import {
   Box,
   Check,
   CircleHelp,
+  Camera,
   Circle,
   Scissors,
   Copy,
@@ -53,7 +54,6 @@ import {
   bodyLocked,
   groupAncestors,
   groupBodies,
-  groupContains,
   reparentGroup,
   dissolveGroup,
   translateSelection,
@@ -63,6 +63,8 @@ import { EdgeDetailPanel } from './ui/EdgeDetailPanel';
 import type { EdgeDetailTarget } from './cad/protocol';
 import { GroupActions } from './ui/GroupActions';
 import { Viewport, type CameraCommand, type Tool } from './viewport/Viewport';
+import { RenderStage } from './render/RenderStage';
+import { renderDefaults } from './render/scene';
 import { DrawingPanel } from './drawing/DrawingPanel';
 import { recommendedScale, type Sheet } from './drawing/svg';
 import { useEditor } from './useEditor';
@@ -308,6 +310,7 @@ export default function App() {
   const committing = useRef(false);
   const [selectedFace, setSelectedFace] = useState<FaceRef>();
   const [tool, setTool] = useState<Tool>('select');
+  const [renderOpen, setRenderOpen] = useState(false);
   const [mode, setMode] = useState<'model' | 'drawing'>('model');
   const [fields, setFields] = useState<Fields>(defaults);
   const fieldsRef = useRef(fields);
@@ -369,6 +372,10 @@ export default function App() {
         .filter((b) => bodyVisible(b, project.groups))
         .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
     [project.bodies, project.groups],
+  );
+  const renderBodies = useMemo(
+    () => visibleBodies.filter((b) => b.purpose === 'model' || b.purpose === 'component'),
+    [visibleBodies],
   );
   const visibleMeshes = useMemo(
     () => editor.meshes.filter((m) => visibleBodies.some((b) => b.id === m.id)),
@@ -1678,6 +1685,10 @@ export default function App() {
   };
   const holdSelected = () => {
     if (selectedGroup) {
+      if (groupAncestors(project.groups, selectedGroup.parentId).some((g) => g.locked)) {
+        editor.setError('Vapauta ensin ylemmän ryhmän Hold.');
+        return;
+      }
       void patchGroup(selectedGroup.id, { locked: !selectedGroup.locked });
       return;
     }
@@ -1766,6 +1777,7 @@ export default function App() {
       setSurfaceMode('new');
       finishOperation();
       setMode('model');
+      setRenderOpen(false);
     }
   };
   const example = async () => {
@@ -1779,6 +1791,7 @@ export default function App() {
       setSurfaceMode('new');
       finishOperation();
       setMode('model');
+      setRenderOpen(false);
       changeView('iso');
     }
   };
@@ -1793,6 +1806,7 @@ export default function App() {
         setSurfaceMode('new');
         finishOperation();
         setMode('model');
+        setRenderOpen(false);
         changeView('iso');
       }
     } catch (e) {
@@ -1800,7 +1814,21 @@ export default function App() {
     }
     if (fileInput.current) fileInput.current.value = '';
   };
+  const openRender = () => {
+    resetGesture();
+    setEditingBodyId(undefined);
+    setSurfaceMode('new');
+    setTool('navigate');
+    setRenderOpen(true);
+  };
+  const closeRender = () => {
+    resetGesture();
+    setRenderOpen(false);
+    setMode('model');
+    setTool('select');
+  };
   const openDrawing = () => {
+    setRenderOpen(false);
     resetGesture();
     setEditingBodyId(undefined);
     setSurfaceMode('new');
@@ -1870,6 +1898,10 @@ export default function App() {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === 'Escape') {
+        if (renderOpen) {
+          closeRender();
+          return;
+        }
         cancel();
         return;
       }
@@ -1894,6 +1926,7 @@ export default function App() {
         else void editor.undo();
         return;
       }
+      if (renderOpen) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (
         awaitingStart &&
@@ -2069,17 +2102,21 @@ export default function App() {
           </span>
         </a>
         <div className="mode-switch" aria-label="Työtila">
-          <button aria-pressed={mode === 'model'} onClick={() => setMode('model')}>
+          <button aria-pressed={!renderOpen && mode === 'model'} onClick={closeRender}>
             <Box size={16} />
             Malli
           </button>
           <button
-            aria-pressed={mode === 'drawing'}
+            aria-pressed={!renderOpen && mode === 'drawing'}
             disabled={!project.bodies.length || busy}
             onClick={openDrawing}
           >
             <Ruler size={16} />
             Mittakuva
+          </button>
+          <button aria-pressed={renderOpen} disabled={!ready || busy} onClick={openRender}>
+            <Camera size={16} />
+            Renderöi
           </button>
         </div>
 
@@ -2282,7 +2319,7 @@ export default function App() {
         />
       </header>
 
-      <div className={`workspace ${panelOpen ? 'panel-open' : ''}`}>
+      <div className={`workspace ${panelOpen ? 'panel-open' : ''}`} hidden={renderOpen}>
         <aside className="tool-rail" aria-label="Mallinnustyökalut">
           {tools.map((t) => (
             <button
@@ -2642,7 +2679,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            {editing && !['extrude', 'offset', 'rotate'].includes(tool) && (
+            {editing && !['extrude', 'offset', 'rotate', 'detail'].includes(tool) && (
               <div className="reference-bar">
                 <button
                   aria-pressed={pickReference}
@@ -3175,9 +3212,11 @@ export default function App() {
                   </div>
                 ) : (
                   <p className="panel-description">
-                    {project.bodies.length
-                      ? 'Valitse kappale näkymästä tai alla olevasta listasta.'
-                      : 'Jokainen hyvä suunnitelma alkaa yhdestä muodosta.'}
+                    {selectedGroup
+                      ? 'Ryhmän valintaa voi rajata napsauttamalla osia.'
+                      : project.bodies.length
+                        ? 'Valitse kappale näkymästä tai alla olevasta listasta.'
+                        : 'Jokainen hyvä suunnitelma alkaa yhdestä muodosta.'}
                   </p>
                 )}
 
@@ -3417,7 +3456,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.7.0</span>
+                  <span>v0.8.0</span>
                 </div>
               </>
             )}
@@ -3427,19 +3466,57 @@ export default function App() {
         )}
       </div>
 
+      {renderOpen && (
+        <RenderStage
+          bodies={renderBodies}
+          meshes={visibleMeshes}
+          selectedIds={selectedIds}
+          settings={project.settings.render ?? renderDefaults}
+          name={project.name}
+          busy={busy}
+          error={editor.error}
+          onClose={closeRender}
+          onMaterial={(ids, material) =>
+            void editor.transact(
+              {
+                ...project,
+                bodies: project.bodies.map((b) => (ids.includes(b.id) ? { ...b, material } : b)),
+              },
+              'Materiaali päivitetty.',
+            )
+          }
+          onColor={(ids, color) =>
+            void editor.transact(
+              {
+                ...project,
+                bodies: project.bodies.map((b) => (ids.includes(b.id) ? { ...b, color } : b)),
+              },
+              'Osaväri päivitetty.',
+            )
+          }
+          onSettings={(render) =>
+            editor.transact(
+              { ...project, settings: { ...project.settings, render } },
+              'Renderöinnin asetukset tallennettu.',
+            )
+          }
+        />
+      )}
       <footer className="status-bar">
         <div>
           <span className="status-icon">
             {busy ? <LoaderCircle className="spin" size={14} /> : <CheckCircle2 size={14} />}
           </span>
           <span role="status">
-            {editing || tool === 'navigate' || tool === 'boolean'
-              ? instructions[tool]
-              : editor.message}
+            {renderOpen
+              ? 'Renderöinti · materiaalit ja valo · Esc palaa malliin'
+              : editing || tool === 'navigate' || tool === 'boolean'
+                ? instructions[tool]
+                : editor.message}
           </span>
         </div>
         <span className="status-right">
-          {mode === 'model' ? 'Z ylöspäin' : 'A4 · Ortografinen'}
+          {renderOpen ? 'Esityskuva' : mode === 'model' ? 'Z ylöspäin' : 'A4 · Ortografinen'}
           <span className="status-divider" />1 yksikkö = 1 mm
         </span>
       </footer>

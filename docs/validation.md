@@ -6,6 +6,31 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.8.0:n koonti: **83 yksikkö- ja CAD-testiä hyväksytty**, TypeScript,
+tuotantopaketointi ja koko repon muotoilutarkistus hyväksytty. Lisäkokeet
+varmentavat läpireiän sisäreunan 2 mm viisteen ja pyöristyksen; osan nimi,
+ryhmä ja puumateriaali säilyvät geometriamuutoksen läpi.
+
+Renderöinnin ja päivitetyn kynämuodon kopiointi-/yhdistämistyönkulun
+selaintarkistus: **6/6 hyväksytty** työpöytä- ja tablettiprofiileissa.
+Materiaalit, väri, valo, valotus ja varjot tallentuivat ja palautuivat
+uudelleenavauksessa. Undo/redo päivittää myös renderöintiä. Hold ja geometria
+säilyivät, ja piilotetut sekä rakentamiseen tarkoitetut osat jäivät pois
+esityskuvasta. Mallinnuksen pikanäppäimet eivät muuta projektia tässä tilassa.
+Puu-, metalli-, lasi- ja maalipinnat renderöityivät ilman selainpoikkeuksia.
+PNG-tiedoston tunniste, 1 600 px leveys ja interaktiivisen piirtoalueen koon
+palautuminen tarkistettiin; myös vietty kuva ja molempien profiilien
+kuvakaappaukset tarkastettiin silmämääräisesti.
+
+V0.8.0:n lopullinen tuotantopaketin regressioajo: **32/32 hyväksytty (7,3 min)**,
+16 työpöydällä ja 16 tablettiprofiilissa. Kattavuus: kompakti yläpalkki ja koko
+näytön tila, kaikki uudet ryhmä- ja reunatyönkulut, muokkaustilan avaaminen ja
+suojattu poistuminen, apuviivojen lähtömitat/risteykset/kumitus, ontto kaappi ja
+läpileikkaus, perspektiivin reunatartunta ja akselilukot, työkalujen pysyvyys,
+siirrettävä mittapaneeli sekä mallinnus → historia → mittakuva → tiedosto → palautus.
+Yhdessä renderöinnin ja kopioinnin kohdistetun ajon kanssa viimeistelyssä
+hyväksyttiin **38 selaintapausta**. Kaikki tarkistukset ajettiin ennen julkaisua.
+
 Reunakäsittely: **81 yksikkö- ja CAD-testiä hyväksytty**, TypeScript ja
 paketointi hyväksytty. Viisi uutta CAD-koetta varmentaa laatikon kaikki
 reunat molemmilla operaatioilla, yhden viisteen tarkan poistetun tilavuuden,
@@ -391,4 +416,4 @@ V0.4:n uudet selaintyönkulut, molemmilla profiileilla:
   tasolle, vinosta tavoitteesta poimitaan osoitetun pisteen taso lähteen
   normaalin suunnassa. Kaarevan pinnan tangentti-/ääripistetartunta on jatkotyötä.
 - Esimerkkikaappi todentaa kuuden levyn rungon. Täydelliset hyväksymisesimerkit
-  A–C odottavat linkitettyjä komponentteja, materiaaleja ja scenejä.
+  A–C odottavat linkitettyjä komponentteja, tarkempaa teksturointia ja scenejä.

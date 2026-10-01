@@ -2650,3 +2650,140 @@ p {
   padding: 10px;
   border-radius: 6px;
 }
+
+.workspace[hidden] {
+  display: none;
+}
+.render-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+}
+.render-view {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #e8ece9;
+}
+.render-host {
+  position: absolute;
+  inset: 0;
+}
+.render-host canvas {
+  display: block;
+  touch-action: none;
+}
+.render-toolbar {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  display: flex;
+  gap: 8px;
+}
+.render-toolbar .button {
+  background: #fffef0e8;
+  box-shadow: 0 2px 12px #20352812;
+}
+.render-caption {
+  position: absolute;
+  bottom: 10px;
+  left: 18px;
+  right: 18px;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #fffef0dd;
+  color: #536158;
+  font-size: 11px;
+  pointer-events: none;
+}
+.render-panel {
+  overflow: auto;
+  padding: 24px 20px;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+}
+.render-panel h2 {
+  font-size: 20px;
+  margin: 8px 0 24px;
+}
+.render-panel > label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0;
+}
+.render-panel select {
+  display: block;
+  width: 100%;
+  height: 36px;
+  margin-top: 7px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  color: inherit;
+}
+.render-panel input[type='range'] {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  accent-color: #487261;
+}
+.render-panel output {
+  float: right;
+  font-variant-numeric: tabular-nums;
+  color: #647368;
+}
+.render-panel .render-check {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+.render-panel hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 22px 0;
+}
+.render-note {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #6c766f;
+}
+.render-error {
+  color: #994b36;
+  font-size: 12px;
+}
+.render-empty {
+  position: absolute;
+  top: 45%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #536158;
+}
+@media (max-width: 800px) {
+  .render-workspace {
+    grid-template-columns: minmax(0, 1fr) 245px;
+  }
+  .render-panel {
+    padding: 18px 14px;
+  }
+  .render-toolbar {
+    top: 10px;
+    left: 10px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 620px) {
+  .render-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(220px, 1fr) 240px;
+  }
+  .render-panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}

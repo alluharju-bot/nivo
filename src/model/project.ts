@@ -138,6 +138,7 @@ export const bodySchema = z.object({
   ]),
   origin: pointSchema,
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  material: z.enum(['matte', 'paint', 'wood', 'metal', 'glass']).optional(),
   purpose: z.enum(['model', 'construction', 'drawing', 'component']).default('model'),
   locked: z.boolean().default(false),
   hidden: z.boolean().default(false),
@@ -205,6 +206,13 @@ export const projectSchema = z
         axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
         axisLabels: z.boolean().default(false),
         dimensionDisplay: z.enum(['all', 'selected', 'hidden']).default('all'),
+        render: z
+          .object({
+            environment: z.enum(['studio', 'warm', 'dark']),
+            exposure: z.number().min(0.3).max(2.5),
+            shadows: z.boolean(),
+          })
+          .optional(),
       })
       .default({
         guideXray: false,

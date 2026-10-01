@@ -5,6 +5,7 @@ import { setOC } from 'replicad';
 import { makeBody, makeProfileBody, parseProject, freshProject } from '../model/project';
 import { sketchFrame } from '../model/sketch';
 import { createShape, meshBody, shapeIsValid } from './kernel';
+import { booleanBodies } from './operations';
 import { detailEdges } from './details';
 
 beforeAll(async () =>
@@ -92,6 +93,38 @@ describe('exact fillets and chamfers', () => {
       result.mesh.volume,
     );
   });
+  it.each(['fillet', 'chamfer'] as const)(
+    'finishes a through-hole rim with %s and preserves part metadata',
+    (operation) => {
+      const plate = {
+        ...makeBody(100, 80, 18, [0, 0, 0], 'Reikälevy'),
+        material: 'wood' as const,
+        groupId: 'cabinet',
+      };
+      const cutter = makeProfileBody({ kind: 'circle', radius: 10 }, sketchFrame([50, 40, -5]), 30);
+      const body = booleanBodies([plate], [cutter], 'cut')[0];
+      const shape = createShape(body),
+        mesh = meshBody(body, shape);
+      shape.delete();
+      const rim = mesh.detailEdges!.find(
+        (edge) =>
+          edge.lines.length > 6 &&
+          edge.lines.every((n, i) => i % 3 !== 2 || Math.abs(n - 18) < 1e-5),
+      );
+      expect(rim).toBeDefined();
+      const result = detailEdges(body, [rim!.index], operation, 2);
+      expect(result.mesh.volume).toBeLessThan(mesh.volume);
+      expect(result.mesh.volume).toBeGreaterThan(mesh.volume * 0.98);
+      expect(result.body).toMatchObject({
+        id: plate.id,
+        name: 'Reikälevy',
+        material: 'wood',
+        groupId: 'cabinet',
+        color: plate.color,
+      });
+      expect(result.body.feature.height).toBeCloseTo(18, 6);
+    },
+  );
   it('rejects invalid sizes, stale edge indices, flat shapes and Hold without mutating input', () => {
     const body = makeBody(100, 80, 40),
       saved = JSON.stringify(body);

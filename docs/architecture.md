@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.7.1
+# Arkkitehtuuri — v0.8.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -34,6 +34,7 @@ Ensisijaiset lähteet:
 src/model      tarkka lähdemalli, UUID:t, mitat, historia, yksiköt, tartunnat
 src/cad        worker-protokolla, BRep, kelvollisuustarkistus, mesh ja HLR
 src/viewport   Three.js, kamerat, pintavalinta ja osoitineleet, esikatselu
+src/render     erillinen esitysnäkymä, fyysiset materiaalit, studiovalo ja PNG
 src/drawing    ortografisen CAD-projektion sijoitus fyysiselle SVG-arkille
 src/storage    IndexedDB, projektitiedostot ja lataus
 src/useEditor  atominen muutos, vanhojen vastausten hylkäys, historia, tallennus
@@ -345,3 +346,22 @@ nollautuu projektin geometrian vaihtuessa tai työkalun päättyessä.
 suorittaa OpenCascaden fillet-/chamfer-operaation. Tulos validoidaan ja
 sarjallistetaan BRepiksi. Esikatselut yhdistetään yhdeksi jonoksi ja vanhentuneet
 vastaukset ohitetaan. Hyväksyntä on yksi projektitransaktio.
+
+## Esityskuva
+
+`render/scene.ts` muodostaa erillisen Three.js-näkymän samasta CAD-tesselloinnista.
+Mallinnuksen kamera ja geometria säilyvät. Näkyvät model/component-osat käyttävät
+MeshPhysicalMaterial-materiaaleja, PMREM-studioympäristöä, ACES-sävykuvausta ja
+valinnaisia pehmeitä varjoja. Puutekstuuri syntyy selaimen canvasilla ilman
+verkkolatauksia. Mallinnuksen Hold- ja valintavärit eivät siirry esityskuvaan.
+
+Osan valinnainen `material` ja projektin valinnainen `settings.render` ovat
+V5-formaatin taaksepäin yhteensopivia kenttiä. Väri ja materiaali säilyvät myös
+kopioinnissa ja BRep-muunnoksissa. Muutokset kulkevat saman historia- ja
+tallennustransaktion kautta kuin muut projektimuutokset. Esikatselun valotussäädin
+päivittyy paikallisesti ja tallentuu vasta eleen päätyttyä.
+
+PNG-vienti piirtää nykyisen perspektiivikameran valittuun pikselileveyteen,
+säilyttää kuvasuhteen ja palauttaa interaktiivisen piirtoalueen koon. Näkymä
+piirretään vain muutoksissa; sulkeminen vapauttaa geometriat, materiaalit,
+tekstuurit, ympäristökartan, varjokartan, kuuntelijat ja WebGL-renderöijän.

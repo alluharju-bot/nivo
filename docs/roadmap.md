@@ -64,10 +64,10 @@ piirretty ovi syntyy automaattisesti itsenäiseksi osaksi.
 Mitoituksen jatkokehitys: vapaasti poimitut kaksi pistettä, vinon reunan oma
 pituus, halkaisija/säde ja kulma, mittalapun siirtäminen sekä usean näkymän arkit.
 
-Seuraava korkean prioriteetin työkalukokonaisuus on **viisteet ja pyöristykset**.
-Mitoituksen, osavärien ja pintakohdistuksen jälkeen viitteiden poimintaa
-ja muita perustyökaluja viimeistellään oikeilla malleilla. Fyysinen tabletti
-ja Safari varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
+Viisteiden, pyöristysten ja ryhmähierarkian ensimmäinen versio on toteutettu
+v0.8.0:ssa. Seuraavaksi reunakäsittelyn hiirisäätö ja jälkikäteen muokattavat
+parametrit, laajempi mitoitus ja referenssikuvan kalibrointi. Fyysinen tabletti
+ja Safari varmennetaan erikseen. Linkitetyt komponentit seuraavat myöhemmin.
 
 ## Toteutettu v0.7.0: osan muokkaustila ja geometrian korjaus
 
@@ -102,38 +102,35 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
   tallennustilan loppuessa yritetään nykyistä mallia ilman historiaa.
   Projektitiedoston formaatti säilyy V5:nä ja sisältää vain nykyisen mallin.
 
-## Backlog: viisteet ja pyöristykset — erittäin korkea prioriteetti
+## Toteutettu v0.8.0: viisteet ja pyöristykset
 
-- Reunan osoituskorostus ja yhden tai usean reunan valinta; toiminto myös
-  valitun objektin tai osan kaikille soveltuville reunoille.
-- Pyöristyssäde tai viisteen koko hiirellä ja numeroilla, välitön esikatselu,
-  Enter/vapautus hyväksyy ja Esc peruu.
-- Tarkka CAD-geometria, selkeä ilmoitus liian suuresta säteestä/viisteestä,
-  alkuperäisen osan säilyminen virheessä. Hold estää muokkauksen.
-- Osan nimi, väri, ryhmä ja säilyvät mittaviitteet pysyvät mukana.
-  Undo/redo, tallennus, uudelleenavaus ja jatkomuokkaus varmennetaan.
-- Hyväksyntä: 600 × 400 × 18 mm levyn reunoihin 2 mm pyöristys tai viiste;
-  myös taskujen ja aukkojen reunat, monivalinta ja mahdoton 1000 mm säde.
+- F: näkyvän suoran tai kaarevan CAD-reunan poiminta ja monivalinta yhdellä osalla.
+- Pyöristys säteellä, tasamittainen viiste, kaikki reunat -valinta ja tarkka
+  CAD-esikatselu. Numerosyöttö; Enter hyväksyy ja Esc peruu.
+- Virheellinen mitta tai mahdoton geometria säilyttää alkuperäisen osan.
+  Osan ja ryhmän Hold estää muokkauksen. Nimi, väri, ryhmä ja säilyvät viitteet
+  pysyvät mukana; historia ja tarkka BRep tallentuvat.
+- Jatkokehitys: hiirellä vetäminen, parametristen reunakäsittelyjen muuttaminen
+  myöhemmin, erimittaiset viisteet ja tangentiaalisten reunaketjujen valinta.
+  Olennaisia seuraavia detaljeja ovat poraukset, upotukset ja toistokuviot.
 
-## Backlog: renderöintiputki ja materiaalit
+## Toteutettu v0.8.0: renderöinnin ensimmäinen versio
 
-- Erillinen esitystila, jossa harkitut väri- ja materiaalipaletit, puu,
-  melamiini, metalli ja lasi sekä karheus, tekstuurit ja niiden mittakaava.
-- Ympäristövalaistus, varjot, tausta, kamerat ja tallennettavat esitysnäkymät.
-- Laadukas kuvavienti ja esikatselun laatutasot eri laitteille.
-- Mallinnuksen osavärit toimivat lähtötietona. Renderöintiasetukset eivät
-  muuta tarkkaa geometriaa, mittoja tai mallinnustyökalujen toimintaa.
-- Materiaalit, valot ja näkymät tallennetaan projektiin; renderöintiä ei
-  käynnistetä automaattisesti esimerkiksi osan lukitsemisesta.
+- Erillinen esitysnäkymä, viisi materiaalia (matta, maalattu, puu, metalli, lasi),
+  osavärit ja koko valinnan materiaalinvaihto.
+- Kolme studioympäristön sävyä, valotus, varjot ja PNG-vienti nykyisestä kamerasta
+  1 600 tai 2 400 pikselin leveydellä. Materiaalit ja valoasetukset tallentuvat.
+- Jatkokehitys: omat tekstuurit ja syysuunnan/skaalan säätö, tallennetut kamerat,
+  valaisimet ja emissio, laatutasot ja säteenjäljitys.
 
 | Vaihe | Tila                 | Sisältö                                                                                                                         |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Perusta varmennettu  | CAD-worker, pursotus/leikkaus/pyöristys, BRep-serialisointi, pintaviite, ortografinen HLR. Fyysinen tabletti vielä testaamatta. |
 | 1     | Työnkulku toteutettu | Suorakulmio → push/pull → valinta/siirto ja tartunnat → etukuva ja mitta → projektitiedosto/SVG, tallennus, historia, kosketus. |
-| 2     | Osin toteutettu      | Ryhmät, nimet, näkyvyys ja lukitus tehty. Layerit, hierarkia ja linkitetyt komponentit myöhemmin.                               |
+| 2     | Osin toteutettu      | Sisäkkäiset ryhmät, nimet, näkyvyys, Hold ja ryhmäkopiointi tehty. Layerit ja linkitetyt komponentit myöhemmin.                 |
 | 3     | Osin toteutettu      | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.              |
-| 4     | Suunniteltu          | Materiaalit, tekstuurit, pintasijoittelu, lasi ja ympäristöä valaiseva emissio.                                                 |
-| 5     | Suunniteltu          | Scenet, esitystyylit, valaistus ja kuvavienti.                                                                                  |
+| 4     | Osin toteutettu      | Viisi materiaalia ja puutekstuuri tehty. Oma teksturointi, pintasijoittelu ja emissio myöhemmin.                                |
+| 5     | Osin toteutettu      | Studiovalaistus, esitysnäkymä ja PNG-vienti tehty. Tallennetut scenet ja kamerat myöhemmin.                                     |
 | 6     | Suunniteltu          | Laaja mitoitus, arkit, PDF, useat näkymät ja leikkaukset. HLR/SVG-perusta on jo toteutettu.                                     |
 | 7     | Suunniteltu          | Fyysisen tabletin työnkulut, suorituskyky, valinnan hienosäätö ja resurssibudjetit.                                             |
 
@@ -164,7 +161,7 @@ kalibrointi ei muuta nykyistä kuvaa tai mallia.
 
 ## Yöpassi 2.10.2026
 
-Käyttäjän seuraava kokonaisuus: sisäkkäiset ryhmät, periytyvä näkyvyys ja Hold,
+Toteutettu kokonaisuus: sisäkkäiset ryhmät, periytyvä näkyvyys ja Hold,
 ryhmän ja monivalinnan yhteinen siirto/kopiointi, viisteet ja pyöristykset sekä
 renderöinnin ensimmäinen versio. Ryhmän sisällön rajaus tehdään valintaa
 muuttamalla ennen siirtoa; näkymään sovitus on erillinen toiminto. Linkitetyt
