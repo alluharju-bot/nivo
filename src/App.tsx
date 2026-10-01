@@ -113,6 +113,7 @@ import {
 import {
   angleBetween,
   guidePoints,
+  guideMeasurement,
   guideVector,
   guideDirection,
   parseAngle,
@@ -255,6 +256,7 @@ export default function App() {
   const sketchTargetRef = useRef<FaceTarget | undefined>(undefined);
   const [surfaceMode, setSurfaceMode] = useState<'new' | 'region'>('new');
   const [editingBodyId, setEditingBodyId] = useState<string>();
+  const [editNotice, setEditNotice] = useState<{ x?: number; y?: number }>();
   const gestureActive = useRef(false);
   const [shapeKind, setShapeKind] = useState<'circle' | 'ellipse' | 'polygon'>('circle');
   const [shapeSides, setShapeSides] = useState(6);
@@ -339,6 +341,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
   const editingBody = project.bodies.find((b) => b.id === editingBodyId);
+  const selectedGuide = project.guides.find((g) => g.id === selectedGuideId);
   const [awaitingStart, setAwaitingStart] = useState(false);
   const visibleBodies = useMemo(
     () => project.bodies.filter((b) => bodyVisible(b, project.groups)),
@@ -528,11 +531,13 @@ export default function App() {
       setBooleanTargets((ids) => ids.filter((v) => v !== id));
     }
   };
+  const explainEditContext = (position?: { x: number; y: number }) => {
+    setEditNotice(position ?? {});
+    editor.setMessage('Muokkaat yhtä osaa. Valitse Lopeta muokkaus, jotta voit valita muita osia.');
+  };
   const select = (id?: string, face?: FaceRef, additive = false, force = false) => {
     if (editingBodyId && id && id !== editingBodyId && !force) {
-      editor.setMessage(
-        'Muut osat ovat viitteitä. Päätä nykyisen osan muokkaus Valmis-painikkeella.',
-      );
+      explainEditContext();
       return;
     }
     if (tool === 'boolean' && !force) {
@@ -591,6 +596,7 @@ export default function App() {
     select(id, undefined, false, true);
     setTool('select');
     setEditingBodyId(id);
+    setEditNotice(undefined);
     hoveredFaceRef.current = undefined;
     setSurfaceMode('region');
     setPanelOpen(true);
@@ -607,6 +613,7 @@ export default function App() {
     setSelectedIds(editingBodyId ? [editingBodyId] : []);
     setSelectedFace(undefined);
     setEditingBodyId(undefined);
+    setEditNotice(undefined);
     setSurfaceMode('new');
     editor.setError('');
     editor.setMessage('Osan muokkaus päätetty. Piirtäminen luo uuden osan.');
@@ -1337,6 +1344,30 @@ export default function App() {
       editor.setError((e as Error).message);
     }
   };
+  const selectGuide = (id: string) => {
+    if (busy) return;
+    resetGesture();
+    setTool('select');
+    setSelected(undefined);
+    setSelectedIds([]);
+    setSelectedFace(undefined);
+    setSelectedGuideId(id);
+    setAwaitingStart(true);
+    setTab('guides');
+    editor.setMessage('Viiva valittu. Valitse toiminto viivan valikosta.');
+  };
+  const removeGuide = async (id: string) => {
+    if (busy) return;
+    if (
+      await editor.transact(
+        { ...project, guides: project.guides.filter((g) => g.id !== id) },
+        'Viiva poistettu. Peru palauttaa sen.',
+      )
+    ) {
+      resetGesture();
+      setAwaitingStart(true);
+    }
+  };
   const editGuide = (guide: Guide) => {
     resetGesture();
     setTool('measure');
@@ -1466,7 +1497,7 @@ export default function App() {
                 ? [
                     {
                       key: guideDraft?.offset ? 'offset' : 'length',
-                      label: guideDraft?.offset ? 'Etäisyys reunasta' : 'Pituus',
+                      label: guideDraft?.offset ? 'Etäisyys lähtökohdasta' : 'Pituus',
                       value: guideDraft?.offset ? fields.offset : fields.length,
                       unit: 'mm',
                       testId: 'guide-length',
@@ -1668,6 +1699,12 @@ export default function App() {
   const onSheet = useCallback((sheet?: Sheet) => setSheet(sheet), []);
 
   useEffect(() => {
+    if (!editNotice) return;
+    const timer = window.setTimeout(() => setEditNotice(undefined), 5000);
+    return () => window.clearTimeout(timer);
+  }, [editNotice]);
+  useEffect(() => setEditNotice(undefined), [editingBodyId, tool]);
+  useEffect(() => {
     setSelectedIds((ids) => ids.filter((id) => project.bodies.some((b) => b.id === id)));
     if (selected && !project.bodies.some((b) => b.id === selected)) {
       setSelected(undefined);
@@ -1767,7 +1804,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', keydown);
   });
   useEffect(() => {
-    if (tool === 'measure' && axis && guideRef.current && !('edge' in guideRef.current.anchor)) {
+    if (tool === 'measure' && axis && guideRef.current && !guideRef.current.offset) {
       const draft = guideRef.current;
       draft.direction = axisVector(axis);
       draft.plane = planeForDirection(draft.direction, draft.plane);
@@ -2132,7 +2169,7 @@ export default function App() {
           <span className="rail-unit">mm</span>
         </aside>
 
-        <main className="canvas-area">
+        <main className={`canvas-area ${editingBody && mode === 'model' ? 'is-editing' : ''}`}>
           <div className="canvas-topbar">
             <div className="view-tabs" aria-label="Näkymät">
               {mode === 'model'
@@ -2216,14 +2253,40 @@ export default function App() {
 
           <div className="model-stage" hidden={mode !== 'model'}>
             {editingBody && (
-              <div className="edit-context" data-testid="edit-context" role="status">
-                <Pencil size={15} />
-                <span>
-                  Muokataan: <strong>{editingBody.name}</strong>
-                </span>
-                <button onClick={closeBodyEdit} disabled={busy}>
-                  <Check size={15} /> Valmis
+              <div className="edit-context" data-testid="edit-context" data-notice={!!editNotice}>
+                <Pencil size={19} aria-hidden="true" />
+                <div className="edit-context-copy" role="status">
+                  <div className="edit-context-title">
+                    <span>Muokkaustila</span>
+                    <strong title={editingBody.name}>{editingBody.name}</strong>
+                  </div>
+                  <p>
+                    {editNotice
+                      ? 'Lopeta muokkaus, jotta voit valita muita osia.'
+                      : 'Muut osat ovat viitteitä. V: tuplaklikkaa tyhjää tilaa poistuaksesi.'}
+                  </p>
+                </div>
+                <button
+                  onClick={closeBodyEdit}
+                  disabled={busy}
+                  title="Lopeta muokkaus · Esc peruu ensin keskeneräisen toiminnon"
+                >
+                  <Check size={16} aria-hidden="true" /> Lopeta muokkaus
                 </button>
+              </div>
+            )}
+            {editingBody && editNotice?.x !== undefined && editNotice.y !== undefined && (
+              <div
+                className="edit-context-hint"
+                data-testid="edit-context-hint"
+                role="status"
+                style={{
+                  left: `clamp(8px, ${editNotice.x + 16}px, calc(100% - 280px))`,
+                  top: `clamp(145px, ${editNotice.y + 16}px, calc(100% - 100px))`,
+                }}
+              >
+                <strong>{editingBody.name} on muokkaustilassa</strong>
+                <span>Lopeta muokkaus yläpalkista, jotta voit valita muita osia.</span>
               </div>
             )}
             {!editingBody && faceTarget && ['extrude', 'offset'].includes(tool) && (
@@ -2235,7 +2298,10 @@ export default function App() {
             <Viewport
               editingBodyId={editingBodyId}
               onEditBody={openBodyEdit}
+              onCloseBodyEdit={closeBodyEdit}
+              onEditBlocked={explainEditContext}
               onRemoveBoundary={(target) => void eraseBoundary(target)}
+              onRemoveGuide={(id) => void removeGuide(id)}
               bodies={visibleBodies}
               meshes={visibleMeshes}
               selected={selected}
@@ -2304,10 +2370,7 @@ export default function App() {
                 writeFields({ height: '0' });
                 if (tool === 'extrude') measureTarget(target, true);
               }}
-              onSelectGuide={(id) => {
-                const g = project.guides.find((g) => g.id === id);
-                if (g) editGuide(g);
-              }}
+              onSelectGuide={selectGuide}
               onAxis={(next) => {
                 setAxis(next);
                 if (next) setFreeRotate(false);
@@ -2346,6 +2409,40 @@ export default function App() {
               }}
             />
             {!panelOpen && numericInput}
+            {tool === 'select' && selectedGuide && (
+              <div className="guide-actions" role="toolbar" aria-label="Viivan toiminnot">
+                <span>
+                  <Ruler size={16} />
+                  {selectedGuide.mode === 'guide' ? 'Apuviiva' : 'Mittaviiva'}
+                </span>
+                <button disabled={busy} onClick={() => editGuide(selectedGuide)}>
+                  <Pencil size={15} /> Muokkaa
+                </button>
+                <button disabled={busy} onClick={() => rotateGuide()} title="Kierrä 45° · R">
+                  <RotateCw size={15} /> Kierrä
+                </button>
+                <button
+                  disabled={busy}
+                  aria-pressed={!!selectedGuide.xray}
+                  onClick={() =>
+                    void editor.transact(
+                      {
+                        ...project,
+                        guides: project.guides.map((g) =>
+                          g.id === selectedGuide.id ? { ...g, xray: !g.xray } : g,
+                        ),
+                      },
+                      'Viivan x-ray muutettu.',
+                    )
+                  }
+                >
+                  X-ray
+                </button>
+                <button disabled={busy} onClick={() => void removeGuide(selectedGuide.id)}>
+                  <Trash2 size={15} /> Poista
+                </button>
+              </div>
+            )}
             {tool === 'measure' && measureMenu && (
               <div className="measure-mode-menu" role="menu" aria-label="Mittatyökalun tila">
                 <button
@@ -2986,7 +3083,7 @@ export default function App() {
                   ) : tab === 'guides' ? (
                     <div className="guide-list">
                       {project.guides.map((g) => {
-                        const points = guidePoints(project.bodies, g);
+                        const points = guideMeasurement(project.bodies, g);
                         return (
                           <div
                             key={g.id}
@@ -2994,7 +3091,7 @@ export default function App() {
                               !points ? 'broken' : selectedGuideId === g.id ? 'selected' : ''
                             }
                           >
-                            <button onClick={() => editGuide(g)}>
+                            <button onClick={() => selectGuide(g.id)}>
                               <Ruler size={15} />
                               <span>
                                 {points
@@ -3174,10 +3271,11 @@ export default function App() {
             <p>
               <strong>Uusi osa vai pinnan muokkaus:</strong> normaalisti piirto tekee uuden osan,
               myös toisen kappaleen pinnalle. Valitse-työkalulla (V) tuplaklikkaa osaa tai valitse
-              Muokkaa osaa: Muokataan-palkki kertoo kohteen, muut osat himmenevät viitteiksi ja
-              piirto jakaa vain avattua osaa. Valmis sulkee muokkaustilan. Esc peruu ensin
-              keskeneräisen toiminnon, seuraava Esc sulkee muokkaustilan. E/O toimii suoraan myös
-              normaalitilassa.
+              Muokkaa osaa: Muokkaustila-palkki kertoo kohteen, muut osat himmenevät viitteiksi ja
+              piirto jakaa vain avattua osaa. Lopeta muokkaus sulkee muokkaustilan. Myös
+              Valitse-työkalun tuplaklikkaus tyhjään tilaan sulkee sen; yksittäinen napsautus tai
+              kameran liikuttaminen ei poistu muokkaustilasta. Esc peruu ensin keskeneräisen
+              toiminnon, seuraava Esc sulkee muokkaustilan. E/O toimii suoraan myös normaalitilassa.
             </p>
             <p>
               <strong>Poista rajaus (U):</strong> osoita samantasoisten pintojen jakoviivaa ja

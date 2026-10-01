@@ -90,6 +90,28 @@ export function guidePoints(bodies: Body[], guide: Guide): [Vec3, Vec3] | undefi
 export function guideVector(guide: Guide): Vec3 {
   return guide.direction ? unit(guide.direction) : guideDirection(guide.plane, guide.angle);
 }
+// Offset guides measure across the gap from their source, never along the edge.
+export function guideMeasurement(bodies: Body[], guide: Guide): [Vec3, Vec3] | undefined {
+  const points = guidePoints(bodies, guide);
+  if (!points) return;
+  if (guide.mode === 'guide' && guide.offset) {
+    const anchor = resolveAnchor(bodies, guide.anchor);
+    return anchor ? [anchor, points[0]] : undefined;
+  }
+  return points;
+}
+
+export function lineIntersection(a: [Vec3, Vec3], b: [Vec3, Vec3]): Vec3 | undefined {
+  const u = unit(sub(a[1], a[0])),
+    v = unit(sub(b[1], b[0]));
+  const w = sub(a[0], b[0]),
+    uv = dot(u, v),
+    denominator = 1 - uv * uv;
+  if (denominator < 1e-10) return;
+  const first = add(a[0], scale(u, (uv * dot(v, w) - dot(u, w)) / denominator));
+  const second = add(b[0], scale(v, (dot(v, w) - uv * dot(u, w)) / denominator));
+  return Math.hypot(...sub(first, second)) < 1e-5 ? scale(add(first, second), 0.5) : undefined;
+}
 export function angleBetween(start: Vec3, end: Vec3, plane: WorkPlane, free = false) {
   const [u, v] = planeAxes[plane];
   const angle = (Math.atan2(end[v] - start[v], end[u] - start[u]) * 180) / Math.PI;

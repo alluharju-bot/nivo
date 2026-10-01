@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { bounds, featureIsSolid, type Vec3 } from '../model/project';
-import { guidePoints } from '../model/guides';
+import { guidePoints, guideMeasurement } from '../model/guides';
 import { formatLength } from '../model/units';
 import { installInteractions } from './interactions';
 import type { ViewportProps as Props, CameraCommand } from './types';
@@ -599,39 +599,43 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const vectors = points.map((p) => new THREE.Vector3(...p));
       const isGuide = guide.mode === 'guide';
       const xray = props.guideXray || !!guide.xray;
-      const color = props.selectedGuideId === guide.id ? '#0047ff' : '#008de0';
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(vectors),
-        isGuide
-          ? new THREE.LineDashedMaterial({
-              color,
-              dashSize: 14,
-              gapSize: 8,
-              depthTest: !xray,
-              depthWrite: false,
-            })
-          : new THREE.LineBasicMaterial({ color: '#008bbd', depthTest: !xray, depthWrite: false }),
-      );
+      const color = props.selectedGuideId === guide.id ? '#265c75' : '#487b91';
+      const makeLine = (points: THREE.Vector3[], dashed: boolean, width: number, opacity = 1) => {
+        const geometry = new LineGeometry();
+        geometry.setPositions(points.flatMap((p) => p.toArray()));
+        const result = new Line2(
+          geometry,
+          new LineMaterial({
+            color,
+            linewidth: width,
+            dashed,
+            dashSize: 14,
+            gapSize: 8,
+            depthTest: !xray,
+            depthWrite: false,
+            transparent: opacity < 1,
+            opacity,
+            resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
+          }),
+        );
+        result.computeLineDistances();
+        return result;
+      };
+      const line = makeLine(vectors, isGuide, 2);
       line.computeLineDistances();
       line.renderOrder = 80;
       line.userData = { guideId: guide.id, xray };
       guides.add(line);
       if (isGuide) {
         const direction = vectors[1].clone().sub(vectors[0]).normalize();
-        const extension = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
+        const extension = makeLine(
+          [
             vectors[0].clone().addScaledVector(direction, -20000),
             vectors[1].clone().addScaledVector(direction, 20000),
-          ]),
-          new THREE.LineDashedMaterial({
-            color,
-            dashSize: 14,
-            gapSize: 8,
-            transparent: true,
-            opacity: 0.7,
-            depthTest: !xray,
-            depthWrite: false,
-          }),
+          ],
+          true,
+          1.5,
+          0.8,
         );
         extension.computeLineDistances();
         extension.userData = { guideId: guide.id, xray };
@@ -642,9 +646,21 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       element.className = 'guide-label';
       element.dataset.xray = String(xray);
       element.dataset.testid = 'guide-label';
-      element.textContent = `${formatLength(vectors[0].distanceTo(vectors[1]))} mm${isGuide ? ' · ' + formatLength(guide.angle) + '°' : ''}`;
+      element.dataset.guideId = guide.id;
+      const measured = guideMeasurement(props.bodies, guide)!.map((p) => new THREE.Vector3(...p));
+      element.textContent = `${formatLength(measured[0].distanceTo(measured[1]))} mm${isGuide && !guide.offset ? ' · ' + formatLength(guide.angle) + '°' : ''}`;
+      element.title = guide.offset ? 'Etäisyys lähtökohdasta' : 'Pituus';
+      if (isGuide && guide.offset) {
+        const dimension = makeLine(measured, false, 1.5);
+        dimension.renderOrder = 81;
+        guides.add(dimension);
+      }
       container.append(element);
-      labels.push({ element, point: vectors[0].clone().add(vectors[1]).multiplyScalar(0.5), xray });
+      labels.push({
+        element,
+        point: measured[0].clone().add(measured[1]).multiplyScalar(0.5),
+        xray,
+      });
     }
     if (props.penPoints.length) {
       const points = [...props.penPoints];

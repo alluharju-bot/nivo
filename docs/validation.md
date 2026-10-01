@@ -1,10 +1,30 @@
-# Validointi — 1.10.2026
+# Validointi — 2.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
+
+Muokkaustilan ja apuviivojen viimeistely: **70 yksikkö- ja CAD-testiä
+hyväksytty** sekä TypeScript ja tuotantopaketointi hyväksytty. Uudet kokeet
+varmentavat offsetin lähtöetäisyyden neljässä suunnassa, aidot 3D-risteykset
+myös vinotasossa sekä eri syvyyksillä ja yhdensuuntaisesti kulkevien viivojen
+risteystartunnan hylkäämisen. Työpöytä- ja tablettiprofiilin 20 selaintapauksesta
+19 hyväksyttiin ensimmäisellä ajolla. Tablettiprofiilin Z-lukon koe paljasti
+ruudulla lähellä olevan mutta akselin ulkopuolisen apuviivan häiritsevän
+lukittua siirtoa; tartunta rajattiin 3D-akselille. Kohdistettu uusinta hyväksyi **4/4 tapausta**,
+joten kaikki 20 erillistä selaintapausta on varmennettu. Muotoilutarkistus
+on hyväksytty.
+
+Uudet selaintyönkulut kattavat näkyvän muokkaustilan ja kohdistimen ohjeen,
+tyhjään tilaan tuplaklikkaamalla poistumisen ja tavallisten napsautusten,
+vetojen, kameran kierron ja piirtämisen säilymisen muokkaustilassa. Apuviiva
+alkaa toisesta apuviivasta tai tarkasta risteyksestä ja tarttuu risteykseen
+myös loppupisteenä. Seinän pystyreunasta mitataan 80 mm siirto eikä 600 mm
+reunapituutta. Valinta ei siirrä apuviivaa; kumitus poistaa vain korostetun
+viivan ja undo/redo sekä sivun päivitys säilyttävät tuloksen. Työpöydän ja
+tablettiprofiilin kuvakaappaukset tarkistettiin.
 
 V0.7.0: **63 yksikkö- ja CAD-testiä hyväksytty**. TypeScript,
 tuotantopaketointi ja muotoilutarkistus hyväksytty.

@@ -7,7 +7,7 @@ import {
   type Vec3,
   type WorkPlane,
 } from './project';
-import { guidePoints, planeAxes } from './guides';
+import { guidePoints, lineIntersection, planeAxes } from './guides';
 import type { BodyMesh } from '../cad/protocol';
 import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
 import { dot, sub, projectOnLine } from './geometry';
@@ -21,6 +21,37 @@ export interface ReferencePoint {
   point: Vec3;
   label: string;
   key: string;
+}
+export function guideSnapCandidates(
+  raw: Vec3,
+  lines: { id: string; points: [Vec3, Vec3] }[],
+  threshold: number,
+) {
+  const candidates: (Snap & { priority: number })[] = [];
+  const nearby = lines.filter(({ id, points }) => {
+    const direction = sub(points[1], points[0]);
+    if (Math.hypot(...direction) < 1e-8) return false;
+    const point = projectOnLine(raw, points[0], direction);
+    if (Math.hypot(...sub(point, raw)) > threshold * 1.5) return false;
+    candidates.push(
+      { point: points[0], key: `${id}:start`, label: 'Apuviivan alku', priority: 0 },
+      { point: points[1], key: `${id}:end`, label: 'Apuviivan pää', priority: 0 },
+      { point, key: `${id}:line`, label: 'Apuviiva', line: points, priority: 1 },
+    );
+    return true;
+  });
+  for (let i = 0; i < nearby.length; i++)
+    for (let j = i + 1; j < nearby.length; j++) {
+      const point = lineIntersection(nearby[i].points, nearby[j].points);
+      if (point)
+        candidates.push({
+          point,
+          key: `${nearby[i].id}:${nearby[j].id}:intersection`,
+          label: 'Apuviivojen risteys',
+          priority: 0,
+        });
+    }
+  return candidates;
 }
 export function snapOnSketchPlane(
   raw: Vec3,
@@ -38,18 +69,14 @@ export function snapOnSketchPlane(
   const candidates: (Snap & { priority: number })[] = [...modelSnapPoints(bodies, meshes), ...extra]
     .filter((p) => onPlane(p.point))
     .map((p) => ({ ...p, priority: 0 }));
+  const lines: { id: string; points: [Vec3, Vec3] }[] = [];
   for (const guide of guides) {
     if (guide.mode !== 'guide') continue;
     const ends = guidePoints(bodies, guide);
     if (!ends || !ends.every(onPlane)) continue;
-    candidates.push({
-      point: projectOnLine(raw, ends[0], sub(ends[1], ends[0])),
-      key: `${guide.id}:line`,
-      label: 'Apuviiva',
-      line: ends,
-      priority: 1,
-    });
+    lines.push({ id: guide.id, points: ends });
   }
+  candidates.push(...guideSnapCandidates(raw, lines, threshold));
   const uv = toUV(raw, frame);
   if (reference) {
     const p = ontoFrame(reference.point, frame),
@@ -179,6 +206,7 @@ export function snapPoint(
       options.meshes,
     ).map((p) => ({ ...p, priority: 0 })),
   ];
+  const lines: { id: string; points: [Vec3, Vec3] }[] = [];
   for (const guide of options.guides ?? []) {
     if (guide.mode !== 'guide') continue;
     const pts = guidePoints(bodies, guide);
@@ -196,14 +224,9 @@ export function snapPoint(
       Math.abs(b[normal] - point[normal]) > 1e-5
     )
       continue;
-    const t = point.reduce((s, n, i) => s + (n - a[i]) * delta[i], 0) / length2;
-    const projected = a.map((n, i) => n + t * delta[i]) as Vec3;
-    candidates.push(
-      { point: a, label: 'Apuviivan alku', key: `${guide.id}:start`, priority: 0 },
-      { point: b, label: 'Apuviivan pää', key: `${guide.id}:end`, priority: 0 },
-      { point: projected, label: 'Apuviiva', key: `${guide.id}:line`, line: pts, priority: 1 },
-    );
+    lines.push({ id: guide.id, points: [a, b] });
   }
+  candidates.push(...guideSnapCandidates(point, lines, threshold));
   const reference = options.reference;
   if (reference) {
     const projected = [...reference.point] as Vec3;
@@ -262,7 +285,14 @@ export function snapPoint(
   });
   const stable =
     previous &&
-    eligible.find((c) => c.key === previous.key && distance(c.point, point) < threshold * 1.5);
+    eligible.find(
+      (c) =>
+        c.key === previous.key &&
+        distance(c.point, point) < threshold * 1.5 &&
+        !eligible.some(
+          (other) => other.priority < c.priority && distance(other.point, point) < threshold,
+        ),
+    );
   const closest =
     stable ??
     eligible

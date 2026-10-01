@@ -161,3 +161,17 @@ Hyväksyntäesimerkki: pohjakuvan kahden pisteen väliksi annetaan 4 200 mm.
 Samoihin päätepisteisiin piirretyn malliviivan tulee olla 4 200 mm pitkä.
 Sama tarkistus tehdään julkisivukuvan pystymitalle. Epäkelpo tai nollapituinen
 kalibrointi ei muuta nykyistä kuvaa tai mallia.
+
+## Yöpassi 2.10.2026
+
+Käyttäjän seuraava kokonaisuus: sisäkkäiset ryhmät, periytyvä näkyvyys ja Hold,
+ryhmän ja monivalinnan yhteinen siirto/kopiointi, viisteet ja pyöristykset sekä
+renderöinnin ensimmäinen versio. Ryhmän sisällön rajaus tehdään valintaa
+muuttamalla ennen siirtoa; näkymään sovitus on erillinen toiminto. Linkitetyt
+komponentti-instanssit pysyvät myöhempänä ominaisuutena.
+
+Muokkaustilan ja apuviivojen viimeistelyssä lisättiin näkyvä tilapalkki,
+tyhjän tilan turvallinen tuplaklikkauspoistuminen, apuviivan lähtöetäisyys,
+3D-risteystartunnat sekä viivan valinta, toimintovalikko ja kumitus. Koko
+mallin oikean painikkeen kontekstivalikko on jatkokehitystä; kameran oikealla
+painikkeella tehtävä kierto säilyy nykyisellään.

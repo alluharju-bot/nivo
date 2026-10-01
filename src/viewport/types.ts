@@ -53,7 +53,10 @@ export type Gesture =
 export interface ViewportProps {
   editingBodyId?: string;
   onEditBody: (id: string) => void;
+  onCloseBodyEdit: () => void;
+  onEditBlocked: (position: { x: number; y: number }) => void;
   onRemoveBoundary: (target: BoundaryTarget) => void;
+  onRemoveGuide: (id: string) => void;
   rotation?: Rotation;
   onRotationPick: (pivot: Vec3, axis?: Vec3, bodyId?: string) => void;
   onRotationAngle: (angle: number) => void;

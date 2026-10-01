@@ -78,8 +78,9 @@ test('double-click opens one part, drawing edits only it, and Escape cancels bef
   const point = await view(page, [left, right]);
   const center = point(150, 150, 40);
   await page.mouse.dblclick(center.x, center.y);
-  await expect(page.getByTestId('edit-context')).toContainText('Muokataan: Kaappi');
+  await expect(page.getByTestId('edit-context')).toContainText('MuokkaustilaKaappi');
   await click(page, point(450, 150, 40));
+  await expect(page.getByTestId('edit-context-hint')).toContainText('Kaappi on muokkaustilassa');
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-editing-body', left.id);
   await page.keyboard.press('s');
   await expect(page.getByRole('combobox', { name: 'Piirtotapa', exact: true })).toHaveValue(
@@ -135,7 +136,7 @@ test('the edit button works for components; references snap but cannot be pushed
   await page.mouse.move(boundary.x, boundary.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-erase-boundary', '');
   expect((await save(page)).bodies).toEqual([source, reference]);
-  await page.getByRole('button', { name: 'Valmis', exact: true }).click();
+  await page.getByRole('button', { name: 'Lopeta muokkaus', exact: true }).click();
   await expect(page.getByTestId('edit-context')).toHaveCount(0);
   await page.getByTestId(`body-${source.id}`).click();
   await page.getByRole('button', { name: 'Kiinnitä paikalleen', exact: true }).click();
@@ -217,7 +218,7 @@ test('an explicit new part inside the edit context snaps to another part without
   expect(result.bodies.slice(0, 2)).toEqual([left, right]);
   expect(result.bodies[2].feature).toMatchObject({ width: 510, depth: 260 });
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-editing-body', left.id);
-  await page.getByRole('button', { name: 'Valmis', exact: true }).click();
+  await page.getByRole('button', { name: 'Lopeta muokkaus', exact: true }).click();
   await expect(page.getByTestId('edit-context')).toHaveCount(0);
 });
 
@@ -281,4 +282,35 @@ test('a history storage failure still saves the current model and reports the sh
   await expect(page.locator('.busy-badge')).toHaveCount(0);
   expect((await save(page)).bodies).toEqual([part]);
   await expect(page.getByRole('button', { name: 'Peru', exact: true })).toBeDisabled();
+});
+
+test('empty-space exit requires two clicks; misses, drags, navigation and drawing retain edit mode', async ({
+  page,
+}) => {
+  const body = makeBody(300, 300, 40, [0, 0, 0], 'Kaappi');
+  await ready(page, [body]);
+  await view(page, [body]);
+  await editBody(page, body.id);
+  const canvas = page.getByTestId('viewport');
+  const box = (await canvas.boundingBox())!;
+  const empty = { x: box.x + 60, y: box.y + box.height - 130 };
+  await click(page, empty);
+  await expect(canvas).toHaveAttribute('data-editing-body', body.id);
+  await page.mouse.down();
+  await page.mouse.move(empty.x + 40, empty.y - 10);
+  await page.mouse.move(empty.x, empty.y);
+  await page.mouse.up();
+  await expect(canvas).toHaveAttribute('data-editing-body', body.id);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(empty.x + 35, empty.y - 25, { steps: 5 });
+  await page.mouse.up({ button: 'right' });
+  await expect(canvas).toHaveAttribute('data-editing-body', body.id);
+  await page.keyboard.press('s');
+  await page.mouse.dblclick(empty.x, empty.y);
+  await expect(canvas).toHaveAttribute('data-editing-body', body.id);
+  await page.keyboard.press('Escape');
+  await expect(canvas).toHaveAttribute('data-editing-body', body.id);
+  await page.mouse.dblclick(empty.x, empty.y);
+  await expect(page.getByTestId('edit-context')).toHaveCount(0);
+  expect((await save(page)).bodies).toEqual([body]);
 });

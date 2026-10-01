@@ -3,7 +3,7 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.7.0 erottaa uuden osan ja pinnan muokkauksen: normaalisti piirto luo
+Versio 0.7.1 selkeyttää muokkaustilaa ja apuviivoja. Se erottaa uuden osan ja pinnan muokkauksen: normaalisti piirto luo
 itsenäisen osan, **tuplaklikkaus** avaa yhden osan muokattavaksi. Muut osat
 toimivat tartuntaviitteinä. **Poista rajaus (U)** yhdistää viereiset tasopinnat,
 myös tallennetussa mallissa. Peru/Palauta-historia säilyy selaimen päivityksen yli.
@@ -87,7 +87,8 @@ ja tartunnat, mutta ei muuta piirrosta kaapin pintamuokkaukseksi. Tämä koskee
 myös pientä, kokonaan pinnan sisään mahtuvaa suorakulmiota tai ympyrää.
 
 **Valitse-työkalulla (V) tuplaklikkaa osaa 3D-näkymässä** tai valitse osa ja paina **Muokkaa osaa**.
-Vihreä rajaus ja **Muokataan: osan nimi** kertovat kohteen. Muut osat himmenevät,
+Mallinnusalueen yläreunan **Muokkaustila**-palkki, osan nimi ja hillitty reunus kertovat kohteen.
+Toisen osan napsautus näyttää ohjeen myös kohdistimen lähellä. Muut osat himmenevät,
 mutta niiden pisteet, reunat ja pinnat tarjoavat edelleen tartunnat ja viitteet.
 Piirtotapa on **Pinnan alue**: aloita avattavan osan pinnalta ja piirrä rajaus.
 Positiivinen paksuus lisää materiaalia, negatiivinen tekee syvennyksen ja nolla
@@ -96,7 +97,9 @@ avattu osa pysyy muokkauksen kohteena. Sääntö on sama tavallisille ja nimetyi
 
 ![Avattu osa rajataan ja muut osat jäävät näkyviin tartuntaviitteiksi](docs/images/nivo-edit-context.png)
 
-**Valmis** sulkee muokkaustilan. **Esc** peruu ensin keskeneräisen toiminnon;
+**Lopeta muokkaus** sulkee muokkaustilan. Myös Valitse-työkalun tuplaklikkaus
+tyhjään tilaan sulkee sen. Yksittäinen ohiklikkaus, veto tai kameran liikuttaminen
+ei sulje muokkaustilaa. **Esc** peruu ensin keskeneräisen toiminnon;
 ilman keskeneräistä toimintoa se sulkee muokkaustilan. Sivun uudelleenavaus
 alkaa normaalitilassa. **E ja O** toimivat suoraan myös normaalitilassa eivätkä
 avaa pysyvää piirtomuokkausta. Cut/Join tehdään muokkaustilan ulkopuolella.
@@ -210,17 +213,23 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
   lukitussa suunnassa syötetään yksi pituus. Enter lisää tarkan pisteen tai sulkee muodon.
 - **Mittatyökalu:** ensimmäinen painallus aktivoi apuviivan. Toinen painallus
   avaa valinnan apuviivan ja vapaan mittaviivan välillä. Apuviiva alkaa kappaleen
-  verteksistä tai reunasta. Reunasta vetäminen tekee reunan suuntaisen apuviivan
+  verteksistä, reunasta, toisesta apuviivasta tai apuviivojen 3D-risteyksestä.
+  Risteykset tarttuvat myös piirtotyökaluissa. Reunasta tai apuviivasta vetäminen tekee reunan suuntaisen apuviivan
   halutulle etäisyydelle. Koko reuna korostuu ja tartuntapiste seuraa kohdistinta.
   Vedä kannen tai sivupinnan puolelle: siirto seuraa kyseistä pintaa.
   Siihen voi tarttua myös jatkeen kohdalta. Vapaa mittaviiva näyttää
-  kahden pisteen etäisyyden. Vedä tai napsauta alku- ja loppupisteet.
+  kahden pisteen etäisyyden. Reunan suuntaisen apuviivan mittateksti ja
+  mittakenttä näyttävät lähtökohdan ja viivan välisen etäisyyden, eivät lähtöreunan
+  pituutta. Mittaväli näkyy yhdysviivana. Vedä tai napsauta alku- ja loppupisteet.
 - **Apuviivan suunta:** reunasta vedettäessä X/Y/Z lukitsee **siirtosuunnan**;
   viiva säilyttää reunan suunnan. Sama näppäin vapauttaa lukon. Verteksistä
   alkavan viivan X/Y/Z lukitsee viivan suunnan; oletuksena 45° ennakointi.
   R kiertää 45°, Shift+R käynnistää vapaan kierron. Kulman, pituuden tai reunaetäisyyden
-  voi kirjoittaa. Valmista viivaa voi valita näkymästä tai Viivat-listasta ja kiertää.
-- **Apuviivan näkyvyys:** sininen katkoviiva peittyy normaalisti kappaleen taakse.
+  voi kirjoittaa. Valmiin viivan napsautus näkymässä tai Viivat-listassa vain
+  valitsee sen. Pieni toimintovalikko tarjoaa Muokkaa-, Kierrä-, X-ray- ja
+  Poista-toiminnot. Seuraava napsautus ei siirrä viivaa ilman Muokkaa-toimintoa.
+  **Poista rajaus (U)** kumittaa myös korostetun apu- tai mittaviivan; Peru palauttaa sen.
+- **Apuviivan näkyvyys:** vahvempi, hillityn sininen katkoviiva ja selkeä mittateksti peittyvät normaalisti kappaleen taakse.
   Viivat-listan x-ray näyttää valitun viivan kappaleiden läpi. Näkymän asetuksista
   saa x-rayn kaikille apuviivoille. Molemmat asetukset tallentuvat projektiin.
 - **Mittaikkuna:** oletuksena oikeassa sivupaneelissa, mallin ulkopuolella.

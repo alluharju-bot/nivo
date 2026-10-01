@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.7.0
+# Arkkitehtuuri — v0.7.1
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -68,7 +68,7 @@ E/O ovat suoria operaatioita eivätkä muuta pysyvää muokkauskontekstia.
 Avatussa kontekstissa valinta, E/O, siirto, kierto ja kumitus rajaavat kohteen;
 viitepoiminta ja tartunnat käyttävät edelleen kaikkia näkyviä osia.
 Muokkauskonteksti on väliaikainen, ei projektin tai undo-historian osa.
-Valmis ja Esc päättävät sen; poistaminen, piilottaminen tai Hold sulkee
+Lopeta muokkaus, Esc tai Valitse-työkalun tuplaklikkaus tyhjään päättävät sen; poistaminen, piilottaminen tai Hold sulkee
 muokkauskelvottomaksi muuttuneen kohteen. Cut/Join edellyttää normaalitilaa.
 Workerin vanha `allowUnsplit`-rajapinta säilyy yhteensopivana, mutta käyttöliittymä
 ei enää päättele piirron kohdetta profiilin pinta-alasta.
@@ -318,3 +318,10 @@ Tavoite on noin 60 fps tietokoneella ja vähintään 30 fps tabletilla navigoita
 Näitä ei ole vielä mitattu saavutetuiksi. Nyt mitataan 200 osan worker-laskenta.
 Komponenttien jaettu geometria, GPU-instanssitus, tekstuuribudjetit ja fyysisen
 tabletin muisti-/fps-profiilit kuuluvat myöhempiin vaiheisiin.
+
+Apuviivan `length` määrittää edelleen viivan suunnan näkyvän perusosan.
+`guideMeasurement` mittaa offset-apuviivassa lähtöankkurin ja siirretyn viivan
+välin. Samat päät palvelevat 3D-tekstiä ja Viivat-listaa. `lineIntersection`
+hylkää yhdensuuntaiset ja ristikkäiset, eri syvyydellä kulkevat 3D-suorat.
+Tartunnat tutkivat vain kohdistimen lähellä olevien apuviivojen pareja.
+Valinta ja muokkaus ovat erillisiä: viivan napsautus ei luo mittaluonnosta.

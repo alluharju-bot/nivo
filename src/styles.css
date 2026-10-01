@@ -352,7 +352,6 @@ p {
 .canvas-topbar > * {
   pointer-events: auto;
 }
-.edit-context,
 .operation-context {
   position: absolute;
   top: 66px;
@@ -370,24 +369,144 @@ p {
   font-size: 12px;
   box-shadow: 0 2px 10px #233a2810;
 }
-.edit-context > span {
+.edit-context {
+  position: absolute;
+  inset: 0 0 auto;
+  min-height: 64px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #e0eee7;
+  color: #234e40;
+  border-bottom: 2px solid #4e8a72;
+}
+.edit-context > svg {
+  flex-shrink: 0;
+}
+.edit-context-copy {
+  flex: 1;
+  min-width: 0;
+}
+.edit-context-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.edit-context-title > span {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.edit-context-title strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 15px;
+}
+.edit-context-copy p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
 }
 .edit-context button {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-shrink: 0;
   white-space: nowrap;
-  padding: 5px 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 12px;
   background: #286954;
   color: white;
   border-radius: 5px;
 }
+.edit-context button:hover {
+  background: #1e5241;
+}
+.edit-context[data-notice='true'] {
+  background: #f4e9d2;
+  border-color: #ac8037;
+  color: #694e22;
+}
+.canvas-area.is-editing .canvas-topbar {
+  top: 80px;
+}
+.is-editing .model-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid #4e8a7266;
+  pointer-events: none;
+  z-index: 2;
+}
+.edit-context-hint {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  width: 272px;
+  max-width: calc(100% - 16px);
+  padding: 10px 12px;
+  border: 1px solid #c6ab77;
+  border-radius: 8px;
+  background: #fff9ec;
+  color: #694e22;
+  box-shadow: 0 3px 12px #233a2820;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.edit-context-hint strong,
+.edit-context-hint span {
+  display: block;
+}
+.edit-context-hint span {
+  margin-top: 4px;
+}
 .operation-context {
   pointer-events: none;
   border-color: #c9d5d0;
+}
+.guide-actions {
+  position: absolute;
+  top: 72px;
+  left: 16px;
+  max-width: calc(100% - 32px);
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  padding: 5px;
+  background: #fbfdfb;
+  border: 1px solid #a9bab3;
+  border-radius: 9px;
+  box-shadow: 0 3px 12px #233a2818;
+}
+.guide-actions > span,
+.guide-actions button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  font-size: 12px;
+}
+.guide-actions > span {
+  color: #487b91;
+  font-weight: 600;
+}
+.guide-actions button {
+  min-height: 40px;
+  border-radius: 5px;
+}
+.guide-actions button:hover,
+.guide-actions button[aria-pressed='true'] {
+  background: #e0eee7;
+}
+.is-editing .guide-actions {
+  top: 138px;
 }
 .view-tabs {
   display: flex;
@@ -645,8 +764,12 @@ p {
 }
 .guide-label {
   transform: translate(-50%, -150%);
-  color: #005aad;
-  border: 1px solid #88bae0;
+  color: #294f61;
+  border: 1px solid #8da8b3;
+  background: #fbfdfbf5;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 8px;
 }
 .viewport-settings {
   position: relative;
@@ -2003,9 +2126,6 @@ p {
   }
 }
 @media (pointer: coarse) {
-  .edit-context {
-    top: 76px;
-  }
   .edit-context button {
     min-height: 44px;
   }

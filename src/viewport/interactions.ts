@@ -11,6 +11,7 @@ import {
   guideVector,
   angleBetween,
   guideDirection,
+  lineIntersection,
 } from '../model/guides';
 import {
   add,
@@ -147,6 +148,7 @@ export function installInteractions({
     height: number;
     plane: WorkPlane;
     second: boolean;
+    moved?: boolean;
     face?: FaceTarget;
     sketch?: SketchFrame;
     bodyId?: string;
@@ -203,6 +205,7 @@ export function installInteractions({
     | undefined;
   let drag: Drag | undefined,
     blocked = false;
+  let emptySelectionClicks = 0;
   const pointers = new Set<number>();
   const screen = (point: Vec3) => {
     const p = new THREE.Vector3(...point).project(camera());
@@ -377,8 +380,16 @@ export function installInteractions({
         }
       : undefined;
   };
-  const editableFaceAt = (event: PointerEvent) => {
+  const editBlocked = (event: PointerEvent, bodyId: string) => {
+    const props = current();
+    if (!props.editingBodyId || props.editingBodyId === bodyId) return false;
+    const rect = container.getBoundingClientRect();
+    props.onEditBlocked({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+    return true;
+  };
+  const editableFaceAt = (event: PointerEvent, explain = false) => {
     const picked = faceAt(event);
+    if (picked && explain && editBlocked(event, picked.target.bodyId)) return;
     return picked &&
       !current().bodies.find((b) => b.id === picked.target.bodyId)?.locked &&
       (!current().editingBodyId || current().editingBodyId === picked.target.bodyId)
@@ -578,6 +589,90 @@ export function installInteractions({
       anchor: { edge: { from: found.edge.from, to: found.edge.to, t } } as Anchor,
     };
   };
+  const guideAt = (event: PointerEvent) => {
+    const props = current(),
+      rect = container.getBoundingClientRect();
+    const x = event.clientX - rect.left,
+      y = event.clientY - rect.top;
+    const distance = (point: Vec3) => {
+      const p = screen(point);
+      return p.z >= -1 && p.z <= 1 ? Math.hypot(p.x - x, p.y - y) : Infinity;
+    };
+    const visible = (point: Vec3, xray: boolean) => {
+      if (xray || props.guideXray) return true;
+      const p = new THREE.Vector3(...point),
+        projected = p.clone().project(camera());
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
+      const hit = ray.intersectObjects(bodies.children).find((h) => h.object instanceof THREE.Mesh);
+      return !hit || hit.distance >= ray.ray.origin.distanceTo(p) - worldPerPixel(point) * 0.5;
+    };
+    const near = props.guides
+      .filter((g) => g.mode === 'guide' && g.id !== props.guidePreview?.id)
+      .flatMap((guide) => {
+        const points = guidePoints(props.bodies, guide);
+        if (!points) return [];
+        const point = linePoint(event, points[0], guideVector(guide));
+        return distance(point) < 12 && visible(point, !!guide.xray)
+          ? [{ guide, points, point }]
+          : [];
+      });
+    const candidates = near.map(({ guide, point }) => ({
+      guide,
+      point,
+      key: `${guide.id}:line`,
+      label: 'Apuviiva',
+      intersection: false,
+    }));
+    for (let i = 0; i < near.length; i++)
+      for (let j = i + 1; j < near.length; j++) {
+        const point = lineIntersection(near[i].points, near[j].points);
+        if (
+          point &&
+          distance(point) < 12 &&
+          visible(point, !!near[i].guide.xray && !!near[j].guide.xray)
+        )
+          candidates.push({
+            guide: near[i].guide,
+            point,
+            key: `${near[i].guide.id}:${near[j].guide.id}:intersection`,
+            label: 'Apuviivojen risteys',
+            intersection: true,
+          });
+      }
+    return candidates
+      .sort(
+        (a, b) =>
+          Number(b.intersection) - Number(a.intersection) || distance(a.point) - distance(b.point),
+      )
+      .at(0);
+  };
+  const selectableGuideAt = (event: PointerEvent) => {
+    setRay(event);
+    raycaster.params.Line.threshold = worldPerPixel(current().bodies[0]?.origin ?? [0, 0, 0]) * 7;
+    (raycaster.params as { Line2?: { threshold: number } }).Line2 = { threshold: 10 };
+    const hit = raycaster.intersectObjects(guides.children).find((h) => h.object.userData.guideId);
+    const obstruction = faceAt(event)?.hit;
+    return hit &&
+      (!obstruction ||
+        hit.object.userData.xray ||
+        hit.distance <= obstruction.distance + worldPerPixel(hit.point.toArray() as Vec3) * 0.5)
+      ? hit
+      : undefined;
+  };
+  const highlightGuide = (id?: string) => {
+    canvas.dataset.eraseGuide = id ?? '';
+    for (const line of guides.children) {
+      if (!line.userData.guideId || !(line instanceof THREE.Mesh)) continue;
+      const material = line.material as THREE.Material & { color: THREE.Color; linewidth: number };
+      material.userData.originalColor ??= material.color.getHex();
+      material.userData.originalWidth ??= material.linewidth;
+      const active = line.userData.guideId === id;
+      material.color.set(active ? '#b66e35' : material.userData.originalColor);
+      material.linewidth = active ? 3 : material.userData.originalWidth;
+    }
+    render();
+  };
   const linePoint = (event: PointerEvent, start: Vec3, direction: Vec3): Vec3 => {
     setRay(event);
     const d = new THREE.Vector3(...unit(direction)),
@@ -758,6 +853,7 @@ export function installInteractions({
       highlightFace();
       highlightEdge();
       highlightBoundary();
+      highlightGuide();
       pointers.clear();
       blocked = false;
       show();
@@ -769,8 +865,7 @@ export function installInteractions({
         anchor: current().guidePreview!.anchor,
         plane: current().guidePreview!.plane,
         direction: current().guidePreview!.direction,
-        edgeLength:
-          'edge' in current().guidePreview!.anchor ? current().guidePreview!.length : undefined,
+        edgeLength: current().guidePreview!.offset ? current().guidePreview!.length : undefined,
         editing: !!current().selectedGuideId,
       };
     if (previousPenCount !== current().penPoints.length) {
@@ -853,7 +948,7 @@ export function installInteractions({
     const axis = props.axis ? axisVector(props.axis) : undefined;
     const existing = props.guidePreview;
     const base = add(start, existing?.offset ?? [0, 0, 0]);
-    const isEdge = props.measureMode === 'guide' && 'edge' in measureSession.anchor;
+    const isEdge = props.measureMode === 'guide' && measureSession.edgeLength !== undefined;
     if (isEdge && !props.freeRotate) {
       const direction = existing?.direction ?? measureSession.direction;
       if (!direction) return;
@@ -876,17 +971,34 @@ export function installInteractions({
           ? framePoint(event, measureSession.frame)
           : planePoint(event, plane, start);
       if (!raw) return;
-      if (!axis && measureSession.frame) raw = frameSnap(raw, measureSession.frame);
+      let guideSnap = guideAt(event);
+      const normal =
+        measureSession.frame?.normal ?? axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
+      if (guideSnap && Math.abs(dot(sub(guideSnap.point, start), normal)) > 1e-5)
+        guideSnap = undefined;
+      // A guide close in screen space can be far from the locked axis in 3D.
+      // Projecting such a point onto the axis would erase the intended offset.
+      if (
+        guideSnap &&
+        axis &&
+        Math.hypot(...sub(guideSnap.point, projectOnLine(guideSnap.point, start, axis))) > 1e-5
+      )
+        guideSnap = undefined;
+      if (guideSnap) raw = axis ? projectOnLine(guideSnap.point, start, axis) : guideSnap.point;
+      else if (!axis && measureSession.frame) raw = frameSnap(raw, measureSession.frame);
       let offset = axis ? sub(raw, start) : sub(raw, projectOnLine(raw, start, direction));
-      if (axis && props.gridSnap) offset = scale(axis, Math.round(dot(offset, axis) / 10) * 10);
+      if (axis && props.gridSnap && !guideSnap)
+        offset = scale(axis, Math.round(dot(offset, axis) / 10) * 10);
       const end = add(start, offset);
       show(
         {
           point: end,
           key: 'edge-offset',
-          label: axis
-            ? `${props.axis!.toUpperCase()} · Siirtosuunta lukittu`
-            : 'Reunan suuntainen apuviiva',
+          label: guideSnap
+            ? guideSnap.label
+            : axis
+              ? `${props.axis!.toUpperCase()} · Siirtosuunta lukittu`
+              : 'Reunan suuntainen apuviiva',
           line: [start, end],
         },
         plane,
@@ -914,7 +1026,21 @@ export function installInteractions({
       ) < 1e-5
         ? found
         : undefined;
-    const end = vertex && !axis ? vertex.point : axis ? raw : snap(raw, plane);
+    const guideSnap = guideAt(event);
+    const onPlane =
+      guideSnap &&
+      Math.abs(guideSnap.point[planeAxes[plane][2]] - start[planeAxes[plane][2]]) < 1e-5;
+    const end =
+      vertex && !axis
+        ? vertex.point
+        : onPlane
+          ? axis
+            ? projectOnLine(guideSnap.point, start, axis)
+            : guideSnap.point
+          : axis
+            ? raw
+            : snap(raw, plane);
+    if (onPlane) show({ ...guideSnap, point: end });
     const from = props.freeRotate ? base : start;
     const direction =
       (!isEdge && axis) ||
@@ -1006,9 +1132,13 @@ export function installInteractions({
   const down = (event: PointerEvent) => {
     lastEvent = event;
     sync();
-    if (event.button !== 0) return;
+    if (event.button !== 0) {
+      emptySelectionClicks = 0;
+      return;
+    }
     pointers.add(event.pointerId);
     if (pointers.size > 1) {
+      emptySelectionClicks = 0;
       drag = undefined;
       extrudeSession = undefined;
       shapeSession = undefined;
@@ -1020,8 +1150,12 @@ export function installInteractions({
     const props = current();
     if (props.busy || props.tool === 'navigate') return;
     if (props.tool === 'erase') {
-      const target = boundaryAt(event);
+      const guide = selectableGuideAt(event);
+      const face = faceAt(event);
+      if (!guide && face && editBlocked(event, face.target.bodyId)) return;
+      const target = !guide ? boundaryAt(event) : undefined;
       highlightBoundary(target);
+      highlightGuide(guide?.object.userData.guideId);
       drag = {
         start: [0, 0, 0],
         origin: [0, 0, 0],
@@ -1097,7 +1231,7 @@ export function installInteractions({
         };
         canvas.setPointerCapture(event.pointerId);
       } else {
-        const hit = editableFaceAt(event);
+        const hit = editableFaceAt(event, true);
         if (hit) {
           const body = props.bodies.find((b) => b.id === hit.target.bodyId);
           if (body?.locked) props.onSnap('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
@@ -1110,7 +1244,7 @@ export function installInteractions({
     if (props.tool === 'offset') {
       const continuing = !!offsetSession;
       if (!offsetSession) {
-        const picked = editableFaceAt(event);
+        const picked = editableFaceAt(event, true);
         if (!picked?.face.planar) return;
         props.onFaceTarget(picked.target);
         props.onStart();
@@ -1142,7 +1276,7 @@ export function installInteractions({
       if (!extrudeSession && continuing)
         startExtrusion(props.faceTarget!, event, props.faceDistance);
       if (!extrudeSession) {
-        const picked = editableFaceAt(event);
+        const picked = editableFaceAt(event, true);
         if (!picked?.face.planar) return;
         startExtrusion(picked.target, event);
         props.onFaceTarget(picked.target);
@@ -1217,15 +1351,16 @@ export function installInteractions({
         }
       }
     }
-    props.onStart();
     const moveHit = props.tool === 'move' ? faceAt(event) : undefined;
     const moveTarget = moveHit?.target.bodyId;
     if (
       props.tool === 'move' &&
       props.editingBodyId &&
       (moveTarget ?? props.selected) !== props.editingBodyId
-    )
+    ) {
+      if (moveTarget) editBlocked(event, moveTarget);
       return;
+    }
     if (
       props.tool === 'move' &&
       props.bodies.find((b) => b.id === (moveTarget ?? props.selected))?.locked
@@ -1234,6 +1369,7 @@ export function installInteractions({
       return;
     }
     if (moveTarget) props.onMoveTarget(moveTarget);
+    if (props.tool !== 'select') props.onStart();
     const selected = props.bodies.find((b) => b.id === (moveTarget ?? props.selected)),
       origin = selected?.origin ?? ([0, 0, 0] as Vec3);
     let plane = workPlane(),
@@ -1254,11 +1390,12 @@ export function installInteractions({
       if (!measureSession) {
         const vertex = vertexAt(event);
         const edge = !vertex ? edgeAt(event) : undefined;
-        if (props.measureMode === 'guide' && !vertex && !edge) {
-          props.onSnap('Valitse kappaleen verteksi tai reuna.');
+        const guide = !vertex && !edge ? guideAt(event) : undefined;
+        if (props.measureMode === 'guide' && !vertex && !edge && !guide) {
+          props.onSnap('Valitse kappaleen piste, reuna, apuviiva tai niiden risteys.');
           return;
         }
-        if (!vertex && !point) return;
+        if (!vertex && !point && !guide) return;
         const adjacent = edge?.mesh.faces.filter(
           (f) =>
             f.planar &&
@@ -1281,12 +1418,25 @@ export function installInteractions({
             )[0];
         if (edge)
           plane = face ? normalPlane(face.normal) : planeForDirection(edge.direction, plane);
+        if (guide) plane = guide.guide.plane;
+        const parallelGuide = props.measureMode === 'guide' && guide && !guide.intersection;
         measureSession = {
-          anchor: vertex?.anchor ?? edge?.anchor ?? { point: snap(point!, plane) },
+          anchor: vertex?.anchor ?? edge?.anchor ?? { point: guide?.point ?? snap(point!, plane) },
           plane,
-          direction: edge?.direction,
-          edgeLength: props.measureMode === 'guide' ? edge?.length : undefined,
-          frame: edge && face ? sketchFrame(edge.point, face.normal) : undefined,
+          direction: edge?.direction ?? (parallelGuide ? guideVector(guide.guide) : undefined),
+          edgeLength:
+            props.measureMode === 'guide'
+              ? (edge?.length ?? (parallelGuide ? guide.guide.length : undefined))
+              : undefined,
+          frame:
+            edge && face
+              ? sketchFrame(edge.point, face.normal)
+              : parallelGuide
+                ? sketchFrame(
+                    guide.point,
+                    axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]),
+                  )
+                : undefined,
           adjacent,
         };
       }
@@ -1324,15 +1474,21 @@ export function installInteractions({
   const move = (event: PointerEvent) => {
     lastEvent = event;
     sync();
+    if (drag && Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4)
+      drag.moved = true;
     const props = current();
     if (blocked || props.busy) return;
     if (props.tool === 'erase') {
-      const target = boundaryAt(event);
+      const guide = selectableGuideAt(event);
+      const target = !guide ? boundaryAt(event) : undefined;
       highlightBoundary(target);
+      highlightGuide(guide?.object.userData.guideId);
       props.onSnap(
-        target
-          ? 'Poista rajaus · korostetut tasopinnat yhdistyvät.'
-          : 'Osoita samantasoisten pintojen jakoviivaa.',
+        guide
+          ? 'Poista apuviiva · napsauta korostettua viivaa.'
+          : target
+            ? 'Poista rajaus · korostetut tasopinnat yhdistyvät.'
+            : 'Osoita samantasoisten pintojen jakoviivaa.',
       );
       return;
     }
@@ -1437,11 +1593,13 @@ export function installInteractions({
     }
     if (props.tool === 'measure' && !measureSession && !props.pickReference) {
       const vertex = vertexAt(event),
-        edge = vertex ? undefined : edgeAt(event);
+        edge = vertex ? undefined : edgeAt(event),
+        guide = !vertex && !edge ? guideAt(event) : undefined;
       highlightEdge(edge?.edge);
       if (edge)
         show({ point: edge.point, key: 'edge', label: 'Reuna · vedä rinnakkainen apuviiva' });
       else if (vertex) show({ point: vertex.point, key: 'vertex', label: 'Verteksi' });
+      else if (guide) show(guide);
       else show();
       return;
     }
@@ -1497,11 +1655,19 @@ export function installInteractions({
   const up = (event: PointerEvent) => {
     const props = current(),
       active = drag;
+    const previousEmptyClicks = emptySelectionClicks;
+    emptySelectionClicks = 0;
     if (active && !blocked && !props.busy) {
-      const moved = Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
+      const moved =
+        active.moved ||
+        Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
       if (props.tool === 'erase' && !moved) {
-        const target = boundaryAt(event);
-        if (target) props.onRemoveBoundary(target);
+        const guide = selectableGuideAt(event);
+        if (guide) props.onRemoveGuide(guide.object.userData.guideId);
+        else {
+          const target = boundaryAt(event);
+          if (target) props.onRemoveBoundary(target);
+        }
       } else if (props.tool === 'rotate' && rotationDrag) {
         if (moved) {
           updateRotation(event);
@@ -1527,19 +1693,8 @@ export function installInteractions({
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
       } else if (props.tool === 'select' && !moved) {
-        setRay(event);
-        raycaster.params.Line.threshold = worldPerPixel(props.bodies[0]?.origin ?? [0, 0, 0]) * 7;
-        const guideHit = raycaster
-          .intersectObjects(guides.children)
-          .find((h) => h.object.userData.guideId);
-        const obstruction = faceAt(event)?.hit;
-        if (
-          guideHit &&
-          (!obstruction ||
-            guideHit.distance <=
-              obstruction.distance + worldPerPixel(guideHit.point.toArray() as Vec3) * 2 ||
-            guideHit.object.userData.xray)
-        ) {
+        const guideHit = selectableGuideAt(event);
+        if (guideHit) {
           props.onSelectGuide(guideHit.object.userData.guideId);
           pointers.delete(event.pointerId);
           drag = undefined;
@@ -1551,12 +1706,17 @@ export function installInteractions({
         if (hit) {
           const faces = hit.object.userData.faces as BodyMesh['faces'],
             index = (hit.faceIndex ?? 0) * 3;
-          props.onSelect(
-            hit.object.userData.id,
-            faces.find((f) => index >= f.start && index < f.start + f.count)?.ref,
-            event.shiftKey || event.ctrlKey || event.metaKey,
-          );
-        } else props.onSelect(undefined, undefined, event.shiftKey);
+          if (!editBlocked(event, hit.object.userData.id))
+            props.onSelect(
+              hit.object.userData.id,
+              faces.find((f) => index >= f.start && index < f.start + f.count)?.ref,
+              event.shiftKey || event.ctrlKey || event.metaKey,
+            );
+        } else {
+          if (!event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey)
+            emptySelectionClicks = Math.min(2, previousEmptyClicks + 1);
+          props.onSelect(undefined, undefined, event.shiftKey);
+        }
       } else if (props.tool === 'pen') {
         const point = updatePen(event);
         if (point) {
@@ -1586,6 +1746,7 @@ export function installInteractions({
     if (!pointers.size) blocked = false;
   };
   const cancel = (event: PointerEvent) => {
+    emptySelectionClicks = 0;
     pointers.delete(event.pointerId);
     drag = undefined;
     extrudeSession = undefined;
@@ -1672,6 +1833,7 @@ export function installInteractions({
     }
   };
   const blur = () => {
+    emptySelectionClicks = 0;
     shift = false;
     current().onCopyMove(false);
     offsetSession = undefined;
@@ -1691,6 +1853,7 @@ export function installInteractions({
   };
   const leave = () => {
     if (!drag && !measureSession) {
+      highlightGuide();
       highlightBoundary();
       highlightEdge();
       highlightFace();
@@ -1698,9 +1861,20 @@ export function installInteractions({
     }
   };
   const doubleClick = (event: MouseEvent) => {
-    if (current().tool !== 'select' || current().busy || event.button !== 0) return;
+    if (
+      current().tool !== 'select' ||
+      current().busy ||
+      event.button !== 0 ||
+      event.shiftKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey
+    )
+      return;
     const target = editableFaceAt(event as PointerEvent);
     if (target) current().onEditBody(target.target.bodyId);
+    else if (current().editingBodyId && emptySelectionClicks === 2) current().onCloseBodyEdit();
+    emptySelectionClicks = 0;
   };
   canvas.addEventListener('dblclick', doubleClick);
   canvas.addEventListener('pointerleave', leave);
