@@ -73,6 +73,7 @@ import {
   type View,
 } from './model/project';
 import { formatLength, parseLength } from './model/units';
+import { addBodyDimensions } from './model/dimensions';
 import { downloadFile, safeFilename } from './storage/projects';
 import type { DrawingView, FaceTarget, FaceSpan } from './cad/protocol';
 import {
@@ -162,7 +163,7 @@ const instructions: Record<Tool, string> = {
     'C · Valitse keskipiste ja vedä säde. Kirjoita halkaisija, Tab vaihtaa kenttää. Enter hyväksyy.',
   boolean: 'Valitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.',
   extrude:
-    'E · Osoita pintaa ja vedä normaalin suuntaan. Positiivinen lisää, negatiivinen poistaa. Enter hyväksyy.',
+    'E · Klikkaa lähtöpintaa ja tavoitepintaa tai vedä. Kirjoitettu mitta ohittaa tartunnan. Enter tai toinen klikkaus hyväksyy.',
   move: 'Vedä tartuntapisteestä tai kirjoita siirtymä. Ctrl vedon aikana tekee kopion; alkuperäinen jää paikalleen. Esc peruu.',
   pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc päättää työkalun.',
   measure:
@@ -1344,7 +1345,7 @@ export default function App() {
                       ? [
                           {
                             key: 'remaining',
-                            label: 'Lopullinen mitta',
+                            label: 'Toteutuva kokonaismitta',
                             value:
                               extrusionMode === 'remaining'
                                 ? fields.remaining
@@ -1532,16 +1533,23 @@ export default function App() {
       editor.setMessage('Tämä mitta on jo lisätty.');
       return;
     }
-    await editor.transact(
-      {
-        ...project,
-        dimensions: [
-          ...project.dimensions,
-          { id: uid(), bodyId: body.id, axis, from: 'min', to: 'max' },
-        ],
-      },
-      'Malliin liittyvä mitta lisätty.',
-    );
+    const next = addBodyDimensions(project, [body.id], [axis]);
+    if (await editor.transact(next, 'Malliin liittyvä mitta lisätty.'))
+      setScale((current) => Math.max(current, recommendedScale(next, drawingView)));
+  };
+  const dimensionSelection = async () => {
+    const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
+    const next = addBodyDimensions(project, ids);
+    if (next.dimensions.length === project.dimensions.length) {
+      editor.setMessage('Valinnan kokonaismitat on jo lisätty.');
+      setTab('dimensions');
+      return;
+    }
+    if (await editor.transact(next, 'Kokonaismitat lisätty 3D-näkymään ja mittakuvaan.')) {
+      setTab('dimensions');
+      if (mode === 'drawing')
+        setScale((current) => Math.max(current, recommendedScale(next, drawingView)));
+    }
   };
   const onSheet = useCallback((sheet?: Sheet) => setSheet(sheet), []);
 
@@ -1677,8 +1685,12 @@ export default function App() {
       body={body}
       groups={project.groups}
       count={selectedIds.length}
+      mixedColor={project.bodies.some(
+        (b) => selectedIds.includes(b.id) && b.color.toLowerCase() !== body.color.toLowerCase(),
+      )}
       busy={busy}
       onChange={(patch) => void patchBodies([body.id], patch)}
+      onColor={(color) => void patchBodies(selectedIds.length ? selectedIds : [body.id], { color })}
       onGroup={(groupId) =>
         void patchBodies(selectedIds.length ? selectedIds : [body.id], { groupId })
       }
@@ -1890,6 +1902,30 @@ export default function App() {
                   Akselien nimet ja origo
                 </label>
                 <label>
+                  Mitat 3D-näkymässä
+                  <select
+                    aria-label="Mitat 3D-näkymässä"
+                    disabled={busy}
+                    value={project.settings.dimensionDisplay}
+                    onChange={(e) =>
+                      void editor.transact(
+                        {
+                          ...project,
+                          settings: {
+                            ...project.settings,
+                            dimensionDisplay: e.target.value as 'all' | 'selected' | 'hidden',
+                          },
+                        },
+                        'Mittojen näkyvyys päivitetty.',
+                      )
+                    }
+                  >
+                    <option value="all">Kaikki lisätyt mitat</option>
+                    <option value="selected">Vain valinnan mitat</option>
+                    <option value="hidden">Piilota 3D-mitat</option>
+                  </select>
+                </label>
+                <label>
                   <CommitCheckbox
                     label="Kaikki apuviivat x-ray"
                     disabled={busy}
@@ -2090,6 +2126,9 @@ export default function App() {
               onGesture={gesture}
               faceTarget={faceTarget}
               faceDistance={faceDistance}
+              extrusionLocked={locked.has('height') || locked.has('remaining')}
+              dimensions={project.dimensions}
+              dimensionDisplay={project.settings.dimensionDisplay}
               copyMove={copyMove}
               onCopyMove={changeCopyMove}
               offsetDistance={offsetDistance}
@@ -2365,7 +2404,7 @@ export default function App() {
                       : tool === 'circle'
                         ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
                         : tool === 'extrude'
-                          ? 'E · Osoita pintaa: korostettu pinta liikkuu vetämällä normaalinsa suuntaan. Voit myös kirjoittaa siirtymän.'
+                          ? 'E · Vedä pintaa tai klikkaa lähtöpintaa ja sitten tavoitepintaa. Sininen korostus näyttää kohteen. Voit myös kirjoittaa siirtymän tai toteutuvan kokonaismitan.'
                           : tool === 'pen'
                             ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
                             : tool === 'measure'
@@ -2426,7 +2465,7 @@ export default function App() {
                               Nykyinen mitta <strong>{formatLength(faceSpan.depth)} mm</strong>
                             </span>
                             <span>
-                              Lopullinen mitta <strong>{formatLength(finalSize!)} mm</strong>
+                              Toteutuva kokonaismitta <strong>{formatLength(finalSize!)} mm</strong>
                             </span>
                             <span>
                               Siirtymä{' '}
@@ -2441,12 +2480,12 @@ export default function App() {
                         )}
                       </div>
                       <p className="muted">
-                        Tab vaihtaa siirtymän ja lopullisen mitan välillä ja säilyttää kirjoittamasi
-                        luvun. Miinus työntää sisään, plus vetää ulos. Ilman etumerkkiä luku seuraa
-                        vedon suuntaa.
+                        Tab vaihtaa siirtymän ja toteutuvan kokonaismitan välillä ja säilyttää
+                        kirjoittamasi luvun. Miinus työntää sisään, plus vetää ulos. Ilman
+                        etumerkkiä luku seuraa vedon suuntaa.
                       </p>
                       <p className="muted">
-                        Vihreä mittaviiva näyttää jäljelle jäävän materiaalin mitan tässä kohdassa,
+                        Vihreä mittaviiva näyttää toteutuvan kokonaismitan tässä kohdassa,
                         kohtisuoraan valittua pintaa vastaan. Nolla avaa rajatun alueen läpi. Voit
                         myös vetää pinnan vastapinnan ohi tai valita Leikkaa läpi.
                       </p>
@@ -2626,6 +2665,20 @@ export default function App() {
                       X {formatLength(body.origin[0])} · Y {formatLength(body.origin[1])} · Z{' '}
                       {formatLength(body.origin[2])}
                     </p>
+                    <button
+                      className="button outlined full"
+                      disabled={
+                        busy ||
+                        !project.bodies.some(
+                          (b) =>
+                            (selectedIds.length ? selectedIds.includes(b.id) : b.id === body.id) &&
+                            b.purpose !== 'construction',
+                        )
+                      }
+                      onClick={() => void dimensionSelection()}
+                    >
+                      <Ruler size={16} /> Lisää kokonaismitat
+                    </button>
                     {objectActions}
                     {mode === 'model' && (
                       <>
@@ -2901,7 +2954,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.5.1</span>
+                  <span>v0.6.0</span>
                 </div>
               </>
             )}
@@ -2958,7 +3011,8 @@ export default function App() {
                 syvyys pinnasta määrää syvyyden toisesta pinnasta.
               </li>
               <li>
-                <strong>Mitoita.</strong> Avaa Mittakuva, valitse kappale ja lisää mitat. Vie SVG.
+                <strong>Mitoita.</strong> Valitse osa ja paina Lisää kokonaismitat. Avaa Mittakuva
+                ja vie SVG.
               </li>
             </ol>
             <p>
@@ -2966,18 +3020,32 @@ export default function App() {
               kenttään. Kirjoitettu mitta säilyy hiiren liikkuessa.
             </p>
             <p>
-              <strong>Push/pullin lopullinen mitta:</strong> siirtymä −150 lyhentää osaa 150 mm. Tab
-              siirtää saman luvun Lopullinen mitta -kenttään: osan mitaksi jää 150 mm. Voit myös
-              napsauttaa kenttää ja kirjoittaa esimerkiksi 550. Vihreä mittaviiva näyttää mitan
-              vastapinnasta valitussa kohdassa. Ilman etumerkkiä siirtymä seuraa vedon suuntaa; +
-              vetää ulos ja − työntää sisään. Lopullinen mitta 0 avaa rajatun alueen vastapinnan
-              läpi.
+              <strong>Push/pullin toteutuva kokonaismitta:</strong> siirtymä −150 lyhentää osaa 150
+              mm. Tab siirtää saman luvun Toteutuva kokonaismitta -kenttään: osan mitaksi jää 150
+              mm. Voit myös napsauttaa kenttää ja kirjoittaa esimerkiksi 550. Vihreä mittaviiva
+              näyttää mitan vastapinnasta valitussa kohdassa. Ilman etumerkkiä siirtymä seuraa vedon
+              suuntaa; + vetää ulos ja − työntää sisään. Toteutuva kokonaismitta 0 avaa rajatun
+              alueen vastapinnan läpi.
+            </p>
+            <p>
+              <strong>Pintaan kohdistus:</strong> E → klikkaa lähtöpintaa → osoita tavoitepintaa →
+              klikkaa hyväksyäksesi. Myös vedon vapautus tavoitepinnan päällä hyväksyy. Sininen
+              korostus ja vihjeteksti näyttävät kohteen. Yhdensuuntaiset tasopinnat osuvat samalle
+              tasolle; vinosta tasopinnasta poimitaan osoitetun pisteen taso lähdepinnan normaalin
+              suunnassa. Kirjoitettu mitta ohittaa tartunnan. Esc peruu.
+            </p>
+            <p>
+              <strong>Mitat ja värit:</strong> valitse osa tai useita osia ja paina Lisää
+              kokonaismitat. Mallin X/Y/Z-suuntaiset ulkomitat näkyvät 3D-näkymässä ja Mittakuvassa
+              sekä SVG-viennissä. Ne seuraavat osan muutoksia. Mitat-listasta voit poistaa
+              yksittäisen mitan, ja asetuksista valita 3D-mittojen näkyvyyden. Väripaletti vaihtaa
+              valittujen osien värin; oman värin hyväksyt valitsimen vieressä olevasta painikkeesta.
             </p>
             <p>
               <strong>Offset (O):</strong> osoita vapaata pintaa ja paina O tai valitse työkalu ja
               vedä pinnasta. Liikuta hiirtä tai syötä esimerkiksi 18 mm. Sininen viiva näyttää
               sisennyksen. Klikkaus, vedon vapautus tai Enter hyväksyy. E työntää uutta aluetta
-              sisään. Lopullinen mitta 18 jättää 18 mm takaseinän; Leikkaa läpi tekee aukon.
+              sisään. Toteutuva kokonaismitta 18 jättää 18 mm takaseinän; Leikkaa läpi tekee aukon.
             </p>
             <p>
               <strong>Valitse ja kopioi:</strong> yksi klikkaus valitsee koko kappaleen. M siirtää

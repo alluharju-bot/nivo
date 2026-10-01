@@ -52,9 +52,41 @@ Versiossa 0.5.1 toteutettu: yksi kompakti yläpalkki, selaimen koko näytön til
 Offsetin hiirisäätö ja tarkka CAD-esikatselu, koko objektin valinta yhdellä
 klikkauksella sekä M + Ctrl -kopiointi tartuntapisteestä ja numeroilla.
 
-Seuraavaksi: kohdistuksen ja viitteiden poiminnan käyttökokeet
-sekä työkalujen viimeistely oikeilla malleilla. Fyysinen tabletti ja Safari
-varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
+Versiossa 0.6 toteutettu: push/pullin kahden klikkauksen pintakohdistus ja
+Toteutuva kokonaismitta -sanasto, osien yhteiset X/Y/Z-ulkomitat 3D:ssä ja
+mittakuvassa, mittojen riveihin sijoittelu sekä osavärit monivalinnalla.
+
+Mitoituksen jatkokehitys: vapaasti poimitut kaksi pistettä, vinon reunan oma
+pituus, halkaisija/säde ja kulma, mittalapun siirtäminen sekä usean näkymän arkit.
+
+Seuraava korkean prioriteetin työkalukokonaisuus on **viisteet ja pyöristykset**.
+Mitoituksen, osavärien ja pintakohdistuksen jälkeen viitteiden poimintaa
+ja muita perustyökaluja viimeistellään oikeilla malleilla. Fyysinen tabletti
+ja Safari varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
+
+## Backlog: viisteet ja pyöristykset — erittäin korkea prioriteetti
+
+- Reunan osoituskorostus ja yhden tai usean reunan valinta; toiminto myös
+  valitun objektin tai osan kaikille soveltuville reunoille.
+- Pyöristyssäde tai viisteen koko hiirellä ja numeroilla, välitön esikatselu,
+  Enter/vapautus hyväksyy ja Esc peruu.
+- Tarkka CAD-geometria, selkeä ilmoitus liian suuresta säteestä/viisteestä,
+  alkuperäisen osan säilyminen virheessä. Hold estää muokkauksen.
+- Osan nimi, väri, ryhmä ja säilyvät mittaviitteet pysyvät mukana.
+  Undo/redo, tallennus, uudelleenavaus ja jatkomuokkaus varmennetaan.
+- Hyväksyntä: 600 × 400 × 18 mm levyn reunoihin 2 mm pyöristys tai viiste;
+  myös taskujen ja aukkojen reunat, monivalinta ja mahdoton 1000 mm säde.
+
+## Backlog: renderöintiputki ja materiaalit
+
+- Erillinen esitystila, jossa harkitut väri- ja materiaalipaletit, puu,
+  melamiini, metalli ja lasi sekä karheus, tekstuurit ja niiden mittakaava.
+- Ympäristövalaistus, varjot, tausta, kamerat ja tallennettavat esitysnäkymät.
+- Laadukas kuvavienti ja esikatselun laatutasot eri laitteille.
+- Mallinnuksen osavärit toimivat lähtötietona. Renderöintiasetukset eivät
+  muuta tarkkaa geometriaa, mittoja tai mallinnustyökalujen toimintaa.
+- Materiaalit, valot ja näkymät tallennetaan projektiin; renderöintiä ei
+  käynnistetä automaattisesti esimerkiksi osan lukitsemisesta.
 
 | Vaihe | Tila                 | Sisältö                                                                                                                         |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |

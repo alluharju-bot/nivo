@@ -79,7 +79,9 @@ test('652 becomes exactly 550, and Tab reinterprets the same 150 as the final si
   await expect(page.getByTestId('remaining-input')).toHaveValue('652');
   await page.getByTestId('remaining-input').fill('550');
   await expect(page.getByTestId('height-input')).toHaveValue('-102');
-  await expect(page.getByTestId('extrusion-remaining')).toHaveText('Jäljelle 550 mm');
+  await expect(page.getByTestId('extrusion-remaining')).toHaveText(
+    'Toteutuva kokonaismitta 550 mm',
+  );
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await page.screenshot({ path: info.outputPath('final-size.png') });
   await view(page, [body], 'right');

@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.5.0
+# Arkkitehtuuri — v0.6.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -120,7 +120,7 @@ ei vaadi File System Access API:a. Automaattitallennus ei ole varmuuskopio.
 
 ## Topologia
 
-Push/pullin lopullinen mitta haetaan valintahetkellä workerin `face-span`-pyynnöllä.
+Push/pullin toteutuva kokonaismitta haetaan valintahetkellä workerin `face-span`-pyynnöllä.
 CAD-pinnan normaalin suuntainen suora leikataan tarkalla BRepillä, ja valintapisteestä
 alkavan ensimmäisen yhtenäisen materiaaliosuuden pituus on nykyinen mitta.
 Erillisiä solideja tai niiden välisiä tyhjiä kohtia ei lasketa mukaan.
@@ -131,6 +131,14 @@ ja tallennusformaatti säilyvät samoina. Uusi valinta tai peruminen mitätöi
 vanhan mittausvastauksen. Syöttötilalla on synkroninen viite Enter/vapautus-kilpailun
 estämiseksi. Tab voi vaihtaa kirjoitetun luvun merkityksen; hiirellä kenttää
 vaihdettaessa nykyinen esikatselugeometria säilyy.
+
+Pintakohdistus käyttää lähtöpinnan tarkkaa normaalia ja kohdepinnalle projisoitua
+raycast-pistettä: siirtymä on `(kohde − lähtö) · normaali`. Yhdensuuntaiset
+pinnat tulevat samalle tasolle; muussa tapauksessa kyse on poimitun pisteen
+tasosta, ei pintojen kallistamisesta. Lähdepinta säilyy eleen ajan, ensimmäinen
+klikkaus aloittaa ja toinen tai vedon vapautus hyväksyy. Kirjoitettu mitta
+lukitsee syötön tartuntojen edelle. Hold estää lähteen muokkauksen mutta sallii
+kohteen käyttämisen viitteenä.
 
 Kappaleella on UUID. Nykyisen suorakulmaisen pursotuksen pinnat ovat `x:min`,
 `x:max`, `y:min`, `y:max`, `z:min`, `z:max`. CAD-meshin faceGroup liitetään
@@ -172,6 +180,19 @@ SVG:n 297 × 210 mm ja vastaava viewBox tekevät yhdestä SVG-yksiköstä yhden
 paperimillimetrin. Mallipolut skaalataan `1/mittakaava`. Mittateksti (3,2 mm)
 ja mittaviiva (0,18 mm) ovat paperiyksiköissä mallimuunnoksen ulkopuolella.
 600 mm → 1:5 → 120 mm paperilla tarkistetaan automaattisesti.
+
+Mitat tallennetaan kerran projektin dimension-taulukkoon. Lisää kokonaismitat
+lisää puuttuvat akselimitat koko valinnalle yhdessä transaktiossa.
+3D:n SVG-peite projisoi rajalaatikon ulkoreunat kameralla, pitää tekstin
+pikselikoon samana ja siirtää päällekkäisiä mittalappuja ulospäin. Peite ei
+kaappaa osoitintapahtumia. Arvot tulevat tarkasta mallista; valinnan ja
+näkyvyyden muutokset päivittävät peitteen. Arkin sijoittelu jakaa päällekkäiset
+mitat eri riveille ja ottaa annotaatioiden tilan mukaan sovitukseen. 3D:n
+näkyvyysasetus ei vaikuta arkin mittoihin.
+
+Osavärin vaihto päivittää valittujen kappaleiden color-kentän atomisesti.
+Oma värivalitsin pitää välivärin paikallisena, kunnes käyttäjä hyväksyy sen,
+jotta värin selaaminen ei täytä undo-historiaa.
 
 Pointer Events kattaa hiiren, kosketuksen ja kynän. Napautus valitsee.
 Yksi sormi käyttää työkalua; toinen sormi keskeyttää muokkausvedon ja vaihtaa

@@ -11,7 +11,12 @@ millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen
   "name": "Hyllylevy",
   "units": "mm",
   "updatedAt": "2026-10-01T12:00:00.000Z",
-  "settings": { "guideXray": false, "axisStyle": "subtle", "axisLabels": false },
+  "settings": {
+    "guideXray": false,
+    "axisStyle": "subtle",
+    "axisLabels": false,
+    "dimensionDisplay": "all"
+  },
   "groups": [],
   "bodies": [
     {
@@ -52,6 +57,10 @@ säilyttävät olemassa olevat tunnisteet eivätkä kirjoita alkuperäistä tied
 V3 muunnetaan V4:ksi. Puuttuva `purpose` saa arvon `model`.
 V4 muunnetaan V5:ksi lisäämällä tyhjä `groups`. Puuttuvat `locked` ja `hidden`
 saavat arvon false. Akselityylin oletus on `subtle` ja `axisLabels` on false.
+V0.6 lisää valinnaisen `settings.dimensionDisplay`: `all` (oletus), `selected`
+tai `hidden`. Se rajaa vain 3D-mittojen näkyvyyttä; mittakuva käyttää yhteisiä
+mittaviitteitä. Puuttuva arvo täydentyy avatessa, joten formaattiversio pysyy V5:ssä.
+Kappaleen `color` on kuusinumeroinen heksaväri; värinvaihto ei muuta geometriaa.
 `axisStyle: "strong"` korostaa akseleita; `axisLabels:true` näyttää nimet.
 
 `groups` sisältää enintään 1000 ryhmää: `id`, `name` ja `hidden` (oletus false).
@@ -128,7 +137,11 @@ todelliseen reunaan. Näin reunan keskeltä poistettu kohta ei säily tartuntana
 Rikkoutuneet viitteet näkyvät käyttäjälle; undo palauttaa ne.
 Haettu Shift-viite ja kynän suuntalukko ovat väliaikaisia eivätkä tallennu projektiin.
 
-Mittaviite on semanttinen. Puuttuvaan kappaleeseen viittaava mitta sallitaan
+Mittaviite on semanttinen ja yhteinen 3D-näkymälle sekä mittakuvalle.
+`bodyId`, `axis` ja `from:min` / `to:max` mittaavat osan maailman X/Y/Z-akselien
+suuntaisen rajalaatikon ulkomittaa. Arvo lasketaan kappaleesta, eikä sitä
+kopioida mitan sisään; muokkaus, siirto ja kierto säilyttävät viitteen.
+Vinon osan reunapituus ei ole sama asia kuin tämä ulkomitta. Puuttuvaan kappaleeseen viittaava mitta sallitaan
 tuonnissa, jotta virhe voidaan näyttää käyttäjälle ja korjata. UUID:t ovat
 yksikäsitteisiä kunkin oliotyypin sisällä.
 

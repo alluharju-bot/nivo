@@ -20,14 +20,88 @@ export function projectPoint(point: Vec3, view: DrawingView): [number, number] {
       ? [point[1], -point[2]]
       : [point[0], -point[1]];
 }
+interface DimensionPlacement {
+  id: string;
+  bodyId: string;
+  name: string;
+  value: number;
+  horizontal: boolean;
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+  lane: number;
+}
+/** Reuse lanes only for non-overlapping dimensions, including their printed text. */
+function dimensionLayout(project: Project, view: DrawingView, scale: number) {
+  const rows: DimensionPlacement[] = [];
+  const lanes: [number, number][][][] = [[], []];
+  let orphanCount = 0;
+  for (const dimension of project.dimensions) {
+    const body = project.bodies.find((b) => b.id === dimension.bodyId);
+    if (!body) {
+      orphanCount++;
+      continue;
+    }
+    if (body.purpose === 'construction') continue;
+    const value = dimensionValue(project, dimension)!;
+    const horizontal = dimension.axis === (view === 'right' ? 'y' : 'x');
+    const vertical = dimension.axis === (view === 'top' ? 'y' : 'z');
+    if ((!horizontal && !vertical) || value <= 0) continue;
+    const pts = corners(body).map((p) => projectPoint(p, view).map((n) => n / scale));
+    const x1 = Math.min(...pts.map((p) => p[0])),
+      x2 = Math.max(...pts.map((p) => p[0]));
+    const y1 = Math.min(...pts.map((p) => p[1])),
+      y2 = Math.max(...pts.map((p) => p[1]));
+    const lo = horizontal ? x1 : y1,
+      hi = horizontal ? x2 : y2;
+    const middle = (lo + hi) / 2,
+      textHalf = formatLength(value).length * 0.95;
+    const interval: [number, number] = [
+      Math.min(lo, middle - textHalf) - 3,
+      Math.max(hi, middle + textHalf) + 3,
+    ];
+    const group = lanes[horizontal ? 0 : 1];
+    let lane = group.findIndex((occupied) =>
+      occupied.every(([a, b]) => interval[1] < a || interval[0] > b),
+    );
+    if (lane === -1) {
+      lane = group.length;
+      group.push([]);
+    }
+    group[lane].push(interval);
+    rows.push({
+      id: dimension.id,
+      bodyId: body.id,
+      name: body.name,
+      value,
+      horizontal,
+      x1,
+      x2,
+      y1,
+      y2,
+      lane,
+    });
+  }
+  return {
+    rows,
+    orphanCount,
+    left: lanes[1].length ? 15 + (lanes[1].length - 1) * 7 : 0,
+    bottom: lanes[0].length ? 13 + (lanes[0].length - 1) * 7 : 0,
+  };
+}
 export function recommendedScale(project: Project, view: DrawingView): number {
   const { min, max } = bounds(project.bodies.filter((b) => b.purpose !== 'construction'));
   const a = projectPoint(min, view),
     b = projectPoint(max, view);
   return (
-    [1, 2, 5, 10, 20, 50, 100, 500, 1000].find(
-      (s) => Math.abs(b[0] - a[0]) / s <= 235 && Math.abs(b[1] - a[1]) / s <= 125,
-    ) ?? 1000
+    [1, 2, 5, 10, 20, 50, 100, 500, 1000].find((scale) => {
+      const layout = dimensionLayout(project, view, scale);
+      return (
+        Math.abs(b[0] - a[0]) / scale + layout.left <= 253 &&
+        Math.abs(b[1] - a[1]) / scale + layout.bottom <= 130
+      );
+    }) ?? 1000
   );
 }
 export interface Sheet {
@@ -43,40 +117,28 @@ export function createSheet(
   hidden = false,
 ): Sheet {
   const [bx, by, bw, bh] = projection.viewBox;
-  const tx = 148.5 - (bx + bw / 2) / scale,
-    ty = 93 - (by + bh / 2) / scale;
-  const fits = bw / scale <= 235 && bh / scale <= 125;
-  const map = (p: [number, number]): [number, number] => [tx + p[0] / scale, ty + p[1] / scale];
+  const layout = dimensionLayout(project, view, scale);
+  const tx = 148.5 + layout.left / 2 - (bx + bw / 2) / scale,
+    ty = 99.5 - layout.bottom / 2 - (by + bh / 2) / scale;
+  const fits = bw / scale + layout.left <= 253 && bh / scale + layout.bottom <= 130;
+  const { orphanCount } = layout;
   const lines: string[] = [];
-  let orphanCount = 0,
-    horizontalCount = 0,
-    verticalCount = 0;
-  for (const dimension of project.dimensions) {
-    if (project.bodies.find((b) => b.id === dimension.bodyId)?.purpose === 'construction') continue;
-    const value = dimensionValue(project, dimension);
-    if (value === null) {
-      orphanCount++;
-      continue;
-    }
-    const horizontal = dimension.axis === (view === 'right' ? 'y' : 'x');
-    const vertical = dimension.axis === (view === 'top' ? 'y' : 'z');
-    if ((!horizontal && !vertical) || value === 0) continue;
-    const body = project.bodies.find((b) => b.id === dimension.bodyId)!;
-    const pts = corners(body).map((p) => map(projectPoint(p, view)));
-    const x1 = Math.min(...pts.map((p) => p[0])),
-      x2 = Math.max(...pts.map((p) => p[0]));
-    const y1 = Math.min(...pts.map((p) => p[1])),
-      y2 = Math.max(...pts.map((p) => p[1]));
-    const label = escapeXml(formatLength(value));
-    if (horizontal) {
-      const y = ty + (by + bh) / scale + 9 + (horizontalCount++ % 3) * 7;
+  for (const d of layout.rows) {
+    const x1 = d.x1 + tx,
+      x2 = d.x2 + tx,
+      y1 = d.y1 + ty,
+      y2 = d.y2 + ty;
+    const label = escapeXml(formatLength(d.value));
+    const group = `<g data-dimension="${escapeXml(d.id)}" data-body="${escapeXml(d.bodyId)}" data-mm="${n(d.value)}"><title>${escapeXml(d.name)} · ${label} mm</title>`;
+    if (d.horizontal) {
+      const y = ty + (by + bh) / scale + 9 + d.lane * 7;
       lines.push(
-        `<g data-dimension="${escapeXml(dimension.id)}" data-mm="${n(value)}"><path d="M${n(x1)} ${n(y2 + 1)}V${n(y + 2)} M${n(x2)} ${n(y2 + 1)}V${n(y + 2)} M${n(x1)} ${n(y)}H${n(x2)} M${n(x1 - 1)} ${n(y + 1.5)}l2 -3 M${n(x2 - 1)} ${n(y + 1.5)}l2 -3"/><text x="${n((x1 + x2) / 2)}" y="${n(y - 1.5)}">${label}</text></g>`,
+        `${group}<path d="M${n(x1)} ${n(y2 + 1)}V${n(y + 2)} M${n(x2)} ${n(y2 + 1)}V${n(y + 2)} M${n(x1)} ${n(y)}H${n(x2)} M${n(x1 - 1)} ${n(y + 1.5)}l2 -3 M${n(x2 - 1)} ${n(y + 1.5)}l2 -3"/><text x="${n((x1 + x2) / 2)}" y="${n(y - 1.5)}">${label}</text></g>`,
       );
     } else {
-      const x = tx + bx / scale - 9 - (verticalCount++ % 3) * 7;
+      const x = tx + bx / scale - 9 - d.lane * 7;
       lines.push(
-        `<g data-dimension="${escapeXml(dimension.id)}" data-mm="${n(value)}"><path d="M${n(x1 - 1)} ${n(y1)}H${n(x - 2)} M${n(x1 - 1)} ${n(y2)}H${n(x - 2)} M${n(x)} ${n(y1)}V${n(y2)} M${n(x - 1.5)} ${n(y1 + 1)}l3 -2 M${n(x - 1.5)} ${n(y2 + 1)}l3 -2"/><text transform="translate(${n(x - 1.5)} ${n((y1 + y2) / 2)}) rotate(-90)">${label}</text></g>`,
+        `${group}<path d="M${n(x1 - 1)} ${n(y1)}H${n(x - 2)} M${n(x1 - 1)} ${n(y2)}H${n(x - 2)} M${n(x)} ${n(y1)}V${n(y2)} M${n(x - 1.5)} ${n(y1 + 1)}l3 -2 M${n(x - 1.5)} ${n(y2 + 1)}l3 -2"/><text transform="translate(${n(x - 1.5)} ${n((y1 + y2) / 2)}) rotate(-90)">${label}</text></g>`,
       );
     }
   }

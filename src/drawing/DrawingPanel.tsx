@@ -57,7 +57,7 @@ export function DrawingPanel({
         <>
           {!sheet.fits && (
             <div role="alert" className="drawing-warning">
-              Malli ei mahdu arkille. Valitse pienempi mittakaava.
+              Malli ja mitat eivät mahdu arkille. Valitse pienempi mittakaava tai vähennä mittoja.
             </div>
           )}
           {sheet.orphanCount > 0 && (

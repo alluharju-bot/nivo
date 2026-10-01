@@ -1,27 +1,32 @@
 import { useState } from 'react';
 import { Crosshair, Eye, EyeOff, LockKeyhole, RotateCw, Unlock } from 'lucide-react';
 import type { Body, BodyGroup } from '../model/project';
+import { BodyColor } from './BodyColor';
 
 export function ObjectActions({
   body,
   groups,
   count,
+  mixedColor,
   busy,
   onChange,
   onGroup,
   onOrigin,
   onRotate,
   onHold,
+  onColor,
 }: {
   body: Body;
   groups: BodyGroup[];
   count: number;
+  mixedColor: boolean;
   busy: boolean;
   onChange: (patch: Partial<Body>) => void;
   onGroup: (groupId?: string) => void;
   onOrigin: (reference: 'min' | 'center') => void;
   onRotate: () => void;
   onHold: () => void;
+  onColor: (color: string) => void;
 }) {
   const [reference, setReference] = useState<'min' | 'center'>('min');
   return (
@@ -71,6 +76,13 @@ export function ObjectActions({
           {body.hidden ? 'Näytä' : 'Piilota'}
         </button>
       </div>
+      <BodyColor
+        key={body.id}
+        color={body.color}
+        mixed={mixedColor}
+        busy={busy}
+        onChange={onColor}
+      />
       <div className="origin-action">
         <select
           aria-label="Origoon kohdistettava piste"
@@ -90,7 +102,7 @@ export function ObjectActions({
       </div>
       {count > 1 && (
         <p className="muted">
-          Kierto, kiinnitys, origoon siirto ja ryhmä koskevat kaikkia {count} valittua.
+          Väri, kierto, kiinnitys, origoon siirto ja ryhmä koskevat kaikkia {count} valittua.
         </p>
       )}
       <label className="modeling-field">

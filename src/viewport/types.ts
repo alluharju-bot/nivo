@@ -1,5 +1,15 @@
 import type { Rotation } from '../model/transforms';
-import type { Anchor, Axis, Body, FaceRef, Guide, Vec3, View, WorkPlane } from '../model/project';
+import type {
+  Anchor,
+  Axis,
+  Body,
+  Dimension,
+  FaceRef,
+  Guide,
+  Vec3,
+  View,
+  WorkPlane,
+} from '../model/project';
 import type { BodyMesh, FaceTarget, FaceSpan } from '../cad/protocol';
 import type { ReferencePoint } from '../model/snap';
 import type { SketchFrame } from '../model/sketch';
@@ -45,6 +55,8 @@ export interface ViewportProps {
   onRotationAngle: (angle: number) => void;
   onRotationAxis: (axis: Vec3) => void;
   bodies: Body[];
+  dimensions: Dimension[];
+  dimensionDisplay: 'all' | 'selected' | 'hidden';
   meshes: BodyMesh[];
   selected?: string;
   selectedIds: string[];
@@ -69,6 +81,7 @@ export interface ViewportProps {
   freeRotate: boolean;
   faceTarget?: FaceTarget;
   faceDistance: number;
+  extrusionLocked: boolean;
   faceSpan?: FaceSpan;
   measureMode: 'guide' | 'free';
   penPoints: Vec3[];

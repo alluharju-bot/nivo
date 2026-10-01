@@ -202,8 +202,14 @@ export const projectSchema = z
         guideXray: z.boolean(),
         axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
         axisLabels: z.boolean().default(false),
+        dimensionDisplay: z.enum(['all', 'selected', 'hidden']).default('all'),
       })
-      .default({ guideXray: false, axisStyle: 'subtle', axisLabels: false }),
+      .default({
+        guideXray: false,
+        axisStyle: 'subtle',
+        axisLabels: false,
+        dimensionDisplay: 'all',
+      }),
     updatedAt: z.string().datetime(),
   })
   .superRefine((p, ctx) => {
@@ -239,7 +245,7 @@ export const freshProject = (): Project => ({
   groups: [],
   dimensions: [],
   guides: [],
-  settings: { guideXray: false, axisStyle: 'subtle', axisLabels: false },
+  settings: { guideXray: false, axisStyle: 'subtle', axisLabels: false, dimensionDisplay: 'all' },
   updatedAt: new Date().toISOString(),
 });
 export function makeBody(

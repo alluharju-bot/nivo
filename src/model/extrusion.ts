@@ -1,4 +1,16 @@
 import { parseLength } from './units';
+import type { FaceTarget } from '../cad/protocol';
+import { dot, sub, unit } from './geometry';
+
+/** Match the picked point's level along the source normal, without tilting the source. */
+export function faceDepthSnap(source: FaceTarget, target: FaceTarget) {
+  if (source.bodyId === target.bodyId && source.face === target.face) return;
+  const normal = unit(source.normal);
+  return {
+    distance: dot(sub(target.point, source.point), normal),
+    parallel: Math.abs(dot(normal, unit(target.normal))) > 1 - 1e-6,
+  };
+}
 
 export type ExtrusionMode = 'height' | 'remaining';
 

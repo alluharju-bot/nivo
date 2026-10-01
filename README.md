@@ -3,15 +3,16 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.5.1 yhdistää työtilan yhteen 60 px yläpalkkiin ja lisää selaimen koko
-näytön tilan. **Offset (O)** säätyy heti hiirellä ja näyttää tarkan sisennysviivan.
-Yksi klikkaus valitsee koko kappaleen. **M + Ctrl** sijoittaa kopion samasta
-tartuntapisteestä; alkuperäinen jää paikalleen. Mittaikkuna pysyy oikeassa
-reunassa ja sen voi siirtää otsikosta.
+Versio 0.6.0 lisää osien näkyvät kokonaismitat 3D-näkymään ja mittakuvaan,
+yhteisen väripaletin sekä push/pullin kohdistuksen toiseen pintaan.
+**Lisää kokonaismitat** merkitsee valittujen osien X/Y/Z-ulkomitat yhdellä painalluksella.
+Mitat seuraavat muokkausta ja siirtyvät SVG-vientiin. **E** toimii myös kahdella
+klikkauksella: lähtöpinta → tavoitepinta. Vihreä mitta ja numerokenttä käyttävät
+samaa nimeä **Toteutuva kokonaismitta**.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-![600 × 600 × 2400 mm runko: 18 mm Offset ja 18 mm jäljelle jäävä takaseinä](docs/images/nivo-offset.png)
+![Osan väri ja samat kokonaismitat mallissa ja mittakuvassa](docs/images/nivo-dimensions.png)
 
 ## Käynnistä
 
@@ -45,8 +46,8 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
    lähtevät suuntalinjat ohjaavat piirtämistä ja siirtoa.
 5. Vaihda perspektiivin ja rinnakkaisprojektion välillä. Käytä etu-, sivu-, ylä-
    ja 3D-näkymiä sekä sovita valinta näkymään.
-6. Avaa **Mittakuva**, valitse kappale ja lisää leveys-, syvyys- tai korkeusmitta.
-   Mitat seuraavat kappaleen muutoksia.
+6. Valitse osa ja paina **Lisää kokonaismitat**. Mitat näkyvät heti 3D:ssä ja
+   **Mittakuvassa** sekä seuraavat osan muutoksia. Valitse osan väri väripaletista.
 7. Vie A4-vaaka-arkki SVG:nä valitussa fyysisessä mittakaavassa. Näkyvät ja
    piilossa olevat viivat lasketaan CAD-geometriasta.
 8. Peru ja palauta muutoksia. Lataa `.nivo`-tiedosto ja avaa se uudelleen.
@@ -77,6 +78,29 @@ siirtymän tai käyttää toimintoa kosketuksella. Esc peruu keskeneräisen kopi
 Peru poistaa hyväksytyn kopion yhdellä askeleella. Kopio säilyttää tarkan
 geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
 
+## Mitat ja osavärit
+
+Valitse yksi tai useita osia ja paina **Lisää kokonaismitat**. Toiminto lisää
+puuttuvat X-, Y- ja Z-ulkomitat; samaa mittaa ei lisätä kahdesti. Mitat-listasta
+voi poistaa yksittäisen mitan. 3D-näkymän asetuksissa voi näyttää kaikki lisätyt
+mitat, vain valinnan mitat tai piilottaa mittamerkinnät. Suoraan katselusuunnan
+suuntaista mittaa ei piirretä, koska sen pituus kuvassa on nolla. Piilotetun
+osan mitat piiloutuvat mallinnusnäkymässä.
+
+**Mittakuva** näyttää näkymään kuuluvat kaksi mittasuuntaa. Etukuvassa näkyvät
+X/Z, sivukuvassa Y/Z ja yläkuvassa X/Y. Päällekkäiset mittaluvut sijoitetaan eri
+riveille. Sovitus varaa myös mittaviivoille tilan, ja SVG käyttää valittua
+fyysistä mittakaavaa. Mitat ovat mallin akseleiden suuntaisia ulkomittoja;
+vinon osan oma reunapituus, kahden vapaan pisteen väliset mitat ja kulmamitat
+ovat seuraavaa mitoituksen jatkokehitystä.
+
+![Sama mitoitus mittakuvassa ja SVG-viennissä](docs/images/nivo-dimensions-drawing.png)
+
+Valinnan **Väri** vaihtaa yhden tai kaikkien valittujen osien värin yhdellä
+painalluksella. Oma väri hyväksytään värivalitsimen vieressä olevasta merkistä.
+Muutos tallentuu projektiin ja peruuntuu yhtenä askeleena. Hold-kiinnitys näkyy
+edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaan.
+
 ## Piirtämisen perustyökalut
 
 - **Pintaan piirtäminen:** pidä Muoto-valikon **Piirrä kappaleen pinnalle** päällä.
@@ -100,22 +124,29 @@ geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
   vedä pinnasta. Hiiren liike säätää sisennystä, sininen ääriviiva näyttää tuloksen.
   Kirjoita halutessasi tarkka mitta: se säilyy hiiren liikkuessa. Klikkaus,
   vedon vapautus tai Enter hyväksyy. Esc peruu esikatselun. Kappale säilyy
-  yhtenä objektina, jonka pintaan syntyy uusi muokattava alue. E:n **Lopullinen mitta**
+  yhtenä objektina, jonka pintaan syntyy uusi muokattava alue. E:n **Toteutuva kokonaismitta**
   18 jättää kaappiin 18 mm takaseinän; **Leikkaa läpi**, vastapinnan ohi vetäminen tai
-  lopullinen mitta 0 tekee aukon. Toimii myös ympyröillä ja vinoilla tasopinnoilla.
+  toteutuva kokonaismitta 0 tekee aukon. Toimii myös ympyröillä ja vinoilla tasopinnoilla.
   Liian suuri tai erillisiksi alueiksi hajoava sisennys hylätään muuttamatta mallia.
 - **Push / pull (E):** vapaan pinnan korostus seuraa kohdistinta jo valintatilassa. Paina ja vedä pintaa
   normaalinsa suunnassa tai valitse pinta, paina E ja kirjoita siirtymä. Positiivinen
   arvo vetää ulospäin, negatiivinen työntää sisään. Toimii laatikon kaikilla kuudella
   pinnalla, kynämuodoilla ja yhdistettyjen osien tasopinnoilla.
-- **Lopullinen mitta:** push/pull näyttää siirtymän ja lopullisen mitan.
+- **Push/pull tavoitepintaan:** klikkaa E-työkalulla lähtöpintaa, osoita toisen
+  osan tai saman osan toista tasopintaa ja klikkaa hyväksyäksesi. Myös veto ja
+  vapautus tavoitepinnan päällä toimii. Sininen korostus näyttää kohteen.
+  Yhdensuuntaiset pinnat tulevat samalle tasolle. Vinosta tavoitepinnasta
+  poimitaan osoitetun pisteen taso lähtöpinnan normaalin suunnassa;
+  lähtöpinta ei kallistu. Myös Hold-osa käy viitteeksi. Kirjoitettu mitta
+  ohittaa tartunnan, Esc peruu. Kaarevia tavoitepintoja ei vielä käytetä.
+- **Toteutuva kokonaismitta:** push/pull näyttää siirtymän ja toteutuvan kokonaismitan.
   652 mm osassa siirtymä `−150` jättää 502 mm. Paina Tab: sama luku muuttuu
   lopulliseksi mitaksi 150 mm, ja siirtymäksi lasketaan −502 mm. Shift+Tab
-  vaihtaa takaisin. Kenttää napsauttamalla voit syöttää lopullisen mitan suoraan.
+  vaihtaa takaisin. Kenttää napsauttamalla voit syöttää toteutuvan kokonaismitan suoraan.
   Suurempi mitta pidentää osaa; vastapinta säilyy paikallaan myös vastakkaisilta
   sivuilta muokattaessa. Etumerkitön siirtymä seuraa vedon suuntaa (ilman vetoa
-  ulospäin), `+` ja `−` määräävät suunnan erikseen. Lopullinen mitta on aina
-  positiivinen; kokonaan läpi leikkaamiseen on oma painike.
+  ulospäin), `+` ja `−` määräävät suunnan erikseen. Toteutuva kokonaismitta on
+  vähintään nolla; nolla avaa rajatun alueen läpi. Koko osan poistava työntö hylätään.
   Vihreä mittaviiva kulkee ensimmäisestä vastapinnasta uuteen pintaan.
   Syvennyksessä voi näin jättää esimerkiksi 5 mm materiaalia. Vaihtelevan
   paksuuden osassa mitta koskee osoitettua kohtaa ja valitun pinnan normaalin suuntaa.
@@ -160,7 +191,7 @@ geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
 
 ![Kelluva mittaikkuna ja kirjoittamalla lukitut mitat](docs/images/nivo-input.png)
 
-![652 mm osan lopullinen mitta 550 mm ja automaattisesti laskettu −102 mm siirtymä](docs/images/nivo-final-size.png)
+![652 mm osan toteutuva kokonaismitta 550 mm ja automaattisesti laskettu −102 mm siirtymä](docs/images/nivo-final-size.png)
 
 ![Kolmannen kynäviivan suunta lukittuna, 200 mm pituus poimittu ensimmäisestä pisteestä](docs/images/nivo-inference.png)
 

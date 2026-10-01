@@ -6,6 +6,35 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.6: **53 yksikkötestiä hyväksytty**, TypeScript ja tuotantopaketointi
+hyväksytty. Tuotantopaketin kohdistettu selaintarkistus (52 tapausta, 9,7 min):
+**50 hyväksytty, 2 tarkoituksella ohitettu**. Ajo kattaa uudet työnkulut
+molemmilla näyttöprofiileilla, työpöydän olennaiset regressiot ja laajemman
+piirto-/mallinnus-/tallennussarjan tablettiprofiilissa. Ohitukset ovat
+kehitystilaan rajattu worker-koe ja työpöydällä ohitettava kosketuskoe.
+
+Erivärisen monivalinnan viimeistelyn kohdistettu tuotantouusinta:
+**2/2 hyväksytty**. Paneeli näyttää useat värit, nykyisen pääosan oman värin
+voi asettaa koko valinnalle ja yksi undo palauttaa alkuperäiset eri värit.
+
+V0.6:n uudet tarkistukset kattavat:
+
+- Push/pullin tavoitetason laskennan kaikilta kuudelta suunnalta, negatiivisen
+  ja nollasiirtymän sekä vinon lähde- ja kohdepinnan.
+- Kahden klikkauksen ja vedon pintakohdistuksen: 40 → 90 → 18 mm, myös
+  Hold-viite, muuttumaton kohdeosa ja undo. Kirjoitettu 25 mm ohittaa
+  kohdepinnan, Esc peruu. Vinon tavoitteen osoitettu taso säilyttää
+  lähdepinnan suunnan ja täsmällisen korkeuden.
+- 600 × 400 × 18 mm levyn yhteiset kolme 3D-mittaa, toistuvan lisäyksen
+  duplikaatittomuuden, E-muokkauksen 18 → 43 mm ja vastaavat mittakuvan/SVG:n
+  arvot. Mitat, väri ja geometria säilyvät tiedostossa ja uudelleenlatauksessa.
+- Väripaletin ja oman värin, monivalinnan yhden undo-askeleen sekä 3D-mittojen
+  kaikki/valinta/piilotettu-asetusten tallentumisen.
+- Yli kolmen päällekkäisen mittaviivan erilliset rivit, annotaatioiden huomioinnin
+  mittakaavassa, arkin ylityksen ja puuttuvan kappaleviitteen havaitsemisen.
+- Aikaisemmat V5-projektit täydentyvät oletusnäkyvyydellä `all`; nollapaksuutta
+  ja construction-apumuotoa ei mitoiteta automaattisesti.
+
 V0.5.1:n uudet tarkistukset: **48 yksikkötestiä hyväksytty**, TypeScript,
 tuotantopaketointi ja muotoilu tarkistettu. Uusi CAD-koe varmentaa Offsetin
 esikatselun maailman koordinaateissa, kaikilla kuudella sivulla, sekä hiirisuunnan
@@ -90,7 +119,7 @@ Kolme uutta työnkulkua hyväksytty ensin työpöytäprofiilin kohdistetussa ajo
 
 | Tarkistus                    | Tulos                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm test`                   | 48 testiä hyväksytty.                                                                                                                |
+| `npm test`                   | 53 testiä hyväksytty.                                                                                                                |
 | Kehitystilan selaintestit    | V0.5:n seitsemän uutta työnkulkua hyväksytty työpöydällä ennen tuotantoajoa. Aiemmat CAD-worker-kokeet säilyvät.                     |
 | `npm run build`              | TypeScript ja tuotantopaketointi hyväksytty.                                                                                         |
 | Tuotantopaketin selaintestit | Mittasyöttö, apuviivat, Shift-viite, kynä, yhdistäminen sekä aiemmat työnkulut työpöydällä ja tablettiprofiilissa. Ajotulokset alla. |
@@ -245,7 +274,13 @@ V0.4:n uudet selaintyönkulut, molemmilla profiileilla:
   tasopinta, kuten ympyrä, on tuettu.
 - Nimetty osa on itsenäinen kappale. Linkitetyt komponenttimäärittelyt ja
   instanssien yhteismuokkaus ovat jatkotyötä.
-- Arkilla on yksi näkymä. Useiden päällekkäisten mittaviivojen automaattinen
-  sijoittelu ei ole valmis; käytä ensimmäisessä versiossa muutamaa kokonaismittaa.
+- Arkilla on yksi näkymä. Ulkomittojen tekstit ja viivat saavat tarvittaessa
+  omat rivit. Jos malli ja mittarivit eivät mahdu A4:lle, vienti estyy ja
+  käyttöliittymä pyytää pienentämään mittakaavaa tai vähentämään mittoja.
+  Usean arkin/näkymän taitto sekä kahden vapaan pisteen ja vinon reunan
+  mitoitus ovat jatkotyötä. 3D:n ulkomitat ovat maailman X/Y/Z-suunnissa.
+- Pintakohdistus koskee tasopintoja. Yhdensuuntaiset pinnat tulevat samalle
+  tasolle, vinosta tavoitteesta poimitaan osoitetun pisteen taso lähteen
+  normaalin suunnassa. Kaarevan pinnan tangentti-/ääripistetartunta on jatkotyötä.
 - Esimerkkikaappi todentaa kuuden levyn rungon. Täydelliset hyväksymisesimerkit
   A–C odottavat linkitettyjä komponentteja, materiaaleja ja scenejä.

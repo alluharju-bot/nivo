@@ -15,6 +15,7 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { rotationHandles } from '../model/rotationHandles';
 import { dot, unit } from '../model/geometry';
 import { createWorkspaceGrid } from './workspaceGrid';
+import { createModelDimensions } from './modelDimensions';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   sync: () => void;
@@ -42,6 +43,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   renderer.domElement.setAttribute('data-testid', 'viewport');
   renderer.domElement.tabIndex = 0;
   container.append(renderer.domElement);
+  const modelDimensions = createModelDimensions(container);
   const perspective = new THREE.PerspectiveCamera(40, 1, 0.1, 1_000_000);
   const orthographic = new THREE.OrthographicCamera(-900, 900, 700, -700, 0.1, 1_000_000);
   perspective.up.set(0, 0, 1);
@@ -84,6 +86,13 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().axisLabels,
     );
     renderer.render(scene, camera);
+    modelDimensions.update(
+      current().bodies,
+      current().dimensions,
+      current().selectedIds,
+      current().dimensionDisplay,
+      camera,
+    );
     for (const label of [...labels, ...extrusionLabels]) {
       const p = label.point.clone().project(camera);
       label.element.hidden = Math.abs(p.z) > 1 || (!label.xray && !!labelOccluded?.(label.point));
@@ -464,7 +473,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           dimension(
             base,
             final > 0 ? end : base,
-            `Jäljelle ${formatLength(final)} mm`,
+            `Toteutuva kokonaismitta ${formatLength(final)} mm`,
             'remaining',
             '#137d52',
           );
@@ -727,6 +736,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       disposeGroup(bodies);
       disposeGroup(ghost);
       workspaceGrid?.dispose();
+      modelDimensions.dispose();
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
           obj.geometry.dispose();
@@ -771,6 +781,8 @@ export function Viewport(props: Props) {
     props.booleanTools,
     props.axisStyle,
     props.axisLabels,
+    props.dimensions,
+    props.dimensionDisplay,
   ]);
   useEffect(
     () => api.current?.preview(),

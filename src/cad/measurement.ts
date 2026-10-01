@@ -10,7 +10,7 @@ export function measureFaceSpan(body: Body, ref: FaceRef, point?: Vec3): FaceSpa
   try {
     const mesh = meshBody(body, shape),
       face = mesh.faces.find((f) => f.ref === ref);
-    if (!face?.planar) throw new Error('Lopullinen mitta tarvitsee tasopinnan.');
+    if (!face?.planar) throw new Error('Toteutuva kokonaismitta tarvitsee tasopinnan.');
     const normal = face.normal;
     let start = point ?? face.center;
     start = sub(start, scale(normal, dot(sub(start, face.center), normal)));

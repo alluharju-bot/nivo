@@ -1,4 +1,6 @@
 import { offsetDirection } from '../model/faceBoundary';
+import { faceDepthSnap } from '../model/extrusion';
+import { formatLength } from '../model/units';
 import * as THREE from 'three';
 import type { BodyMesh, FaceTarget } from '../cad/protocol';
 import type { Anchor, Axis, Vec3, WorkPlane } from '../model/project';
@@ -143,6 +145,7 @@ export function installInteractions({
     bodyId?: string;
   };
   let offsetSession: { target: FaceTarget; direction: Vec3; initial: number } | undefined;
+  let extrudeSession: FaceTarget | undefined;
   const startOffset = (target: FaceTarget) => {
     const mesh = current().meshes.find((m) => m.id === target.bodyId);
     if (!mesh) return;
@@ -343,9 +346,10 @@ export function installInteractions({
       ? picked
       : undefined;
   };
-  const highlightFace = (target?: FaceTarget) => {
-    if (current().bodies.find((b) => b.id === target?.bodyId)?.locked) target = undefined;
-    current().onFaceHover(target);
+  const highlightFace = (target?: FaceTarget, reference = false) => {
+    if (!reference && current().bodies.find((b) => b.id === target?.bodyId)?.locked)
+      target = undefined;
+    current().onFaceHover(reference ? undefined : target);
     for (const obj of bodies.children)
       if (obj instanceof THREE.Mesh) {
         const faces = obj.userData.faces as BodyMesh['faces'];
@@ -498,6 +502,26 @@ export function installInteractions({
     line.computeLineDistances();
     render();
   };
+  const depthTargetAt = (event: PointerEvent, source: FaceTarget) => {
+    const picked = faceAt(event);
+    const match = picked?.face.planar ? faceDepthSnap(source, picked.target) : undefined;
+    canvas.dataset.depthTarget = match ? `${picked!.target.bodyId}:${picked!.target.face}` : '';
+    canvas.dataset.depthKind = match ? (match.parallel ? 'plane' : 'point') : '';
+    hoveredReference = undefined;
+    if (!match) {
+      highlightFace(source);
+      show();
+      return;
+    }
+    highlightFace(picked!.target, true);
+    show({
+      point: picked!.target.point,
+      key: 'depth-target',
+      label: `${match.parallel ? 'Tavoitepinta · sama taso' : 'Tavoitepiste · vino pinta'} · ${formatLength(match.distance)} mm`,
+      line: [picked!.target.point, add(source.point, scale(source.normal, match.distance))],
+    });
+    return match;
+  };
   const snap = (raw: Vec3, plane: WorkPlane, anchor?: Vec3, inference?: Vec3) => {
     const props = current();
     lastSnap = snapPoint(
@@ -534,6 +558,9 @@ export function installInteractions({
       drag = undefined;
       rotationDrag = undefined;
       offsetSession = undefined;
+      extrudeSession = undefined;
+      canvas.dataset.depthTarget = '';
+      canvas.dataset.depthKind = '';
       measureSession = undefined;
       lastSnap = undefined;
       heldReference = undefined;
@@ -799,6 +826,7 @@ export function installInteractions({
     pointers.add(event.pointerId);
     if (pointers.size > 1) {
       drag = undefined;
+      extrudeSession = undefined;
       rotationDrag = undefined;
       blocked = true;
       show();
@@ -902,29 +930,32 @@ export function installInteractions({
       return;
     }
     if (props.tool === 'extrude') {
-      const picked = props.pickDepth ? faceAt(event) : editableFaceAt(event);
-      if (!picked?.face.planar) return;
       if (props.pickDepth && props.faceTarget) {
-        const distance = dot(
-          sub(picked.target.point, props.faceTarget.point),
-          props.faceTarget.normal,
-        );
-        if (Math.abs(distance) >= 0.1) props.onDepthPicked(distance);
-        else props.onSnap('Valitse toinen pinta syvyyden päätepisteeksi.');
+        const snap = depthTargetAt(event, props.faceTarget);
+        if (snap) props.onDepthPicked(snap.distance);
+        else props.onSnap('Valitse toinen tasopinta tavoitteeksi.');
         return;
       }
-      props.onFaceTarget(picked.target);
-      highlightFace(picked.target);
-      props.onStart();
+      const continuing = !!extrudeSession || (props.extrusionLocked && !!props.faceTarget);
+      if (!extrudeSession && continuing) extrudeSession = props.faceTarget;
+      if (!extrudeSession) {
+        const picked = editableFaceAt(event);
+        if (!picked?.face.planar) return;
+        extrudeSession = picked.target;
+        props.onFaceTarget(picked.target);
+        highlightFace(picked.target);
+        props.onStart();
+      }
+      if (!extrudeSession) return;
       drag = {
-        start: picked.target.point,
-        origin: picked.target.point,
+        start: extrudeSession.point,
+        origin: extrudeSession.point,
         screenX: event.clientX,
         screenY: event.clientY,
         height: 0,
         plane: workPlane(),
-        second: false,
-        face: picked.target,
+        second: continuing,
+        face: extrudeSession,
       };
       canvas.setPointerCapture(event.pointerId);
       canvas.focus({ preventScroll: true });
@@ -1134,12 +1165,26 @@ export function installInteractions({
       return;
     }
     if (props.tool === 'extrude') {
-      if (drag?.face) {
-        const end = linePoint(event, drag.start, drag.face.normal),
-          distance = Math.round(dot(sub(end, drag.start), drag.face.normal) * 100) / 100;
-        props.onGesture({ type: 'extrude', distance });
+      if (props.pickDepth && props.faceTarget) {
+        depthTargetAt(event, props.faceTarget);
+      } else if (extrudeSession) {
+        if (props.extrusionLocked) {
+          canvas.dataset.depthTarget = '';
+          canvas.dataset.depthKind = '';
+          highlightFace(extrudeSession);
+          show();
+        } else {
+          const snap = depthTargetAt(event, extrudeSession);
+          const end = snap
+            ? undefined
+            : linePoint(event, extrudeSession.point, extrudeSession.normal);
+          const distance =
+            snap?.distance ??
+            Math.round(dot(sub(end!, extrudeSession.point), extrudeSession.normal) * 100) / 100;
+          props.onGesture({ type: 'extrude', distance });
+        }
       } else {
-        const face = props.pickDepth ? faceAt(event) : editableFaceAt(event);
+        const face = editableFaceAt(event);
         highlightFace(face?.face.planar ? face.target : undefined);
         if (face?.face.planar)
           show({ point: face.target.point, key: 'face', label: 'Vedä pintaa · E' });
@@ -1258,6 +1303,11 @@ export function installInteractions({
           // Use the last pointermove value. A click must not overwrite a typed dimension.
           props.onAccept();
         }
+      } else if (props.tool === 'extrude') {
+        if (moved || active.second) {
+          move(event);
+          props.onAccept();
+        }
       } else if (props.tool === 'boolean' && !moved) {
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
@@ -1310,7 +1360,7 @@ export function installInteractions({
         updateMeasure(event);
         props.onAccept();
         measureSession = undefined;
-      } else if (moved && ['rectangle', 'circle', 'move', 'extrude'].includes(props.tool)) {
+      } else if (moved && ['rectangle', 'circle', 'move'].includes(props.tool)) {
         move(event);
         props.onAccept();
       }
@@ -1323,6 +1373,9 @@ export function installInteractions({
   const cancel = (event: PointerEvent) => {
     pointers.delete(event.pointerId);
     drag = undefined;
+    extrudeSession = undefined;
+    canvas.dataset.depthTarget = '';
+    canvas.dataset.depthKind = '';
     rotationDrag = undefined;
     if (!pointers.size) blocked = false;
   };
@@ -1387,6 +1440,9 @@ export function installInteractions({
     shift = false;
     current().onCopyMove(false);
     offsetSession = undefined;
+    extrudeSession = undefined;
+    canvas.dataset.depthTarget = '';
+    canvas.dataset.depthKind = '';
     if (heldReference) current().onReference(undefined);
     heldReference = undefined;
     shiftDirection = undefined;
