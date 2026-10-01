@@ -1,3 +1,4 @@
+import { editBody } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
@@ -154,6 +155,7 @@ test('two-click circle still divides a face; a subsequent ellipse can be cancell
   const plate = makeBody(400, 300, 40);
   await ready(page, [plate]);
   const point = await view(page, [plate]);
+  await editBody(page, plate.id);
   await page.keyboard.press('c');
   await click(page, point(200, 150, 40));
   const edge = point(250, 150, 40);

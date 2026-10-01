@@ -10,10 +10,11 @@ import type {
   View,
   WorkPlane,
 } from '../model/project';
-import type { BodyMesh, FaceTarget, FaceSpan } from '../cad/protocol';
+import type { BodyMesh, FaceTarget, FaceSpan, BoundaryTarget } from '../cad/protocol';
 import type { ReferencePoint } from '../model/snap';
 import type { SketchFrame } from '../model/sketch';
 export type Tool =
+  | 'erase'
   | 'offset'
   | 'rotate'
   | 'select'
@@ -50,6 +51,9 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  editingBodyId?: string;
+  onEditBody: (id: string) => void;
+  onRemoveBoundary: (target: BoundaryTarget) => void;
   rotation?: Rotation;
   onRotationPick: (pivot: Vec3, axis?: Vec3, bodyId?: string) => void;
   onRotationAngle: (angle: number) => void;

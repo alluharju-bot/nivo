@@ -2,7 +2,7 @@ import { offsetDirection } from '../model/faceBoundary';
 import { faceDepthSnap } from '../model/extrusion';
 import { formatLength } from '../model/units';
 import * as THREE from 'three';
-import type { BodyMesh, FaceTarget } from '../cad/protocol';
+import type { BodyMesh, FaceTarget, BoundaryTarget } from '../cad/protocol';
 import type { Anchor, Axis, Vec3, WorkPlane } from '../model/project';
 import {
   planeAxes,
@@ -88,6 +88,13 @@ export function installInteractions({
   edgeHighlight.visible = false;
   edgeHighlight.renderOrder = 98;
   overlay.add(edgeHighlight);
+  const boundaryHighlight = new THREE.LineSegments(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({ color: '#cc672b', depthTest: false }),
+  );
+  boundaryHighlight.renderOrder = 100;
+  boundaryHighlight.visible = false;
+  overlay.add(boundaryHighlight);
   const highlightEdge = (edge?: { start: Vec3; end: Vec3 }) => {
     edgeHighlight.visible = !!edge;
     canvas.dataset.hoverEdge = edge ? JSON.stringify([edge.start, edge.end]) : '';
@@ -372,7 +379,9 @@ export function installInteractions({
   };
   const editableFaceAt = (event: PointerEvent) => {
     const picked = faceAt(event);
-    return picked && !current().bodies.find((b) => b.id === picked.target.bodyId)?.locked
+    return picked &&
+      !current().bodies.find((b) => b.id === picked.target.bodyId)?.locked &&
+      (!current().editingBodyId || current().editingBodyId === picked.target.bodyId)
       ? picked
       : undefined;
   };
@@ -404,7 +413,11 @@ export function installInteractions({
     return hit?.face.planar ? hit.target : undefined;
   };
   const highlightFace = (target?: FaceTarget, reference = false) => {
-    if (!reference && current().bodies.find((b) => b.id === target?.bodyId)?.locked)
+    if (
+      !reference &&
+      (current().bodies.find((b) => b.id === target?.bodyId)?.locked ||
+        (current().editingBodyId && target?.bodyId !== current().editingBodyId))
+    )
       target = undefined;
     current().onFaceHover(reference ? undefined : target);
     for (const obj of bodies.children)
@@ -419,6 +432,81 @@ export function installInteractions({
       }
     canvas.dataset.hoverFace = target?.face ?? '';
     render();
+  };
+  const highlightBoundary = (target?: BoundaryTarget) => {
+    highlightFace();
+    boundaryHighlight.visible = !!target;
+    boundaryHighlight.geometry.dispose();
+    boundaryHighlight.geometry = new THREE.BufferGeometry();
+    boundaryHighlight.geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(target?.lines ?? [], 3),
+    );
+    for (const obj of bodies.children)
+      if (obj instanceof THREE.Mesh && obj.userData.id === target?.bodyId) {
+        const faces = obj.userData.faces as BodyMesh['faces'];
+        (obj.material as THREE.MeshStandardMaterial[]).forEach((material, i) => {
+          const active = target!.faces.includes(faces[i].ref);
+          material.emissive.set(active ? '#ce8d4a' : '#000000');
+          material.emissiveIntensity = active ? 0.32 : 0;
+        });
+      }
+    canvas.dataset.eraseBoundary = target
+      ? JSON.stringify({ bodyId: target.bodyId, faces: target.faces })
+      : '';
+    render();
+  };
+  const boundaryAt = (event: PointerEvent): BoundaryTarget | undefined => {
+    const props = current(),
+      rect = canvas.getBoundingClientRect();
+    const cursor = new THREE.Vector2(event.clientX - rect.left, event.clientY - rect.top);
+    const candidates: {
+      target: BoundaryTarget;
+      point: THREE.Vector3;
+      distance: number;
+      depth: number;
+    }[] = [];
+    for (const mesh of props.meshes) {
+      if (props.editingBodyId && props.editingBodyId !== mesh.id) continue;
+      if (props.bodies.find((b) => b.id === mesh.id)?.locked) continue;
+      for (const boundary of mesh.boundaries) {
+        for (let i = 0; i < boundary.lines.length; i += 6) {
+          const start = boundary.lines.slice(i, i + 3) as Vec3,
+            end = boundary.lines.slice(i + 3, i + 6) as Vec3;
+          const a = screen(start),
+            b = screen(end),
+            dx = b.x - a.x,
+            dy = b.y - a.y;
+          const t = Math.max(
+            0,
+            Math.min(1, ((cursor.x - a.x) * dx + (cursor.y - a.y) * dy) / (dx * dx + dy * dy || 1)),
+          );
+          const distance = Math.hypot(cursor.x - a.x - t * dx, cursor.y - a.y - t * dy);
+          const depth = a.z + t * (b.z - a.z);
+          if (distance > 12 || depth < -1 || depth > 1) continue;
+          candidates.push({
+            target: { ...boundary, bodyId: mesh.id },
+            point: new THREE.Vector3(...start).lerp(new THREE.Vector3(...end), t),
+            distance,
+            depth,
+          });
+        }
+      }
+    }
+    candidates.sort((a, b) =>
+      Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
+    );
+    return candidates.find(({ point }) => {
+      const projected = point.clone().project(camera()),
+        ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
+      const hit = ray.intersectObjects(bodies.children).find((h) => h.object instanceof THREE.Mesh);
+      return (
+        !hit ||
+        hit.distance >=
+          ray.ray.origin.distanceTo(point) - worldPerPixel(point.toArray() as Vec3) * 0.5
+      );
+    })?.target;
   };
   const edgeAt = (event: PointerEvent) => {
     setRay(event);
@@ -669,6 +757,7 @@ export function installInteractions({
       current().onConstraint(undefined);
       highlightFace();
       highlightEdge();
+      highlightBoundary();
       pointers.clear();
       blocked = false;
       show();
@@ -930,6 +1019,22 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.tool === 'navigate') return;
+    if (props.tool === 'erase') {
+      const target = boundaryAt(event);
+      highlightBoundary(target);
+      drag = {
+        start: [0, 0, 0],
+        origin: [0, 0, 0],
+        screenX: event.clientX,
+        screenY: event.clientY,
+        height: 0,
+        plane: 'XY',
+        second: false,
+      };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.focus({ preventScroll: true });
+      return;
+    }
     if (props.pickReference) {
       const p = nearest(event);
       if (p) {
@@ -992,7 +1097,7 @@ export function installInteractions({
         };
         canvas.setPointerCapture(event.pointerId);
       } else {
-        const hit = faceAt(event);
+        const hit = editableFaceAt(event);
         if (hit) {
           const body = props.bodies.find((b) => b.id === hit.target.bodyId);
           if (body?.locked) props.onSnap('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
@@ -1117,6 +1222,12 @@ export function installInteractions({
     const moveTarget = moveHit?.target.bodyId;
     if (
       props.tool === 'move' &&
+      props.editingBodyId &&
+      (moveTarget ?? props.selected) !== props.editingBodyId
+    )
+      return;
+    if (
+      props.tool === 'move' &&
       props.bodies.find((b) => b.id === (moveTarget ?? props.selected))?.locked
     ) {
       props.onSnap('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
@@ -1215,6 +1326,16 @@ export function installInteractions({
     sync();
     const props = current();
     if (blocked || props.busy) return;
+    if (props.tool === 'erase') {
+      const target = boundaryAt(event);
+      highlightBoundary(target);
+      props.onSnap(
+        target
+          ? 'Poista rajaus · korostetut tasopinnat yhdistyvät.'
+          : 'Osoita samantasoisten pintojen jakoviivaa.',
+      );
+      return;
+    }
     if (props.tool === 'rotate') {
       if (rotationDrag) {
         updateRotation(event);
@@ -1378,7 +1499,10 @@ export function installInteractions({
       active = drag;
     if (active && !blocked && !props.busy) {
       const moved = Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
-      if (props.tool === 'rotate' && rotationDrag) {
+      if (props.tool === 'erase' && !moved) {
+        const target = boundaryAt(event);
+        if (target) props.onRemoveBoundary(target);
+      } else if (props.tool === 'rotate' && rotationDrag) {
         if (moved) {
           updateRotation(event);
           props.onAccept();
@@ -1567,11 +1691,18 @@ export function installInteractions({
   };
   const leave = () => {
     if (!drag && !measureSession) {
+      highlightBoundary();
       highlightEdge();
       highlightFace();
       show();
     }
   };
+  const doubleClick = (event: MouseEvent) => {
+    if (current().tool !== 'select' || current().busy || event.button !== 0) return;
+    const target = editableFaceAt(event as PointerEvent);
+    if (target) current().onEditBody(target.target.bodyId);
+  };
+  canvas.addEventListener('dblclick', doubleClick);
   canvas.addEventListener('pointerleave', leave);
   canvas.addEventListener('pointerdown', down);
   canvas.addEventListener('pointermove', move);
@@ -1583,6 +1714,7 @@ export function installInteractions({
   return {
     sync,
     dispose() {
+      canvas.removeEventListener('dblclick', doubleClick);
       canvas.removeEventListener('pointerleave', leave);
       canvas.removeEventListener('pointerdown', down);
       canvas.removeEventListener('pointermove', move);

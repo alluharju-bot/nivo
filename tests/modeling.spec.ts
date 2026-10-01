@@ -1,3 +1,4 @@
+import { editBody } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
@@ -74,6 +75,7 @@ test('circle on a face becomes a selected region, E makes a through hole, undo r
   const plate = makeBody(400, 300, 40);
   await ready(page, [plate]);
   const point = await view(page, [plate]);
+  await editBody(page, plate.id);
   await page.keyboard.press('c');
   await drag(page, point(200, 150, 40), point(250, 150, 40));
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
@@ -108,6 +110,7 @@ test('rectangle and pen draw directly on a vertical face and create recessed reg
   const wall = makeBody(400, 40, 300);
   await ready(page, [wall]);
   const point = await view(page, [wall], 'front');
+  await editBody(page, wall.id);
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).click();
   await page.getByRole('textbox', { name: 'Muodon paksuus', exact: true }).fill('-10');
   await drag(page, point(40, 0, 40), point(140, 0, 140));
@@ -312,6 +315,7 @@ test('depth can be picked from another face while the original region stays sele
     reference = makeBody(100, 100, 10, [450, 100, 0], 'Syvyysviite');
   await ready(page, [plate, reference]);
   const point = await view(page, [plate, reference]);
+  await editBody(page, plate.id);
   await page.keyboard.press('c');
   await drag(page, point(200, 150, 40), point(250, 150, 40));
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
@@ -334,6 +338,7 @@ test('circle uses an oblique face plane and stays on that plane through region e
     body = makeProfileBody({ kind: 'rectangle', width: 400, depth: 300 }, frame, 20, 'Vino levy');
   await ready(page, [body]);
   const point = await view(page, [body]);
+  await editBody(page, body.id);
   const top = { ...frame, origin: [0, 12, 116] as Vec3 },
     start = fromUV([200, 150], top),
     end = fromUV([250, 150], top);

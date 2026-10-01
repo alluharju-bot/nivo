@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.6.1
+# Arkkitehtuuri — v0.7.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -60,13 +60,18 @@ Pintaan piirretty profiili leikataan valitulla pinnalla ja jaetaan
 BRepAlgoAPI_Splitterillä. Alue tunnistetaan uudelleen tallennetusta BRepistä,
 jotta E kohdistuu sisäalueeseen. Paksuus voidaan toteuttaa samassa transaktiossa
 pinnan jaon kanssa. Piirtotason poiminta on erillään osan luontitavasta.
-Automaattisessa tilassa split-face voi palauttaa unchanged-tuloksen, kun
-profiili ulottuu tyhjään tilaan/reunan yli tai pinnanjako ei lisää alueita.
-Profiilin ja leikkausalueen pinta-aloja verrataan ennen pinnanjakoa. App lisää silloin
-alkuperäisen kokonaisen profiilin itsenäisenä osana samassa transaktiossa;
-virheellistä geometriaa tai muita CAD-virheitä ei muuteta uudeksi osaksi.
-Eksplisiittinen Pinnan alue ja Offset vaativat edelleen todellisen jaon.
-Uusi osa käyttää samaa piirtotasoa kutsumatta pinnanjakoa.
+Normaalitilassa piirto luo aina uuden itsenäisen osan kutsumatta pinnanjakoa.
+`editingBodyId` avaa yhden osan piirtomuokkaukseen; `surfaceMode=region`
+jakaa vain kyseisen osan pintaa. Aloitus toisen osan pinnalta ei vaihda kohdetta:
+hyväksyntä hylätään selkeällä viestillä, ellei käyttäjä valitse Uusi osa.
+E/O ovat suoria operaatioita eivätkä muuta pysyvää muokkauskontekstia.
+Avatussa kontekstissa valinta, E/O, siirto, kierto ja kumitus rajaavat kohteen;
+viitepoiminta ja tartunnat käyttävät edelleen kaikkia näkyviä osia.
+Muokkauskonteksti on väliaikainen, ei projektin tai undo-historian osa.
+Valmis ja Esc päättävät sen; poistaminen, piilottaminen tai Hold sulkee
+muokkauskelvottomaksi muuttuneen kohteen. Cut/Join edellyttää normaalitilaa.
+Workerin vanha `allowUnsplit`-rajapinta säilyy yhteensopivana, mutta käyttöliittymä
+ei enää päättele piirron kohdetta profiilin pinta-alasta.
 Suorakulmion/ympyrän luonnos säilyy ensimmäisen napsautuksen jälkeen:
 mousemove päivittää, toinen napsautus tai veto hyväksyy ja epoch/Esc peruu.
 Numerolukot ja synkroniset luonnosviitteet ovat yhteisiä molemmille eleille. Cut vähentää kaikki työstökappaleet jokaisesta kohteesta;
@@ -77,6 +82,17 @@ Offset siirtää tasopinnan ulkorajaa sisään ja aukkojen rajoja ulos OCCT:n
 2D-offsetilla. Suorat kulmat käyttävät leikkaavaa liitosta. Tulos kulkee saman
 pinnan jaon läpi kuin piirretty profiili, joten E ja läpileikkaus käyttävät yhtä
 geometriapolkua. Epäkelpo tai erillisiksi alueiksi hajoava inset hylätään atomisesti.
+
+Poista rajaus käyttää BRepin yhteisiä reunoja ja samansuuntaisia samantasoisia
+pintapareja. `BodyMesh.boundaries` sisältää parin pintaviitteet ja yhteisen
+rajan tesselloidut käyrät osoitusta varten. Pelkkä pintojen geometrinen
+päällekkäisyys ei riitä: niiden pitää jakaa sama topologinen reuna.
+Osoitus tarkistaa näkyvyyden ja Holdin ja korostaa molemmat yhdistyvät pinnat.
+Worker tarkistaa parin uudelleen, kutsuu `ShapeUpgrade_UnifySameDomain`-operaatiota
+ja suojaa kaikki muut reunat `KeepShape`-kutsuilla. Hyväksyntä vaatii yhden
+pinnan vähenemisen, kelvollisen BRepin sekä säilyneet rajat, pinta-alan ja
+tilavuuden. Näin muu tarkoituksellinen pinnanjako ei katoa samalla.
+Tulos serialisoidaan normaaliksi BRepiksi; aiempaa työkaluhistoriaa ei tarvita.
 
 Offsetin esikatselu käyttää samaa tarkkaa inset-laskentaa kuin hyväksyntä,
 mutta palauttaa vain ääriviivan. Hiiripyyntöjä on enintään yksi laskennassa;
@@ -127,6 +143,19 @@ ei jatkuvana animaationa paikallaan ollessa.
 
 Tallennusvirhe näkyy käyttäjälle ja malli säilyy muistissa. Ladattava tiedosto
 ei vaadi File System Access API:a. Automaattitallennus ei ole varmuuskopio.
+
+Muistissa historia säilyttää enintään 100 undo-askelta. Selaintallennuksen
+versioitu historiasnapshot sisältää nykyisen mallin sekä lähimmät past/future-
+askeleet: enintään 20 yhteensä ja 8 MiB UTF-8-tekstiä. Vanhimmat askeleet
+pudotetaan ensin. Aktiivinen projekti ja snapshot kirjoitetaan yhdessä
+IndexedDB-transaktiossa. Kirjoitusjono estää hitaampaa vanhaa tallennusta
+ylikirjoittamasta uudempaa mallia; vanhentuneet jonotyöt ohitetaan.
+Tallennusvirheen jälkeen yritetään nykyistä projektia ilman historiasnapshotia,
+jolloin käyttöliittymä kertoo historian puuttumisesta. Palautuksessa snapshotin
+nykyisen mallin on vastattava aktiivista projektia täsmälleen ja kaikkien askelten
+on läpäistävä skeematarkistus. Rikkinäinen, liian suuri tai eri malliin kuuluva
+historia ohitetaan muuttamatta aktiivista projektia. V5-projektitiedosto ei sisällä
+historiaa. Geometria varmennetaan workerissa ennen kutakin undo/redo-commitia.
 
 ## Topologia
 

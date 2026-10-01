@@ -174,6 +174,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       : props.selectedIds.length
         ? 'object'
         : '';
+    renderer.domElement.dataset.editingBody = props.editingBodyId ?? '';
     const box = bounds(props.bodies),
       min = new THREE.Vector3(...box.min),
       max = new THREE.Vector3(...box.max);
@@ -183,6 +184,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const body = props.bodies.find((b) => b.id === data.id);
       if (!body) continue;
       const selected = props.selectedIds.includes(data.id);
+      const context = data.id === props.editingBodyId;
+      const reference = !!props.editingBodyId && !context;
       const target = props.tool === 'boolean' && props.booleanTargets.includes(data.id),
         cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
         auxiliary = body.purpose === 'construction' || body.purpose === 'drawing';
@@ -193,21 +196,23 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const materials = data.faces.map((face, index) => {
         geometry.addGroup(face.start, face.count, index);
         return new THREE.MeshStandardMaterial({
-          color: target
-            ? '#65a9ee'
-            : cutter
-              ? '#e6654e'
-              : auxiliary
-                ? body.purpose === 'construction'
-                  ? '#1289c6'
-                  : '#9865b4'
-                : body.locked
-                  ? '#9b7bb8'
-                  : selected && face.ref === props.selectedFace
-                    ? '#e1bd7b'
-                    : selected && !props.selectedFace
-                      ? new THREE.Color(body.color).lerp(new THREE.Color('#56a58b'), 0.3)
-                      : body.color,
+          color: reference
+            ? new THREE.Color(body.color).lerp(new THREE.Color('#eaece6'), 0.45)
+            : target
+              ? '#65a9ee'
+              : cutter
+                ? '#e6654e'
+                : auxiliary
+                  ? body.purpose === 'construction'
+                    ? '#1289c6'
+                    : '#9865b4'
+                  : body.locked
+                    ? '#9b7bb8'
+                    : selected && face.ref === props.selectedFace
+                      ? '#e1bd7b'
+                      : selected && !props.selectedFace
+                        ? new THREE.Color(body.color).lerp(new THREE.Color('#56a58b'), 0.3)
+                        : body.color,
           roughness: 0.8,
           metalness: 0,
           side: THREE.DoubleSide,
@@ -221,7 +226,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         });
       });
       const mesh = new THREE.Mesh(geometry, materials);
-      mesh.castShadow = !auxiliary;
+      mesh.castShadow = !auxiliary && !reference;
       // Self-shadow acne on broad coplanar CAD faces caused view-dependent striping.
       // Parts still cast a ground shadow; their own surfaces use stable direct lighting.
       mesh.receiveShadow = false;
@@ -232,28 +237,49 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const outline = new THREE.LineSegments(
         edges,
         new THREE.LineBasicMaterial({
-          color: target
-            ? '#0066bf'
-            : cutter
-              ? '#cc3d28'
-              : auxiliary
-                ? body.purpose === 'construction'
-                  ? '#1289c6'
-                  : '#9865b4'
-                : body.locked
-                  ? '#684294'
-                  : selected
-                    ? '#237b65'
-                    : '#766851',
+          color: context
+            ? '#267e65'
+            : reference
+              ? '#819087'
+              : target
+                ? '#0066bf'
+                : cutter
+                  ? '#cc3d28'
+                  : auxiliary
+                    ? body.purpose === 'construction'
+                      ? '#1289c6'
+                      : '#9865b4'
+                    : body.locked
+                      ? '#684294'
+                      : selected
+                        ? '#237b65'
+                        : '#766851',
           transparent: true,
-          opacity: selected || target || cutter || auxiliary ? 1 : 0.5,
+          opacity: reference
+            ? 0.65
+            : selected || context || target || cutter || auxiliary
+              ? 1
+              : 0.5,
           depthTest: !cutter,
         }),
       );
       outline.userData = { id: body.id };
       bodies.add(outline);
+      if (context) {
+        const editBounds = bounds([body]);
+        const box = new THREE.Box3(
+          new THREE.Vector3(...editBounds.min),
+          new THREE.Vector3(...editBounds.max),
+        );
+        box.expandByScalar(2);
+        const boundary = new THREE.Box3Helper(box, '#267e65');
+        (boundary.material as THREE.LineBasicMaterial).transparent = true;
+        (boundary.material as THREE.LineBasicMaterial).opacity = 0.45;
+        bodies.add(boundary);
+      }
     }
     const editing = [
+      'erase',
       'rotate',
       'rectangle',
       'circle',
@@ -775,6 +801,7 @@ export function Viewport(props: Props) {
     props.meshes,
     props.selectedIds,
     props.selectedFace,
+    props.editingBodyId,
     props.tool,
     props.epoch,
     props.booleanTargets,

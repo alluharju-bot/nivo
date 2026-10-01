@@ -6,6 +6,42 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.7.0: **63 yksikkö- ja CAD-testiä hyväksytty**. TypeScript,
+tuotantopaketointi ja muotoilutarkistus hyväksytty.
+Uudet geometriakokeet varmentavat:
+
+- Tallennetun suorakulmiorajauksen poisto, muuttumattomat mitat, tilavuus, nimi ja väri.
+- Vain valitun rajauksen yhdistäminen; toinen ympyrärajaus säilyy E:llä muokattavana.
+- Kaarevan rajauksen poisto, vinot pinnat ja nollapaksut pinnat.
+- Onton 600 × 600 × 2400 mm kaapin alapinnan korjaus aukkoa muuttamatta.
+- Rakenteellisten kulmien, reikien, taskujen, vanhentuneiden pintaparien ja Holdin hylkäys.
+- Historian molempien suuntien palautus, uuden haaran redo-nollaus, askel- ja
+  tavubudjetti sekä vaurioituneen tai eri mallin historian ohittaminen.
+
+Työpöydän uudet selaintyönkulut: **7/7 hyväksytty**. Piirron, Cut/Joinin,
+Offsetin, push/pullin, työkalujen pysyvyyden ja tiedostotyönkulun regressioajo:
+**19/19 hyväksytty (3,9 min)**. Uudet työnkulut kattavat:
+
+- O/E-pikamuokkauksen jälkeenkin kokonaan pinnan sisäinen piirros luo uuden osan.
+- Tuplaklikkaus avaa yhden osan; piirto jakaa vain sitä. Vieraan osan pinnalta
+  aloitettu pintamuokkaus hylätään. Esc peruu ensin eleen ja vasta sitten kontekstin.
+- Muokkaa osaa -painike toimii myös nimetyille osille; muiden osien E, siirto ja
+  kumitus estetään. Hold estää muokkaustilan avaamisen.
+- Uusi osa muokkaustilan sisällä tarttuu himmennetyn viiteosan kulmaan ja säilyttää
+  molemmat alkuperäiset osat muuttumattomina.
+- Tallennetun BRepin suorakulmiorajaus poistetaan ilman historiaa; ympyrärajaus
+  säilyy. Senkin voi poistaa uudelleenavauksen jälkeen. Ulkokulmaa ei voi kumittaa.
+- Undo ja redo palautuvat päivityksen yli. Muokkaustila sulkeutuu avattaessa;
+  vaurioitunut historia ei estä mallin avaamista.
+- Simuloitu historian tallennusvirhe: nykyinen projekti tallentuu silti,
+  rajoitus näkyy tilarivillä ja malli avautuu päivityksen jälkeen.
+
+Samat 26 työnkulkua tablettiprofiilissa: **26/26 hyväksytty (6,2 min)**.
+Yhteensä **52 erillistä selaintapausta** varmennettu kahdella näyttöprofiililla.
+Viiteosien ääriviivojen kontrastin viimeistelyn jälkeen muokkaustilan
+kohdistettu uusinta hyväksyi **2/2 tapausta**; kummankin profiilin kuvakaappaus
+tarkistettiin. Viiteosa erottuu taustasta ja tarjoaa edelleen tartunnat.
+
 V0.6.1:n yksikkö- ja CAD-tarkistukset: **55 hyväksytty**. TypeScript ja
 tuotantopaketointi hyväksytty. Uusi CAD-koe rakentaa 600 × 600 × 2400 mm
 kaapin Offsetilla ja push/pullilla sekä erottaa koko oven, pienemmän aukon

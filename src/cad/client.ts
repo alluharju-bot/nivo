@@ -78,6 +78,9 @@ export class CadClient {
   offsetOutline(body: Body, face: FaceRef, distance: number) {
     return this.request<number[]>({ type: 'offset-outline', body, face, distance });
   }
+  removeBoundary(body: Body, faces: [FaceRef, FaceRef]) {
+    return this.request<Body>({ type: 'remove-boundary', body, faces });
+  }
   cancel(message = 'Laskenta peruttiin.') {
     this.worker?.terminate();
     this.worker = undefined;

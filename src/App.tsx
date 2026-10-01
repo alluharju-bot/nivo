@@ -10,6 +10,7 @@ import {
 } from 'react';
 import {
   ArrowDownToLine,
+  Eraser,
   ArrowLeftRight,
   ArrowUpFromLine,
   Box,
@@ -128,6 +129,7 @@ import {
 } from './model/geometry';
 import type { ReferencePoint } from './model/snap';
 import type { Gesture } from './viewport/types';
+import type { BoundaryTarget } from './cad/protocol';
 
 const faceNames: Record<FaceRef, string> = {
   'x:min': 'Vasen pinta',
@@ -146,17 +148,20 @@ const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = 
   { id: 'extrude', label: 'Push / pull', icon: <ArrowUpFromLine />, shortcut: 'E' },
   { id: 'move', label: 'Siirrä', icon: <Move3D />, shortcut: 'M' },
   { id: 'pen', label: 'Kynä', icon: <Pencil />, shortcut: 'K' },
+  { id: 'erase', label: 'Poista rajaus', icon: <Eraser />, shortcut: 'U' },
   { id: 'boolean', label: 'Muotoile', icon: <Scissors />, shortcut: 'B' },
   { id: 'measure', label: 'Mittatyökalu', icon: <Ruler />, shortcut: 'T' },
   { id: 'navigate', label: 'Navigoi', icon: <Hand />, shortcut: 'H' },
 ];
 const instructions: Record<Tool, string> = {
+  erase:
+    'U · Osoita pintojen välistä jakoviivaa. Korostetut tasopinnat yhdistyvät klikkauksella. Kulmat ja aukot säilyvät.',
   rotate:
     'R · Poimi kiertopiste tai reuna. Vedä rengasta tai anna kulma. X/Y/Z valitsee akselin; Shift porrastaa 15°. Esc päättää työkalun.',
   offset:
     'O · Osoita pintaa ja liikuta hiirtä tai vedä pinnasta. Kirjoita tarkka mitta. Klikkaus, vapautus tai Enter hyväksyy. Esc peruu.',
   select:
-    'Klikkaus valitsee koko kappaleen. Osoita pintaa ja paina E tai O muokataksesi sitä. Shift+klikkaus lisää valintaan.',
+    'Klikkaus valitsee osan, tuplaklikkaus avaa sen muokattavaksi. E/O muokkaa osoitettua pintaa. Shift+klikkaus lisää valintaan.',
   rectangle:
     'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. Myös veto tai numerosarja X → Tab → Y toimii. Enter hyväksyy.',
   circle:
@@ -248,7 +253,9 @@ export default function App() {
   const shapeFrameRef = useRef<SketchFrame | undefined>(undefined);
   const [sketchTarget, setSketchTarget] = useState<FaceTarget>();
   const sketchTargetRef = useRef<FaceTarget | undefined>(undefined);
-  const [surfaceMode, setSurfaceMode] = useState<'auto' | 'new' | 'region'>('auto');
+  const [surfaceMode, setSurfaceMode] = useState<'new' | 'region'>('new');
+  const [editingBodyId, setEditingBodyId] = useState<string>();
+  const gestureActive = useRef(false);
   const [shapeKind, setShapeKind] = useState<'circle' | 'ellipse' | 'polygon'>('circle');
   const [shapeSides, setShapeSides] = useState(6);
   const [shapePurpose, setShapePurpose] = useState<Body['purpose']>('model');
@@ -331,6 +338,7 @@ export default function App() {
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
+  const editingBody = project.bodies.find((b) => b.id === editingBodyId);
   const [awaitingStart, setAwaitingStart] = useState(false);
   const visibleBodies = useMemo(
     () => project.bodies.filter((b) => bodyVisible(b, project.groups)),
@@ -433,6 +441,7 @@ export default function App() {
     writeFields({ [key]: value });
   };
   const field = (key: string, value: string) => {
+    gestureActive.current = true;
     if (tool === 'extrude' && (key === 'height' || key === 'remaining')) {
       if (key === 'height' && /^[+-]/.test(value.trim())) {
         try {
@@ -468,6 +477,7 @@ export default function App() {
     setLocked(new Set());
   };
   const resetGesture = () => {
+    gestureActive.current = false;
     copyMoveRef.current = false;
     setCopyMove(false);
     rotationRef.current = undefined;
@@ -519,6 +529,12 @@ export default function App() {
     }
   };
   const select = (id?: string, face?: FaceRef, additive = false, force = false) => {
+    if (editingBodyId && id && id !== editingBodyId && !force) {
+      editor.setMessage(
+        'Muut osat ovat viitteitä. Päätä nykyisen osan muokkaus Valmis-painikkeella.',
+      );
+      return;
+    }
     if (tool === 'boolean' && !force) {
       if (id) toggleBoolean(id);
       return;
@@ -543,6 +559,10 @@ export default function App() {
     if (tool === 'rotate' && id && !force) startRotation([id]);
   };
   const finishOperation = (id?: string, face?: FaceRef) => {
+    if (editingBodyId && id && id !== editingBodyId) {
+      id = editingBodyId;
+      face = undefined;
+    }
     select(id, face, false, true);
     setDraftId(uid());
     writeFields({
@@ -555,6 +575,57 @@ export default function App() {
       setBooleanTargets([]);
       setBooleanTools([]);
       setBooleanActive('targets');
+    }
+  };
+  const openBodyEdit = (id: string) => {
+    if (busy) return;
+    const target = project.bodies.find((b) => b.id === id);
+    if (!target || target.locked || !bodyVisible(target, project.groups)) {
+      editor.setMessage('Vapauta ja näytä osa ennen muokkaamista.');
+      return;
+    }
+    if (editingBodyId && editingBodyId !== id) {
+      editor.setMessage('Päätä nykyisen osan muokkaus ensin.');
+      return;
+    }
+    select(id, undefined, false, true);
+    setTool('select');
+    setEditingBodyId(id);
+    hoveredFaceRef.current = undefined;
+    setSurfaceMode('region');
+    setPanelOpen(true);
+    editor.setError('');
+    editor.setMessage(`Muokataan: ${target.name}. Piirrot jakavat tämän osan pintaa.`);
+  };
+  const closeBodyEdit = () => {
+    if (busy) return;
+    resetGesture();
+    hoveredFaceRef.current = undefined;
+    setTool('select');
+    setAwaitingStart(true);
+    setSelected(editingBodyId);
+    setSelectedIds(editingBodyId ? [editingBodyId] : []);
+    setSelectedFace(undefined);
+    setEditingBodyId(undefined);
+    setSurfaceMode('new');
+    editor.setError('');
+    editor.setMessage('Osan muokkaus päätetty. Piirtäminen luo uuden osan.');
+  };
+  const eraseBoundary = async (target: BoundaryTarget) => {
+    if (busy || committing.current) return;
+    const source = project.bodies.find((b) => b.id === target.bodyId);
+    if (!source || source.locked || (editingBodyId && source.id !== editingBodyId)) return;
+    committing.current = true;
+    try {
+      if (
+        await editor.transact(async () => {
+          const next = await editor.cad.removeBoundary(source, target.faces);
+          return { ...project, bodies: project.bodies.map((b) => (b.id === source.id ? next : b)) };
+        }, 'Rajaus poistettu. Tasopinnat yhdistetty; kappaleen mitat ja materiaali säilyivät.')
+      )
+        finishOperation(source.id);
+    } finally {
+      committing.current = false;
     }
   };
   const fit = () => setCameraCommand({ id: performance.now(), type: 'fit' });
@@ -582,6 +653,10 @@ export default function App() {
   };
   const begin = (next: Tool) => {
     if (busy) return;
+    if (editingBodyId && next === 'boolean') {
+      editor.setMessage('Päätä osan muokkaus ennen usean kappaleen Cut/Join-toimintoa.');
+      return;
+    }
     if (next === 'measure' && tool === 'measure') {
       setMeasureMenu(!measureMenu);
       return;
@@ -620,7 +695,12 @@ export default function App() {
       if (next === 'offset') writeFields({ offset: '18' });
       const hovered = hoveredFaceRef.current;
       const faceBody = project.bodies.find((b) => b.id === hovered?.bodyId) ?? body;
-      if ((next === 'extrude' || (next === 'offset' && hovered)) && faceBody && !faceBody.locked) {
+      if (
+        (next === 'extrude' || (next === 'offset' && hovered)) &&
+        faceBody &&
+        !faceBody.locked &&
+        (!editingBodyId || faceBody.id === editingBodyId)
+      ) {
         const mesh = editor.meshes.find((m) => m.id === faceBody.id);
         const face =
           mesh?.faces.find(
@@ -805,13 +885,19 @@ export default function App() {
   };
   const commitShape = async (candidate: Body) => {
     const target =
-      surfaceMode !== 'new' && shapePurpose === 'model' ? sketchTargetRef.current : undefined;
+      editingBodyId && surfaceMode === 'region' && shapePurpose === 'model'
+        ? sketchTargetRef.current
+        : undefined;
     const source = project.bodies.find((b) => b.id === target?.bodyId),
       distance = parseLength(fieldsRef.current.thickness, true, true);
-    if (surfaceMode === 'region' && shapePurpose === 'model' && !source)
-      throw new Error('Aloita kappaleen tasopinnalta tai valitse piirtotavaksi Uusi osa.');
+    if (
+      editingBodyId &&
+      surfaceMode === 'region' &&
+      shapePurpose === 'model' &&
+      (!source || source.id !== editingBodyId)
+    )
+      throw new Error('Aloita muokattavan osan tasopinnalta tai valitse piirtotavaksi Uusi osa.');
     let selectedRegion: FaceRef | undefined;
-    let independent = false;
     if (target && source?.locked && surfaceMode === 'region')
       throw new Error(
         'Kappale on kiinnitetty. Valitse Uusi osa tai vapauta kappale G-näppäimellä.',
@@ -832,11 +918,7 @@ export default function App() {
         flat = { ...candidate, feature: { ...candidate.feature, height: 0 } };
       const committed = await editor.transact(
         async () => {
-          const split = await editor.cad.split(source, target.face, flat, surfaceMode === 'auto');
-          if (split.unchanged) {
-            independent = true;
-            return { ...project, bodies: [...project.bodies, candidate] };
-          }
+          const split = await editor.cad.split(source, target.face, flat);
           selectedRegion = split.face;
           const next = distance
             ? await editor.cad.pushPull(split.body, split.face, distance)
@@ -847,16 +929,7 @@ export default function App() {
           ? 'Pintaan tehty muotoilu.'
           : 'Pinta jaettu. Rajattu alue on valittu; paina E muokataksesi sitä.',
       );
-      if (committed) {
-        if (independent)
-          editor.setMessage(
-            'Uusi osa luotu pinnan tasolle. Alkuperäinen kappale säilyi ennallaan.',
-          );
-        finishOperation(
-          independent ? candidate.id : source.id,
-          distance ? undefined : selectedRegion,
-        );
-      }
+      if (committed) finishOperation(source.id, distance ? undefined : selectedRegion);
     } else if (
       await editor.transact(
         { ...project, bodies: [...project.bodies, candidate] },
@@ -930,7 +1003,7 @@ export default function App() {
       } else if (tool === 'offset') {
         const target = faceRef.current,
           source = project.bodies.find((b) => b.id === target?.bodyId);
-        if (!target || !source) {
+        if (!target || !source || (editingBodyId && source.id !== editingBodyId)) {
           editor.setMessage('Valitse sisennettävä pinta.');
           return;
         }
@@ -953,7 +1026,7 @@ export default function App() {
       } else if (tool === 'extrude') {
         const target = faceRef.current,
           source = project.bodies.find((b) => b.id === target?.bodyId);
-        if (!target || !source) {
+        if (!target || !source || (editingBodyId && source.id !== editingBodyId)) {
           editor.setMessage('Osoita pintaa ja aloita veto.');
           return;
         }
@@ -1071,6 +1144,7 @@ export default function App() {
     }
   };
   const cancel = () => {
+    const hadGesture = gestureActive.current || !!faceRef.current || !!rotationRef.current || busy;
     if (busy) editor.cancel();
     resetGesture();
     setTool('select');
@@ -1081,6 +1155,15 @@ export default function App() {
     setSelectedFace(undefined);
     setMeasureMenu(false);
     editor.setError('');
+    if (editingBodyId) {
+      if (!hadGesture) {
+        setEditingBodyId(undefined);
+        setSurfaceMode('new');
+        editor.setMessage('Osan muokkaus päätetty. Piirtäminen luo uuden osan.');
+      }
+      setSelected(editingBodyId);
+      setSelectedIds([editingBodyId]);
+    }
   };
   const rotateGuide = (free = false) => {
     if (!guideRef.current && selectedGuideId) {
@@ -1129,6 +1212,7 @@ export default function App() {
     setPenHover(point);
   };
   const gesture = (event: Gesture) => {
+    gestureActive.current = true;
     const patch: Partial<Fields> = {};
     if (event.type === 'profile') {
       if (!lockRef.current.has('width')) patch.width = String(Math.round(event.width * 100) / 100);
@@ -1510,6 +1594,8 @@ export default function App() {
         'Uusi projekti. Aiemman työn saat takaisin Peru-toiminnolla.',
       )
     ) {
+      setEditingBodyId(undefined);
+      setSurfaceMode('new');
       finishOperation();
       setMode('model');
     }
@@ -1521,6 +1607,8 @@ export default function App() {
         'Esimerkkikaappi avattu. Jokainen levy on erillinen muokattava kappale.',
       )
     ) {
+      setEditingBodyId(undefined);
+      setSurfaceMode('new');
       finishOperation();
       setMode('model');
       changeView('iso');
@@ -1533,6 +1621,8 @@ export default function App() {
         throw new Error('Projektitiedosto on liian suuri (enintään 10 Mt).');
       const loaded = parseProject(await file.text());
       if (await editor.transact(loaded, 'Projekti avattu.')) {
+        setEditingBodyId(undefined);
+        setSurfaceMode('new');
         finishOperation();
         setMode('model');
         changeView('iso');
@@ -1543,6 +1633,9 @@ export default function App() {
     if (fileInput.current) fileInput.current.value = '';
   };
   const openDrawing = () => {
+    resetGesture();
+    setEditingBodyId(undefined);
+    setSurfaceMode('new');
     setTool('select');
     setMode('drawing');
     setTab('dimensions');
@@ -1581,6 +1674,17 @@ export default function App() {
       setSelectedFace(undefined);
     }
   }, [project.bodies, selected]);
+  useEffect(() => {
+    if (
+      editingBodyId &&
+      (!editingBody || editingBody.locked || !bodyVisible(editingBody, project.groups))
+    ) {
+      setEditingBodyId(undefined);
+      setSurfaceMode('new');
+      resetGesture();
+      setTool('select');
+    }
+  }, [editingBodyId, editingBody, project.groups]);
   // Commands must observe the same busy/history state as the committed UI, including
   // a redo pressed immediately after undo renders the new object list.
   useLayoutEffect(() => {
@@ -1681,6 +1785,10 @@ export default function App() {
       busy={busy}
       onSelect={(id, additive) => select(id, undefined, additive)}
       onSelectGroup={(id) => {
+        if (editingBodyId) {
+          editor.setMessage('Päätä osan muokkaus ennen ryhmän valintaa.');
+          return;
+        }
         const ids = project.bodies.filter((b) => b.groupId === id).map((b) => b.id);
         if (tool === 'boolean') {
           ids.forEach((id) => toggleBoolean(id));
@@ -1718,6 +1826,8 @@ export default function App() {
       onOrigin={(reference) => void originSelected(reference)}
       onRotate={() => begin('rotate')}
       onHold={holdSelected}
+      editing={!!editingBodyId}
+      onEdit={() => openBodyEdit(body.id)}
     />
   );
   const numericInput = editing && numericFields.length > 0 && (
@@ -2105,7 +2215,27 @@ export default function App() {
           </div>
 
           <div className="model-stage" hidden={mode !== 'model'}>
+            {editingBody && (
+              <div className="edit-context" data-testid="edit-context" role="status">
+                <Pencil size={15} />
+                <span>
+                  Muokataan: <strong>{editingBody.name}</strong>
+                </span>
+                <button onClick={closeBodyEdit} disabled={busy}>
+                  <Check size={15} /> Valmis
+                </button>
+              </div>
+            )}
+            {!editingBody && faceTarget && ['extrude', 'offset'].includes(tool) && (
+              <div className="operation-context" role="status">
+                {tool === 'extrude' ? 'Push / pull' : 'Offset'}:{' '}
+                {project.bodies.find((b) => b.id === faceTarget.bodyId)?.name}
+              </div>
+            )}
             <Viewport
+              editingBodyId={editingBodyId}
+              onEditBody={openBodyEdit}
+              onRemoveBoundary={(target) => void eraseBoundary(target)}
               bodies={visibleBodies}
               meshes={visibleMeshes}
               selected={selected}
@@ -2164,6 +2294,7 @@ export default function App() {
                 hoveredFaceRef.current = target;
               }}
               onFaceTarget={(target) => {
+                if (editingBodyId && target.bodyId !== editingBodyId) return;
                 faceRef.current = target;
                 setFaceTarget(target);
                 setSelected(target.bodyId);
@@ -2204,7 +2335,10 @@ export default function App() {
                 if (!lockRef.current.has('angle')) writeFields({ angle: inputNumber(angle) });
               }}
               onRotationAxis={(axis) => changeRotation({ axis, picking: undefined })}
-              onStart={() => setAwaitingStart(false)}
+              onStart={() => {
+                gestureActive.current = true;
+                setAwaitingStart(false);
+              }}
               onMoveTarget={(id) => {
                 setSelected(id);
                 setSelectedIds([id]);
@@ -2465,6 +2599,7 @@ export default function App() {
                       onName={setShapeName}
                       surfaceMode={surfaceMode}
                       onSurfaceMode={setSurfaceMode}
+                      editingBodyName={editingBody?.name}
                       sides={shapeSides}
                       onSides={setShapeSides}
                       onOperation={changeOperation}
@@ -2974,7 +3109,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.6.1</span>
+                  <span>v0.7.0</span>
                 </div>
               </>
             )}
@@ -3037,11 +3172,22 @@ export default function App() {
               </li>
             </ol>
             <p>
-              <strong>Ovi tai uusi osa pinnan tasolle:</strong> automaattisessa piirtotavassa koko
-              pinnan kokoinen tai aukon peittävä muoto syntyy omaksi osakseen. Pinnan sisään rajattu
-              muoto tekee muokattavan alueen. Piirtotapa-valikon Uusi osa pitää muodon aina
-              erillisenä; Pinnan alue jakaa olemassa olevaa pintaa. E antaa uudelle osalle
-              paksuuden.
+              <strong>Uusi osa vai pinnan muokkaus:</strong> normaalisti piirto tekee uuden osan,
+              myös toisen kappaleen pinnalle. Valitse-työkalulla (V) tuplaklikkaa osaa tai valitse
+              Muokkaa osaa: Muokataan-palkki kertoo kohteen, muut osat himmenevät viitteiksi ja
+              piirto jakaa vain avattua osaa. Valmis sulkee muokkaustilan. Esc peruu ensin
+              keskeneräisen toiminnon, seuraava Esc sulkee muokkaustilan. E/O toimii suoraan myös
+              normaalitilassa.
+            </p>
+            <p>
+              <strong>Poista rajaus (U):</strong> osoita samantasoisten pintojen jakoviivaa ja
+              klikkaa. Korostetut alueet yhdistyvät yhdeksi pinnaksi, myös vanhassa tallennetussa
+              mallissa. Kulmia, syvennyksiä ja aukkoja ei poisteta. Peru palauttaa rajauksen.
+            </p>
+            <p>
+              <strong>Historia:</strong> selaintallennus säilyttää viimeisimmät
+              Peru/Palauta-askeleet sivun päivityksen yli, enintään 20 askelta yhteensä ja 8 Mt.
+              Projektitiedosto sisältää nykyisen mallin; muokkaustila avataan aina erikseen.
             </p>
             <p>
               <strong>Tarkat mitat:</strong> aloita kirjoittamalla numero. Tab siirtyy seuraavaan

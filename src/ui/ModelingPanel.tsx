@@ -152,6 +152,7 @@ export function ShapeProperties({
   onName,
   surfaceMode,
   onSurfaceMode,
+  editingBodyName,
   sides,
   onSides,
   onOperation,
@@ -169,8 +170,9 @@ export function ShapeProperties({
   onPurpose: (purpose: Body['purpose']) => void;
   name: string;
   onName: (name: string) => void;
-  surfaceMode: 'auto' | 'new' | 'region';
-  onSurfaceMode: (mode: 'auto' | 'new' | 'region') => void;
+  surfaceMode: 'new' | 'region';
+  onSurfaceMode: (mode: 'new' | 'region') => void;
+  editingBodyName?: string;
   sides: number;
   onSides: (sides: number) => void;
   onOperation: (op: Operation) => void;
@@ -282,19 +284,23 @@ export function ShapeProperties({
           value={surfaceMode}
           onChange={(e) => onSurfaceMode(e.target.value as typeof surfaceMode)}
         >
-          <option value="auto">Automaattinen</option>
           <option value="new">Uusi osa</option>
-          <option value="region">Pinnan alue</option>
+          <option value="region" disabled={!editingBodyName}>
+            Pinnan alue
+          </option>
         </select>
       </label>
       <p className="muted">
         {frameLabel}.{' '}
         {surfaceMode === 'new' || purpose !== 'model'
           ? 'Muoto syntyy omaksi objektiksi. Aloituspinta toimii piirtotasona.'
-          : surfaceMode === 'auto'
-            ? 'Kokonaan pinnan sisäinen rajaus tekee muokattavan alueen. Pinnan reunan tai aukon yli ulottuva sekä koko pinnan kokoinen muoto syntyy uudeksi osaksi.'
-            : 'Rajaa pinnan sisään alue. Paksuus 0 jakaa pinnan, positiivinen lisää materiaalia ja negatiivinen leikkaa.'}
+          : `Muokataan: ${editingBodyName}. Paksuus 0 jakaa pinnan, positiivinen lisää materiaalia ja negatiivinen leikkaa.`}
       </p>
+      {!editingBodyName && (
+        <p className="muted">
+          Pinnan jakaminen: avaa osa ensin tuplaklikkauksella tai Muokkaa osaa -painikkeella.
+        </p>
+      )}
       {purpose === 'construction' && (
         <p className="muted">Sininen apumuoto tarjoaa tartunnat ja jää pois mittakuvasta.</p>
       )}

@@ -1,3 +1,4 @@
+import { editBody } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
@@ -153,6 +154,7 @@ test('a circular pocket can keep exactly 5 mm of material and rejects a negative
   const body = makeBody(400, 300, 40);
   await ready(page, [body]);
   const point = await view(page, [body]);
+  await editBody(page, body.id);
   await page.keyboard.press('c');
   const a = point(200, 150, 40),
     b = point(250, 150, 40);

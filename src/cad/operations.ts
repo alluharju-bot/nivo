@@ -9,7 +9,7 @@ import {
   Wire,
 } from 'replicad';
 import { featureIsSolid, type Body, type FaceRef } from '../model/project';
-import { createShape, meshBody, bodyFromShape, shapeIsValid } from './kernel';
+import { createShape, meshBody, bodyFromShape, shapeIsValid, exactBounds } from './kernel';
 import type { SplitResult } from './protocol';
 
 /** A true planar inset: split the original face, preserving the solid and its volume. */
@@ -71,6 +71,66 @@ export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitRes
 }
 export function offsetOutline(body: Body, ref: FaceRef, distance: number): number[] {
   return withInset(body, ref, distance, (inset) => inset.meshEdges({ tolerance: 0.15 }).lines);
+}
+
+/** Remove one shared boundary, preserving every other intentional face division. */
+export function removeBoundary(body: Body, refs: [FaceRef, FaceRef]): Body {
+  if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
+  const shape = createShape(body),
+    faces = shape.faces,
+    edges = shape.edges;
+  const unifier = new (getOC().ShapeUpgrade_UnifySameDomain)(shape.wrapped, false, true, false);
+  let result: AnyShape | undefined;
+  try {
+    const mesh = meshBody(body, shape);
+    if (
+      refs[0] === refs[1] ||
+      !mesh.boundaries.some((b) => refs.every((ref) => b.faces.includes(ref)))
+    )
+      throw new Error(
+        'Valitse kahden samantasoisen pinnan välinen rajaus. Kulmia ja aukkojen reunoja ei voi kumittaa.',
+      );
+    const pair = refs.map((ref) => faces[mesh.faces.find((f) => f.ref === ref)!.index]);
+    const first = pair[0].edges,
+      second = pair[1].edges;
+    try {
+      for (const edge of edges)
+        if (!(first.some((e) => e.isSame(edge)) && second.some((e) => e.isSame(edge))))
+          unifier.KeepShape(edge.wrapped);
+    } finally {
+      first.forEach((e) => e.delete());
+      second.forEach((e) => e.delete());
+    }
+    unifier.SetSafeInputMode(true);
+    unifier.Build();
+    result = cast(unifier.Shape());
+    const afterFaces = result.faces;
+    const count = afterFaces.length;
+    afterFaces.forEach((f) => f.delete());
+    if (!shapeIsValid(result) || count !== faces.length - 1)
+      throw new Error('Rajausta ei voitu yhdistää ehjäksi pinnaksi. Kappale säilyi ennallaan.');
+    const before = exactBounds(shape),
+      after = exactBounds(result);
+    const area = measureArea(shape as Shape3D);
+    if (
+      before.min.some((n, i) => Math.abs(n - after.min[i]) > 1e-5) ||
+      before.max.some((n, i) => Math.abs(n - after.max[i]) > 1e-5) ||
+      Math.abs(measureArea(result as Shape3D) - area) > Math.max(1e-5, area * 1e-8) ||
+      (featureIsSolid(body.feature) &&
+        Math.abs(measureVolume(result.asShape3D()) - mesh.volume) >
+          Math.max(1e-5, mesh.volume * 1e-8))
+    )
+      throw new Error(
+        'Rajauksen poisto muuttaisi kappaleen mittoja tai materiaalia. Muutos peruttiin.',
+      );
+    return bodyFromShape(body, result);
+  } finally {
+    result?.delete();
+    unifier.delete();
+    edges.forEach((e) => e.delete());
+    faces.forEach((f) => f.delete());
+    shape.delete();
+  }
 }
 
 export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' | 'join'): Body[] {

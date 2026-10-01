@@ -31,6 +31,14 @@ export interface CadEdge {
   from: VertexAnchor;
   to: VertexAnchor;
 }
+/** A complete shared boundary between two coplanar CAD faces, including curves. */
+export interface FaceBoundary {
+  faces: [FaceRef, FaceRef];
+  lines: number[];
+}
+export interface BoundaryTarget extends FaceBoundary {
+  bodyId: string;
+}
 
 export interface BodyMesh {
   id: string;
@@ -43,6 +51,7 @@ export interface BodyMesh {
   verticesCAD: { point: Vec3; anchor: VertexAnchor }[];
   midpointsCAD: Vec3[];
   edgesCAD: CadEdge[];
+  boundaries: FaceBoundary[];
 }
 export interface Projection {
   visible: string[];
@@ -59,6 +68,7 @@ export type CadRequest =
   | { type: 'split-face'; body: Body; face: FaceRef; profile: Body; allowUnsplit?: boolean }
   | { type: 'offset-face'; body: Body; face: FaceRef; distance: number }
   | { type: 'offset-outline'; body: Body; face: FaceRef; distance: number }
+  | { type: 'remove-boundary'; body: Body; faces: [FaceRef, FaceRef] }
   | { type: 'face-span'; body: Body; face: FaceRef; point?: Vec3 }
   | { type: 'push-pull'; body: Body; face: FaceRef; distance: number };
 export interface ProbeResult {

@@ -30,6 +30,7 @@ import {
 } from '../model/project';
 import type { BodyMesh, DrawingView, Projection, ProbeResult } from './protocol';
 import { add, sub, unit, dot, scale } from '../model/geometry';
+import { faceBoundaries } from './boundaries';
 
 export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
   const oc = getOC(),
@@ -249,6 +250,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     verticesCAD,
     midpointsCAD,
     edgesCAD,
+    boundaries: faceBoundaries(shape, faces),
   };
 }
 /** Serialize exact geometry and retain only old vertex references that still exist. */

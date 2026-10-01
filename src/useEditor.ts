@@ -3,7 +3,7 @@ import { CadClient } from './cad/client';
 import type { BodyMesh } from './cad/protocol';
 import { freshProject, projectSchema, type Project } from './model/project';
 import { History } from './model/history';
-import { loadLocal, saveLocal } from './storage/projects';
+import { loadLocalSession, saveLocal } from './storage/projects';
 
 export function useEditor() {
   const [cad] = useState(() => new CadClient());
@@ -17,31 +17,45 @@ export function useEditor() {
   const [saveStatus, setSaveStatus] = useState('');
   const revision = useRef(0);
   const saveRevision = useRef(0);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
 
-  const persist = useCallback((next: Project) => {
-    const r = ++saveRevision.current;
-    setSaveStatus('Tallennetaan…');
-    void saveLocal(next)
-      .then(() => {
-        if (r === saveRevision.current) setSaveStatus('Tallessa selaimessa');
-      })
-      .catch((e: Error) => {
-        if (r === saveRevision.current) {
-          setSaveStatus('Tallennus epäonnistui');
-          setError(e.message);
-        }
-      });
-  }, []);
+  const persist = useCallback(
+    (next: Project) => {
+      const r = ++saveRevision.current;
+      const snapshot = history.serialize();
+      setSaveStatus('Tallennetaan…');
+      saveQueue.current = saveQueue.current
+        .catch(() => {})
+        .then(async () => {
+          if (r !== saveRevision.current) return;
+          const historySaved = await saveLocal(next, snapshot);
+          if (r === saveRevision.current)
+            setSaveStatus(
+              historySaved
+                ? 'Tallessa selaimessa'
+                : 'Malli tallessa; historia ei mahtunut tallennukseen',
+            );
+        })
+        .catch((e: Error) => {
+          if (r === saveRevision.current) {
+            setSaveStatus('Tallennus epäonnistui');
+            setError(e.message);
+          }
+        });
+    },
+    [history],
+  );
 
   useEffect(() => {
     const current = ++revision.current;
     void (async () => {
       try {
-        const restored = await loadLocal();
-        const initial = restored ?? history.current;
+        const restored = await loadLocalSession();
+        const initial = restored?.project ?? history.current;
         const built = await cad.build(initial.bodies);
         if (current !== revision.current) return;
         history.current = initial;
+        history.restore(restored?.history);
         setProject(initial);
         setMeshes(built);
         setSaveStatus(restored ? 'Tallessa selaimessa' : 'Uusi projekti');

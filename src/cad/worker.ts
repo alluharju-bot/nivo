@@ -4,7 +4,7 @@ import { setOC, makeCompound, type AnyShape } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
 import type { BodyMesh, CadRequest, CadReply } from './protocol';
 import type { Body } from '../model/project';
-import { booleanBodies, splitFace, offsetFace, offsetOutline } from './operations';
+import { booleanBodies, splitFace, offsetFace, offsetOutline, removeBoundary } from './operations';
 import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
 
@@ -58,6 +58,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = offsetFace(request.body, request.face, request.distance);
       else if (request.type === 'offset-outline')
         reply.result = offsetOutline(request.body, request.face, request.distance);
+      else if (request.type === 'remove-boundary')
+        reply.result = removeBoundary(request.body, request.faces);
       else {
         const entries = build(request.bodies);
         if (request.type === 'build') reply.result = entries.map((e) => e.mesh);

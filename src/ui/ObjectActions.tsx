@@ -15,6 +15,8 @@ export function ObjectActions({
   onRotate,
   onHold,
   onColor,
+  onEdit,
+  editing,
 }: {
   body: Body;
   groups: BodyGroup[];
@@ -27,6 +29,8 @@ export function ObjectActions({
   onRotate: () => void;
   onHold: () => void;
   onColor: (color: string) => void;
+  onEdit: () => void;
+  editing: boolean;
 }) {
   const [reference, setReference] = useState<'min' | 'center'>('min');
   return (
@@ -53,6 +57,13 @@ export function ObjectActions({
         />
       </label>
       <div className="object-quick-actions">
+        <button
+          aria-label="Muokkaa osaa"
+          onClick={onEdit}
+          disabled={busy || body.locked || body.hidden || editing}
+        >
+          {editing ? 'Muokkaustila avoinna' : 'Muokkaa osaa'}
+        </button>
         <button aria-label="Kierrä valittuja" onClick={onRotate} disabled={busy || body.locked}>
           <RotateCw size={16} /> Kierrä · R
         </button>

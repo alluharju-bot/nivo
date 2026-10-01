@@ -3,11 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.6.1 tekee tavallisesta push/pull-vedosta vapaan: **Shift** hakee
-tavoitepinnan. Lähes suoraan pintaa kohti katsottaessa veto toimii tasaisesti.
-Suorakulmio ja ympyrämuodot syntyvät myös kahdella napsautuksella ilman
-hiiren painikkeen pitämistä pohjassa. Automaattinen piirtotapa tunnistaa
-esimerkiksi kaapin aukon päälle piirretyn oven uudeksi osaksi.
+Versio 0.7.0 erottaa uuden osan ja pinnan muokkauksen: normaalisti piirto luo
+itsenäisen osan, **tuplaklikkaus** avaa yhden osan muokattavaksi. Muut osat
+toimivat tartuntaviitteinä. **Poista rajaus (U)** yhdistää viereiset tasopinnat,
+myös tallennetussa mallissa. Peru/Palauta-historia säilyy selaimen päivityksen yli.
+E/O-pikatoiminnot, Shiftillä haettava tavoitepinta ja kahden napsautuksen piirto
+ovat käytettävissä molemmissa työtiloissa.
 Osien yhteiset X/Y/Z-ulkomitat, värit ja **Toteutuva kokonaismitta** ovat mukana.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
@@ -51,7 +52,7 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
    **Mittakuvassa** sekä seuraavat osan muutoksia. Valitse osan väri väripaletista.
 7. Vie A4-vaaka-arkki SVG:nä valitussa fyysisessä mittakaavassa. Näkyvät ja
    piilossa olevat viivat lasketaan CAD-geometriasta.
-8. Peru ja palauta muutoksia. Lataa `.nivo`-tiedosto ja avaa se uudelleen.
+8. Peru ja palauta muutoksia myös sivun päivityksen jälkeen. Lataa `.nivo`-tiedosto ja avaa se uudelleen.
 
 Mittasyöttö hyväksyy `600`, `18 mm`, `1,8 cm`, `2,4 m` ja siirroissa negatiiviset
 arvot. Oletusyksikkö on millimetri ja Z-akseli osoittaa ylöspäin.
@@ -78,6 +79,42 @@ tulos on tavallinen siirto. **Siirrä kopio** -valinnalla voi myös kirjoittaa
 siirtymän tai käyttää toimintoa kosketuksella. Esc peruu keskeneräisen kopion;
 Peru poistaa hyväksytyn kopion yhdellä askeleella. Kopio säilyttää tarkan
 geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
+
+## Uusi osa, muokkaustila ja kumitus
+
+**Normaalitilassa piirtäminen luo uuden osan.** Kaapin pinta antaa piirtotason
+ja tartunnat, mutta ei muuta piirrosta kaapin pintamuokkaukseksi. Tämä koskee
+myös pientä, kokonaan pinnan sisään mahtuvaa suorakulmiota tai ympyrää.
+
+**Valitse-työkalulla (V) tuplaklikkaa osaa 3D-näkymässä** tai valitse osa ja paina **Muokkaa osaa**.
+Vihreä rajaus ja **Muokataan: osan nimi** kertovat kohteen. Muut osat himmenevät,
+mutta niiden pisteet, reunat ja pinnat tarjoavat edelleen tartunnat ja viitteet.
+Piirtotapa on **Pinnan alue**: aloita avattavan osan pinnalta ja piirrä rajaus.
+Positiivinen paksuus lisää materiaalia, negatiivinen tekee syvennyksen ja nolla
+tekee E:llä muokattavan alueen. **Uusi osa** on valittavissa myös muokkaustilassa;
+avattu osa pysyy muokkauksen kohteena. Sääntö on sama tavallisille ja nimetyille osille.
+
+![Avattu osa rajataan ja muut osat jäävät näkyviin tartuntaviitteiksi](docs/images/nivo-edit-context.png)
+
+**Valmis** sulkee muokkaustilan. **Esc** peruu ensin keskeneräisen toiminnon;
+ilman keskeneräistä toimintoa se sulkee muokkaustilan. Sivun uudelleenavaus
+alkaa normaalitilassa. **E ja O** toimivat suoraan myös normaalitilassa eivätkä
+avaa pysyvää piirtomuokkausta. Cut/Join tehdään muokkaustilan ulkopuolella.
+
+**Poista rajaus (U)**: osoita pintojen välistä jakoviivaa, tarkista korostetut
+alueet ja klikkaa. Koko kyseisten kahden tasopinnan yhteinen rajaus poistuu.
+Muut jaot, kappaleen ulkomitat, tilavuus, nimi ja väri säilyvät. Toiminto sopii
+myös ympyrärajoihin ja vinoihin tasopintoihin ja toimii ilman aiempaa historiaa.
+Rakenteellisia kulmia, syvennyksiä ja aukkoja ei kumiteta; niiden täyttö on jatkotyötä.
+Hold estää muokkauksen. Peru palauttaa poistetun rajauksen.
+
+![Poista rajaus korostaa yhdistyvät pinnat ja säilyttää muut pintajaot](docs/images/nivo-erase-boundary.png)
+
+Selaimeen tallentuu nykyisen mallin lisäksi enintään **20 Peru/Palauta-askelta
+yhteensä, 8 MiB:n budjetissa**. Suuret mallit lyhentävät säilyvää historiaa.
+Vaurioitunut tai vanhaan malliin kuuluva historia ohitetaan; nykyinen malli avautuu.
+Jos historia ei mahdu tallennukseen, nykyinen malli tallennetaan ja tilarivi kertoo
+rajoituksesta. `.nivo`-tiedosto sisältää nykyisen mallin, ei selaimen historiaa.
 
 ## Mitat ja osavärit
 
@@ -106,17 +143,15 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
 
 - **Pintaan piirtäminen:** ensimmäinen napsautus valitsee piirtotason;
   myös pysty- ja vinopinnat sekä Hold-kappaleet sopivat viitteiksi. Kulmassa
-  käytetään kameraa kohti olevaa viereistä pintaa. Piirtotapa-valikossa on
-  **Automaattinen**, **Uusi osa** ja **Pinnan alue**. Automaattinen jakaa
-  pinnan, kun rajaus muodostaa siihen uuden alueen ja on kokonaan pinnan sisällä.
-  Pinnan reunan tai aukon yli ulottuva sekä koko pinnan kokoinen muoto syntyy
-  omaksi objektiksi. Näin kahden kaapin yli piirretty LED-nauha säilyy kokonaisena. Uusi osa tekee aina erillisen
-  objektin, Pinnan alue vaatii pintaan uuden rajauksen. Hold-kappaletta ei jaeta.
+  käytetään kameraa kohti olevaa viereistä pintaa. Normaalitilan **Uusi osa**
+  säilyttää esimerkiksi kahden kaapin yli piirretyn LED-nauhan kokonaisena.
+  **Pinnan alue** on käytettävissä vasta avatun osan muokkaustilassa ja vaatii
+  pintaan uuden rajauksen. Hold-kappaletta ei jaeta.
   Alueen paksuus **0** jakaa pinnan; E muokkaa valittua aluetta. **Leikkaa läpi**
   tekee läpireiän. Uudelle osalle E antaa oman paksuuden.
 - **Ovi onttoon kaappiin:** valitse Suorakulmio, napsauta etukehyksen vasenta
-  yläkulmaa, siirrä osoitin oikeaan alakulmaan ja napsauta. Automaattinen
-  piirtotapa luo oven omaksi osaksi, ja kaappi säilyy ennallaan. Paina E ja anna
+  yläkulmaa, siirrä osoitin oikeaan alakulmaan ja napsauta. Normaalitilan
+  piirto luo oven omaksi osaksi, ja kaappi säilyy ennallaan. Paina E ja anna
   esimerkiksi 18 mm paksuudeksi. Piirtotapa → Uusi osa sopii myös pienemmälle
   erilliselle ovelle tai levylle saman pinnan tasossa.
 - **Ympyrä (C):** napsauta keskipistettä ja reunaa, vedä säde tai kirjoita halkaisija. Muoto-valikosta

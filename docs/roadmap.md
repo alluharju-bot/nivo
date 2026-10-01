@@ -69,11 +69,11 @@ Mitoituksen, osavärien ja pintakohdistuksen jälkeen viitteiden poimintaa
 ja muita perustyökaluja viimeistellään oikeilla malleilla. Fyysinen tabletti
 ja Safari varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
 
-## Ehdotus: osan muokkaustila ja geometrian korjaus
+## Toteutettu v0.7.0: osan muokkaustila ja geometrian korjaus
 
 Käyttäjän LED-nauha- ja kaappiesimerkit osoittavat, että pinnan käyttäminen
 piirtotasona ja sen muokkaaminen tarvitsevat näkyvän toimintarajan.
-Tämä osio on jatkotyön ehdotus, ei nykyisen version toteutettu muokkaustila.
+Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
 
 - Normaalitilassa piirtäminen luo uuden osan, myös olemassa olevan osan pinnalle.
 - Tuplaklikkaus tai Muokkaa osaa avaa yhden osan muokkaustilaan. Näkyvä
@@ -86,8 +86,8 @@ Tämä osio on jatkotyön ehdotus, ei nykyisen version toteutettu muokkaustila.
   muokkaamaan osaa; pysyvä piirtomuokkaus avataan tuplaklikkauksella.
 - Valmis sulkee muokkaustilan. Esc peruu ensin keskeneräisen eleen; ilman
   keskeneräistä elettä Esc sulkee muokkaustilan.
-- Nivon kaikki kappaleet ovat itsenäisiä objekteja, joten suositus on soveltaa
-  muokkaustilaa kaikkiin osiin. Komponenttityyppi ja myöhemmät linkitetyt
+- Nivon kaikki kappaleet ovat itsenäisiä objekteja, joten muokkaustila koskee
+  kaikkia osia. Komponenttityyppi ja myöhemmät linkitetyt
   instanssit ovat erillisiä käsitteitä.
 - Ensimmäinen kumitustoiminto: **Poista rajaus**. Valitaan saman tasopinnan
   sisäinen jakoviiva, näytetään yhdistyvä alue ja yhdistetään viereiset
@@ -96,9 +96,11 @@ Tämä osio on jatkotyön ehdotus, ei nykyisen version toteutettu muokkaustila.
 - Rakenteellisten reunojen poistaminen, taskujen/aukkojen täyttö ja piirretyn
   luonnoksen poistaminen ovat eri toimintoja. Pelkkä viivan piilottaminen ei
   saa esittää geometrian korjaamista.
-- Undo/redo-historian säilyttäminen selaimen päivityksen yli tukee palautusta;
-  geometriaa pitää silti pystyä korjaamaan ilman vanhaa historiaa. Historian
-  tallennusbudjetti, formaatti ja virhetilanteet määritellään erikseen.
+- Undo/redo säilyy selaimen päivityksen yli: enintään 20 lähintä askelta
+  yhteensä, 8 MiB:n budjetti. Nykyinen malli ja historia tallentuvat samaan
+  IndexedDB-transaktioon. Virheellinen tai vanhentunut historia ohitetaan;
+  tallennustilan loppuessa yritetään nykyistä mallia ilman historiaa.
+  Projektitiedoston formaatti säilyy V5:nä ja sisältää vain nykyisen mallin.
 
 ## Backlog: viisteet ja pyöristykset — erittäin korkea prioriteetti
 

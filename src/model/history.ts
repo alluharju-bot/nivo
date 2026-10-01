@@ -1,4 +1,7 @@
-import type { Project } from './project';
+import { projectSchema, type Project } from './project';
+
+const MAX_SAVED_BYTES = 8 * 1024 * 1024;
+const MAX_SAVED_STEPS = 20;
 
 export class History {
   private past: Project[] = [];
@@ -37,5 +40,44 @@ export class History {
       this.current = next;
     }
     return this.current;
+  }
+  /** Store the nearest undo/redo steps within a bounded browser-storage budget. */
+  serialize(maxBytes = MAX_SAVED_BYTES, maxSteps = MAX_SAVED_STEPS): string | undefined {
+    const past = this.past.slice(-maxSteps),
+      future = this.future.slice(-maxSteps);
+    while (true) {
+      const data = JSON.stringify({ version: 1, current: this.current, past, future });
+      if (
+        past.length + future.length <= maxSteps &&
+        new TextEncoder().encode(data).length <= maxBytes
+      )
+        return data;
+      if (!past.length && !future.length) return;
+      (past.length >= future.length ? past : future).shift();
+    }
+  }
+  /** A missing, damaged or stale history must never prevent opening the active model. */
+  restore(serialized?: string): boolean {
+    this.past = [];
+    this.future = [];
+    if (!serialized || new TextEncoder().encode(serialized).length > MAX_SAVED_BYTES) return false;
+    try {
+      const data = JSON.parse(serialized);
+      if (
+        data.version !== 1 ||
+        !Array.isArray(data.past) ||
+        !Array.isArray(data.future) ||
+        data.past.length + data.future.length > MAX_SAVED_STEPS ||
+        JSON.stringify(data.current) !== JSON.stringify(this.current)
+      )
+        return false;
+      const past = data.past.map((project: unknown) => projectSchema.parse(project));
+      const future = data.future.map((project: unknown) => projectSchema.parse(project));
+      this.past = past;
+      this.future = future;
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
