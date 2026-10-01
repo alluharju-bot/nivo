@@ -4,7 +4,7 @@ import { setOC, makeCompound, type AnyShape } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
 import type { BodyMesh, CadRequest, CadReply } from './protocol';
 import type { Body } from '../model/project';
-import { booleanBodies, splitFace, offsetFace } from './operations';
+import { booleanBodies, splitFace, offsetFace, offsetOutline } from './operations';
 import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
 
@@ -56,6 +56,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = splitFace(request.body, request.face, request.profile);
       else if (request.type === 'offset-face')
         reply.result = offsetFace(request.body, request.face, request.distance);
+      else if (request.type === 'offset-outline')
+        reply.result = offsetOutline(request.body, request.face, request.distance);
       else {
         const entries = build(request.bodies);
         if (request.type === 'build') reply.result = entries.map((e) => e.mesh);
@@ -79,7 +81,7 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         }
       }
     } catch (error) {
-      console.error('CAD operation failed', error);
+      if (request.type !== 'offset-outline') console.error('CAD operation failed', error);
       reply.error =
         error instanceof Error
           ? error.message

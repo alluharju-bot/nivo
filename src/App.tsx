@@ -1,5 +1,13 @@
 import { flushSync } from 'react-dom';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   ArrowDownToLine,
   ArrowLeftRight,
@@ -17,6 +25,9 @@ import {
   Hand,
   Layers2,
   Maximize,
+  Minimize,
+  MoreHorizontal,
+  Settings2,
   MousePointer2,
   Move3D,
   PanelRightClose,
@@ -83,6 +94,7 @@ import {
   type Rotation,
 } from './model/transforms';
 import { RotationPanel } from './ui/RotationPanel';
+import { useOffsetOutline } from './ui/useOffsetOutline';
 import { DynamicInput, type NumericField } from './ui/DynamicInput';
 import { CommitCheckbox } from './ui/CommitCheckbox';
 import { BooleanPanel, ShapeProperties, type Operation } from './ui/ModelingPanel';
@@ -141,8 +153,9 @@ const instructions: Record<Tool, string> = {
   rotate:
     'R · Poimi kiertopiste tai reuna. Vedä rengasta tai anna kulma. X/Y/Z valitsee akselin; Shift porrastaa 15°. Esc päättää työkalun.',
   offset:
-    'O · Valitse tasopinta ja anna sisennys. Enter rajaa uuden pinnan. E työntää alueen sisään tai läpi.',
-  select: 'Napauta kappaletta tai pintaa. Kahdella sormella voit panoroida ja zoomata.',
+    'O · Osoita pintaa ja liikuta hiirtä tai vedä pinnasta. Kirjoita tarkka mitta. Klikkaus, vapautus tai Enter hyväksyy. Esc peruu.',
+  select:
+    'Klikkaus valitsee koko kappaleen. Osoita pintaa ja paina E tai O muokataksesi sitä. Shift+klikkaus lisää valintaan.',
   rectangle:
     'Vedä tai kirjoita X ja Tab → Y. Enter tai hiiren vapautus hyväksyy. Shift lukitsee haetun viitepisteen.',
   circle:
@@ -150,7 +163,7 @@ const instructions: Record<Tool, string> = {
   boolean: 'Valitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.',
   extrude:
     'E · Osoita pintaa ja vedä normaalin suuntaan. Positiivinen lisää, negatiivinen poistaa. Enter hyväksyy.',
-  move: 'Vedä kappaletta tai anna siirtymä. Hyväksy uusi sijainti.',
+  move: 'Vedä tartuntapisteestä tai kirjoita siirtymä. Ctrl vedon aikana tekee kopion; alkuperäinen jää paikalleen. Esc peruu.',
   pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc päättää työkalun.',
   measure:
     'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc päättää työkalun. R kiertää 45°, Shift+R vapaasti.',
@@ -245,6 +258,9 @@ export default function App() {
   const [booleanActive, setBooleanActive] = useState<'targets' | 'tools'>('targets');
   const [keepTools, setKeepTools] = useState(true);
   const [pickDepth, setPickDepth] = useState(false);
+  const [copyMove, setCopyMove] = useState(false);
+  const copyMoveRef = useRef(false);
+  const pickedFaceRef = useRef<{ bodyId: string; face: FaceRef } | undefined>(undefined);
   const hoveredFaceRef = useRef<FaceTarget | undefined>(undefined);
   const hoverRef = useRef<Vec3 | undefined>(undefined);
   const [guideDraft, setGuideDraft] = useState<{
@@ -279,6 +295,38 @@ export default function App() {
   const [sheet, setSheet] = useState<Sheet>();
   const [panelOpen, setPanelOpen] = useState(true);
   const [help, setHelp] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement);
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (!(event.target as HTMLElement).closest('#header-controls, .header-menu-toggle'))
+        setHeaderMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHeaderMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [headerMenuOpen]);
+  useEffect(() => {
+    const changed = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+      setHeaderMenuOpen(false);
+    } catch {
+      editor.setError('Selain ei sallinut koko näytön tilaa tässä ikkunassa.');
+    }
+  };
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
@@ -294,6 +342,25 @@ export default function App() {
   const editing =
     !awaitingStart &&
     ['rectangle', 'circle', 'extrude', 'offset', 'move', 'measure', 'pen', 'rotate'].includes(tool);
+  const offsetDistance = (() => {
+    try {
+      return parseLength(fields.offset);
+    } catch {
+      return NaN;
+    }
+  })();
+  const offsetPreview = useOffsetOutline(
+    editor.cad,
+    tool === 'offset' && editing && !busy
+      ? project.bodies.find((b) => b.id === faceTarget?.bodyId)
+      : undefined,
+    faceTarget?.face,
+    offsetDistance,
+  );
+  const changeCopyMove = (copy: boolean) => {
+    copyMoveRef.current = copy;
+    setCopyMove(copy);
+  };
   const writeFields = (patch: Partial<Fields>) => {
     fieldsRef.current = { ...fieldsRef.current, ...patch };
     setFields(fieldsRef.current);
@@ -400,6 +467,8 @@ export default function App() {
     setLocked(new Set());
   };
   const resetGesture = () => {
+    copyMoveRef.current = false;
+    setCopyMove(false);
     rotationRef.current = undefined;
     setRotationDraft(undefined);
     setEpoch((e) => e + 1);
@@ -454,7 +523,8 @@ export default function App() {
       return;
     }
     setSelected(id);
-    setSelectedFace(face);
+    pickedFaceRef.current = id && face ? { bodyId: id, face } : undefined;
+    setSelectedFace(force ? face : undefined);
     setAwaitingStart(true);
     setMeasureMenu(false);
     setSelectedIds((previous) =>
@@ -549,10 +619,18 @@ export default function App() {
       if (next === 'offset') writeFields({ offset: '18' });
       const hovered = hoveredFaceRef.current;
       const faceBody = project.bodies.find((b) => b.id === hovered?.bodyId) ?? body;
-      if ((next === 'extrude' || next === 'offset') && faceBody && !faceBody.locked) {
+      if ((next === 'extrude' || (next === 'offset' && hovered)) && faceBody && !faceBody.locked) {
         const mesh = editor.meshes.find((m) => m.id === faceBody.id);
         const face =
-          mesh?.faces.find((f) => f.ref === (hovered?.face ?? selectedFace)) ??
+          mesh?.faces.find(
+            (f) =>
+              f.ref ===
+              (hovered?.face ??
+                selectedFace ??
+                (pickedFaceRef.current?.bodyId === faceBody.id
+                  ? pickedFaceRef.current.face
+                  : undefined)),
+          ) ??
           mesh?.faces.find((f) => f.normal[2] > 0.9) ??
           mesh?.faces[0];
         if (face) {
@@ -945,11 +1023,24 @@ export default function App() {
           await commitShape(candidate);
           return;
         }
+        const result = copyMoveRef.current
+          ? { ...candidate, id: draftId, name: `${candidate.name.slice(0, 110)} kopio` }
+          : candidate;
         const next = {
           ...project,
-          bodies: project.bodies.map((b) => (b.id === candidate.id ? candidate : b)),
+          bodies: copyMoveRef.current
+            ? [...project.bodies, result]
+            : project.bodies.map((b) => (b.id === result.id ? result : b)),
         };
-        if (await editor.transact(next, 'Muokkaus valmis.')) finishOperation(candidate.id);
+        if (
+          await editor.transact(
+            next,
+            copyMoveRef.current
+              ? 'Kopio sijoitettu. Alkuperäinen säilyi paikallaan.'
+              : 'Kappale siirretty.',
+          )
+        )
+          finishOperation(result.id);
       }
     } catch (e) {
       editor.setError((e as Error).message);
@@ -961,6 +1052,7 @@ export default function App() {
     if (busy) editor.cancel();
     resetGesture();
     setTool('select');
+    pickedFaceRef.current = undefined;
     setAwaitingStart(false);
     setSelected(undefined);
     setSelectedIds([]);
@@ -1063,11 +1155,15 @@ export default function App() {
         setExtrusionMode('height');
         writeFields({ height: `${event.distance >= 0 ? '+' : ''}${inputNumber(event.distance)}` });
       }
-    } else if (event.type === 'move' && body) {
+    } else if (event.type === 'offset') {
+      if (!lockRef.current.has('offset')) writeFields({ offset: inputNumber(event.distance) });
+    } else if (event.type === 'move') {
+      const source = project.bodies.find((b) => b.id === event.bodyId) ?? body;
+      if (!source) return;
       for (const [i, key] of ['x', 'y', 'z'].entries())
         if (!lockRef.current.has(key))
           patch[key as 'x' | 'y' | 'z'] = String(
-            Math.round((event.origin[i] - body.origin[i]) * 100) / 100,
+            Math.round((event.origin[i] - source.origin[i]) * 100) / 100,
           );
       writeFields(patch);
     } else if (event.type === 'measure') {
@@ -1456,7 +1552,9 @@ export default function App() {
       setSelectedFace(undefined);
     }
   }, [project.bodies, selected]);
-  useEffect(() => {
+  // Commands must observe the same busy/history state as the committed UI, including
+  // a redo pressed immediately after undo renders the new object list.
+  useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.key === 'Escape') {
@@ -1622,7 +1720,9 @@ export default function App() {
                   : tool === 'pen'
                     ? 'Kynä · seuraava piste'
                     : tool === 'move'
-                      ? 'Siirrä'
+                      ? copyMove
+                        ? 'Siirrä kopio'
+                        : 'Siirrä'
                       : 'Push / pull'
       }
     />
@@ -1645,7 +1745,21 @@ export default function App() {
             nivo<span className="brand-dot">.</span>
           </span>
         </a>
-        <span className="header-divider" />
+        <div className="mode-switch" aria-label="Työtila">
+          <button aria-pressed={mode === 'model'} onClick={() => setMode('model')}>
+            <Box size={16} />
+            Malli
+          </button>
+          <button
+            aria-pressed={mode === 'drawing'}
+            disabled={!project.bodies.length || busy}
+            onClick={openDrawing}
+          >
+            <Ruler size={16} />
+            Mittakuva
+          </button>
+        </div>
+
         <div className="project-heading">
           <input
             aria-label="Projektin nimi"
@@ -1672,34 +1786,144 @@ export default function App() {
             {editor.saveStatus || 'Valmistellaan…'}
           </span>
         </div>
-        <div className="header-actions">
-          <IconButton label="Uusi projekti" disabled={busy} onClick={() => void newProject()}>
-            <FilePlus2 />
-          </IconButton>
-          <IconButton
-            label="Avaa projektitiedosto"
-            disabled={busy}
-            onClick={() => fileInput.current?.click()}
-          >
-            <FolderOpen />
-          </IconButton>
-          <button
-            className="button dark download-project"
-            disabled={!ready || busy}
-            onClick={() =>
-              downloadFile(
-                JSON.stringify(project, null, 2),
-                `${safeFilename(project.name)}.nivo`,
-                'application/json',
-              )
-            }
-          >
-            <Download size={17} />
-            <span>Tallenna tiedosto</span>
-          </button>
-          <IconButton label="Käyttöohje" onClick={() => setHelp(true)}>
-            <CircleHelp />
-          </IconButton>
+        <button
+          className="icon-button header-menu-toggle"
+          aria-label="Lisää toimintoja"
+          aria-expanded={headerMenuOpen}
+          aria-controls="header-controls"
+          onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
+        >
+          <MoreHorizontal />
+        </button>
+        <div id="header-controls" className={`header-controls ${headerMenuOpen ? 'is-open' : ''}`}>
+          <div className="header-actions">
+            <IconButton label="Uusi projekti" disabled={busy} onClick={() => void newProject()}>
+              <FilePlus2 />
+            </IconButton>
+            <IconButton
+              label="Avaa projektitiedosto"
+              disabled={busy}
+              onClick={() => fileInput.current?.click()}
+            >
+              <FolderOpen />
+            </IconButton>
+            <button
+              className="icon-button download-project"
+              aria-label="Tallenna tiedosto"
+              title="Tallenna tiedosto"
+              disabled={!ready || busy}
+              onClick={() =>
+                downloadFile(
+                  JSON.stringify(project, null, 2),
+                  `${safeFilename(project.name)}.nivo`,
+                  'application/json',
+                )
+              }
+            >
+              <Download size={17} />
+            </button>
+          </div>
+          <div className="history-controls">
+            <IconButton
+              label="Peru"
+              disabled={busy || !editor.canUndo}
+              onClick={() => {
+                resetGesture();
+                setAwaitingStart(true);
+                void editor.undo();
+              }}
+            >
+              <Undo2 />
+            </IconButton>
+            <IconButton
+              label="Palauta"
+              disabled={busy || !editor.canRedo}
+              onClick={() => {
+                resetGesture();
+                setAwaitingStart(true);
+                void editor.redo();
+              }}
+            >
+              <Redo2 />
+            </IconButton>
+            <span className="vertical-rule" />
+            <details className="viewport-settings">
+              <summary aria-label="Asetukset" title="Asetukset">
+                <Settings2 />
+              </summary>
+              <div className="viewport-settings-panel">
+                <label>
+                  Akselien tyyli
+                  <select
+                    aria-label="Akselien tyyli"
+                    value={project.settings.axisStyle}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void editor.transact(
+                        {
+                          ...project,
+                          settings: {
+                            ...project.settings,
+                            axisStyle: e.target.value as 'subtle' | 'strong',
+                          },
+                        },
+                        'Akselien tyyli päivitetty.',
+                      )
+                    }
+                  >
+                    <option value="subtle">Hillitty</option>
+                    <option value="strong">Korostettu</option>
+                  </select>
+                </label>
+                <label>
+                  <CommitCheckbox
+                    label="Näytä akselien nimet ja origon teksti"
+                    disabled={busy}
+                    checked={project.settings.axisLabels}
+                    onChange={(axisLabels) =>
+                      editor.transact(
+                        { ...project, settings: { ...project.settings, axisLabels } },
+                        'Akselitekstien näkyvyys päivitetty.',
+                      )
+                    }
+                  />
+                  Akselien nimet ja origo
+                </label>
+                <label>
+                  <CommitCheckbox
+                    label="Kaikki apuviivat x-ray"
+                    disabled={busy}
+                    checked={project.settings.guideXray}
+                    onChange={(checked) =>
+                      editor.transact(
+                        { ...project, settings: { ...project.settings, guideXray: checked } },
+                        'Apuviivojen näkyvyys muutettu.',
+                      )
+                    }
+                  />
+                  Kaikki apuviivat x-ray
+                </label>
+              </div>
+            </details>
+            <IconButton
+              label={panelOpen ? 'Piilota ominaisuudet' : 'Näytä ominaisuudet'}
+              aria-pressed={panelOpen}
+              onClick={() => setPanelOpen(!panelOpen)}
+            >
+              {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
+            </IconButton>
+            <IconButton
+              label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
+              disabled={!document.fullscreenEnabled}
+              aria-pressed={fullscreen}
+              onClick={() => void toggleFullscreen()}
+            >
+              {fullscreen ? <Minimize /> : <Maximize />}
+            </IconButton>
+            <IconButton label="Käyttöohje" onClick={() => setHelp(true)}>
+              <CircleHelp />
+            </IconButton>
+          </div>
         </div>
         <input
           ref={fileInput}
@@ -1710,116 +1934,6 @@ export default function App() {
           onChange={(e) => void importProject(e.target.files?.[0])}
         />
       </header>
-
-      <div className="workspace-bar">
-        <div className="mode-switch" aria-label="Työtila">
-          <button aria-pressed={mode === 'model'} onClick={() => setMode('model')}>
-            <Box size={16} />
-            Malli
-          </button>
-          <button
-            aria-pressed={mode === 'drawing'}
-            disabled={!project.bodies.length || busy}
-            onClick={openDrawing}
-          >
-            <Ruler size={16} />
-            Mittakuva
-          </button>
-        </div>
-        <div className="bar-center">
-          <span className="tiny-dot" />
-          OMA TYÖTILA <span className="bar-separator">/</span>
-          <span>{mode === 'model' ? '3D-suunnittelu' : 'Tekninen piirustus'}</span>
-        </div>
-        <div className="history-controls">
-          <IconButton
-            label="Peru"
-            disabled={busy || !editor.canUndo}
-            onClick={() => {
-              resetGesture();
-              setAwaitingStart(true);
-              void editor.undo();
-            }}
-          >
-            <Undo2 />
-          </IconButton>
-          <IconButton
-            label="Palauta"
-            disabled={busy || !editor.canRedo}
-            onClick={() => {
-              resetGesture();
-              setAwaitingStart(true);
-              void editor.redo();
-            }}
-          >
-            <Redo2 />
-          </IconButton>
-          <span className="vertical-rule" />
-          <details className="viewport-settings">
-            <summary>Asetukset</summary>
-            <div className="viewport-settings-panel">
-              <label>
-                Akselien tyyli
-                <select
-                  aria-label="Akselien tyyli"
-                  value={project.settings.axisStyle}
-                  disabled={busy}
-                  onChange={(e) =>
-                    void editor.transact(
-                      {
-                        ...project,
-                        settings: {
-                          ...project.settings,
-                          axisStyle: e.target.value as 'subtle' | 'strong',
-                        },
-                      },
-                      'Akselien tyyli päivitetty.',
-                    )
-                  }
-                >
-                  <option value="subtle">Hillitty</option>
-                  <option value="strong">Korostettu</option>
-                </select>
-              </label>
-              <label>
-                <CommitCheckbox
-                  label="Näytä akselien nimet ja origon teksti"
-                  disabled={busy}
-                  checked={project.settings.axisLabels}
-                  onChange={(axisLabels) =>
-                    editor.transact(
-                      { ...project, settings: { ...project.settings, axisLabels } },
-                      'Akselitekstien näkyvyys päivitetty.',
-                    )
-                  }
-                />
-                Akselien nimet ja origo
-              </label>
-              <label>
-                <CommitCheckbox
-                  label="Kaikki apuviivat x-ray"
-                  disabled={busy}
-                  checked={project.settings.guideXray}
-                  onChange={(checked) =>
-                    editor.transact(
-                      { ...project, settings: { ...project.settings, guideXray: checked } },
-                      'Apuviivojen näkyvyys muutettu.',
-                    )
-                  }
-                />
-                Kaikki apuviivat x-ray
-              </label>
-            </div>
-          </details>
-          <IconButton
-            label={panelOpen ? 'Piilota ominaisuudet' : 'Näytä ominaisuudet'}
-            aria-pressed={panelOpen}
-            onClick={() => setPanelOpen(!panelOpen)}
-          >
-            {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
-          </IconButton>
-        </div>
-      </div>
 
       <div className={`workspace ${panelOpen ? 'panel-open' : ''}`}>
         <aside className="tool-rail" aria-label="Mallinnustyökalut">
@@ -1976,6 +2090,11 @@ export default function App() {
               onGesture={gesture}
               faceTarget={faceTarget}
               faceDistance={faceDistance}
+              copyMove={copyMove}
+              onCopyMove={changeCopyMove}
+              offsetDistance={offsetDistance}
+              offsetOutline={offsetPreview.lines}
+              offsetPreviewDistance={offsetPreview.distance}
               faceSpan={faceSpan}
               guideXray={project.settings.guideXray}
               axisStyle={project.settings.axisStyle}
@@ -2240,7 +2359,7 @@ export default function App() {
                 </div>
                 <p className="panel-description">
                   {tool === 'offset'
-                    ? 'Anna reunoista mitattava sisennys. Enter luo uuden pinnan. E:llä voit tehdä syvennyksen tai läpireiän.'
+                    ? 'Liikuta hiirtä sisennyksen säätämiseksi tai kirjoita tarkka mitta. Klikkaus, vedon päättäminen tai Enter hyväksyy. E tekee syvennyksen tai läpireiän.'
                     : tool === 'rectangle'
                       ? 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
                       : tool === 'circle'
@@ -2256,6 +2375,22 @@ export default function App() {
                               : 'Anna siirtymä nykyisestä sijainnista tai vedä kappaletta näkymässä.'}
                 </p>
                 <div className="tool-fields">
+                  {tool === 'offset' && offsetPreview.error && (
+                    <p role="status" className="muted">
+                      {offsetPreview.error}
+                    </p>
+                  )}
+                  {tool === 'move' && (
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        aria-label="Siirrä kopio"
+                        checked={copyMove}
+                        onChange={(e) => changeCopyMove(e.target.checked)}
+                      />
+                      Siirrä kopio · Ctrl vedon aikana
+                    </label>
+                  )}
                   {['rectangle', 'circle', 'pen'].includes(tool) && (
                     <ShapeProperties
                       tool={tool as 'rectangle' | 'circle' | 'pen'}
@@ -2766,7 +2901,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.5.0</span>
+                  <span>v0.5.1</span>
                 </div>
               </>
             )}
@@ -2840,8 +2975,20 @@ export default function App() {
             </p>
             <p>
               <strong>Offset (O):</strong> osoita vapaata pintaa ja paina O tai valitse työkalu ja
-              napauta pintaa. Syötä esimerkiksi 18 mm ja paina Enter. E työntää uutta aluetta
+              vedä pinnasta. Liikuta hiirtä tai syötä esimerkiksi 18 mm. Sininen viiva näyttää
+              sisennyksen. Klikkaus, vedon vapautus tai Enter hyväksyy. E työntää uutta aluetta
               sisään. Lopullinen mitta 18 jättää 18 mm takaseinän; Leikkaa läpi tekee aukon.
+            </p>
+            <p>
+              <strong>Valitse ja kopioi:</strong> yksi klikkaus valitsee koko kappaleen. M siirtää
+              tartuntapisteestä. Pidä Ctrl (tai Alt) pohjassa vedon aikana ja vapauta hiiri: kopio
+              asettuu uuteen paikkaan ja alkuperäinen jää paikalleen. Voit myös valita Siirrä kopio
+              ja kirjoittaa siirtymän. Esc peruu keskeneräisen siirron.
+            </p>
+            <p>
+              <strong>Koko näyttö:</strong> yläpalkin Siirry koko näyttöön -painike piilottaa
+              selaimen palkit. Palaa samalla painikkeella tai Escillä. Kapeassa ikkunassa tiedostot,
+              historia ja asetukset löytyvät Lisää toimintoja -painikkeesta.
             </p>
             <p>
               <strong>Kierrä (R):</strong> valitse kappale ja poimi kiertopiste tai reuna. Vedä

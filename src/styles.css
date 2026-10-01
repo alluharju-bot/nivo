@@ -93,13 +93,15 @@ p {
   overflow: hidden;
 }
 .app-header {
-  height: 78px;
+  height: 60px;
   flex-shrink: 0;
   background: var(--paper);
   display: flex;
   align-items: center;
-  padding: 0 26px;
-  gap: 24px;
+  padding: 0 16px;
+  gap: 18px;
+  position: relative;
+  z-index: 30;
   border-bottom: 1px solid var(--line);
 }
 .brand {
@@ -109,26 +111,23 @@ p {
   text-decoration: none;
 }
 .brand > img {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
 }
 .brand > span {
   font-weight: 700;
-  font-size: 34px;
+  font-size: 28px;
   letter-spacing: -1.7px;
   line-height: 1;
 }
 .brand-dot {
   color: #7da874;
 }
-.header-divider {
-  height: 28px;
-  border-left: 1px solid var(--line);
-}
 .project-heading {
-  min-width: 100px;
+  min-width: 80px;
+  flex: 1;
   display: grid;
-  gap: 6px;
+  gap: 3px;
 }
 .project-heading > input {
   border: 0;
@@ -161,8 +160,7 @@ p {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-left: auto;
+  gap: 2px;
 }
 .icon-button {
   width: 44px;
@@ -218,17 +216,6 @@ p {
 .button.full {
   width: 100%;
 }
-.workspace-bar {
-  height: 60px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 22px;
-  border-bottom: 1px solid var(--line);
-  background: var(--paper);
-}
 .mode-switch {
   display: flex;
   gap: 2px;
@@ -251,24 +238,6 @@ p {
   background: #fff;
   color: var(--ink);
   box-shadow: 0 1px 4px #253c3210;
-}
-.bar-center {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 1.3px;
-  color: #7f8c80;
-}
-.bar-center > span:last-child {
-  letter-spacing: 0;
-  font-size: 11px;
-  font-weight: 400;
-}
-.bar-separator {
-  margin: 0 6px;
-  color: #bdc6b8;
 }
 .tiny-dot {
   width: 5px;
@@ -1569,7 +1538,7 @@ p {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 50;
   background: #18302566;
   backdrop-filter: blur(6px);
   display: flex;
@@ -1674,9 +1643,6 @@ p {
     gap: 5px;
     padding: 0 6px;
   }
-  .bar-center {
-    display: none;
-  }
   .app-header {
     padding: 0 20px;
     gap: 18px;
@@ -1747,13 +1713,6 @@ p {
   }
   .header-actions > .icon-button:last-child {
     display: none;
-  }
-  .header-divider {
-    display: none;
-  }
-  .workspace-bar {
-    padding: 0 13px;
-    height: 56px;
   }
   .workspace.panel-open {
     grid-template-columns: 64px minmax(0, 1fr) 236px;
@@ -1904,10 +1863,6 @@ p {
   }
   .header-actions > .download-project {
     min-width: 38px;
-    padding: 0 8px;
-  }
-  .workspace-bar {
-    height: 54px;
     padding: 0 8px;
   }
   .mode-switch button {
@@ -2267,4 +2222,129 @@ p {
   border: 1px solid #ccd7ca;
   border-radius: 5px;
   background: white;
+}
+
+/* One compact workspace header; overflow opens above the canvas on small screens. */
+.app-header {
+  height: 60px;
+  padding: 0 16px;
+  gap: 16px;
+}
+.app-header .brand,
+.app-header .mode-switch,
+.header-controls {
+  flex-shrink: 0;
+}
+.app-header .brand > img {
+  width: 28px;
+  height: 28px;
+}
+.app-header .brand > span {
+  font-size: 28px;
+}
+.app-header .project-heading > input {
+  max-width: 100%;
+}
+.app-header .save-status {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-menu-toggle {
+  display: none;
+}
+.app-header .history-controls {
+  gap: 1px;
+}
+.app-header .viewport-settings summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: #6c7b6f;
+}
+.app-header .viewport-settings summary svg {
+  width: 18px;
+  height: 18px;
+}
+.app-header .viewport-settings summary::-webkit-details-marker {
+  display: none;
+}
+.app-header .viewport-settings summary:hover {
+  background: #edf0e6;
+}
+.app-header .header-actions > .icon-button {
+  display: inline-flex;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+@media (max-width: 1200px) {
+  .app-header {
+    padding: 0 12px;
+    gap: 12px;
+  }
+  .app-header .mode-switch button {
+    padding: 0 12px;
+  }
+  .header-controls {
+    gap: 4px;
+  }
+  .app-header .vertical-rule {
+    margin: 0 2px;
+  }
+}
+@media (max-width: 1000px) {
+  .header-menu-toggle {
+    display: inline-flex;
+  }
+  .header-controls {
+    display: none;
+  }
+  .header-controls.is-open {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    position: absolute;
+    top: 59px;
+    right: 10px;
+    padding: 8px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 25px #243c2f20;
+  }
+  .app-header .history-controls > .icon-button {
+    width: 44px;
+    min-width: 44px;
+  }
+  .app-header .viewport-settings-panel {
+    right: -90px;
+  }
+}
+@media (max-width: 620px) {
+  .app-header {
+    padding: 0 8px;
+    gap: 8px;
+  }
+  .app-header .brand > span {
+    display: none;
+  }
+  .app-header .mode-switch button {
+    padding: 0 10px;
+    gap: 5px;
+  }
+  .app-header .mode-switch button > svg {
+    display: none;
+  }
+  .app-header .project-heading {
+    min-width: 60px;
+  }
 }

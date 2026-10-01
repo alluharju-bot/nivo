@@ -57,6 +57,7 @@ export type CadRequest =
   | { type: 'boolean'; targets: Body[]; tools: Body[]; operation: 'cut' | 'join' }
   | { type: 'split-face'; body: Body; face: FaceRef; profile: Body }
   | { type: 'offset-face'; body: Body; face: FaceRef; distance: number }
+  | { type: 'offset-outline'; body: Body; face: FaceRef; distance: number }
   | { type: 'face-span'; body: Body; face: FaceRef; point?: Vec3 }
   | { type: 'push-pull'; body: Body; face: FaceRef; distance: number };
 export interface ProbeResult {
@@ -71,6 +72,7 @@ export interface ProbeResult {
 }
 export interface CadReply {
   id: number;
-  result?: BodyMesh[] | Projection | ProbeResult | Body | Body[] | SplitResult | FaceSpan;
+  result?:
+    BodyMesh[] | Projection | ProbeResult | Body | Body[] | SplitResult | FaceSpan | number[];
   error?: string;
 }

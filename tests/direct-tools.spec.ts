@@ -94,7 +94,7 @@ test('E selects the hovered side face and dragging pulls it; selected-face numer
   expect(model.bodies[0].feature.height).toBe(200);
   await page.keyboard.press('v');
   await click(page, start);
-  await expect(page.locator('.selection-tag')).toContainText('Etupinta');
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-selection-kind', 'object');
   await page.keyboard.press('e');
   await page.keyboard.type('-40');
   await page.keyboard.press('Enter');

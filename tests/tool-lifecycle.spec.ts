@@ -149,12 +149,13 @@ test('move, rectangle and push/pull stay active across commits; Escape clears ev
   await drag(page, point(160, 100), point(200, 100));
   expect((await save(page)).bodies[0].origin).toEqual([100, 0, 0]);
   await page.keyboard.press('s');
-  await drag(page, point(-140, 0), point(-60, 90));
+  // Keep both strokes inside the tablet canvas after the compact header enlarges it.
+  await drag(page, point(-100, 0), point(-40, 90));
   await expect(page.getByRole('button', { name: 'Suorakulmio', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await drag(page, point(-140, 120), point(-60, 170));
+  await drag(page, point(-100, 120), point(-40, 170));
   let model = await save(page);
   expect(model.bodies).toHaveLength(3);
   expect(new Set(model.bodies.map((b) => b.id)).size).toBe(3);

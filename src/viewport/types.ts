@@ -25,7 +25,8 @@ export type Gesture =
   | { type: 'profile'; frame: SketchFrame; width: number; depth: number; start?: Vec3; end?: Vec3 }
   | { type: 'rectangle'; origin: Vec3; start?: Vec3; width: number; depth: number }
   | { type: 'extrude'; distance: number }
-  | { type: 'move'; origin: Vec3 }
+  | { type: 'offset'; distance: number }
+  | { type: 'move'; origin: Vec3; bodyId?: string }
   | {
       type: 'measure';
       anchor: Anchor;
@@ -50,6 +51,11 @@ export interface ViewportProps {
   selectedFace?: FaceRef;
   tool: Tool;
   preview?: Body;
+  copyMove: boolean;
+  onCopyMove: (copy: boolean) => void;
+  offsetDistance: number;
+  offsetOutline?: number[];
+  offsetPreviewDistance?: number;
   axis?: Axis;
   gridSnap: boolean;
   busy: boolean;

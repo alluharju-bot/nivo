@@ -113,6 +113,7 @@ interface Options {
   inferenceOrigin?: Vec3;
   forceDirection?: boolean;
   excludeId?: string;
+  projectGuides?: boolean;
 }
 const distance = (a: Vec3, b: Vec3) => Math.hypot(...a.map((v, i) => v - b[i]));
 export function modelSnapPoints(bodies: Body[], meshes?: BodyMesh[]): ReferencePoint[] {
@@ -182,8 +183,12 @@ export function snapPoint(
     if (guide.mode !== 'guide') continue;
     const pts = guidePoints(bodies, guide);
     if (!pts) continue;
-    const [a, b] = pts,
-      delta = b.map((n, i) => n - a[i]),
+    const [a, b] = pts.map((p) => [...p] as Vec3);
+    if (options.projectGuides && Math.abs(a[normal] - b[normal]) < 1e-5) {
+      a[normal] = point[normal];
+      b[normal] = point[normal];
+    }
+    const delta = b.map((n, i) => n - a[i]),
       length2 = delta.reduce((s, n) => s + n * n, 0);
     if (
       length2 < 1e-8 ||

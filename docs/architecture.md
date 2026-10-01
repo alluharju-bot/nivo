@@ -68,6 +68,18 @@ Offset siirtää tasopinnan ulkorajaa sisään ja aukkojen rajoja ulos OCCT:n
 pinnan jaon läpi kuin piirretty profiili, joten E ja läpileikkaus käyttävät yhtä
 geometriapolkua. Epäkelpo tai erillisiksi alueiksi hajoava inset hylätään atomisesti.
 
+Offsetin esikatselu käyttää samaa tarkkaa inset-laskentaa kuin hyväksyntä,
+mutta palauttaa vain ääriviivan. Hiiripyyntöjä on enintään yksi laskennassa;
+seuraavaksi suoritetaan viimeisin odottava arvo. Vanhentunutta vastausta ei
+näytetä uuden pinnan tai työkalun päällä. Hiirisuunta määräytyy lähimmästä
+pinnan reunasta; sisäisiä kolmioverkon reunoja ei käytetä.
+
+Siirto kuljettaa varsinaista tartuntapistettä. Kopion esikatselussa alkuperäinen
+pysyy näkyvissä. Hyväksyntä lisää itsenäisen osan uudella UUID:llä yhteen
+transaktioon; peruminen ennen hyväksyntää ei muuta projektia. Tavallinen
+valintaklikkaus valitsee objektin, kun taas E/O ja juuri jaettu alue käyttävät
+pintaviitettä. Yläpalkin fullscreen-tila seuraa selaimen fullscreenchange-tapahtumaa.
+
 V5 lisää kappaleen `locked`, `hidden` ja `groupId`-tiedot sekä nimetyt `groups`.
 V1–V4 muunnetaan avatessa; vanhat osat ovat vapaita ja näkyviä. Näkymälle ja
 sen tartunnoille annetaan vain näkyvät osat. Ryhmäpiilotus säilyttää osan oman

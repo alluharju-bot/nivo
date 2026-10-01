@@ -3,11 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.5 lisää pintojen osoituskorostuksen, **Offsetin (O)**, **kierron (R)**,
-**Hold-lukituksen (G)**, origoon siirron sekä nimetyt ja piilotettavat ryhmät.
-Offset rajaa pintaan esimerkiksi 18 mm sisennyksen. **E** tekee siitä syvennyksen
-tai läpireiän. Mittaikkuna pysyy oikeassa reunassa ja sen voi siirtää otsikosta.
-Akselit ja origo ovat oletuksena hillityt; korostus ja nimet valitaan asetuksista.
+Versio 0.5.1 yhdistää työtilan yhteen 60 px yläpalkkiin ja lisää selaimen koko
+näytön tilan. **Offset (O)** säätyy heti hiirellä ja näyttää tarkan sisennysviivan.
+Yksi klikkaus valitsee koko kappaleen. **M + Ctrl** sijoittaa kopion samasta
+tartuntapisteestä; alkuperäinen jää paikalleen. Mittaikkuna pysyy oikeassa
+reunassa ja sen voi siirtää otsikosta.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
@@ -38,7 +38,8 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
 1. Piirrä suorakulmio XY-tasolle vetämällä tai kirjoittamalla tarkat mitat.
 2. Enter tai vedon päättäminen hyväksyy luonnoksen. Paina **E**, osoita pintaa
    ja vedä sille paksuus. Samalla työkalulla voi muokata kappaleen muitakin tasopintoja.
-3. Valitse kappale tai pinta, siirrä, kopioi ja poista kappaleita.
+3. Klikkaa koko kappale valituksi. M siirtää; pidä Ctrl pohjassa vedon aikana
+   tehdäksesi kopion. Osoita pintaa ja paina E tai O pinnan muokkaamiseen.
 4. Tartu verteksiin, reunojen keskipisteisiin, apuviivoihin tai 10 mm ruudukkoon.
    Hae toisen osan keskipiste kohdistimella ja pidä Shift pohjassa: pisteestä
    lähtevät suuntalinjat ohjaavat piirtämistä ja siirtoa.
@@ -58,6 +59,23 @@ projektitiedosto:** selaimen tallennustila ei ole varmuuskopio.
 Tyhjästä työtilasta voi avata **600 × 800 × 560 mm esimerkkikaapin**. Sen kuusi
 levyä ovat itsenäisiä osia. Esimerkissä ei vielä ole ovea tai linkitettyjä
 komponentteja.
+
+## Työtila ja kopiointi
+
+Yksi 60 px yläpalkki sisältää Nivon, **Malli / Mittakuva** -vaihdon, projektin
+nimen ja tallennustilan, tiedostopainikkeet, historian, asetukset ja avun.
+**Siirry koko näyttöön** piilottaa selaimen palkit. Sama painike tai Esc palauttaa
+tavallisen ikkunan. Kapealla näytöllä tiedostot ja muut lisätoiminnot avataan
+**Lisää toimintoja** -painikkeesta.
+
+Yksi klikkaus valitsee koko objektin. Pintakorostus osoittaa, mihin E tai O
+kohdistuu. **M** siirtää osaa siitä verteksistä tai kohdasta, josta tartuit.
+Pidä **Ctrl** (tai Alt) pohjassa vedon aikana ja vapauta hiiri: kopio asettuu
+kohteeseen, alkuperäinen pysyy paikoillaan. Jos vapautat Ctrl:n ennen hiirtä,
+tulos on tavallinen siirto. **Siirrä kopio** -valinnalla voi myös kirjoittaa
+siirtymän tai käyttää toimintoa kosketuksella. Esc peruu keskeneräisen kopion;
+Peru poistaa hyväksytyn kopion yhdellä askeleella. Kopio säilyttää tarkan
+geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
 
 ## Piirtämisen perustyökalut
 
@@ -79,7 +97,9 @@ komponentteja.
   **Nimetty osa** on itsenäinen osa; kopiot eivät ole linkitettyjä komponentteja.
 
 - **Offset (O):** osoita vapaata tasopintaa ja paina O tai valitse työkalu ja
-  napauta pintaa. Anna sisennys, esimerkiksi 18 mm, ja paina Enter. Kappale säilyy
+  vedä pinnasta. Hiiren liike säätää sisennystä, sininen ääriviiva näyttää tuloksen.
+  Kirjoita halutessasi tarkka mitta: se säilyy hiiren liikkuessa. Klikkaus,
+  vedon vapautus tai Enter hyväksyy. Esc peruu esikatselun. Kappale säilyy
   yhtenä objektina, jonka pintaan syntyy uusi muokattava alue. E:n **Lopullinen mitta**
   18 jättää kaappiin 18 mm takaseinän; **Leikkaa läpi**, vastapinnan ohi vetäminen tai
   lopullinen mitta 0 tekee aukon. Toimii myös ympyröillä ja vinoilla tasopinnoilla.

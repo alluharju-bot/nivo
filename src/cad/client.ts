@@ -75,6 +75,9 @@ export class CadClient {
   offset(body: Body, face: FaceRef, distance: number) {
     return this.request<SplitResult>({ type: 'offset-face', body, face, distance });
   }
+  offsetOutline(body: Body, face: FaceRef, distance: number) {
+    return this.request<number[]>({ type: 'offset-outline', body, face, distance });
+  }
   cancel(message = 'Laskenta peruttiin.') {
     this.worker?.terminate();
     this.worker = undefined;

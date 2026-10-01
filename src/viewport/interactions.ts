@@ -1,3 +1,4 @@
+import { offsetDirection } from '../model/faceBoundary';
 import * as THREE from 'three';
 import type { BodyMesh, FaceTarget } from '../cad/protocol';
 import type { Anchor, Axis, Vec3, WorkPlane } from '../model/project';
@@ -139,6 +140,29 @@ export function installInteractions({
     second: boolean;
     face?: FaceTarget;
     sketch?: SketchFrame;
+    bodyId?: string;
+  };
+  let offsetSession: { target: FaceTarget; direction: Vec3; initial: number } | undefined;
+  const startOffset = (target: FaceTarget) => {
+    const mesh = current().meshes.find((m) => m.id === target.bodyId);
+    if (!mesh) return;
+    offsetSession = {
+      target,
+      direction: offsetDirection(mesh, target),
+      initial: Number.isFinite(current().offsetDistance) ? current().offsetDistance : 18,
+    };
+  };
+  const updateOffset = (event: PointerEvent) => {
+    if (!offsetSession) return;
+    const { target, direction, initial } = offsetSession;
+    const point = framePoint(event, sketchFrame(target.point, target.normal));
+    if (!point) return;
+    const distance = Math.max(
+      0.1,
+      Math.round((initial + dot(sub(point, target.point), direction)) * 100) / 100,
+    );
+    current().onGesture({ type: 'offset', distance });
+    highlightFace(target);
   };
   let rotationDrag:
     | {
@@ -252,7 +276,9 @@ export function installInteractions({
         )
       : [
           ...modelSnapPoints(
-            props.bodies.filter((b) => props.tool !== 'move' || b.id !== props.selected),
+            props.bodies.filter(
+              (b) => props.tool !== 'move' || props.copyMove || b.id !== props.selected,
+            ),
             props.meshes,
           ),
           ...(props.tool === 'pen'
@@ -488,7 +514,8 @@ export function installInteractions({
         guides: props.guides,
         reference: reference(),
         inferenceOrigin: inference,
-        excludeId: props.tool === 'move' ? props.selected : undefined,
+        excludeId: props.tool === 'move' && !props.copyMove ? props.selected : undefined,
+        projectGuides: props.tool === 'move',
         forceDirection: shift && !reference() && ['move', 'pen', 'rectangle'].includes(props.tool),
       },
     );
@@ -506,6 +533,7 @@ export function installInteractions({
       tool = current().tool;
       drag = undefined;
       rotationDrag = undefined;
+      offsetSession = undefined;
       measureSession = undefined;
       lastSnap = undefined;
       heldReference = undefined;
@@ -523,6 +551,8 @@ export function installInteractions({
       blocked = false;
       show();
     }
+    if (current().tool === 'offset' && current().faceTarget && !offsetSession)
+      startOffset(current().faceTarget!);
     if (current().guidePreview && !measureSession)
       measureSession = {
         anchor: current().guidePreview!.anchor,
@@ -848,7 +878,30 @@ export function installInteractions({
       canvas.focus({ preventScroll: true });
       return;
     }
-    if (props.tool === 'extrude' || props.tool === 'offset') {
+    if (props.tool === 'offset') {
+      const continuing = !!offsetSession;
+      if (!offsetSession) {
+        const picked = editableFaceAt(event);
+        if (!picked?.face.planar) return;
+        props.onFaceTarget(picked.target);
+        props.onStart();
+        startOffset(picked.target);
+      }
+      if (!offsetSession) return;
+      drag = {
+        start: offsetSession.target.point,
+        origin: offsetSession.target.point,
+        screenX: event.clientX,
+        screenY: event.clientY,
+        height: 0,
+        plane: workPlane(),
+        second: continuing,
+      };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.focus({ preventScroll: true });
+      return;
+    }
+    if (props.tool === 'extrude') {
       const picked = props.pickDepth ? faceAt(event) : editableFaceAt(event);
       if (!picked?.face.planar) return;
       if (props.pickDepth && props.faceTarget) {
@@ -863,10 +916,6 @@ export function installInteractions({
       props.onFaceTarget(picked.target);
       highlightFace(picked.target);
       props.onStart();
-      if (props.tool === 'offset') {
-        canvas.focus({ preventScroll: true });
-        return;
-      }
       drag = {
         start: picked.target.point,
         origin: picked.target.point,
@@ -934,7 +983,8 @@ export function installInteractions({
       }
     }
     props.onStart();
-    const moveTarget = props.tool === 'move' ? faceAt(event)?.target.bodyId : undefined;
+    const moveHit = props.tool === 'move' ? faceAt(event) : undefined;
+    const moveTarget = moveHit?.target.bodyId;
     if (
       props.tool === 'move' &&
       props.bodies.find((b) => b.id === (moveTarget ?? props.selected))?.locked
@@ -951,6 +1001,13 @@ export function installInteractions({
         plane,
         ['rectangle', 'pen'].includes(props.tool) ? [0, 0, 0] : origin,
       );
+    if (props.tool === 'move' && selected) {
+      const vertex = vertexAt(event);
+      // Carry the actual grab point: snapping an origin moves the wrong corner.
+      const grab = vertex?.anchor.bodyId === selected.id ? vertex.point : moveHit?.target.point;
+      if (grab) point = grab;
+      props.onCopyMove(event.ctrlKey || event.altKey || props.copyMove);
+    }
     const second = !!measureSession;
     if (props.tool === 'measure') {
       if (!measureSession) {
@@ -1011,6 +1068,7 @@ export function installInteractions({
       height: selected?.feature.height ?? 0,
       plane,
       second,
+      bodyId: props.tool === 'move' ? selected?.id : undefined,
     };
     if (props.tool === 'rectangle')
       props.onGesture({
@@ -1063,6 +1121,10 @@ export function installInteractions({
               : undefined,
         );
       }
+      return;
+    }
+    if (props.tool === 'offset' && offsetSession) {
+      updateOffset(event);
       return;
     }
     if (props.tool === 'select' || props.tool === 'offset') {
@@ -1148,13 +1210,20 @@ export function installInteractions({
       return;
     }
     if (!drag || pointers.size > 1) return;
-    if (props.tool === 'move' && props.axis === 'z') {
-      const origin: [number, number, number] = [
-        drag.origin[0],
-        drag.origin[1],
-        drag.origin[2] + (drag.screenY - event.clientY) * worldPerPixel(drag.origin),
-      ];
-      props.onGesture({ type: 'move', origin: snap(origin, drag.plane, drag.origin) });
+    if (props.tool === 'move') {
+      const start = drag.start;
+      let raw: Vec3 | undefined;
+      if (props.axis) raw = linePoint(event, start, axisVector(props.axis));
+      else raw = planePoint(event, drag.plane, start);
+      if (!raw) return;
+      const target = !props.axis && !shift ? nearest(event) : undefined;
+      const end = target ? target.point : snap(raw, drag.plane, start, start);
+      if (target) show(target, drag.plane);
+      props.onGesture({
+        type: 'move',
+        bodyId: drag.bodyId,
+        origin: add(drag.origin, sub(end, start)),
+      });
       return;
     }
     const raw = planePoint(event, drag.plane, props.tool === 'rectangle' ? [0, 0, 0] : drag.origin);
@@ -1171,9 +1240,6 @@ export function installInteractions({
           width,
           depth,
         });
-    } else if (props.tool === 'move') {
-      const origin = raw.map((n, i) => drag!.origin[i] + n - drag!.start[i]) as Vec3;
-      props.onGesture({ type: 'move', origin: snap(origin, drag.plane, drag.origin, drag.origin) });
     }
   };
   const up = (event: PointerEvent) => {
@@ -1187,6 +1253,11 @@ export function installInteractions({
           props.onAccept();
         }
         rotationDrag = undefined;
+      } else if (props.tool === 'offset') {
+        if (moved || active.second) {
+          // Use the last pointermove value. A click must not overwrite a typed dimension.
+          props.onAccept();
+        }
       } else if (props.tool === 'boolean' && !moved) {
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
@@ -1257,6 +1328,11 @@ export function installInteractions({
   };
   const keydown = (event: KeyboardEvent) => {
     if ((event.target as HTMLElement).closest('input,textarea,select,[contenteditable]')) return;
+    if ((event.key === 'Control' || event.key === 'Alt') && current().tool === 'move') {
+      event.preventDefault();
+      current().onCopyMove(true);
+      return;
+    }
     // Axis shortcuts must not intercept application commands such as Ctrl/Cmd+Z.
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const props = current(),
@@ -1292,6 +1368,8 @@ export function installInteractions({
     }
   };
   const keyup = (event: KeyboardEvent) => {
+    if ((event.key === 'Control' || event.key === 'Alt') && current().tool === 'move')
+      current().onCopyMove(event.ctrlKey || event.altKey);
     if (event.key === 'Shift') {
       shift = false;
       if (shiftDirection) {
@@ -1307,6 +1385,8 @@ export function installInteractions({
   };
   const blur = () => {
     shift = false;
+    current().onCopyMove(false);
+    offsetSession = undefined;
     if (heldReference) current().onReference(undefined);
     heldReference = undefined;
     shiftDirection = undefined;

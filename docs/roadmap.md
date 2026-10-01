@@ -48,7 +48,11 @@ G-kiinnitys sekä nimettävät ja piilotettavat kappaleet ja yksitasoiset ryhmä
 V5 tallentaa ryhmät, lukituksen ja näkyvyyden. Kauas jatkuva ruudukko,
 hillityt oletusakselit ja valinnaiset akselitekstit viimeistelevät työtilaa.
 
-Seuraavaksi: kohdistus ja kopiointi, viitteiden poiminnan käyttökokeet
+Versiossa 0.5.1 toteutettu: yksi kompakti yläpalkki, selaimen koko näytön tila,
+Offsetin hiirisäätö ja tarkka CAD-esikatselu, koko objektin valinta yhdellä
+klikkauksella sekä M + Ctrl -kopiointi tartuntapisteestä ja numeroilla.
+
+Seuraavaksi: kohdistuksen ja viitteiden poiminnan käyttökokeet
 sekä työkalujen viimeistely oikeilla malleilla. Fyysinen tabletti ja Safari
 varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
 

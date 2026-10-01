@@ -10,6 +10,8 @@ import { profilePoints, frameV } from '../model/sketch';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { rotationHandles } from '../model/rotationHandles';
 import { dot, unit } from '../model/geometry';
 import { createWorkspaceGrid } from './workspaceGrid';
@@ -158,6 +160,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const sync = () => {
     disposeGroup(bodies);
     const props = current();
+    renderer.domElement.dataset.selectionKind = props.selectedFace
+      ? 'face'
+      : props.selectedIds.length
+        ? 'object'
+        : '';
     const box = bounds(props.bodies),
       min = new THREE.Vector3(...box.min),
       max = new THREE.Vector3(...box.max);
@@ -189,7 +196,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                   ? '#9b7bb8'
                   : selected && face.ref === props.selectedFace
                     ? '#e1bd7b'
-                    : body.color,
+                    : selected && !props.selectedFace
+                      ? new THREE.Color(body.color).lerp(new THREE.Color('#56a58b'), 0.3)
+                      : body.color,
           roughness: 0.8,
           metalness: 0,
           side: THREE.DoubleSide,
@@ -256,13 +265,38 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const preview = () => {
     disposeGroup(ghost);
     const rotation = current().rotation;
+    const moving = current().tool === 'move' ? current().preview : undefined;
+    const source = moving && current().bodies.find((b) => b.id === moving.id);
+    const moved =
+      moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
     for (const object of bodies.children)
       object.visible = !(
-        rotation &&
-        !rotation.picking &&
-        Math.abs(rotation.angle % 360) > 1e-8 &&
-        rotation.ids.includes(object.userData.id)
+        (moved && !current().copyMove && object.userData.id === moving.id) ||
+        (rotation &&
+          !rotation.picking &&
+          Math.abs(rotation.angle % 360) > 1e-8 &&
+          rotation.ids.includes(object.userData.id))
       );
+    renderer.domElement.dataset.copyMove = String(current().copyMove);
+    renderer.domElement.dataset.offsetPreview = current().offsetOutline
+      ? String(current().offsetPreviewDistance)
+      : '';
+    if (current().tool === 'offset' && current().offsetOutline) {
+      // meshEdges returns disconnected segment pairs, not a connected polyline.
+      const outline = new LineSegments2(
+        new LineSegmentsGeometry().setPositions(current().offsetOutline!),
+        new LineMaterial({
+          color: 0x168ab8,
+          linewidth: 2.5,
+          depthTest: false,
+          depthWrite: false,
+          toneMapped: false,
+          resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
+        }),
+      );
+      outline.renderOrder = 96;
+      ghost.add(outline);
+    }
     if (rotation) {
       const transform = new THREE.Matrix4()
         .makeTranslation(...rotation.pivot)
@@ -748,6 +782,9 @@ export function Viewport(props: Props) {
       props.tool,
       props.rotation,
       props.meshes,
+      props.copyMove,
+      props.offsetOutline,
+      props.offsetPreviewDistance,
     ],
   );
   useEffect(

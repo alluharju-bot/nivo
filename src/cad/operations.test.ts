@@ -5,7 +5,8 @@ import { setOC, measureVolume } from 'replicad';
 import { makeBody, makeProfileBody, parseProject, freshProject, type Body } from '../model/project';
 import { sketchFrame } from '../model/sketch';
 import { createShape, meshBody, pushPullFace } from './kernel';
-import { booleanBodies, splitFace, offsetFace } from './operations';
+import { booleanBodies, splitFace, offsetFace, offsetOutline } from './operations';
+import { offsetDirection } from '../model/faceBoundary';
 import { resolveAnchor } from '../model/guides';
 import { applyBoolean } from '../model/operations';
 import { measureFaceSpan } from './measurement';
@@ -28,6 +29,42 @@ function volume(body: Body) {
   }
 }
 describe('face regions and exact boolean modelling', () => {
+  it('previews the exact offset at world coordinates without changing the part', () => {
+    const box = makeBody(200, 120, 20, [30, -40, 70]);
+    const original = JSON.stringify(box);
+    const shape = createShape(box);
+    const mesh = meshBody(box, shape);
+    shape.delete();
+    for (const face of mesh.faces) {
+      const lines = offsetOutline(box, face.ref, 5);
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.length % 6).toBe(0);
+      const normalAxis = face.normal.findIndex((n) => Math.abs(n) > 0.99);
+      for (let i = 0; i < lines.length; i += 3)
+        expect(lines[i + normalAxis]).toBeCloseTo(face.center[normalAxis], 6);
+    }
+    const lines = offsetOutline(box, 'z:max', 10);
+    for (const [axis, min, max] of [
+      [0, 40, 220],
+      [1, -30, 70],
+      [2, 90, 90],
+    ]) {
+      const coordinates = lines.filter((_, i) => i % 3 === axis);
+      expect(Math.min(...coordinates)).toBeCloseTo(min, 6);
+      expect(Math.max(...coordinates)).toBeCloseTo(max, 6);
+    }
+    // Close to the triangulation diagonal, the real outer edge still controls the drag.
+    expect(
+      offsetDirection(mesh, {
+        bodyId: box.id,
+        face: 'z:max',
+        normal: [0, 0, 1],
+        point: [60, -25, 90],
+      }),
+    ).toEqual([0, 1, 0]);
+    expect(() => offsetOutline(box, 'z:max', 80)).toThrow();
+    expect(JSON.stringify(box)).toBe(original);
+  });
   it('insets every box face by 18 mm and cuts exact pockets and through openings', () => {
     const box = makeBody(600, 600, 2400);
     for (const axis of ['x', 'y', 'z'] as const)

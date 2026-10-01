@@ -6,6 +6,39 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.5.1:n uudet tarkistukset: **48 yksikkötestiä hyväksytty**, TypeScript,
+tuotantopaketointi ja muotoilu tarkistettu. Uusi CAD-koe varmentaa Offsetin
+esikatselun maailman koordinaateissa, kaikilla kuudella sivulla, sekä hiirisuunnan
+valinnan todellisesta reunasta kolmioverkon sisäreunan sijaan.
+
+Uusien selaintyönkulkujen kohdistettu tuotantoajo: **10/10 hyväksytty**
+työpöytä- ja tablettiprofiileissa:
+
+- 60 px yhteinen yläpalkki, vanhat toiminnot saatavilla ja mallinnusalue alkaa
+  heti palkin alta. Natiivi fullscreen sisään/ulos, myös selaimen aloittama
+  poistuminen. 390 px ikkunassa lisävalikko ja asetukset mahtuvat näytölle.
+- Pinnan osoitus → O → hiirisäätö → tarkka CAD-ääriviiva. Kirjoitettu mitta
+  säilyy hiiren liikkuessa; klikkaus hyväksyy kerran ja undo palauttaa alkuperäisen.
+- Offset-työkalu ensin, myös valitulle kappaleelle: pinnasta veto hyväksytään
+  vapautuksessa. Liian suuri seuraava inset ja Esc eivät muuta osaa.
+- Koko objektin valinta. Vedon aikana painettu Ctrl kopioi täsmälleen
+  tartuntakulmasta kohdeverteksiin. Alkuperäiset osat säilyvät; undo poistaa kopion.
+- Esc peruu kopioinnin; Siirrä kopio -valinta sijoittaa kopion täsmälleen
+  652 mm siirtymällä ilman Ctrl-elettä.
+
+Koko V0.5.1-tuotantoajo (86 tapausta, 14,6 min): **80 hyväksytty,
+4 tarkoituksella ohitettu, 2 korjattavaa**. Nopeassa tabletin undo/redo-sarjassa
+näppäinkuuntelija saattoi käyttää edellisen renderöinnin busy-tilaa; kuuntelija
+päivitetään nyt layout-effectissä samassa commitissa käyttöliittymän kanssa.
+Toisen tabletin testin suorakulmio alkoi kasvaneen mallinnusalueen vuoksi
+vasemman työkalupalkin päältä; testipisteet siirrettiin canvasin sisälle.
+Ohjeikkunan peite nostettiin samalla yhteisen yläpalkin ja mittaikkunan päälle.
+
+Korjatun tuotantopaketin kohdistettu uusinta: **10/10 hyväksytty (2,2 min)**.
+Molemmat korjatut työnkulut sekä yläpalkki/fullscreen/ohjeikkuna, hiiri-Offset
+ja suora numerosyöttö ajettiin kummallakin näyttöprofiililla. **82 erillistä
+selaintyönkulkua varmennettu koko ajon ja kohdistetun uusinnan avulla.**
+
 V0.5:n tarkistus: **47 yksikkötestiä hyväksytty**, TypeScript, tuotantopaketointi
 ja muotoilu tarkistettu. Uudet geometriakokeet varmentavat 18 mm Offsetin
 600 × 600 × 2400 mm laatikon kaikilla kuudella sivulla, täsmällisen taskutilavuuden,
@@ -57,7 +90,7 @@ Kolme uutta työnkulkua hyväksytty ensin työpöytäprofiilin kohdistetussa ajo
 
 | Tarkistus                    | Tulos                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm test`                   | 47 testiä hyväksytty.                                                                                                                |
+| `npm test`                   | 48 testiä hyväksytty.                                                                                                                |
 | Kehitystilan selaintestit    | V0.5:n seitsemän uutta työnkulkua hyväksytty työpöydällä ennen tuotantoajoa. Aiemmat CAD-worker-kokeet säilyvät.                     |
 | `npm run build`              | TypeScript ja tuotantopaketointi hyväksytty.                                                                                         |
 | Tuotantopaketin selaintestit | Mittasyöttö, apuviivat, Shift-viite, kynä, yhdistäminen sekä aiemmat työnkulut työpöydällä ja tablettiprofiilissa. Ajotulokset alla. |

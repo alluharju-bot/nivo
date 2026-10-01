@@ -108,7 +108,7 @@ test('complete precise modelling, history, drawing, export and recovery workflow
   const canvas = await page.getByTestId('viewport').boundingBox();
   await page.keyboard.press('v');
   await page.mouse.click(canvas!.x + canvas!.width / 2, canvas!.y + canvas!.height / 2);
-  await expect(page.locator('.selection-tag')).toContainText('Etupinta');
+  await expect(page.locator('.selection-tag')).toHaveText('CAD-kappale');
   await page.getByRole('button', { name: 'Mittakuva', exact: true }).click();
   await page.getByRole('button', { name: 'Leveys', exact: true }).click();
   await expect(page.locator('.dimension-list')).toContainText('600');

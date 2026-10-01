@@ -13,7 +13,7 @@ import { createShape, meshBody, bodyFromShape, shapeIsValid } from './kernel';
 import type { SplitResult } from './protocol';
 
 /** A true planar inset: split the original face, preserving the solid and its volume. */
-export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitResult {
+function withInset<T>(body: Body, ref: FaceRef, distance: number, use: (inset: AnyShape) => T): T {
   if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
   if (!Number.isFinite(distance) || distance < 0.1 || distance > 100000)
     throw new Error('Anna sisennys väliltä 0,1…100 000 mm.');
@@ -51,7 +51,7 @@ export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitRes
     if (!shapeIsValid(inset) || area < 1e-6 || area >= measureArea(face) - 1e-6)
       throw new Error('Sisennys on liian suuri tälle pinnalle.');
     // Split uses an exact intersection, so the original body remains one solid.
-    return splitFace(body, ref, bodyFromShape(body, inset, []));
+    return use(inset);
   } catch (error) {
     if (error instanceof Error && /Offset|Sisennys/.test(error.message)) throw error;
     throw new Error('Sisennystä ei voi muodostaa. Kokeile pienempää mittaa tai toista tasopintaa.');
@@ -62,6 +62,15 @@ export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitRes
     faces.forEach((face) => face.delete());
     shape.delete();
   }
+}
+
+export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitResult {
+  return withInset(body, ref, distance, (inset) =>
+    splitFace(body, ref, bodyFromShape(body, inset, [])),
+  );
+}
+export function offsetOutline(body: Body, ref: FaceRef, distance: number): number[] {
+  return withInset(body, ref, distance, (inset) => inset.meshEdges({ tolerance: 0.15 }).lines);
 }
 
 export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' | 'join'): Body[] {
