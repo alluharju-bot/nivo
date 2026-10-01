@@ -7,6 +7,12 @@ import { formatLength } from '../model/units';
 import { installInteractions } from './interactions';
 import type { ViewportProps as Props, CameraCommand } from './types';
 import { profilePoints, frameV } from '../model/sketch';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { rotationHandles } from '../model/rotationHandles';
+import { dot, unit } from '../model/geometry';
+import { createWorkspaceGrid } from './workspaceGrid';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   sync: () => void;
@@ -20,7 +26,11 @@ interface SceneApi {
 function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#eaece6');
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false,
+    logarithmicDepthBuffer: true,
+  });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -50,17 +60,27 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const extrusionLabels: typeof labels = [];
   let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
   const clippingSphere = new THREE.Sphere(new THREE.Vector3(300, 200, 200), 1000);
+  let workspaceGrid: ReturnType<typeof createWorkspaceGrid> | undefined;
   const render = () => {
     // Keep useful depth precision at CAD scales instead of a fixed 1:10,000,000 range.
     const distance = camera.position.distanceTo(clippingSphere.center),
       extent = Math.max(clippingSphere.radius * 1.8, 100);
-    const near = Math.max(0.1, distance - extent),
-      far = Math.max(near + 1000, distance + extent);
+    const near = Math.max(
+        0.1,
+        Math.min(distance - extent, camera.position.distanceTo(controls.target) * 0.001),
+      ),
+      far = Math.max(2_000_000, distance + extent);
     if (camera.near !== near || camera.far !== far) {
       camera.near = near;
       camera.far = far;
       camera.updateProjectionMatrix();
     }
+    workspaceGrid?.update(
+      camera,
+      camera.position.distanceTo(controls.target),
+      current().axisStyle,
+      current().axisLabels,
+    );
     renderer.render(scene, camera);
     for (const label of [...labels, ...extrusionLabels]) {
       const p = label.point.clone().project(camera);
@@ -113,13 +133,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   floor.position.z = -0.3;
   floor.receiveShadow = true;
   scene.add(floor);
-  const grid = new THREE.GridHelper(6000, 120, '#b9c5ba', '#d3d9cf');
-  grid.rotation.x = Math.PI / 2;
-  grid.position.z = -0.2;
-  scene.add(grid);
-  const axes = new THREE.AxesHelper(160);
-  axes.position.z = 0.1;
-  scene.add(axes);
+  workspaceGrid = createWorkspaceGrid(scene, container);
   const bodies = new THREE.Group(),
     ghost = new THREE.Group();
   scene.add(bodies, ghost);
@@ -171,9 +185,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                 ? body.purpose === 'construction'
                   ? '#1289c6'
                   : '#9865b4'
-                : selected && face.ref === props.selectedFace
-                  ? '#e1bd7b'
-                  : body.color,
+                : body.locked
+                  ? '#9b7bb8'
+                  : selected && face.ref === props.selectedFace
+                    ? '#e1bd7b'
+                    : body.color,
           roughness: 0.8,
           metalness: 0,
           side: THREE.DoubleSide,
@@ -195,34 +211,38 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       bodies.add(mesh);
       const edges = new THREE.BufferGeometry();
       edges.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
-      bodies.add(
-        new THREE.LineSegments(
-          edges,
-          new THREE.LineBasicMaterial({
-            color: target
-              ? '#0066bf'
-              : cutter
-                ? '#cc3d28'
-                : auxiliary
-                  ? body.purpose === 'construction'
-                    ? '#1289c6'
-                    : '#9865b4'
+      const outline = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({
+          color: target
+            ? '#0066bf'
+            : cutter
+              ? '#cc3d28'
+              : auxiliary
+                ? body.purpose === 'construction'
+                  ? '#1289c6'
+                  : '#9865b4'
+                : body.locked
+                  ? '#684294'
                   : selected
                     ? '#237b65'
                     : '#766851',
-            transparent: true,
-            opacity: selected || target || cutter || auxiliary ? 1 : 0.5,
-            depthTest: !cutter,
-          }),
-        ),
+          transparent: true,
+          opacity: selected || target || cutter || auxiliary ? 1 : 0.5,
+          depthTest: !cutter,
+        }),
       );
+      outline.userData = { id: body.id };
+      bodies.add(outline);
     }
     const editing = [
+      'rotate',
       'rectangle',
       'circle',
       'boolean',
       'move',
       'extrude',
+      'offset',
       'measure',
       'pen',
     ].includes(props.tool);
@@ -235,6 +255,81 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   const preview = () => {
     disposeGroup(ghost);
+    const rotation = current().rotation;
+    for (const object of bodies.children)
+      object.visible = !(
+        rotation &&
+        !rotation.picking &&
+        Math.abs(rotation.angle % 360) > 1e-8 &&
+        rotation.ids.includes(object.userData.id)
+      );
+    if (rotation) {
+      const transform = new THREE.Matrix4()
+        .makeTranslation(...rotation.pivot)
+        .multiply(
+          new THREE.Matrix4().makeRotationAxis(
+            new THREE.Vector3(...unit(rotation.axis)),
+            THREE.MathUtils.degToRad(rotation.angle),
+          ),
+        )
+        .multiply(new THREE.Matrix4().makeTranslation(...(rotation.pivot.map((n) => -n) as Vec3)));
+      if (!rotation.picking && Math.abs(rotation.angle % 360) > 1e-8) {
+        for (const data of current().meshes.filter((m) => rotation.ids.includes(m.id))) {
+          const body = current().bodies.find((b) => b.id === data.id)!;
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
+          geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
+          geometry.setIndex(data.triangles);
+          geometry.applyMatrix4(transform);
+          ghost.add(
+            new THREE.Mesh(
+              geometry,
+              new THREE.MeshStandardMaterial({
+                color: body.color,
+                roughness: 0.8,
+                side: THREE.DoubleSide,
+                polygonOffset: true,
+                polygonOffsetFactor: 1,
+                polygonOffsetUnits: 1,
+              }),
+            ),
+          );
+          const outline = new THREE.BufferGeometry();
+          outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
+          outline.applyMatrix4(transform);
+          ghost.add(
+            new THREE.LineSegments(outline, new THREE.LineBasicMaterial({ color: '#26765b' })),
+          );
+        }
+      }
+      for (const handle of rotationHandles(rotation, current().bodies)) {
+        const ring = new Line2(
+          new LineGeometry().setPositions(handle.points.flat()),
+          new LineMaterial({
+            color: new THREE.Color(handle.color).getHex(),
+            linewidth: Math.abs(dot(handle.axis, rotation.axis)) > 0.999 ? 3 : 1.8,
+            depthTest: false,
+            transparent: true,
+            opacity: rotation.picking ? 0.25 : 0.8,
+            toneMapped: false,
+            resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
+          }),
+        );
+        ring.renderOrder = 96;
+        ghost.add(ring);
+      }
+      const pivot = new THREE.Mesh(
+        new THREE.SphereGeometry(
+          Math.max(2, rotationHandles(rotation, current().bodies)[0].radius / 55),
+          12,
+          8,
+        ),
+        new THREE.MeshBasicMaterial({ color: '#f4e8c4', depthTest: false }),
+      );
+      pivot.position.set(...rotation.pivot);
+      pivot.renderOrder = 97;
+      ghost.add(pivot);
+    }
     extrusionLabels.forEach((label) => label.element.remove());
     extrusionLabels.length = 0;
     const target = current().faceTarget;
@@ -528,6 +623,13 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     controls.update();
   };
   const command = (command: CameraCommand) => {
+    if (command.type === 'origin') {
+      camera.position.sub(controls.target);
+      controls.target.set(0, 0, 0);
+      controls.update();
+      render();
+      return;
+    }
     if (command.type === 'projection') setProjection(command.projection!);
     else {
       const props = current();
@@ -590,6 +692,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       extrusionLabels.forEach((l) => l.element.remove());
       disposeGroup(bodies);
       disposeGroup(ghost);
+      workspaceGrid?.dispose();
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
           obj.geometry.dispose();
@@ -632,10 +735,20 @@ export function Viewport(props: Props) {
     props.epoch,
     props.booleanTargets,
     props.booleanTools,
+    props.axisStyle,
+    props.axisLabels,
   ]);
   useEffect(
     () => api.current?.preview(),
-    [props.preview, props.faceTarget, props.faceDistance, props.faceSpan, props.tool],
+    [
+      props.preview,
+      props.faceTarget,
+      props.faceDistance,
+      props.faceSpan,
+      props.tool,
+      props.rotation,
+      props.meshes,
+    ],
   );
   useEffect(
     () => api.current?.interactionSync(),

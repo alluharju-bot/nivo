@@ -137,13 +137,13 @@ test('complete precise modelling, history, drawing, export and recovery workflow
   expect(saved.bodies[0].origin).toEqual([2400, -20, 0]);
   expect(saved.dimensions).toHaveLength(2);
   await page.reload();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Uusi projekti', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Uusi projekti', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(0);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(0);
   await page.getByTestId('project-file').setInputFiles(path);
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
-  await page.locator('.object-list>button').click();
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
+  await page.locator('.object-list .object-select').click();
   await expect(page.getByTestId('selected-height')).toContainText('18');
   await page.getByTestId('project-file').setInputFiles({
     name: 'invalid.nivo',
@@ -151,7 +151,7 @@ test('complete precise modelling, history, drawing, export and recovery workflow
     buffer: Buffer.from('{"format":"nivo","version":999}'),
   });
   await expect(page.getByRole('alert')).toContainText('versio');
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   expect(errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('workflow.png') });
 });
@@ -174,7 +174,7 @@ test('tablet drawing release accepts once, orientation change and recovery', asy
     touchPoints: [{ x: x + 100, y: y + 110 }],
   });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Anna paksuus', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Anna paksuus', exact: true }).tap();
@@ -185,7 +185,7 @@ test('tablet drawing release accepts once, orientation change and recovery', asy
   await expect(page.getByTestId('selected-height')).toContainText('18');
   await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
   await page.reload();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath('tablet-portrait.png') });
 });
 
@@ -194,9 +194,9 @@ test('example cabinet and visible invalid dimension reference after deletion', a
 }, testInfo) => {
   await ready(page);
   await page.getByRole('button', { name: 'Tai avaa esimerkkikaappi' }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(6);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(6);
   await page.screenshot({ path: testInfo.outputPath('cabinet.png') });
-  await page.locator('.object-list>button').filter({ hasText: 'Kansi' }).click();
+  await page.locator('.object-list .object-select').filter({ hasText: 'Kansi' }).click();
   await page.getByRole('button', { name: 'Mittakuva', exact: true }).click();
   await page.getByRole('button', { name: 'Leveys', exact: true }).click();
   await expect(page.locator('.dimension-list')).toContainText('564');

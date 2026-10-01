@@ -5,7 +5,7 @@ import { setOC, measureVolume } from 'replicad';
 import { makeBody, makeProfileBody, parseProject, freshProject, type Body } from '../model/project';
 import { sketchFrame } from '../model/sketch';
 import { createShape, meshBody, pushPullFace } from './kernel';
-import { booleanBodies, splitFace } from './operations';
+import { booleanBodies, splitFace, offsetFace } from './operations';
 import { resolveAnchor } from '../model/guides';
 import { applyBoolean } from '../model/operations';
 import { measureFaceSpan } from './measurement';
@@ -28,6 +28,68 @@ function volume(body: Body) {
   }
 }
 describe('face regions and exact boolean modelling', () => {
+  it('insets every box face by 18 mm and cuts exact pockets and through openings', () => {
+    const box = makeBody(600, 600, 2400);
+    for (const axis of ['x', 'y', 'z'] as const)
+      for (const side of ['min', 'max'] as const) {
+        const split = offsetFace(box, `${axis}:${side}`, 18);
+        expect(volume(split.body)).toBeCloseTo(600 * 600 * 2400, 2);
+        const depth = axis === 'z' ? 2400 : 600;
+        const area = axis === 'z' ? 564 * 564 : 564 * 2364;
+        const pocket = pushPullFace(split.body, split.face, -(depth - 18));
+        expect(volume(pocket)).toBeCloseTo(volume(box) - area * (depth - 18), 2);
+        const through = pushPullFace(split.body, split.face, -depth - 50);
+        expect(volume(through)).toBeCloseTo(volume(box) - area * depth, 2);
+        expect(volume(pushPullFace(split.body, split.face, -depth))).toBeCloseTo(
+          volume(through),
+          2,
+        );
+        expect(
+          parseProject(JSON.stringify({ ...freshProject(), bodies: [through] })).bodies[0],
+        ).toEqual(through);
+      }
+    expect(() => offsetFace(box, 'y:min', 301)).toThrow();
+    expect(() => offsetFace({ ...box, locked: true }, 'y:min', 18)).toThrow('kiinnitetty');
+    expect(volume(box)).toBeCloseTo(864000000, 2);
+  });
+  it('offsets circular and oblique polygon faces with exact geometry', () => {
+    const circle = makeProfileBody({ kind: 'circle', radius: 50 }, sketchFrame([0, 0, 0]), 20);
+    const shape = createShape(circle);
+    const top = meshBody(circle, shape).faces.find((f) => f.normal[2] > 0.99)!;
+    shape.delete();
+    const split = offsetFace(circle, top.ref, 5);
+    expect(volume(pushPullFace(split.body, split.face, -30))).toBeCloseTo(
+      Math.PI * (2500 - 2025) * 20,
+      3,
+    );
+    const normal: [number, number, number] = [0, 0.6, 0.8];
+    const plate = makeProfileBody(
+      { kind: 'rectangle', width: 100, depth: 80 },
+      sketchFrame([10, 20, 30], normal),
+      18,
+    );
+    const ps = createShape(plate);
+    const cap = meshBody(plate, ps).faces.find(
+      (f) => f.planar && f.normal.every((n, i) => Math.abs(n - normal[i]) < 1e-6),
+    )!;
+    ps.delete();
+    const inset = offsetFace(plate, cap.ref, 5);
+    expect(volume(pushPullFace(inset.body, inset.face, -25))).toBeCloseTo((8000 - 90 * 70) * 18, 3);
+  });
+  it('keeps the inset distance around an existing hole as well as the outer boundary', () => {
+    const plate = makeBody(100, 100, 20);
+    const holed = booleanBodies(
+      [plate],
+      [makeProfileBody({ kind: 'circle', radius: 10 }, sketchFrame([50, 50, -5]), 30)],
+      'cut',
+    )[0];
+    const shape = createShape(holed);
+    const face = meshBody(holed, shape).faces.find((f) => f.planar && f.normal[2] > 0.99)!;
+    shape.delete();
+    const inset = offsetFace(holed, face.ref, 5);
+    const pocket = pushPullFace(inset.body, inset.face, -10);
+    expect(volume(pocket)).toBeCloseTo(volume(holed) - (90 * 90 - Math.PI * 15 * 15) * 10, 3);
+  });
   it('changes 652 mm to an exact target from all six sides, keeping the opposite side fixed', () => {
     const body = makeBody(652, 652, 652, [20, -30, 40]);
     for (const axis of ['x', 'y', 'z'] as const)
@@ -127,7 +189,7 @@ describe('face regions and exact boolean modelling', () => {
     expect(distanceToSize('550', 550, true, 1)).toBe(0);
     expect(distanceToSize('18', 0, false, -1)).toBe(-18);
     expect(() => distanceToSize('-150', 652, true, 1)).toThrow('positiivinen');
-    expect(() => distanceToSize('0', 652, true, 1)).toThrow('Pienin mitta');
+    expect(distanceToSize('0', 652, true, 1)).toBe(-652);
   });
   it('rejects an edge anchor in a removed segment while preserving an untouched edge segment', () => {
     const plate = makeBody(100, 100, 20),

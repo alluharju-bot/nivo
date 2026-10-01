@@ -41,7 +41,14 @@ Esc päättää työkalun ja tyhjentää valinnan. Mittaikkuna on oikeassa sivup
 ja sen voi siirtää otsikosta. Aiempi Escillä tehty pelkän akselilukon vapautus
 korvautuu saman akselinäppäimen uudella painalluksella.
 
-Seuraavaksi: kierto, kohdistus ja kopiointi, viitteiden poiminnan käyttökokeet
+Versiossa 0.5 toteutettu: vapaan pinnan osoituskorostus, Offset-sisennys ja
+sisäalueen E-syvennys/läpileikkaus, myös lopullinen mitta 0. R-kierto poimitun
+pisteen tai reunan ympäri, kulmasyöttö ja 15°-porrastus, origoon siirto,
+G-kiinnitys sekä nimettävät ja piilotettavat kappaleet ja yksitasoiset ryhmät.
+V5 tallentaa ryhmät, lukituksen ja näkyvyyden. Kauas jatkuva ruudukko,
+hillityt oletusakselit ja valinnaiset akselitekstit viimeistelevät työtilaa.
+
+Seuraavaksi: kohdistus ja kopiointi, viitteiden poiminnan käyttökokeet
 sekä työkalujen viimeistely oikeilla malleilla. Fyysinen tabletti ja Safari
 varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
 
@@ -49,7 +56,7 @@ varmennetaan erikseen. Hierarkia ja linkitetyt komponentit seuraavat myöhemmin.
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Perusta varmennettu  | CAD-worker, pursotus/leikkaus/pyöristys, BRep-serialisointi, pintaviite, ortografinen HLR. Fyysinen tabletti vielä testaamatta. |
 | 1     | Työnkulku toteutettu | Suorakulmio → push/pull → valinta/siirto ja tartunnat → etukuva ja mitta → projektitiedosto/SVG, tallennus, historia, kosketus. |
-| 2     | Myöhemmin            | Layerit, ryhmät, komponenttimääritelmät ja linkitetyt instanssit, uniikiksi tekeminen, näkyvyys ja lukitus.                     |
+| 2     | Osin toteutettu      | Ryhmät, nimet, näkyvyys ja lukitus tehty. Layerit, hierarkia ja linkitetyt komponentit myöhemmin.                               |
 | 3     | Osin toteutettu      | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.              |
 | 4     | Suunniteltu          | Materiaalit, tekstuurit, pintasijoittelu, lasi ja ympäristöä valaiseva emissio.                                                 |
 | 5     | Suunniteltu          | Scenet, esitystyylit, valaistus ja kuvavienti.                                                                                  |

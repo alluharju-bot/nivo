@@ -323,6 +323,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
   }
 }
 export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
+  if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
   if (!Number.isFinite(distance) || Math.abs(distance) < 0.1 || Math.abs(distance) > 100000)
     throw new Error('Anna pinnan siirtymä väliltä −100 000…100 000 mm (vähintään 0,1 mm).');
   const shape = createShape(body);
@@ -422,6 +423,8 @@ export function runProbe(): ProbeResult {
         kind: 'cad',
         color: '#ffffff',
         purpose: 'model',
+        locked: false,
+        hidden: false,
         origin: [-300, -200, 0],
         feature: { type: 'rectangle-extrusion', width: 600, depth: 400, height: 18 },
       },

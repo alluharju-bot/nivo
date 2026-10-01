@@ -20,7 +20,7 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies, guides })),
     });
-    await expect(page.locator('.object-list>button')).toHaveCount(bodies.length);
+    await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
   }
 }
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {

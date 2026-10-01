@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.4.2
+# Arkkitehtuuri — v0.5.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -40,7 +40,7 @@ src/useEditor  atominen muutos, vanhojen vastausten hylkäys, historia, tallennu
 src/App        työkalutila, paneelit, käyttöohjeet
 ```
 
-V4:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
+V5:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
 litistetty lähdejoukko tai serialisoitu OCCT-BRep. Tasomainen kynämuoto voi
 sisältää paikallisia 3D-pisteitä. Worker rakentaa ja tarkistaa geometrian;
 näyttöverkko on sen johdannainen. Yleisen tasopinnan push/pull pursottaa
@@ -62,6 +62,22 @@ jotta E kohdistuu sisäalueeseen. Paksuus voidaan toteuttaa samassa transaktioss
 pinnan jaon kanssa. Cut vähentää kaikki työstökappaleet jokaisesta kohteesta;
 Join yhdistää kaikki valitut osat ensimmäiseen kohteeseen. Roolien vaihto,
 työstökappaleiden säilyttäminen ja historia käsitellään projektitasolla.
+
+Offset siirtää tasopinnan ulkorajaa sisään ja aukkojen rajoja ulos OCCT:n
+2D-offsetilla. Suorat kulmat käyttävät leikkaavaa liitosta. Tulos kulkee saman
+pinnan jaon läpi kuin piirretty profiili, joten E ja läpileikkaus käyttävät yhtä
+geometriapolkua. Epäkelpo tai erillisiksi alueiksi hajoava inset hylätään atomisesti.
+
+V5 lisää kappaleen `locked`, `hidden` ja `groupId`-tiedot sekä nimetyt `groups`.
+V1–V4 muunnetaan avatessa; vanhat osat ovat vapaita ja näkyviä. Näkymälle ja
+sen tartunnoille annetaan vain näkyvät osat. Ryhmäpiilotus säilyttää osan oman
+näkyvyystilan. Akselien tyyli ja nimitekstit tallentuvat projektin asetuksiin.
+
+Kierto muuttaa tarkkaa BRepiä pivotin, yksikköakselin ja asteluvun avulla.
+VertexRefs kartoittaa myös siirtyneet vanhat ankkurit tuloksen paikallisiin
+koordinaatteihin. Kappaleeseen kiinnitettyjen apuviivojen suunta ja offset
+kiertyvät mukana. Esikatselu käyttää samaa rotaatiota näyttömeshille;
+hyväksyntä laskee CAD-tuloksen yhdessä transaktiossa.
 
 ## Atominen laskenta ja resurssit
 
@@ -182,8 +198,10 @@ ovat jatkotyötä. Nykyinen piirtotaso voidaan poimia mistä tahansa tasopinnast
 
 ## Syvyys ja näkyvyys
 
-Kameran near/far mukautuvat mallin rajapalloon ja kameran etäisyyteen. Tämä
-parantaa syvyysbufferin tarkkuutta suurissa malleissa. Tasoluonnokset piirretään
+Logaritminen syvyysbufferi ja mukautuva near/far tukevat suurta työtilaa.
+Ruudukon shader käyttää samaa syvyysmuunnosta, derivaattoihin perustuvaa
+reunapehmennystä ja 1/2/5-jaolla muuttuvaa askelta. Alinäytteistetyt viivat häivytetään.
+Akselien viivaleveys ja origomerkki määritellään näytön koon mukaan. Tasoluonnokset piirretään
 peittävinä, varjotaso ei kirjoita syvyyttä ja kappaleiden itsevarjostus on pois.
 Pinnan hover-korostus muuttaa olemassa olevan materiaalin emissive-väriä,
 joten samaan tasoon ei lisätä kilpailevaa korostuspintaa.

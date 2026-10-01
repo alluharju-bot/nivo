@@ -6,6 +6,35 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.5:n tarkistus: **47 yksikkötestiä hyväksytty**, TypeScript, tuotantopaketointi
+ja muotoilu tarkistettu. Uudet geometriakokeet varmentavat 18 mm Offsetin
+600 × 600 × 2400 mm laatikon kaikilla kuudella sivulla, täsmällisen taskutilavuuden,
+läpireiän sekä vastapintaan päättyvällä että sen ylittävällä siirtymällä.
+Myös ympyrä, vino pinta ja olemassa olevan reiän ympärille jäävä offset testataan.
+Kierto säilyttää tilavuuden ja ankkurit; monivalinta, mielivaltainen kiertoakseli,
+origoon siirto, lukitus ja V4→V5-tiedostomuunnos sisältyvät kokeisiin.
+
+Tuotantopaketin koko 76 tapauksen ajo: **70 hyväksytty, 4 tarkoituksella ohitettu,
+2 tabletin testielettä korjattavaksi** (12,8 min). Kynätestin viimeinen piste osui
+näkymäpainikkeeseen; piste siirrettiin sen alapuolelle. Tabletin ruudukon zoomikoe
+vaihdettiin hiiren rullasta kahden sormen nipistyseleen käyttöön.
+Lisäksi Offsetin viimeksi käytetty arvo säilytettiin seuraavalle pinnalle.
+Kohdistettu tuotantouusinta hyväksyi **10/10 tapausta**: nämä kaksi työnkulkua ja
+kaikki kolme Offset/pintakorostustyönkulkua molemmilla näyttöprofiileilla.
+Näin **72 selaintyönkulkua on varmennettu koko ajon ja kohdistetun uusinnan avulla**.
+Lopuksi Offset-mittaikkunan otsikko korjattiin; tyyppitarkistus ja paketointi ajettiin uudelleen.
+
+Uudet selaintyönkulut kattavat:
+
+- Vapaan pinnan osoitus → E ilman erillistä valintaa; Hold estää E:n ja Offsetin.
+- Kaapin etupinta → O → 18 mm → E → jäljelle 18 mm → Leikkaa läpi → undo ja avaus.
+- Työkalu ensin → pintavalinta, liian suuren insetin atominen hylkäys,
+  peräkkäiset sisennykset ja lopullinen mitta 0.
+- Hillityt oletusakselit, valinnaiset nimet, asetusten säilyminen,
+  kauas zoomaus ja ruudukon shader ilman selainvirheitä.
+- Origoon siirto, lukitus, nimeäminen, ryhmät ja piilotus sekä undo ja avaus.
+- R-kierto poimitun reunan ympäri sekä rengasveto Shiftin 15°-porrastuksella.
+
 V0.4.2:n selaintestit kattavat reunan korostuksen kohdistimen kohdalla,
 perspektiivissä kannen ja sivupinnan suuntaan vedetyn apuviivan sekä X/Y/Z-siirron,
 joka säilyttää viivan alkuperäisen suunnan. Peräkkäiset siirrot, suorakulmiot,
@@ -28,8 +57,8 @@ Kolme uutta työnkulkua hyväksytty ensin työpöytäprofiilin kohdistetussa ajo
 
 | Tarkistus                    | Tulos                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm test`                   | 40 testiä hyväksytty.                                                                                                                |
-| Kehitystilan selaintestit    | V0.4:n kahdeksan uutta mallinnustyönkulkua hyväksytty työpöydällä kohdistetuissa ajoissa. Aiemmat CAD-worker-kokeet säilyvät.        |
+| `npm test`                   | 47 testiä hyväksytty.                                                                                                                |
+| Kehitystilan selaintestit    | V0.5:n seitsemän uutta työnkulkua hyväksytty työpöydällä ennen tuotantoajoa. Aiemmat CAD-worker-kokeet säilyvät.                     |
 | `npm run build`              | TypeScript ja tuotantopaketointi hyväksytty.                                                                                         |
 | Tuotantopaketin selaintestit | Mittasyöttö, apuviivat, Shift-viite, kynä, yhdistäminen sekä aiemmat työnkulut työpöydällä ja tablettiprofiilissa. Ajotulokset alla. |
 | `npm run format:check`       | Lähdekoodin ja dokumentaation muotoilutarkistus.                                                                                     |
@@ -175,7 +204,7 @@ V0.4:n uudet selaintyönkulut, molemmilla profiileilla:
 - Piirtotaso valitaan aloittamalla kappaleen tasopinnalta. Tyhjän tilan
   suorakulmiot ja ympyrät syntyvät XY-tasolle. Kynän vapaa taso seuraa näkymää
   ja edellistä pistettä; X/Y/Z sekä geometriapisteet tukevat 3D-pisteitä.
-  Suljettavan muodon on oltava tasomainen. Kappaleen vapaa kierto ei ole mukana.
+  Suljettavan muodon on oltava tasomainen. Kappaleen vapaa kierto on tuettu R-työkalulla.
 - Apuviivan tartunta edellyttää samaa tasoa. Haettu 3D-viite projisoidaan
   aktiiviseen tasoon. Keskipiste on kappaleen rajalaatikon keskipiste.
 - Yhdistäminen edellyttää tilavuuskappaleita. Tasopinnan push/pull toimii myös

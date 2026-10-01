@@ -1,8 +1,11 @@
+import type { Rotation } from '../model/transforms';
 import type { Anchor, Axis, Body, FaceRef, Guide, Vec3, View, WorkPlane } from '../model/project';
 import type { BodyMesh, FaceTarget, FaceSpan } from '../cad/protocol';
 import type { ReferencePoint } from '../model/snap';
 import type { SketchFrame } from '../model/sketch';
 export type Tool =
+  | 'offset'
+  | 'rotate'
   | 'select'
   | 'rectangle'
   | 'circle'
@@ -14,7 +17,7 @@ export type Tool =
   | 'pen';
 export interface CameraCommand {
   id: number;
-  type: 'fit' | 'view' | 'projection';
+  type: 'fit' | 'view' | 'projection' | 'origin';
   view?: View;
   projection?: 'perspective' | 'orthographic';
 }
@@ -36,6 +39,10 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  rotation?: Rotation;
+  onRotationPick: (pivot: Vec3, axis?: Vec3, bodyId?: string) => void;
+  onRotationAngle: (angle: number) => void;
+  onRotationAxis: (axis: Vec3) => void;
   bodies: Body[];
   meshes: BodyMesh[];
   selected?: string;
@@ -50,6 +57,8 @@ export interface ViewportProps {
   guides: Guide[];
   guidePreview?: Guide;
   guideXray: boolean;
+  axisStyle: 'subtle' | 'strong';
+  axisLabels: boolean;
   selectedGuideId?: string;
   freeRotate: boolean;
   faceTarget?: FaceTarget;
@@ -71,6 +80,7 @@ export interface ViewportProps {
   onStart: () => void;
   onMoveTarget: (id: string) => void;
   onFaceTarget: (target: FaceTarget) => void;
+  onFaceHover: (target?: FaceTarget) => void;
   onSelectGuide: (id: string) => void;
   onAxis: (axis?: Axis) => void;
   onConstraint: (direction?: Vec3) => void;

@@ -57,6 +57,9 @@ export class CadClient {
   probe() {
     return this.request<ProbeResult>({ type: 'probe' });
   }
+  rotate(bodies: Body[], pivot: Vec3, axis: Vec3, angle: number) {
+    return this.request<Body[]>({ type: 'rotate', bodies, pivot, axis, angle });
+  }
   pushPull(body: Body, face: FaceRef, distance: number) {
     return this.request<Body>({ type: 'push-pull', body, face, distance });
   }
@@ -68,6 +71,9 @@ export class CadClient {
   }
   split(body: Body, face: FaceRef, profile: Body) {
     return this.request<SplitResult>({ type: 'split-face', body, face, profile });
+  }
+  offset(body: Body, face: FaceRef, distance: number) {
+    return this.request<SplitResult>({ type: 'offset-face', body, face, distance });
   }
   cancel(message = 'Laskenta peruttiin.') {
     this.worker?.terminate();

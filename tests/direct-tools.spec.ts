@@ -20,7 +20,7 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies, guides })),
     });
-    await expect(page.locator('.object-list>button')).toHaveCount(bodies.length);
+    await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
   }
 }
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {
@@ -219,7 +219,7 @@ test('Shift locks the third pen segment while the first vertex supplies its exac
   await page.mouse.move(near.x, near.y);
   await expect(page.getByTestId('snap-hint')).toContainText('Aloituspiste');
   await click(page, near);
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   const model = await save(page);
   expect(model.bodies[0].feature).toMatchObject({
     type: 'polygon-extrusion',
@@ -235,9 +235,9 @@ test('Shift locks the third pen segment while the first vertex supplies its exac
     for (const modifier of ['Control', 'Meta']) {
       await page.keyboard.press(tool);
       await page.keyboard.press(`${modifier}+z`);
-      await expect(page.locator('.object-list>button')).toHaveCount(0);
+      await expect(page.locator('.object-list .object-select')).toHaveCount(0);
       await page.keyboard.press(`${modifier}+Shift+z`);
-      await expect(page.locator('.object-list>button')).toHaveCount(1);
+      await expect(page.locator('.object-list .object-select')).toHaveCount(1);
     }
   }
 });
@@ -261,7 +261,7 @@ test('X and Z construct a vertical pen face, toggling the axis preserves the pen
     'true',
   );
   await click(page, point(0, 0, 0));
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   let model = await save(page);
   expect(model.bodies[0].feature.type).toBe('planar-polygon');
   await page.keyboard.press('e');
@@ -277,7 +277,7 @@ test('X and Z construct a vertical pen face, toggling the axis preserves the pen
     height: 150,
   });
   await page.reload();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
 });
 
 test('large thin faces remain renderable while orbiting and switching projection', async ({

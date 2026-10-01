@@ -4,8 +4,9 @@ import { setOC, makeCompound, type AnyShape } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
 import type { BodyMesh, CadRequest, CadReply } from './protocol';
 import type { Body } from '../model/project';
-import { booleanBodies, splitFace } from './operations';
+import { booleanBodies, splitFace, offsetFace } from './operations';
 import { measureFaceSpan } from './measurement';
+import { rotateBodies } from './transforms';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 type Entry = { key: string; shape: AnyShape; mesh: BodyMesh };
@@ -43,6 +44,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
+      else if (request.type === 'rotate')
+        reply.result = rotateBodies(request.bodies, request.pivot, request.axis, request.angle);
       else if (request.type === 'face-span')
         reply.result = measureFaceSpan(request.body, request.face, request.point);
       else if (request.type === 'push-pull')
@@ -51,6 +54,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = booleanBodies(request.targets, request.tools, request.operation);
       else if (request.type === 'split-face')
         reply.result = splitFace(request.body, request.face, request.profile);
+      else if (request.type === 'offset-face')
+        reply.result = offsetFace(request.body, request.face, request.distance);
       else {
         const entries = build(request.bodies);
         if (request.type === 'build') reply.result = entries.map((e) => e.mesh);

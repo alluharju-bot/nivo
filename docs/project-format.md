@@ -1,23 +1,26 @@
-# .nivo-projektiformaatti v4
+# .nivo-projektiformaatti v5
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 4`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 5`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
 ```json
 {
   "format": "nivo",
-  "version": 4,
+  "version": 5,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",
   "updatedAt": "2026-10-01T12:00:00.000Z",
-  "settings": { "guideXray": false },
+  "settings": { "guideXray": false, "axisStyle": "subtle", "axisLabels": false },
+  "groups": [],
   "bodies": [
     {
       "id": "body-uuid",
       "name": "Levy 1",
       "kind": "cad",
       "purpose": "model",
+      "locked": false,
+      "hidden": false,
       "feature": { "type": "rectangle-extrusion", "width": 600, "depth": 400, "height": 18 },
       "origin": [0, 0, 0],
       "color": "#c3a57e"
@@ -47,6 +50,14 @@ V1-tiedostoon lisätään tyhjä `guides`-taulukko. V2 muunnetaan V3:ksi lisää
 `settings: {guideXray:false}`. Migraatiot koskevat myös selaintallennusta,
 säilyttävät olemassa olevat tunnisteet eivätkä kirjoita alkuperäistä tiedostoa.
 V3 muunnetaan V4:ksi. Puuttuva `purpose` saa arvon `model`.
+V4 muunnetaan V5:ksi lisäämällä tyhjä `groups`. Puuttuvat `locked` ja `hidden`
+saavat arvon false. Akselityylin oletus on `subtle` ja `axisLabels` on false.
+`axisStyle: "strong"` korostaa akseleita; `axisLabels:true` näyttää nimet.
+
+`groups` sisältää enintään 1000 ryhmää: `id`, `name` ja `hidden` (oletus false).
+Kappaleen valinnainen `groupId` viittaa olemassa olevaan ryhmään. Ryhmät ovat
+yksitasoisia. Näkyvyys vaatii sekä kappaleen että ryhmän olevan näkyvä.
+`locked` estää siirron, kierron, Offsetin ja push/pullin. Metatiedot eivät muuta geometriaa.
 
 Kappaleen `purpose` on `model`, `construction`, `drawing` tai `component`.
 Construction tarjoaa tartunnat mutta jää pois HLR-mittakuvasta; drawing
@@ -75,7 +86,7 @@ Tämä on pinta, vaikka sen Z-korkeus olisi positiivinen.
 `brep` sisältää Replicadin serialisoiman paikallisen OCCT-geometrian `data`
 (enintään 8 Mt), tilavuuskappaleen lipun `solid` sekä `topologyId`-tunnisteen.
 CAD tarkistaa geometrian, rajalaatikon ja solid-tyypin ennen hyväksyntää.
-Pinnan jako, Cut, Join ja yleinen pintamuokkaus tallentavat tuloksen tähän
+Pinnan jako, Offset, kierto, Cut, Join ja yleinen pintamuokkaus tallentavat tuloksen tähän
 muotoon ja uusivat `topologyId`:n. Cut säilyttää kohteiden UUID:t, Join ensimmäisen
 kohteen UUID:n. Kokonaan leikatut kohteet poistuvat. Työstökappaleet voidaan
 säilyttää. Tiedosto sisältää tulosgeometrian, ei muokattavaa operaatiohistoriaa.
@@ -107,7 +118,7 @@ Tasomuodon avain on `point:n`; BRep-kappaleen
 Apuviiva jatkuu tartuntaa varten molempiin suuntiin. Viite seuraa osan siirtoa;
 suorakulmion ja monikulmion viite seuraa myös paksuuden muutosta. BRep-muokkauksessa
 kappaleen valinnainen `vertexRefs` yhdistää säilyneen vanhan ankkuriavaimen
-tuloksen paikalliseen CAD-verteksiin. Poistetut verteksit eivät saa vastinetta.
+tuloksen paikalliseen CAD-verteksiin. Kierrossa säilyneet ankkurit muunnetaan samalla rotaatiolla. Poistetut verteksit eivät saa vastinetta.
 Join siirtää kulutettujen lähteiden säilyneet viitteet ensimmäiseen kohteeseen
 avaimella `sourceId:oldKey`. Vanha Yhdistä-pikatoiminto tekee uuden UUID:n,
 eikä säilytä lähdeviitteitä. Ilman vastinetta BRep-ankkuri vaatii saman `topologyId`:n.

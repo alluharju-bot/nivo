@@ -3,17 +3,15 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio 0.4 tuo pintaan piirtämisen, tarkat ympyrät ja ellipsit, rajattujen alueiden
-syvennykset ja läpireiät sekä usean kappaleen Cut/Join-työkalun.
-Versio 0.4.1 lisää push/pullin lopullisen mitan: 652 mm osan voi muuttaa suoraan
-550 mm pituiseksi laskematta erotusta. Vihreä mittaviiva näyttää jäljelle jäävän osuuden.
-Versio 0.4.2 korjaa reunan poiminnan ja pintaa pitkin vedettävät apuviivat.
-Työkalut pysyvät aktiivisina hyväksynnän jälkeen, ja siirrettävä mittaikkuna
-on oletuksena oikeassa sivupaneelissa.
+Versio 0.5 lisää pintojen osoituskorostuksen, **Offsetin (O)**, **kierron (R)**,
+**Hold-lukituksen (G)**, origoon siirron sekä nimetyt ja piilotettavat ryhmät.
+Offset rajaa pintaan esimerkiksi 18 mm sisennyksen. **E** tekee siitä syvennyksen
+tai läpireiän. Mittaikkuna pysyy oikeassa reunassa ja sen voi siirtää otsikosta.
+Akselit ja origo ovat oletuksena hillityt; korostus ja nimet valitaan asetuksista.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-![Nivon mallinnustyötila ja esimerkkikaappi](docs/images/nivo-workspace.png)
+![600 × 600 × 2400 mm runko: 18 mm Offset ja 18 mm jäljelle jäävä takaseinä](docs/images/nivo-offset.png)
 
 ## Käynnistä
 
@@ -80,7 +78,13 @@ komponentteja.
   se ei tule mittakuvaan. **Piirros** näkyy ääriviivoina myös mittakuvassa.
   **Nimetty osa** on itsenäinen osa; kopiot eivät ole linkitettyjä komponentteja.
 
-- **Push / pull (E):** pinnan korostus seuraa kohdistinta. Paina ja vedä pintaa
+- **Offset (O):** osoita vapaata tasopintaa ja paina O tai valitse työkalu ja
+  napauta pintaa. Anna sisennys, esimerkiksi 18 mm, ja paina Enter. Kappale säilyy
+  yhtenä objektina, jonka pintaan syntyy uusi muokattava alue. E:n **Lopullinen mitta**
+  18 jättää kaappiin 18 mm takaseinän; **Leikkaa läpi**, vastapinnan ohi vetäminen tai
+  lopullinen mitta 0 tekee aukon. Toimii myös ympyröillä ja vinoilla tasopinnoilla.
+  Liian suuri tai erillisiksi alueiksi hajoava sisennys hylätään muuttamatta mallia.
+- **Push / pull (E):** vapaan pinnan korostus seuraa kohdistinta jo valintatilassa. Paina ja vedä pintaa
   normaalinsa suunnassa tai valitse pinta, paina E ja kirjoita siirtymä. Positiivinen
   arvo vetää ulospäin, negatiivinen työntää sisään. Toimii laatikon kaikilla kuudella
   pinnalla, kynämuodoilla ja yhdistettyjen osien tasopinnoilla.
@@ -165,12 +169,32 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
 - Kahden sormen ele panoroi ja zoomaa. **Navigoi**-tilassa yksi sormi kiertää.
 - Hiiren oikea painike kiertää, keskipainike panoroi ja rulla zoomaa.
   Navigoi-tilassa myös vasen painike kiertää.
-- V = valitse, R = suorakulmio (apuviivaa muokattaessa kierto), E = push/pull, M = siirrä, K = kynä,
+- V = valitse, S = suorakulmio, R = kierrä (apuviivaa muokattaessa viivan kierto),
+  O = Offset, E = push/pull, G = kiinnitä/vapauta, M = siirrä, K = kynä,
   C = ympyrä/muut muodot, B = Muotoile (Cut/Join), T = mittatyökalu, H = navigoi.
   X/Y/Z lukitsevat siirron, kynän tai apuviivan akselin. Enter hyväksyy.
   Sama X/Y/Z vapauttaa akselilukon. Esc päättää työkalun myös lukon ollessa päällä.
   Ctrl/Cmd+Z peruu, Ctrl/Cmd+Shift+Z palauttaa.
 - Keskeiset toiminnot löytyvät painikkeista ilman näppäimistöä.
+
+## Työtilan ja kappaleiden hallinta
+
+- **Kierrä (R):** valitse yksi tai useampi kappale. Keskipiste ja origo ovat
+  pikavalintoja; **Poimi kiertopiste** hyväksyy pisteen ja **Poimi kiertoakseli reunasta**
+  suoran reunan. Vedä värirengasta tai kirjoita tarkka kulma. X/Y/Z valitsee akselin,
+  Shift porrastaa vedon 15 asteeseen. Enter tai hiiren vapautus hyväksyy.
+- **Origoon:** kohdista valinnan yhteinen alakulma tai keskipiste origoon yhdellä
+  painikkeella. Kappaleiden keskinäiset sijainnit säilyvät. Näkymän ristikkopainike
+  keskittää kameran origoon liikuttamatta mallia.
+- **Kiinnitä (G):** paikalleen kiinnitetty osa näkyy violetilla. Sitä ei voi siirtää,
+  kiertää, Offset-muokata tai push/pullata ennen vapauttamista.
+- **Kappalelista:** valitse napsauttamalla, nimeä kaksoisnapsauttamalla tai
+  Nimi-kentästä, piilota silmästä ja kiinnitä lukosta. **Ryhmä** kokoaa valitut osat.
+  Ryhmän nimen voi kirjoittaa suoraan listaan ja koko ryhmän piilottaa silmästä.
+  Ryhmän purkaminen säilyttää kappaleet. Ryhmät ovat tässä versiossa yksitasoisia.
+- **Asetukset:** Hillitty/Korostettu vaihtaa akselien voimakkuuden; nimitekstit
+  saa erikseen näkyviin. Mukautuva ruudukko jatkuu kauas. Näyttöruudukon tiheys
+  muuttuu zoomauksen mukana, mutta valinnainen ruudukkotartunta pysyy 10 mm:nä.
 
 ## Tarkistukset
 
@@ -198,14 +222,14 @@ Yleinen pintamuokkaus tallentaa tarkan BRep-geometrian. Ennallaan säilyvät
 CAD-verteksit säilyttävät viitteensä; poistuneet kohteet näytetään rikkoutuneina.
 Join siirtää säilyvät lähdeviitteet tuloskappaleeseen. Siirtyvien tai muuttuvien
 topologiakohteiden yleinen nimeäminen on jatkotyötä.
-Kappaleiden kierto, tarkka kopiointi, mesh-tuonti, layerit, ryhmät,
+Tarkka kopiointi, mesh-tuonti, layerit, ryhmähierarkia,
 linkitetyt komponentit, pintamateriaalit, scenet sekä PDF-,
 STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
 
 Piirustus sisältää yhden ortografisen näkymän ja osien kokonaismittoja. Monien
 mittaviivojen sijoittelu, useat näkymät ja leikkaukset kuuluvat vaiheeseen 6.
 **Käytettävyys ja perustyökalut ovat seuraavien vaiheiden etusijalla.**
-Layerit, ryhmät ja komponentit seuraavat toimivaa mallinnuksen perustaa.
+Layerit, ryhmähierarkia ja linkitetyt komponentit seuraavat toimivaa mallinnuksen perustaa.
 
 - [Alkuperäinen määrittely](docs/requirements.fi.md)
 - [Arkkitehtuuri ja päätökset](docs/architecture.md)

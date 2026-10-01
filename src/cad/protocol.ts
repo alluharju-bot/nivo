@@ -53,8 +53,10 @@ export type CadRequest =
   | { type: 'build'; bodies: Body[] }
   | { type: 'project'; bodies: Body[]; view: DrawingView }
   | { type: 'probe' }
+  | { type: 'rotate'; bodies: Body[]; pivot: Vec3; axis: Vec3; angle: number }
   | { type: 'boolean'; targets: Body[]; tools: Body[]; operation: 'cut' | 'join' }
   | { type: 'split-face'; body: Body; face: FaceRef; profile: Body }
+  | { type: 'offset-face'; body: Body; face: FaceRef; distance: number }
   | { type: 'face-span'; body: Body; face: FaceRef; point?: Vec3 }
   | { type: 'push-pull'; body: Body; face: FaceRef; distance: number };
 export interface ProbeResult {

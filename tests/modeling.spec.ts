@@ -20,7 +20,7 @@ async function ready(page: Page, bodies: Body[] = []) {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies })),
     });
-    await expect(page.locator('.object-list>button')).toHaveCount(bodies.length);
+    await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
   }
 }
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' = 'top') {
@@ -77,7 +77,7 @@ test('circle on a face becomes a selected region, E makes a through hole, undo r
   await page.keyboard.press('c');
   await drag(page, point(200, 150, 40), point(250, 150, 40));
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   const split = await save(page);
   expect(split.bodies[0].id).toBe(plate.id);
   expect(split.bodies[0].feature.type).toBe('brep');
@@ -171,17 +171,17 @@ test('Cut accepts two targets and two cutters, consumes tools only when requeste
   );
   await expect(page.getByRole('button', { name: 'Kohteet 0', exact: true })).toBeVisible();
   await page.keyboard.press('v');
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   let model = await save(page);
   expect(model.bodies.map((b) => b.id).sort()).toEqual(targets.map((b) => b.id).sort());
   expect(model.bodies.every((b) => b.feature.type === 'brep')).toBe(true);
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(4);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(4);
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
   await page.reload();
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
 });
 
 test('viewport group picking, reverse Cut with kept tool, and Join use the same panel', async ({
@@ -209,7 +209,7 @@ test('viewport group picking, reverse Cut with kept tool, and Join use the same 
   );
   await expect(page.getByRole('button', { name: 'Kohteet 0', exact: true })).toBeVisible();
   await page.keyboard.press('v');
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   let model = await save(page),
     result = model.bodies.find((body) => body.id === b.id)!;
   expect(result.origin[0]).toBeCloseTo(100, 5);
@@ -230,7 +230,7 @@ test('viewport group picking, reverse Cut with kept tool, and Join use the same 
   );
   await expect(page.getByRole('button', { name: 'Kohteet 0', exact: true })).toBeVisible();
   await page.keyboard.press('v');
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   model = await save(page);
   expect(model.bodies[0].feature.width).toBeCloseTo(110, 5);
 });
@@ -249,7 +249,7 @@ test('ellipse, regular polygon and construction roles keep precise dimensions an
     .getByRole('combobox', { name: 'Muodon käyttö', exact: true })
     .selectOption('component');
   await page.getByRole('textbox', { name: 'Muodon paksuus', exact: true }).press('Enter');
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   let model = await save(page);
   expect(model.bodies[0]).toMatchObject({
     name: 'Ovaali osa',
@@ -271,7 +271,7 @@ test('ellipse, regular polygon and construction roles keep precise dimensions an
     .getByRole('combobox', { name: 'Muodon käyttö', exact: true })
     .selectOption('construction');
   await page.getByTestId('diameter-input').press('Enter');
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   model = await save(page);
   expect(model.bodies[1].purpose).toBe('construction');
   expect(model.bodies[1].feature).toMatchObject({
@@ -340,7 +340,7 @@ test('circle uses an oblique face plane and stays on that plane through region e
   await page.keyboard.press('c');
   await drag(page, point(...start), point(...end));
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   await page.keyboard.press('e');
   await page.keyboard.type('-10');
   await page.keyboard.press('Enter');

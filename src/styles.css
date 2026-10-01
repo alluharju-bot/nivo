@@ -655,7 +655,7 @@ p {
 .viewport-settings[open] summary {
   background: #e6ece1;
 }
-.viewport-settings > label {
+.viewport-settings-panel {
   position: absolute;
   top: 40px;
   right: 0;
@@ -663,8 +663,10 @@ p {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 230px;
+  width: 260px;
   padding: 16px;
+  flex-direction: column;
+  align-items: stretch;
   background: #fcfdf8;
   border: 1px solid #ccd7ca;
   border-radius: 8px;
@@ -1281,7 +1283,7 @@ p {
 .object-list {
   padding: 12px;
 }
-.object-list > button {
+.object-select {
   width: 100%;
   display: flex;
   align-items: center;
@@ -1292,24 +1294,24 @@ p {
   color: #88947d;
   text-align: left;
 }
-.object-list > button > span {
+.object-select > span {
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
 }
-.object-list > button > small {
+.object-select > small {
   font-size: 8px;
   color: #a0ab93;
 }
-.object-list > button > svg {
+.object-select > svg {
   stroke-width: 1.5;
 }
-.object-list > button:hover {
+.object-select:hover {
   background: #eef2e7;
 }
-.object-list > button.selected {
+.object-select.selected {
   background: #e9efdf;
   color: #52713e;
 }
@@ -2023,7 +2025,7 @@ p {
   .project-heading > input {
     min-height: 28px;
   }
-  .object-list > button {
+  .object-select {
     min-height: 46px;
   }
 }
@@ -2034,4 +2036,235 @@ p {
   .spin {
     animation: none;
   }
+}
+
+.world-axis-label,
+.world-origin-label {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 5px;
+  background: #fffffff0;
+  border: 1px solid #ffffff;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-weight: 750;
+  box-shadow: 0 1px 5px #213c3020;
+}
+.world-origin-label {
+  color: #223d31;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+.world-axis-label[hidden],
+.world-origin-label[hidden] {
+  display: none;
+}
+.object-tree {
+  border-top: 1px solid var(--line);
+}
+.object-tree-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 15px 0;
+  font-size: 12px;
+}
+.object-tree-heading small {
+  margin-left: 5px;
+  color: #798575;
+}
+.object-tree-heading button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px;
+  font-size: 11px;
+}
+.object-row {
+  display: flex;
+  align-items: center;
+  border-radius: 7px;
+}
+.object-row .object-select {
+  flex: 1;
+  min-width: 0;
+}
+.object-row.held {
+  background: #eee8f7;
+}
+.object-row.held .object-select,
+.object-row.held .object-action {
+  color: #705298;
+}
+.object-row.hidden-body .object-select {
+  opacity: 0.5;
+}
+.object-action {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  height: 40px;
+  color: #697c69;
+}
+.object-action:hover {
+  background: #e2e8dd;
+  border-radius: 6px;
+}
+.object-group {
+  margin-top: 8px;
+  padding-left: 7px;
+  border-left: 2px solid #c7d4c0;
+}
+.object-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.object-group-heading > button {
+  min-width: 24px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+}
+.object-group-heading input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #3c5745;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 7px 3px;
+}
+.object-rename {
+  border: 1px solid #618b65;
+  background: white;
+  font-size: 12px;
+}
+.object-actions-panel {
+  margin: 16px 20px;
+  display: grid;
+  gap: 12px;
+}
+.object-actions-panel .modeling-field {
+  margin: 0;
+}
+.object-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.object-quick-actions button,
+.origin-action button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  min-height: 36px;
+  padding: 7px;
+  border: 1px solid #d3dece;
+  border-radius: 6px;
+}
+.object-quick-actions button.held {
+  background: #e5daf1;
+  color: #684197;
+  border-color: #bfa5dc;
+}
+.origin-action {
+  display: flex;
+  gap: 7px;
+}
+.origin-action select {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid #d3dece;
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  font-size: 11px;
+  background: white;
+}
+@media (pointer: coarse) {
+  .object-action,
+  .object-group-heading > button,
+  .object-quick-actions button,
+  .origin-action button {
+    min-height: 44px;
+    min-width: 36px;
+  }
+}
+.rotation-panel {
+  display: grid;
+  gap: 15px;
+  padding: 16px 22px;
+}
+.rotation-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rotation-picks button {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 7px;
+  border: 1px solid #c9d8c4;
+  border-radius: 7px;
+  font-size: 11px;
+}
+.rotation-picks button[aria-pressed='true'] {
+  background: #d9ebd8;
+  border-color: #6b9a70;
+}
+.rotation-coordinates {
+  display: flex;
+  gap: 5px;
+}
+.rotation-coordinates label {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  font-size: 10px;
+}
+.rotation-coordinates input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px 5px;
+  border: 1px solid #ccd8c7;
+  border-radius: 6px;
+  background: white;
+  font: inherit;
+  font-size: 12px;
+}
+.rotation-pick-hint {
+  padding: 9px;
+  background: #e2edde;
+  font-size: 11px;
+  color: #355638;
+  border-radius: 6px;
+}
+@media (pointer: coarse) {
+  .rotation-picks button,
+  .rotation-coordinates input {
+    min-height: 44px;
+  }
+}
+
+.viewport-settings-panel > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+.viewport-settings-panel select {
+  margin-left: auto;
+  padding: 6px;
+  border: 1px solid #ccd7ca;
+  border-radius: 5px;
+  background: white;
 }

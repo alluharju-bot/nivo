@@ -139,6 +139,9 @@ export const bodySchema = z.object({
   origin: pointSchema,
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
   purpose: z.enum(['model', 'construction', 'drawing', 'component']).default('model'),
+  locked: z.boolean().default(false),
+  hidden: z.boolean().default(false),
+  groupId: id.optional(),
   vertexRefs: z.record(z.string().max(512), pointSchema).optional(),
   linearEdges: z.array(z.tuple([pointSchema, pointSchema])).optional(),
 });
@@ -177,24 +180,39 @@ export const dimensionSchema = z.object({
   from: z.literal('min'),
   to: z.literal('max'),
 });
+export const groupSchema = z.object({
+  id,
+  name: z.string().trim().min(1).max(120),
+  hidden: z.boolean().default(false),
+});
+export type BodyGroup = z.infer<typeof groupSchema>;
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(4),
+    version: z.literal(5),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
     bodies: z.array(bodySchema).max(1000),
+    groups: z.array(groupSchema).max(1000).default([]),
     dimensions: z.array(dimensionSchema).max(3000),
     guides: z.array(guideSchema).max(1000),
-    settings: z.object({ guideXray: z.boolean() }).default({ guideXray: false }),
+    settings: z
+      .object({
+        guideXray: z.boolean(),
+        axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
+        axisLabels: z.boolean().default(false),
+      })
+      .default({ guideXray: false, axisStyle: 'subtle', axisLabels: false }),
     updatedAt: z.string().datetime(),
   })
   .superRefine((p, ctx) => {
-    for (const list of [p.bodies, p.dimensions, p.guides]) {
+    for (const list of [p.bodies, p.dimensions, p.guides, p.groups]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });
     }
+    if (p.bodies.some((body) => body.groupId && !p.groups.some((g) => g.id === body.groupId)))
+      ctx.addIssue({ code: 'custom', message: 'Kappale viittaa puuttuvaan ryhmään.' });
   });
 export type Body = z.infer<typeof bodySchema>;
 export type Dimension = z.infer<typeof dimensionSchema>;
@@ -213,14 +231,15 @@ export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 4,
+  version: 5,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
   bodies: [],
+  groups: [],
   dimensions: [],
   guides: [],
-  settings: { guideXray: false },
+  settings: { guideXray: false, axisStyle: 'subtle', axisLabels: false },
   updatedAt: new Date().toISOString(),
 });
 export function makeBody(
@@ -275,6 +294,8 @@ export function parseProject(text: string): Project {
     value = { ...value, version: 3, settings: { guideXray: false } };
   if (value && typeof value === 'object' && 'version' in value && value.version === 3)
     value = { ...value, version: 4 };
+  if (value && typeof value === 'object' && 'version' in value && value.version === 4)
+    value = { ...value, version: 5, groups: [] };
   const result = projectSchema.safeParse(value);
   if (!result.success)
     throw new Error('Projektin versio tai sisältö ei ole tuettu. Nykyinen työ säilyi.');

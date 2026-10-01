@@ -20,7 +20,7 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies, guides })),
     });
-    await expect(page.locator('.object-list>button')).toHaveCount(bodies.length);
+    await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
   }
 }
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' | 'iso' = 'top') {
@@ -148,7 +148,7 @@ test('move, rectangle and push/pull stay active across commits; Escape clears ev
   );
   await drag(page, point(160, 100), point(200, 100));
   expect((await save(page)).bodies[0].origin).toEqual([100, 0, 0]);
-  await page.keyboard.press('r');
+  await page.keyboard.press('s');
   await drag(page, point(-140, 0), point(-60, 90));
   await expect(page.getByRole('button', { name: 'Suorakulmio', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -182,7 +182,7 @@ test('move, rectangle and push/pull stay active across commits; Escape clears ev
     'aria-pressed',
     'true',
   );
-  await expect(page.locator('.object-list>button.selected')).toHaveCount(0);
+  await expect(page.locator('.object-list .object-select.selected')).toHaveCount(0);
   expect((await save(page)).guides).toHaveLength(0);
 });
 
@@ -190,7 +190,7 @@ test('numeric window is outside the canvas, draggable, stays put across gestures
   page,
 }, info) => {
   await ready(page);
-  await page.keyboard.press('r');
+  await page.keyboard.press('s');
   const input = page.getByTestId('dynamic-input');
   const canvas = (await page.getByTestId('viewport').boundingBox())!;
   const initial = (await input.boundingBox())!;

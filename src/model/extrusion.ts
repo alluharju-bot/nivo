@@ -9,7 +9,7 @@ export function extrusionDistance(value: string, direction: number): number {
 }
 
 export function distanceToSize(value: string, current: number, solid: boolean, direction: number) {
-  const size = parseLength(value);
+  const size = parseLength(value, false, solid);
   return solid ? size - current : size * (direction < 0 ? -1 : 1);
 }
 

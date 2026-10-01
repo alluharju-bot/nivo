@@ -18,7 +18,7 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies, guides })),
     });
-    await expect(page.locator('.object-list>button')).toHaveCount(bodies.length);
+    await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
   }
 }
 async function top(page: Page, bodies: Body[] = []) {
@@ -53,7 +53,7 @@ test('type directly, Tab cycles dimensions, Enter and drag release commit exactl
   await page.keyboard.press('Tab');
   await page.keyboard.type('417');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   let model = await save(page);
   expect(model.bodies[0].feature.width).toBe(635);
   expect(model.bodies[0].feature.depth).toBe(417);
@@ -68,7 +68,7 @@ test('type directly, Tab cycles dimensions, Enter and drag release commit exactl
   await page.keyboard.press('Tab');
   await page.keyboard.type('90');
   await page.mouse.up();
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   model = await save(page);
   expect(model.bodies[1].feature.width).toBe(130);
   expect(model.bodies[1].feature.depth).toBe(90);
@@ -95,7 +95,7 @@ test('hover center, hold Shift and draw aligned to the acquired reference', asyn
   await clickPoint(page, point(350, 350));
   await clickPoint(page, point(350, 280));
   await page.keyboard.press('Enter');
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   const model = await save(page);
   expect(model.bodies[1].origin[0]).toBe(200);
   await page.screenshot({ path: info.outputPath('reference-pen.png') });
@@ -167,12 +167,13 @@ test('construction guide attracts both drawing and moving, follows its source an
   await expect(page.getByTestId('snap-hint')).toHaveText('Apuviiva');
   await clickPoint(page, near);
   await clickPoint(page, point(350, 280));
-  await clickPoint(page, point(350, 350));
+  // Keep the final vertex below the view controls in the narrower tablet canvas.
+  await clickPoint(page, point(350, 320));
   await page.keyboard.press('Enter');
-  await expect(page.locator('.object-list>button')).toHaveCount(3);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(3);
   let model = await save(page);
   expect(model.bodies[2].origin[0]).toBeCloseTo(model.bodies[2].origin[1], 3);
-  await page.locator('.object-list>button').nth(1).click();
+  await page.locator('.object-list .object-select').nth(1).click();
   await page.getByRole('button', { name: 'Siirrä', exact: true }).click();
   const a = point(320, 0),
     b = point(240, 243);
@@ -205,7 +206,7 @@ test('pen numeric offsets create exact vertices without another mouse move', asy
   await page.getByTestId('move-y').fill('100');
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Sulje muoto', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   const model = await save(page);
   expect(model.bodies[0].feature).toMatchObject({
     type: 'polygon-extrusion',
@@ -255,7 +256,7 @@ test('tablet picks a reference without a keyboard and two-finger navigation neve
   });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await page.getByRole('button', { name: 'Peruuta', exact: true }).tap();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   expect((await save(page)).bodies).toHaveLength(1);
 });
 
@@ -275,26 +276,26 @@ test('pen closure creates one mesh, extrudes, merges selected parts, undo restor
     [0, 0],
   ])
     await clickPoint(page, point(...(p as [number, number])));
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   await page.getByRole('button', { name: 'Anna paksuus', exact: true }).click();
   await page.keyboard.type('20');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('selected-height')).toContainText('20');
   await page.getByRole('button', { name: 'Kopioi kappale', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   await page.getByRole('button', { name: 'Monivalinta', exact: true }).click();
-  await page.locator('.object-list>button').first().click();
+  await page.locator('.object-list .object-select').first().click();
   await page.getByRole('button', { name: 'Yhdistä valitut', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   let model = await save(page);
   expect(model.bodies[0].feature.type).toBe('union');
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(2);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   model = await save(page);
   expect(model.bodies.every((b) => b.feature.type === 'polygon-extrusion')).toBe(true);
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
   await page.reload();
-  await expect(page.locator('.object-list>button')).toHaveCount(1);
+  await expect(page.locator('.object-list .object-select')).toHaveCount(1);
 });

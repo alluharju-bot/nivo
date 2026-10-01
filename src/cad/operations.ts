@@ -1,7 +1,68 @@
-import { cast, getOC, measureArea, measureVolume, type AnyShape, type Shape3D } from 'replicad';
+import {
+  cast,
+  getOC,
+  makeFace,
+  measureArea,
+  measureVolume,
+  type AnyShape,
+  type Shape3D,
+  Wire,
+} from 'replicad';
 import { featureIsSolid, type Body, type FaceRef } from '../model/project';
 import { createShape, meshBody, bodyFromShape, shapeIsValid } from './kernel';
 import type { SplitResult } from './protocol';
+
+/** A true planar inset: split the original face, preserving the solid and its volume. */
+export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitResult {
+  if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
+  if (!Number.isFinite(distance) || distance < 0.1 || distance > 100000)
+    throw new Error('Anna sisennys väliltä 0,1…100 000 mm.');
+  const shape = createShape(body),
+    faces = shape.faces;
+  const wires: Wire[] = [],
+    sourceWires: Wire[] = [];
+  let inset: AnyShape | undefined;
+  try {
+    const target = meshBody(body, shape).faces.find((f) => f.ref === ref);
+    if (!target?.planar) throw new Error('Offset tarvitsee tasomaisen pinnan.');
+    const face = faces[target.index];
+    sourceWires.push(face.clone().outerWire(), ...face.clone().innerWires());
+    for (const [i, wire] of sourceWires.entries()) {
+      const oc = getOC();
+      const builder = new oc.BRepOffsetAPI_MakeOffset(
+        wire.wrapped,
+        oc.GeomAbs_JoinType.GeomAbs_Intersection,
+        false,
+      );
+      try {
+        builder.Perform(i === 0 ? -distance : distance, 0);
+        const result = cast(builder.Shape());
+        if (!(result instanceof Wire)) {
+          result.delete();
+          throw new Error('Sisennys hajoaa erillisiksi alueiksi. Kokeile pienempää mittaa.');
+        }
+        wires.push(result);
+      } finally {
+        builder.delete();
+      }
+    }
+    inset = makeFace(wires[0], wires.slice(1));
+    const area = measureArea(inset);
+    if (!shapeIsValid(inset) || area < 1e-6 || area >= measureArea(face) - 1e-6)
+      throw new Error('Sisennys on liian suuri tälle pinnalle.');
+    // Split uses an exact intersection, so the original body remains one solid.
+    return splitFace(body, ref, bodyFromShape(body, inset, []));
+  } catch (error) {
+    if (error instanceof Error && /Offset|Sisennys/.test(error.message)) throw error;
+    throw new Error('Sisennystä ei voi muodostaa. Kokeile pienempää mittaa tai toista tasopintaa.');
+  } finally {
+    inset?.delete();
+    wires.forEach((wire) => wire.delete());
+    sourceWires.forEach((wire) => wire.delete());
+    faces.forEach((face) => face.delete());
+    shape.delete();
+  }
+}
 
 export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' | 'join'): Body[] {
   if (!targets.length || !tools.length)
