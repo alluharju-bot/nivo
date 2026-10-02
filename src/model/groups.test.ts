@@ -98,7 +98,9 @@ describe('nested groups and whole-selection transforms', () => {
     expect(result.bodies.slice(0, 16)).toEqual(p.bodies);
     expect(groupBodies(result, groupId!)).toHaveLength(15);
     expect(result.groups[3].parentId).toBe(groupId);
-    expect(result.dimensions[1].bodyId).toBe(copied[0]);
+    expect('bodyId' in result.dimensions[1] ? result.dimensions[1].bodyId : undefined).toBe(
+      copied[0],
+    );
     expect(resolveAnchor(result.bodies, result.guides[1].anchor)).toEqual([1000, 0, 0]);
     expect(parseProject(JSON.stringify(result)).groups).toHaveLength(4);
     expect(new Set(result.bodies.map((b) => b.id)).size).toBe(31);

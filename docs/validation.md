@@ -1,10 +1,61 @@
-# Validointi — 2.10.2026
+# Validointi — 3.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
+
+V0.9.0: **108 yksikkö-/CAD-testiä hyväksytty**. Tarkka CAD varmentaa
+kolmen kohtaavan reunan pyöristämisen 18 mm ovilevyllä, pitkällä sivulevyllä
+ja ontolla rungolla sekä neljän reunan pyramidikärjen. Lähteen jatkomuokkaus,
+säteen muutos, reunan poisto, käsittelyn poisto, siirto, kopio, mielivaltainen
+kierto ja myöhemmän pintamuokkauksen säilyminen on tarkistettu.
+
+Kahden pisteen dimensiot seuraavat osia, säilyvät kopioinnissa, osoittavat
+puuttuvan viitteen ja rajaavat mittakuvaan sopimattoman 3D-mitan pois.
+Sijoittelu huomioidaan arkin sovituksessa. Materiaalitestit varmentavat
+paikallisen tekstuurikehyksen ja kiertoon nähden oikean siirtymämatriisin,
+27 presetin luettelon, kuvaviitteiden validoinnin ja säädettävän ruudukon.
+Historia tallentaa kuvan vain kerran ja migroi aiemman V5-historian.
+Tekstuurin sama materiaalipiste säilyy myös kahden peräkkäisen mielivaltaisen
+CAD-kierron jälkeen ja tallentuu projektitiedostoon.
+
+Koko tuotantopaketin regressio: **212 hyväksytty, 8 rajattu pois, ei
+epäonnistumisia (41,8 min)**. Ajo kattoi 220 tapausta työpöydän ja tabletin
+Chromium-profiileissa. Kuusi vain kosketukselle tarkoitettua tapausta
+rajattiin työpöydältä ja kaksi kehitystilaa tarvitsevaa worker-koetta
+tuotantopaketin ajosta. CAD-ydintä testattiin erikseen yksikkö-/CAD-ajossa.
+
+Uusien työnkulkujen kahdeksan tapausta hyväksyttiin molemmissa profiileissa:
+reunakäsittelyn jatkaminen/uudelleenavaus/poisto; kahden pisteen mitan
+sijoitus, veto ja SVG; tarkka kulmasta kulmaan siirto ruudukon ollessa päällä;
+suoran reunan tartunta, akseliviite ja ruudukkoasetuksen tallennus; tekstuurin
+veto, mittasyöttö, Esc ja yhden askeleen historia, kuvan tuonti ja uudelleenavaus;
+koko- ja kiertokahvat sekä renderin pintaan sidottu orbit; valmis kaappiesimerkki
+ja PNG; kaikkien 27 presetin yhtäaikainen renderöinti ilman GPU-virheitä.
+Sisäpisteen sijoituksen testi sallii selaimen osoitinkoordinaattien
+0,00005 mm:n muunnostoleranssin; reunaan nähden kohtisuora kosketus sekä
+kulmapisteen lopputulos tarkistetaan tarkemmin.
+
+Viimeistelyn **22 erillistä selaintapausta varmennettu** kohdistetun ajon ja
+uusinnan avulla; viimeinen uusinta **10/10 hyväksytty (2,4 min)**. Lisäkokeet
+varmentavat siirrettävään osaan sidotun apuviivan ohituksen ja ulkopuoliseen
+apuviivaan tarttumisen, piilotetun mittalapun läpi valitsemisen, tuodun kuvan
+kuvasuhteen palautuksen, negatiivisen siirtymän kirjoittamisen näppäin kerrallaan,
+oman materiaalin tallennuksen/käytön sekä kuvatiedon jakavan kopion itsenäisen
+tekstuurimuokkauksen ja uudelleenavauksen. Ruudukon askel hyväksytään Enterillä,
+virheellinen arvo palautuu ja näkyvät ruudut käyttävät valitun askeleen monikertoja.
+Ryhmä-Hold keskeyttää reunaluonnoksen ja estää muokkauksen; vapautuksen jälkeen
+samaa tallennettua käsittelyä voi jatkaa. Uusinnassa korjattiin kahden testin
+asetukset: Holdin vapautumisen odotus ja mitan oikean X-kulman tunniste.
+Tuotantopaketointi, TypeScript ja muotoilutarkistus hyväksytty.
+
+Kuvantarkistus: `nivo-finished-cabinet.png`, `nivo-material-catalog.png`,
+`nivo-point-dimension.png`, `nivo-texture-edit.png` ja `nivo-move-snap.png`
+kansiossa `docs/images`.
+Puukuvioiden toistosauma korjattiin tarkistuksen perusteella. Nämä ovat
+paikallisia proseduraalisia materiaaleja, eivät skannattuja PBR-aineistoja.
 
 V0.8.5: **94 yksikkö-/CAD-testiä hyväksytty**. Uudet kameran poimintakokeet
 varmentavat lähimmän näkyvän pinnan perspektiivissä ja ortografisessa
@@ -517,10 +568,10 @@ V0.4:n uudet selaintyönkulut, molemmilla profiileilla:
 - Arkilla on yksi näkymä. Ulkomittojen tekstit ja viivat saavat tarvittaessa
   omat rivit. Jos malli ja mittarivit eivät mahdu A4:lle, vienti estyy ja
   käyttöliittymä pyytää pienentämään mittakaavaa tai vähentämään mittoja.
-  Usean arkin/näkymän taitto sekä kahden vapaan pisteen ja vinon reunan
-  mitoitus ovat jatkotyötä. 3D:n ulkomitat ovat maailman X/Y/Z-suunnissa.
+  Usean arkin/näkymän taitto ja kulmamitat ovat jatkotyötä. 3D:n ulkomitat ovat maailman X/Y/Z-suunnissa.
 - Pintakohdistus koskee tasopintoja. Yhdensuuntaiset pinnat tulevat samalle
   tasolle, vinosta tavoitteesta poimitaan osoitetun pisteen taso lähteen
   normaalin suunnassa. Kaarevan pinnan tangentti-/ääripistetartunta on jatkotyötä.
-- Esimerkkikaappi todentaa kuuden levyn rungon. Täydelliset hyväksymisesimerkit
-  A–C odottavat linkitettyjä komponentteja, tarkempaa teksturointia ja scenejä.
+- V0.9.0:n esimerkki todentaa rungon, pyöristetyt ovet, välysmitan, materiaalit
+  ja tuodun kuvatekstuurin. Täydelliset A–C-esimerkit odottavat linkitettyjä
+  komponentteja, layereita ja tallennettuja kameroita.

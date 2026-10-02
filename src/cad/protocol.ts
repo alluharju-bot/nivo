@@ -52,6 +52,7 @@ export interface BodyMesh {
   midpointsCAD: Vec3[];
   edgesCAD: CadEdge[];
   boundaries: FaceBoundary[];
+  sourceDetailEdges?: { index: number; lines: number[] }[];
   detailEdges?: { index: number; lines: number[] }[];
 }
 export interface EdgeDetailTarget {
@@ -84,7 +85,9 @@ export type CadRequest =
       indices: number[];
       operation: 'fillet' | 'chamfer';
       size: number;
+      editing?: boolean;
     }
+  | { type: 'remove-detail'; body: Body }
   | { type: 'face-span'; body: Body; face: FaceRef; point?: Vec3 }
   | { type: 'push-pull'; body: Body; face: FaceRef; distance: number };
 export interface ProbeResult {

@@ -3,20 +3,16 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.8.5** kiertää kameraa kohdistimen alla olevan pinnan ympäri.
-Versio 0.8.4 toi kohdistimeen zoomauksen ja valinnan työskentelykeskuksen.
-Versio 0.8.3 toi viisteiden ja pyöristysten suoran hiiri- ja kosketussäädön.
-Versio 0.8.2 selkeytti kappalelistan ja lisäsi ryhmiin raahauksen; 0.8.1 toi
-muotojen **Mittaus/rakennusviiva**-pikavalinnan. Sisäkkäiset ryhmät, yhteinen
-siirto ja kopiointi sekä renderöintinäkymä ja PNG-vienti ovat myös käytettävissä.
-Muokkaustila ja apuviivat ovat selkeämpiä: viivan valinta ei aloita siirtoa,
-apuviivojen risteyksiin voi tarttua ja kumitus poistaa myös apuviivan.
-Normaalisti piirto luo itsenäisen osan; **tuplaklikkaus** avaa yhden osan
-muokattavaksi. Peru/Palauta-historia säilyy selaimen päivityksen yli.
+Versio **0.9.0** tuo muokattavat viisteet ja pyöristykset, kahden pisteen
+mitoituksen sekä 27 materiaalipresettiä ja tekstuurien suoran sijoittelun.
+Siirron lähtö- ja kohdetartunnat käyttävät samaa poimintaa. Geometriaan
+osuva tartunta säilyttää tarkan koordinaatin; ruudukon askeleen voi vaihtaa.
+Sisäkkäiset ryhmät, yhteinen siirto/kopiointi, osan muokkaustila ja pysyvä
+Peru/Palauta-historia ovat käytössä kuten aiemmin.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-![Kaapin materiaalit studiovalaistuksessa](docs/images/nivo-render.png)
+![Kaapin materiaalit studiovalaistuksessa](docs/images/nivo-finished-cabinet.png)
 
 ## Käynnistä
 
@@ -46,9 +42,12 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
    ja vedä sille paksuus. Samalla työkalulla voi muokata kappaleen muitakin tasopintoja.
 3. Klikkaa koko kappale valituksi. M siirtää; pidä Ctrl pohjassa vedon aikana
    tehdäksesi kopion. Osoita pintaa ja paina E tai O pinnan muokkaamiseen.
-4. Tartu verteksiin, reunojen keskipisteisiin, apuviivoihin tai 10 mm ruudukkoon.
-   Hae toisen osan keskipiste kohdistimella ja pidä Shift pohjassa: pisteestä
-   lähtevät suuntalinjat ohjaavat piirtämistä ja siirtoa.
+4. Siirrossa korostus näyttää tartuntapisteen ennen painallusta. Poimi kulma,
+   reuna tai keskipiste ja vie se toisen osan tarkkaan pisteeseen. X/Y/Z
+   lukitsee siirtoakselin; Shift lukitsee aloitetun siirron pääakselille.
+   Vapaa siirtymä käyttää asetusten ruudukkoaskelta (oletus 10 mm).
+   Lukitulla akselilla osoitettu piste antaa tämän akselin tavoitemitan.
+   Liikkuva valinta ja siihen kiinnitetyt apuviivat eivät toimi omina kohteinaan.
 5. Vaihda perspektiivin ja rinnakkaisprojektion välillä. Käytä etu-, sivu-, ylä-
    ja 3D-näkymiä sekä sovita valinta näkymään.
 6. Valitse osa ja paina **Lisää kokonaismitat**. Mitat näkyvät heti 3D:ssä ja
@@ -64,7 +63,9 @@ projektitiedosto:** selaimen tallennustila ei ole varmuuskopio.
 
 Tyhjästä työtilasta voi avata **600 × 800 × 560 mm esimerkkikaapin**. Sen kuusi
 levyä ovat itsenäisiä osia. Esimerkissä ei vielä ole ovea tai linkitettyjä
-komponentteja.
+komponentteja. Uusi **Viimeistelty kaappi · mitat ja materiaalit** avaa kaksi
+pyöristettyä ovea, ovivälyksen dimension, tammen, messinkivetimet ja upotetun
+kuvatekstuurin. [Avattava .nivo-esimerkki](public/examples/viimeistelty-kaappi.nivo).
 
 ## Työtila ja kopiointi
 
@@ -82,6 +83,8 @@ tulos on tavallinen siirto. **Siirrä kopio** -valinnalla voi myös kirjoittaa
 siirtymän tai käyttää toimintoa kosketuksella. Esc peruu keskeneräisen kopion;
 Peru poistaa hyväksytyn kopion yhdellä askeleella. Kopio säilyttää tarkan
 geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
+
+![Tarkka kulmasta kulmaan siirto ja näkyvä tartuntapiste](docs/images/nivo-move-snap.png)
 
 ## Ryhmät ja yhteinen siirto
 
@@ -147,6 +150,29 @@ käsitellään yhden osan reunat; seuraava osa voidaan valita samalla työkalull
 Liian suuri mitta tai geometrian kannalta mahdoton reunayhdistelmä näyttää
 virheen ja säilyttää alkuperäisen osan. Hold suojaa myös tältä muokkaukselta.
 
+Kun palaat käsiteltyyn osaan F:llä, sama reunavalinta ja mitta avautuvat.
+Lisää kohtaavat sivureunat: kaikki lasketaan yhdessä tallennetusta lähteestä.
+Reunan napsautus poistaa sen käsittelystä; **Poista käsittely** palauttaa
+terävän lähteen. Kierto, siirto, kopio ja uudelleenavaus säilyttävät muokattavuuden.
+**Viimeistele ja aloita uusi** liittää tuloksen geometriaan. Myös myöhempi
+E/O/Cut/Join tekee näin, jotta sen muutokset eivät katoa sädettä vaihdettaessa.
+Vanhasta BRepistä puuttuvia käsittelyparametreja ei päätellä.
+
+## Kahden pisteen dimensio
+
+Paina **T**, avaa aktiivisen mittatyökalun valikko ja valitse **Dimensio**.
+Poimi kaksi pistettä, vie mittaviiva sivulle ja napsauta tai paina Enteriä.
+Myös toisesta pisteestä aloitettu veto ja vapautus hyväksyy sijoituksen.
+Pisteet voivat olla eri osissa. X/Y/Z vaihtaa akselimittaan; sama näppäin
+uudelleen palauttaa todellisen pistevälin. Valmis mitan teksti on vedettävissä
+Valitse-tilassa. Mitta ei muuta kappaleen kokoa.
+
+Viite seuraa osan siirtoa ja säilyvää geometriaa. Poistunut viite näkyy
+rikkoutuneena, eikä sitä siirretä arvauksella uuteen reunaan. Mittakuva ja
+SVG näyttävät mitan vain näkymässä, jossa sen geometria ja sijoittelu
+ovat tasossa. Näin vinon 3D-mitan lyhentynyttä projektiota ei merkitä
+virheellisesti todelliseksi tasomitaksi. Osan X/Y/Z-kokonaismitat säilyvät.
+
 ## Rakennusviivana piirtäminen
 
 Suorakulmion, ympyrän, ellipsin, monikulmion ja Kynän pienessä toimintovalikossa
@@ -172,25 +198,33 @@ etäisyys lähtöreunasta; vapaa mittaviiva mittaa päätepisteiden välin.
 
 ## Renderöinti ja kuvavienti
 
-**Renderöi** avaa erillisen esitysnäkymän. Valitse materiaalin kohteeksi kaikki
-näkyvät osat, mallin nykyinen valinta tai yksittäinen osa. Osan voi valita myös
-kuvasta klikkaamalla. Materiaalit ovat **Matta, Maalattu, Puu, Metalli ja Lasi**;
-osaväri sävyttää materiaalia. Hold-merkintä säilyy mallissa, mutta esityskuva
-käyttää aina osan omaa väriä. Piilotetut osat sekä rakentamisen ja piirtämisen
-apumuodot jäävät esityskuvan ulkopuolelle.
+**Renderöi** avaa esitysnäkymän. Valitse yksi osa, mallin valinta tai kaikki
+näkyvät osat. Materiaaliryhmistä löytyvät kuusi puuta, neljä metallia, kolme
+lasia, neljä muovia, neljä kiveä, kolme posliinia ja kolme kalustepintaa.
+Kuviot toimitetaan paikallisesti; eri puu- ja kivilajeilla on omat kuviot.
+Väri, karheus, metallisuus, läpäisevyys ja pinnoite ovat säädettävissä.
+Oman materiaalin voi tallentaa projektin materiaalikirjastoon.
 
-Valitse Studio-, Lämmin- tai Tumma-valaistus, säädä valotusta ja varjoja.
-Vedä kiertääksesi, zoomaa rullalla tai siirrä näkymää keskipainikkeella.
-Kosketuksella yksi sormi kiertää, kaksi siirtää ja zoomaa. **Sovita malli**
-palauttaa kokonaisuuden näkyviin. **Tallenna PNG** vie nykyisestä kuvakulmasta
-1 600 tai 2 400 pikseliä leveän kuvan. **Takaisin malliin** tai Esc palaa
-mallinnukseen. Materiaalit, osavärit ja valaistusasetukset tallentuvat projektiin
-ja kuuluvat Peru/Palauta-historiaan. Kuvakulma ei vielä tallennu.
+**Lisää kuva** tuo PNG-, JPEG- tai WebP-tekstuurin (enintään 20 Mt).
+Kuva pienennetään tarvittaessa 2048 pikseliin ja tallennetaan projektin mukaan.
+**Muokkaa tekstuuria** avaa yhden osan sijoittelun: vedä pintaa siirtääksesi,
+↗-kahvaa skaalataksesi ja ↻-kahvaa kiertääksesi. Leveys/korkeus ja siirtymät
+syötetään millimetreinä, kierto asteina. Kuvasuhde on oletuksena lukittu.
+Enter hyväksyy koko sijoittelun yhdellä Peru-askeleella; Esc palauttaa edellisen.
+Kuvio seuraa kappaleen siirtoa, kiertoa ja kopiota. Kuvan sisältö jaetaan,
+mutta osien sijoittelut ovat itsenäisiä.
 
-Ensimmäinen versio on reaaliaikainen, fyysisiin materiaaleihin perustuva
-studiorenderöinti. Puun syykuvio tuotetaan paikallisesti; sen suunta ja
-mittakaava ovat tässä versiossa kiinteät. Säteenjäljitys, omat tekstuurit,
-tallennettavat kamerat ja erilliset valaisimet ovat jatkokehitystä.
+Oikea painike kiertää kohdistimen alla olevan pinnan ympäri ja rulla zoomaa
+kohdistimeen myös tekstuuria muokattaessa. Valitse Studio, Lämmin tai Tumma
+valaistus sekä valotus ja varjot. **Tallenna PNG** vie nykyisen kameran kuvan
+1600 tai 2400 pikselin levyisenä. Hold säilyy mallissa, mutta sen korostus,
+rakennusmuodot, apuviivat ja valintakahvat eivät tule esityskuvaan.
+
+![Paikalliset materiaalinäytteet](docs/images/nivo-material-catalog.png)
+
+Tämä on WebGL-esityskuva. Säteenjäljitys, omat valaistusympäristöt ja erillinen
+UV-saarekkeiden editori ovat jatkotyötä. Kuviointi käyttää kappaleen omaan
+koordinaatistoon sidottua kolmen suunnan projektiota ja pehmeää saumasekoitusta.
 
 ## Uusi osa, muokkaustila ja kumitus
 
@@ -243,9 +277,11 @@ osan mitat piiloutuvat mallinnusnäkymässä.
 **Mittakuva** näyttää näkymään kuuluvat kaksi mittasuuntaa. Etukuvassa näkyvät
 X/Z, sivukuvassa Y/Z ja yläkuvassa X/Y. Päällekkäiset mittaluvut sijoitetaan eri
 riveille. Sovitus varaa myös mittaviivoille tilan, ja SVG käyttää valittua
-fyysistä mittakaavaa. Mitat ovat mallin akseleiden suuntaisia ulkomittoja;
-vinon osan oma reunapituus, kahden vapaan pisteen väliset mitat ja kulmamitat
-ovat seuraavaa mitoituksen jatkokehitystä.
+fyysistä mittakaavaa. Kokonaismitat kuvaavat maailman akselien suuntaista
+rajalaatikkoa; kahden pisteen dimensio mittaa myös vinon reunan todellisen
+pituuden. Kulmamitat ovat jatkokehitystä.
+
+![Kahden osan väliin sijoitettu dimensio](docs/images/nivo-point-dimension.png)
 
 ![Sama mitoitus mittakuvassa ja SVG-viennissä](docs/images/nivo-dimensions-drawing.png)
 
@@ -388,7 +424,8 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
 ![Kaksi kohdelevyä ja kaksi sylinterimäistä työstökappaletta Cut-valikossa](docs/images/nivo-cut.png)
 
 - Napautus valitsee. Työkalun yhden sormen veto hyväksytään sormen noustessa.
-  Kosketuksella **Poimi viite** ja pisteen napautus korvaavat Shiftillä poimimisen.
+  Piirtämisessä **Poimi viite** ja pisteen napautus korvaavat Shiftillä poimimisen
+  kosketusnäytöllä. Siirrossa kohde poimitaan suoraan vedon aikana.
 - **Valitse (V) + Shift-klikkaus** lisää objektin valintaan tai poistaa sen siitä
   myös suoraan 3D-näkymässä. **M** siirtää kaikki valitut yhdessä ilman ryhmää.
   Shift huomioidaan jo hiiren painalluksesta, vaikka sen vapauttaisi ennen hiirtä.
@@ -432,7 +469,7 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
   Ryhmän purkaminen asetuksista säilyttää kappaleet.
 - **Asetukset:** Hillitty/Korostettu vaihtaa akselien voimakkuuden; nimitekstit
   saa erikseen näkyviin. Mukautuva ruudukko jatkuu kauas. Näyttöruudukon tiheys
-  muuttuu zoomauksen mukana, mutta valinnainen ruudukkotartunta pysyy 10 mm:nä.
+  muuttuu zoomauksen mukana, ja ruudukkotartunnan askeleen voi säätää 0,1–10 000 mm:iin.
 
 ## Tarkistukset
 
@@ -460,18 +497,18 @@ Yleinen pintamuokkaus tallentaa tarkan BRep-geometrian. Ennallaan säilyvät
 CAD-verteksit säilyttävät viitteensä; poistuneet kohteet näytetään rikkoutuneina.
 Join siirtää säilyvät lähdeviitteet tuloskappaleeseen. Siirtyvien tai muuttuvien
 topologiakohteiden yleinen nimeäminen on jatkotyötä.
-Jälkikäteen muokattavat reunakäsittelyt, mesh-tuonti, layerit, linkitetyt
-komponentit, referenssikuvan kalibrointi, omat tekstuurit ja tallennetut kamerat
+Mesh-tuonti, layerit, linkitetyt
+komponentit, referenssikuvan kalibrointi ja tallennetut kamerat
 sekä PDF-, STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
 
-Piirustus sisältää yhden ortografisen näkymän ja osien kokonaismittoja. Monien
+Piirustus sisältää yhden ortografisen näkymän, osien kokonaismittoja ja näkymään sopivat kahden pisteen mitat. Monien
 mittaviivojen sijoittelu, useat näkymät ja leikkaukset kuuluvat vaiheeseen 6.
 **Käytettävyys ja perustyökalut ovat seuraavien vaiheiden etusijalla.**
 Layerit ja linkitetyt komponentit seuraavat toimivaa mallinnuksen perustaa.
 
 - [Alkuperäinen määrittely](docs/requirements.fi.md)
 - [Arkkitehtuuri ja päätökset](docs/architecture.md)
-- [Projektiformaatti v4](docs/project-format.md)
+- [Projektiformaatti v6](docs/project-format.md)
 - [Toteutusvaiheet](docs/roadmap.md)
 
 ## Lisenssi

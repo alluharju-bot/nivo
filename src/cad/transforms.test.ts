@@ -7,6 +7,9 @@ import { rotateBodies } from './transforms';
 import { createShape, meshBody } from './kernel';
 import { resolveAnchor, guidePoints } from '../model/guides';
 import { applyRotation, moveToOrigin, rotatePoint, bodyVisible } from '../model/transforms';
+import { Vector3 } from 'three';
+import { textureFrameMatrix } from '../render/materials';
+import { defaultAppearance } from '../model/materials';
 
 beforeAll(
   async () =>
@@ -18,6 +21,32 @@ beforeAll(
   30000,
 );
 describe('rigid transforms and object organization', () => {
+  it('keeps the texture fixed to the same material point through arbitrary and repeated rotations', () => {
+    const body = {
+      ...makeBody(100, 60, 20, [50, 80, 10]),
+      appearance: defaultAppearance('oak'),
+    };
+    const local = new Vector3(31, 17, 8),
+      pivot: [number, number, number] = [12, 8, -9],
+      axis: [number, number, number] = [1, 2, 3];
+    const world = local.clone().applyMatrix4(textureFrameMatrix(body));
+    const first = rotateBodies([body], pivot, axis, 37)[0];
+    const expected = new Vector3(...rotatePoint(world.toArray(), pivot, axis, 37));
+    expect(local.clone().applyMatrix4(textureFrameMatrix(first)).distanceTo(expected)).toBeLessThan(
+      1e-7,
+    );
+    const second = rotateBodies([first], [0, 0, 0], [0, 1, 0], -63)[0];
+    const expectedAgain = new Vector3(
+      ...rotatePoint(expected.toArray(), [0, 0, 0], [0, 1, 0], -63),
+    );
+    expect(
+      local.clone().applyMatrix4(textureFrameMatrix(second)).distanceTo(expectedAgain),
+    ).toBeLessThan(1e-7);
+    expect(second.appearance).toEqual(body.appearance);
+    expect(
+      parseProject(JSON.stringify({ ...freshProject(), bodies: [second] })).bodies[0].textureFrame,
+    ).toEqual(second.textureFrame);
+  });
   it('rotates exact geometry about an edge, retaining volume, vertex/guide identities and reverse rotation', () => {
     const body = makeBody(100, 60, 20, [50, 80, 10]);
     const shape = createShape(body),
@@ -110,7 +139,7 @@ describe('rigid transforms and object organization', () => {
       settings: { guideXray: false },
     };
     const migrated = parseProject(JSON.stringify(legacy));
-    expect(migrated.version).toBe(5);
+    expect(migrated.version).toBe(6);
     expect(migrated.groups).toEqual([]);
     expect(migrated.settings.axisStyle).toBe('subtle');
     expect(migrated.settings.axisLabels).toBe(false);

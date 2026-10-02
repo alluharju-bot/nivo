@@ -1,3 +1,5 @@
+import { isPointDimension } from './project';
+import { dimensionBodyIds } from './dimensions';
 import { bounds, type Body, type BodyGroup, type Project, type Vec3 } from './project';
 import { add, sub, scale, dot, unit } from './geometry';
 import { guideVector } from './guides';
@@ -71,6 +73,20 @@ export function applyRotation(project: Project, results: Body[], rotation: Rotat
   return {
     ...project,
     bodies: project.bodies.map((b) => results.find((r) => r.id === b.id) ?? b),
+    dimensions: project.dimensions.map((d) =>
+      isPointDimension(d) &&
+      dimensionBodyIds(d).length > 0 &&
+      dimensionBodyIds(d).every((id) => moved.has(id))
+        ? {
+            ...d,
+            offset: rotateVector(d.offset, rotation.axis, rotation.angle),
+            normal: rotateVector(d.normal, rotation.axis, rotation.angle),
+            fallback: d.fallback.map((p) =>
+              rotatePoint(p, rotation.pivot, rotation.axis, rotation.angle),
+            ) as [Vec3, Vec3],
+          }
+        : d,
+    ),
     guides: project.guides.map((g) => {
       const anchor = 'edge' in g.anchor ? g.anchor.edge.from : g.anchor;
       if (!('bodyId' in anchor) || !moved.has(anchor.bodyId)) return g;

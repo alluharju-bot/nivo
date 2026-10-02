@@ -1,6 +1,7 @@
 import type { Rotation } from '../model/transforms';
 import type {
   Anchor,
+  PointDimension,
   Axis,
   Body,
   Dimension,
@@ -95,6 +96,7 @@ export interface ViewportProps {
   offsetPreviewDistance?: number;
   axis?: Axis;
   gridSnap: boolean;
+  gridStep: number;
   busy: boolean;
   command?: CameraCommand;
   guides: Guide[];
@@ -108,7 +110,9 @@ export interface ViewportProps {
   faceDistance: number;
   extrusionLocked: boolean;
   faceSpan?: FaceSpan;
-  measureMode: 'guide' | 'free';
+  measureMode: 'guide' | 'free' | 'dimension';
+  onDimensionPreview: (dimension?: PointDimension) => void;
+  onDimensionCommit: (dimension: PointDimension) => void;
   penPoints: Vec3[];
   penHover?: Vec3;
   reference?: ReferencePoint;

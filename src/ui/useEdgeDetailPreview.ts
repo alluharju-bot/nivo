@@ -55,6 +55,7 @@ export function useEdgeDetailPreview(
               current.indices,
               current.operation,
               current.size,
+              !!current.body.edgeTreatment,
             );
             // An older size on the same selection is useful while the latest size is computing.
             // Different targets, modes, cancelled gestures and invalid input must never leak through.

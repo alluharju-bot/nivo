@@ -1,12 +1,12 @@
-# .nivo-projektiformaatti v5
+# .nivo-projektiformaatti v6
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 5`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 6`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
 ```json
 {
   "format": "nivo",
-  "version": 5,
+  "version": 6,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",
@@ -64,8 +64,7 @@ Kappaleen `color` on kuusinumeroinen heksaväri; värinvaihto ei muuta geometria
 `axisStyle: "strong"` korostaa akseleita; `axisLabels:true` näyttää nimet.
 
 `groups` sisältää enintään 1000 ryhmää: `id`, `name` ja `hidden` (oletus false).
-Kappaleen valinnainen `groupId` viittaa olemassa olevaan ryhmään. Ryhmät ovat
-yksitasoisia. Näkyvyys vaatii sekä kappaleen että ryhmän olevan näkyvä.
+Kappaleen valinnainen `groupId` viittaa olemassa olevaan ryhmään. Valinnainen `parentId` muodostaa alaryhmän ja `locked` kiinnittää ryhmän. Kiertävä hierarkia hylätään. Näkyvyys vaatii sekä kappaleen että ryhmän olevan näkyvä.
 `locked` estää siirron, kierron, Offsetin ja push/pullin. Metatiedot eivät muuta geometriaa.
 
 Kappaleen `purpose` on `model`, `construction`, `drawing` tai `component`.
@@ -98,7 +97,7 @@ CAD tarkistaa geometrian, rajalaatikon ja solid-tyypin ennen hyväksyntää.
 Pinnan jako, Offset, kierto, Cut, Join ja yleinen pintamuokkaus tallentavat tuloksen tähän
 muotoon ja uusivat `topologyId`:n. Cut säilyttää kohteiden UUID:t, Join ensimmäisen
 kohteen UUID:n. Kokonaan leikatut kohteet poistuvat. Työstökappaleet voidaan
-säilyttää. Tiedosto sisältää tulosgeometrian, ei muokattavaa operaatiohistoriaa.
+säilyttää. Tiedosto sisältää tulosgeometrian. Reunakäsittely voi lisäksi säilyttää jäljempänä kuvatun lähteen; yleistä operaatiohistoriaa ei vielä ole.
 Kappaleen UUID säilyy. Laatikon kuusi pintaa ja XY-pursotuksen pohja/kansi
 säilyvät reseptimuotoisina tavallisissa mittamuutoksissa.
 
@@ -145,15 +144,60 @@ Vinon osan reunapituus ei ole sama asia kuin tämä ulkomitta. Puuttuvaan kappal
 tuonnissa, jotta virhe voidaan näyttää käyttäjälle ja korjata. UUID:t ovat
 yksikäsitteisiä kunkin oliotyypin sisällä.
 
-Tuonti tarkistaa koon (10 Mt), version, tyypit, äärelliset luvut, rajat ja
+Tuonti tarkistaa koon (64 Mt), version, tyypit, äärelliset luvut, rajat ja
 tunnisteet. Enintään 1000 kappaletta ja 3000 mittaa. CAD rakennetaan ja
 validoidaan ennen nykyisen projektin vaihtamista. Virheellinen tuonti ei
 tyhjennä olemassa olevaa työtä.
 
-IndexedDB käyttää samaa JSON-muotoa: tietokanta `nivo`, object store `projects`,
-aktiivinen avain `active`. Jokainen onnistunut muutos tallennetaan
-transaktiona. Undo/redo on istuntokohtainen, enintään 100 askelta.
+V5 muunnetaan V6:ksi tietoja muuttamatta. Uudet kentät ovat valinnaisia,
+paitsi uusi `kind: points` -dimension muoto. Vanhat ulkomitat ja viisi
+`material`-arvoa avautuvat edelleen. `settings.gridStep` on valinnainen
+0,1–10 000 mm:n ruudukkoaskel; puuttuva arvo tarkoittaa 10 mm.
 
-Layerit, hierarkia, linkitetyt komponentit, materiaalit, tekstuurit, scenet, piirustusarkit
-ja muokattava operaatiohistoria lisätään myöhemmissä versioissa
-migraatioineen. Tekstuurit pakataan projektin mukaan, ei blob-URL:eina.
+## Reunakäsittely
+
+`body.edgeTreatment` sisältää `id`, muuttumattoman `source`-featuren,
+`offset`-siirtymän suhteessa body.originiin, `rotation`-kvaternionin [x,y,z,w],
+`indices`-lähdereunat, `operation` (fillet/chamfer) ja `size` millimetreinä.
+Indeksit viittaavat tallennettuun lähteeseen, eivät vaihtuvaan tulos-BRepiin.
+Kierto muuttaa vain lähteen sijoitusta, joten indeksit säilyvät. Muut tarkat
+geometriamuutokset poistavat tämän metatiedon ja jatkavat tulosgeometriasta.
+
+## Kahden pisteen mitta
+
+`{id,kind:"points",start:Anchor,end:Anchor,fallback:[Vec3,Vec3],axis,offset,normal}`.
+`axis` on distance/x/y/z. `offset` sijoittaa mittaviivan; suuntainen osa
+poistetaan laskennassa. `normal` määrittää sijoituksen tason. `fallback`
+säilyttää viimeksi ratkaistut päätepisteet rikkoutuneen viitteen näyttämiseksi,
+ei korvaa puuttuvaa mitta-arvoa. `reference:<topologiatunniste>:<paikallinen piste>`
+on tasopisteen tai kaarevan reunan keskuksen viite. Kierto säilyttää sen
+`vertexRefs`-kartassa. Geometriamuutoksessa kadonnut viite merkitään puuttuvaksi.
+
+## Materiaalit ja kuvat
+
+`body.appearance` sisältää `preset`, valinnaisen `assetId`:n ja
+roughness/metalness/transmission/clearcoat-ylikirjoitukset 0–1 sekä
+`texture:{width,height,offsetX,offsetY,rotation,lockAspect}`.
+Kuvion mitat ja siirtymät ovat millimetrejä, kierto asteina.
+`body.textureFrame:{offset,rotation}` sitoo kuvioinnin osan omaan
+koordinaatistoon; kvaternioni on [x,y,z,w]. Puuttuva kehys on origoon
+sidottu identiteettikierto. `color` sävyttää pintaa.
+
+`assets` on tunnisteella indeksoitu kartta: `{name,dataUrl,width,height}`.
+Data-URL hyväksyy vain PNG/JPEG/WebP-base64-kuvan. Yhden kuvan kenttä on
+korkeintaan 6 Mt ja kuvien yhteiskoko 32 Mt; suurin esikatselusivu on
+2048 pikseliä. Tuonti pienentää suuret kuvat WebP-muotoon ja tunnistaa
+saman sisällön SHA-256:lla. Puuttuvaan kuvaan viittaava materiaali hylätään.
+`materials` sisältää enintään 200 projektin omaa `{id,name,color,appearance}`-
+materiaalia. Materiaalit ovat kopioitavia reseptejä, eivät linkitettyjä instansseja.
+
+IndexedDB käyttää samaa JSON-muotoa: tietokanta `nivo`, object store `projects`,
+aktiivinen avain `active`. Avain `history` säilyttää lähimmät yhteensä 20
+Peru/Palauta-askelta 8 MiB:n budjetissa (muistissa enintään 100). Historian
+formaatti 2 kerää kuvat yhteen tauluun; tilat viittaavat niiden tunnisteisiin.
+Formaatti 1 ja V5-historian projektit migroidaan. Virheellinen historia ei
+estä aktiivisen mallin avaamista. Tallennustilan loppuessa yritetään
+vielä tallentaa aktiivinen malli ilman historiaa.
+
+Layerit, linkitetyt komponentit, tallennetut kamerat, useat piirustusarkit
+ja yleinen operaatiohistoria jäävät myöhempiin formaattiversioihin.

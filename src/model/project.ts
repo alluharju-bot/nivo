@@ -1,4 +1,6 @@
+import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
 import { z } from 'zod';
+import { resolveAnchor } from './guides';
 import { polygonError } from './polygon';
 import {
   frameSchema,
@@ -124,21 +126,50 @@ const unionFeature = z
     if (feature.operands.some((o) => !featureIsSolid(o.feature)))
       ctx.addIssue({ code: 'custom', message: 'Yhdistä vain tilavuuskappaleita.' });
   });
+const featureSchema = z.discriminatedUnion('type', [
+  rectangleFeature,
+  polygonFeature,
+  planarFeature,
+  brepFeature,
+  profileFeature,
+  unionFeature,
+]);
 export const bodySchema = z.object({
   id,
   name: z.string().min(1).max(120),
   kind: z.literal('cad'),
-  feature: z.discriminatedUnion('type', [
-    rectangleFeature,
-    polygonFeature,
-    planarFeature,
-    brepFeature,
-    profileFeature,
-    unionFeature,
-  ]),
+  feature: featureSchema,
+  edgeTreatment: z
+    .object({
+      id,
+      source: featureSchema,
+      offset: pointSchema,
+      rotation: z.tuple([
+        z.number().finite(),
+        z.number().finite(),
+        z.number().finite(),
+        z.number().finite(),
+      ]),
+      indices: z.array(z.number().int().min(0)).min(1).max(10000),
+      operation: z.enum(['fillet', 'chamfer']),
+      size: length,
+    })
+    .optional(),
   origin: pointSchema,
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
   material: z.enum(['matte', 'paint', 'wood', 'metal', 'glass']).optional(),
+  appearance: appearanceSchema.optional(),
+  textureFrame: z
+    .object({
+      offset: pointSchema,
+      rotation: z.tuple([
+        z.number().finite(),
+        z.number().finite(),
+        z.number().finite(),
+        z.number().finite(),
+      ]),
+    })
+    .optional(),
   purpose: z.enum(['model', 'construction', 'drawing', 'component']).default('model'),
   locked: z.boolean().default(false),
   hidden: z.boolean().default(false),
@@ -173,7 +204,7 @@ export const guideSchema = z.object({
   offset: pointSchema.optional(),
   xray: z.boolean().optional(),
 });
-export const dimensionSchema = z.object({
+const extentDimensionSchema = z.object({
   id,
   bodyId: id,
   axis: z.enum(['x', 'y', 'z']),
@@ -181,6 +212,20 @@ export const dimensionSchema = z.object({
   from: z.literal('min'),
   to: z.literal('max'),
 });
+export const pointDimensionSchema = z.object({
+  id,
+  kind: z.literal('points'),
+  start: anchorSchema,
+  end: anchorSchema,
+  fallback: z.tuple([pointSchema, pointSchema]),
+  axis: z.enum(['distance', 'x', 'y', 'z']),
+  offset: pointSchema,
+  normal: pointSchema,
+});
+export const dimensionSchema = z.union([extentDimensionSchema, pointDimensionSchema]);
+export type PointDimension = z.infer<typeof pointDimensionSchema>;
+export const isPointDimension = (d: Dimension): d is PointDimension =>
+  'kind' in d && d.kind === 'points';
 export const groupSchema = z.object({
   id,
   name: z.string().trim().min(1).max(120),
@@ -192,10 +237,12 @@ export type BodyGroup = z.infer<typeof groupSchema>;
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(5),
+    version: z.literal(6),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
+    assets: z.record(z.string().max(100), assetSchema).optional(),
+    materials: z.array(customMaterialSchema).max(200).optional(),
     bodies: z.array(bodySchema).max(1000),
     groups: z.array(groupSchema).max(1000).default([]),
     dimensions: z.array(dimensionSchema).max(3000),
@@ -203,6 +250,7 @@ export const projectSchema = z
     settings: z
       .object({
         guideXray: z.boolean(),
+        gridStep: z.number().min(0.1).max(10000).optional(),
         axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
         axisLabels: z.boolean().default(false),
         dimensionDisplay: z.enum(['all', 'selected', 'hidden']).default('all'),
@@ -229,6 +277,18 @@ export const projectSchema = z
     }
     if (p.bodies.some((body) => body.groupId && !p.groups.some((g) => g.id === body.groupId)))
       ctx.addIssue({ code: 'custom', message: 'Kappale viittaa puuttuvaan ryhmään.' });
+    const assetSize = Object.values(p.assets ?? {}).reduce((sum, a) => sum + a.dataUrl.length, 0);
+    if (assetSize > 32_000_000)
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Projektin kuvien yhteiskoko saa olla enintään 32 Mt.',
+      });
+    for (const appearance of [
+      ...p.bodies.map((b) => b.appearance),
+      ...(p.materials ?? []).map((m) => m.appearance),
+    ])
+      if (appearance?.assetId && !p.assets?.[appearance.assetId])
+        ctx.addIssue({ code: 'custom', message: 'Tekstuurin kuva puuttuu projektista.' });
     const groups = new Map(p.groups.map((g) => [g.id, g]));
     for (const group of p.groups) {
       const visited = new Set([group.id]);
@@ -263,7 +323,7 @@ export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 5,
+  version: 6,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
@@ -291,6 +351,14 @@ export function makeBody(
   });
 }
 export function dimensionValue(project: Project, dimension: Dimension): number | null {
+  if (isPointDimension(dimension)) {
+    const a = resolveAnchor(project.bodies, dimension.start),
+      b = resolveAnchor(project.bodies, dimension.end);
+    if (!a || !b) return null;
+    return dimension.axis === 'distance'
+      ? Math.hypot(...a.map((v, i) => b[i] - v))
+      : Math.abs(b[axisIndex[dimension.axis]] - a[axisIndex[dimension.axis]]);
+  }
   const body = project.bodies.find((b) => b.id === dimension.bodyId);
   if (!body) return null; // Never silently attach a missing reference to another body.
   return [body.feature.width, body.feature.depth, body.feature.height][axisIndex[dimension.axis]];
@@ -311,8 +379,8 @@ export function bounds(bodies: Body[]): { min: Vec3; max: Vec3 } {
   };
 }
 export function parseProject(text: string): Project {
-  if (text.length > 10_000_000)
-    throw new Error('Projektitiedosto on liian suuri (enintään 10 Mt).');
+  if (text.length > 64_000_000)
+    throw new Error('Projektitiedosto on liian suuri (enintään 64 Mt).');
   let value: unknown;
   try {
     value = JSON.parse(text);
@@ -328,6 +396,8 @@ export function parseProject(text: string): Project {
     value = { ...value, version: 4 };
   if (value && typeof value === 'object' && 'version' in value && value.version === 4)
     value = { ...value, version: 5, groups: [] };
+  if (value && typeof value === 'object' && 'version' in value && value.version === 5)
+    value = { ...value, version: 6 };
   const result = projectSchema.safeParse(value);
   if (!result.success)
     throw new Error('Projektin versio tai sisältö ei ole tuettu. Nykyinen työ säilyi.');

@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.8.5
+# Arkkitehtuuri — v0.9.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -41,14 +41,14 @@ src/useEditor  atominen muutos, vanhojen vastausten hylkäys, historia, tallennu
 src/App        työkalutila, paneelit, käyttöohjeet
 ```
 
-V5:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
+V6:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
 litistetty lähdejoukko tai serialisoitu OCCT-BRep. Tasomainen kynämuoto voi
 sisältää paikallisia 3D-pisteitä. Worker rakentaa ja tarkistaa geometrian;
 näyttöverkko on sen johdannainen. Yleisen tasopinnan push/pull pursottaa
 valitun CAD-pinnan normaalinsa suuntaan ja yhdistää tai vähentää prisman.
 Laatikon pintamuutokset ja XY-pursotuksen pohja/kansi säilyttävät reseptin.
 Muut muutokset tallentuvat paikallisena BRepinä samoilla kappaleen UUID:llä
-ja värillä. Muokattava operaatiohistoria on jatkotyötä.
+ja värillä. Reunakäsittelyllä on muokattava lähde; yleinen operaatiohistoria on jatkotyötä.
 
 Profiili sisältää suorakulmion, tarkan ympyrän/ellipsin tai monikulmion sekä
 kohtisuoran piirtokehyksen ja etumerkillisen paksuuden. Aloitus valitulta
@@ -432,3 +432,35 @@ Eri kohteen, operaation tai reunavalinnan tulos ei vuoda seuraavaan eleeseen.
 Virheellinen syöte/geometria palauttaa alkuperäisen näkymän. Vapautus ja Enter
 laskevat aina hyväksyttävän geometrian viimeisimmästä kenttäarvosta, eivät
 vanhasta esikatselusta. Yksi hyväksyntä tekee yhden historiatransaktion.
+
+## V0.9.0: muokattavat reunat, mitat ja tekstuurit
+
+Reunakäsittelyn tulos säilyy tarkkana BRepinä. Erillinen `edgeTreatment`
+säilyttää lähdefeaturen, siihen sidotut reunaindeksit ja jäykän sijoituksen.
+Uusi mitta tai reunan lisäys rakennetaan lähteestä, jolloin kohtaavat kulmat
+ratkeavat samassa OCCT-operaatiossa. Worker palauttaa lähdereunojen poimintaviivat
+erillään tulosreunoista. Tavallinen `bodyFromShape` viimeistelee aiemman
+käsittelyn; kierto säilyttää sen eksplisiittisesti sijoitusta muuttamalla.
+Yleistä riippuvuuspuun uudelleenlaskentaa ei tässä versiossa oleteta.
+
+Kahden pisteen dimensio käyttää samoja ankkureita kuin apuviivat.
+`pointDimensionGeometry` laskee arvon ja sijoituksen; 3D ja SVG käyttävät
+samaa funktiota. SVG hyväksyy vain näkymän tasoon sopivat dimensiot ja
+varaa niiden sijoittelulle paperitilan. Orvot viitteet säilyvät korjattavina.
+Siirron poiminta käyttää yhtä priorisoitua ruutuetäisyyttä lähtö- ja kohdepisteelle.
+Kulmat, keskipisteet ja suorat reunat tarkistetaan näkyvyyttä vasten;
+liikkuvat osat eivät tarjoa itselleen kohdepisteitä. Ruudukko on erillinen
+vapaan siirtymän varavaihtoehto.
+
+Materiaalien mukana toimitettavat kuviot syntyvät deterministisesti selaimessa.
+Kuvioinnin kolmen suunnan projektio käyttää objektin paikallista kehystä ja
+normaalipainotettua sekoitusta. Jaettu kuva saa jokaisella objektilla oman
+Texture-instanssin ja sijoitusmatriisin. Veto muuttaa vain tätä matriisia;
+CAD-worker ja meshien uudelleenluonti jäävät pois hiiriliikkeestä.
+Hyväksytty muutos kulkee normaalin transaktion läpi ja muodostaa yhden
+historia-askeleen. Kierto päivittää tekstuurikehyksen saman jäykän muunnoksen mukaan.
+
+Kuvat ovat projektin `assets`-taulussa, omat materiaalit `materials`-taulussa.
+Tuonti rajaa kuvan 2048 pikseliin ja tunnistaa sisällön SHA-256:lla.
+Historia V2 kerää eri askelissa käytetyt kuvat kerran yhteiseen tauluun.
+Tiedostovienti sisältää kaikki projektin aineistot eikä käytä väliaikaisia blob-URL:eja.

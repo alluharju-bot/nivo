@@ -64,6 +64,7 @@ export function snapOnSketchPlane(
   reference?: ReferencePoint,
   start?: Vec3,
   extra: ReferencePoint[] = [],
+  gridStep = 10,
 ): Snap {
   const onPlane = (p: Vec3) => Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5;
   const candidates: (Snap & { priority: number })[] = [...modelSnapPoints(bodies, meshes), ...extra]
@@ -119,20 +120,24 @@ export function snapOnSketchPlane(
         length = Math.hypot(...delta);
       if (length > 1e-8)
         near.point = start.map(
-          (n, i) => n + (delta[i] / length) * Math.round(length / 10) * 10,
+          (n, i) => n + (delta[i] / length) * Math.round(length / gridStep) * gridStep,
         ) as Vec3;
     }
     return near;
   }
   return grid
     ? {
-        point: fromUV([Math.round(uv[0] / 10) * 10, Math.round(uv[1] / 10) * 10], frame),
-        label: 'Ruudukko · 10 mm',
+        point: fromUV(
+          [Math.round(uv[0] / gridStep) * gridStep, Math.round(uv[1] / gridStep) * gridStep],
+          frame,
+        ),
+        label: `Ruudukko · ${gridStep} mm`,
         key: 'grid',
       }
     : { point: raw, label: 'Piirtotaso', key: 'free' };
 }
 interface Options {
+  gridStep?: number;
   plane?: WorkPlane;
   meshes?: BodyMesh[];
   guides?: Guide[];
@@ -197,6 +202,7 @@ export function snapPoint(
   grid = true,
   options: Options = {},
 ): Snap {
+  const gridStep = options.gridStep ?? 10;
   const [u, v, normal] = planeAxes[options.plane ?? 'XY'];
   let point = [...raw] as Vec3;
   if (axis && anchor) point = point.map((n, i) => (i === axisIndex[axis] ? n : anchor[i])) as Vec3;
@@ -310,7 +316,7 @@ export function snapPoint(
         return {
           ...closest,
           point: start.map(
-            (n, i) => n + (delta[i] / length) * Math.round(length / 10) * 10,
+            (n, i) => n + (delta[i] / length) * Math.round(length / gridStep) * gridStep,
           ) as Vec3,
         };
     }
@@ -319,9 +325,9 @@ export function snapPoint(
   if (grid && !options.forceDirection)
     return {
       point: point.map((n, i) =>
-        (!axis ? i !== normal : i === axisIndex[axis]) ? Math.round(n / 10) * 10 : n,
+        (!axis ? i !== normal : i === axisIndex[axis]) ? Math.round(n / gridStep) * gridStep : n,
       ) as Vec3,
-      label: 'Ruudukko · 10 mm',
+      label: `Ruudukko · ${gridStep} mm`,
       key: 'grid',
     };
   return { point, label: axis ? `${axis.toUpperCase()}-akseli` : 'Vapaa', key: 'free' };

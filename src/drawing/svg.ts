@@ -1,4 +1,12 @@
-import { bounds, corners, dimensionValue, type Project, type Vec3 } from '../model/project';
+import { pointDimensionGeometry, pointDimensionInView } from '../model/dimensions';
+import {
+  isPointDimension,
+  bounds,
+  corners,
+  dimensionValue,
+  type Project,
+  type Vec3,
+} from '../model/project';
 import type { DrawingView, Projection } from '../cad/protocol';
 import { formatLength } from '../model/units';
 
@@ -38,6 +46,10 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
   const lanes: [number, number][][][] = [[], []];
   let orphanCount = 0;
   for (const dimension of project.dimensions) {
+    if (isPointDimension(dimension)) {
+      if (pointDimensionGeometry(project.bodies, dimension).orphan) orphanCount++;
+      continue;
+    }
     const body = project.bodies.find((b) => b.id === dimension.bodyId);
     if (!body) {
       orphanCount++;
@@ -90,6 +102,29 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
     bottom: lanes[0].length ? 13 + (lanes[0].length - 1) * 7 : 0,
   };
 }
+function annotationBounds(
+  project: Project,
+  view: DrawingView,
+  scale: number,
+  box: [number, number, number, number],
+) {
+  let [x, y, w, h] = box,
+    right = x + w,
+    bottom = y + h;
+  for (const d of project.dimensions.filter(isPointDimension)) {
+    if (!pointDimensionInView(project.bodies, d, view)) continue;
+    const g = pointDimensionGeometry(project.bodies, d),
+      points = [g.start, g.end, g.a, g.b].map((p) => projectPoint(p, view));
+    const padding = (formatLength(g.value).length * 0.95 + 4) * scale;
+    for (const p of points) {
+      x = Math.min(x, p[0] - padding);
+      right = Math.max(right, p[0] + padding);
+      y = Math.min(y, p[1] - padding);
+      bottom = Math.max(bottom, p[1] + padding);
+    }
+  }
+  return [x, y, right - x, bottom - y] as const;
+}
 export function recommendedScale(project: Project, view: DrawingView): number {
   const { min, max } = bounds(project.bodies.filter((b) => b.purpose !== 'construction'));
   const a = projectPoint(min, view),
@@ -97,10 +132,13 @@ export function recommendedScale(project: Project, view: DrawingView): number {
   return (
     [1, 2, 5, 10, 20, 50, 100, 500, 1000].find((scale) => {
       const layout = dimensionLayout(project, view, scale);
-      return (
-        Math.abs(b[0] - a[0]) / scale + layout.left <= 253 &&
-        Math.abs(b[1] - a[1]) / scale + layout.bottom <= 130
-      );
+      const box = annotationBounds(project, view, scale, [
+        Math.min(a[0], b[0]),
+        Math.min(a[1], b[1]),
+        Math.abs(b[0] - a[0]),
+        Math.abs(b[1] - a[1]),
+      ]);
+      return box[2] / scale + layout.left <= 253 && box[3] / scale + layout.bottom <= 130;
     }) ?? 1000
   );
 }
@@ -118,9 +156,10 @@ export function createSheet(
 ): Sheet {
   const [bx, by, bw, bh] = projection.viewBox;
   const layout = dimensionLayout(project, view, scale);
-  const tx = 148.5 + layout.left / 2 - (bx + bw / 2) / scale,
-    ty = 99.5 - layout.bottom / 2 - (by + bh / 2) / scale;
-  const fits = bw / scale + layout.left <= 253 && bh / scale + layout.bottom <= 130;
+  const box = annotationBounds(project, view, scale, [bx, by, bw, bh]);
+  const tx = 148.5 + layout.left / 2 - (box[0] + box[2] / 2) / scale,
+    ty = 99.5 - layout.bottom / 2 - (box[1] + box[3] / 2) / scale;
+  const fits = box[2] / scale + layout.left <= 253 && box[3] / scale + layout.bottom <= 130;
   const { orphanCount } = layout;
   const lines: string[] = [];
   for (const d of layout.rows) {
@@ -141,6 +180,25 @@ export function createSheet(
         `${group}<path d="M${n(x1 - 1)} ${n(y1)}H${n(x - 2)} M${n(x1 - 1)} ${n(y2)}H${n(x - 2)} M${n(x)} ${n(y1)}V${n(y2)} M${n(x - 1.5)} ${n(y1 + 1)}l3 -2 M${n(x - 1.5)} ${n(y2 + 1)}l3 -2"/><text transform="translate(${n(x - 1.5)} ${n((y1 + y2) / 2)}) rotate(-90)">${label}</text></g>`,
       );
     }
+  }
+  for (const d of project.dimensions.filter(isPointDimension)) {
+    if (!pointDimensionInView(project.bodies, d, view)) continue;
+    const g = pointDimensionGeometry(project.bodies, d);
+    const [start, end, a, b] = [g.start, g.end, g.a, g.b].map((p) => {
+      const q = projectPoint(p, view);
+      return [q[0] / scale + tx, q[1] / scale + ty];
+    });
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1],
+      length = Math.hypot(dx, dy),
+      nx = -dy / length,
+      ny = dx / length;
+    let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    if (angle > 90) angle -= 180;
+    if (angle < -90) angle += 180;
+    lines.push(
+      `<g data-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}"><path d="M${n(start[0])} ${n(start[1])}L${n(a[0])} ${n(a[1])}L${n(b[0])} ${n(b[1])}L${n(end[0])} ${n(end[1])} M${n(a[0] - nx)} ${n(a[1] - ny)}l${n(nx * 2)} ${n(ny * 2)} M${n(b[0] - nx)} ${n(b[1] - ny)}l${n(nx * 2)} ${n(ny * 2)}"/><text transform="translate(${n((a[0] + b[0]) / 2)} ${n((a[1] + b[1]) / 2)}) rotate(${n(angle)})" dy="-1.5">${escapeXml(formatLength(g.value))}</text></g>`,
+    );
   }
   const paths = (list: string[]) => list.map((d) => `<path d="${escapeXml(d)}"/>`).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210" role="img" aria-label="${viewLabels[view]}, mittakaava 1:${scale}">

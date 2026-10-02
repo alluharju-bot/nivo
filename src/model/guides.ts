@@ -51,7 +51,15 @@ export function resolveAnchor(bodies: Body[], anchor: Anchor): Vec3 | undefined 
   }
   const body = bodies.find((b) => b.id === anchor.bodyId);
   if (!body) return;
+  if (
+    anchor.key.startsWith('reference:') &&
+    body.feature.type !== 'brep' &&
+    !anchor.key.startsWith(`reference:${referenceToken(body)}:`)
+  )
+    return;
   if (body.vertexRefs?.[anchor.key]) return add(body.origin, body.vertexRefs[anchor.key]);
+  if (anchor.key.startsWith(`reference:${referenceToken(body)}:`))
+    return add(body.origin, anchor.local);
   if (body.feature.type === 'profile-extrusion' && anchor.key.startsWith('profile:'))
     return add(body.origin, anchor.local);
   if (body.feature.type === 'rectangle-extrusion' && /^corner:[0-7]$/.test(anchor.key))
@@ -116,4 +124,21 @@ export function angleBetween(start: Vec3, end: Vec3, plane: WorkPlane, free = fa
   const [u, v] = planeAxes[plane];
   const angle = (Math.atan2(end[v] - start[v], end[u] - start[u]) * 180) / Math.PI;
   return normalizedAngle(free ? angle : Math.round(angle / 45) * 45);
+}
+
+/** Topology-scoped reference for a picked surface point or curved-edge center. */
+export function referenceToken(body: Body) {
+  if (body.feature.type === 'brep') return body.feature.topologyId;
+  const text = JSON.stringify(body.feature);
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(36);
+}
+export function referenceAnchor(body: Body, point: Vec3) {
+  const local = sub(point, body.origin);
+  return {
+    bodyId: body.id,
+    key: `reference:${referenceToken(body)}:${local.map((n) => n.toFixed(6)).join(',')}`,
+    local,
+  };
 }

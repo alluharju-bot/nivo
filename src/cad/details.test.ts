@@ -1,12 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import init from 'replicad-opencascadejs';
-import { setOC } from 'replicad';
+import { setOC, makePolygon, makeSolid } from 'replicad';
 import { makeBody, makeProfileBody, parseProject, freshProject } from '../model/project';
 import { sketchFrame } from '../model/sketch';
-import { createShape, meshBody, shapeIsValid } from './kernel';
+import { createShape, meshBody, shapeIsValid, bodyFromShape } from './kernel';
 import { booleanBodies } from './operations';
-import { detailEdges } from './details';
+import { detailEdges, removeEdgeTreatment } from './details';
+import { rotateBodies } from './transforms';
+import { pushPullFace } from './kernel';
 
 beforeAll(async () =>
   setOC(
@@ -136,4 +138,114 @@ describe('exact fillets and chamfers', () => {
     expect(() => detailEdges(makeBody(100, 100, 0), [0], 'fillet', 2)).toThrow('paksuus');
     expect(JSON.stringify(body)).toBe(saved);
   });
+});
+
+describe('retained edge treatments', () => {
+  const cornerEdges = (body: ReturnType<typeof makeBody>) => {
+    const shape = createShape(body);
+    try {
+      return meshBody(body, shape)
+        .detailEdges!.filter((e) =>
+          e.lines.some(
+            (_, i) =>
+              i % 3 === 0 &&
+              e.lines.slice(i, i + 3).every((v, j) => Math.abs(v - body.origin[j]) < 1e-6),
+          ),
+        )
+        .map((e) => e.index);
+    } finally {
+      shape.delete();
+    }
+  };
+  it.each([
+    [600, 600, 18],
+    [18, 560, 2400],
+  ])('rebuilds three meeting cabinet edges on %j from their source', (w, d, h) => {
+    const body = makeBody(w, d, h),
+      indices = cornerEdges(body);
+    expect(indices).toHaveLength(3);
+    const first = detailEdges(body, [indices[0]], 'fillet', 3).body;
+    const restored = parseProject(JSON.stringify({ ...freshProject(), bodies: [first] })).bodies[0];
+    const joined = detailEdges(restored, indices, 'fillet', 3, true);
+    const direct = detailEdges(body, indices, 'fillet', 3);
+    expect(joined.mesh.volume).toBeCloseTo(direct.mesh.volume, 5);
+    expect(joined.body.edgeTreatment?.id).toBe(first.edgeTreatment?.id);
+    expect(joined.mesh.sourceDetailEdges).toHaveLength(12);
+    const smaller = detailEdges(joined.body, indices, 'fillet', 2, true);
+    expect(smaller.mesh.volume).toBeGreaterThan(joined.mesh.volume);
+    const fewer = detailEdges(smaller.body, [indices[0]], 'fillet', 2, true);
+    expect(fewer.mesh.volume).toBeGreaterThan(smaller.mesh.volume);
+  });
+});
+
+it('preserves editable source indices through movement, rotation and copying, and finalizes before a face edit', () => {
+  const body = makeBody(600, 560, 18, [30, 40, 50]);
+  const first = detailEdges(body, [0, 1, 2], 'fillet', 2);
+  const moved = { ...first.body, id: 'copy', origin: [130, 240, 350] as [number, number, number] };
+  const rotated = rotateBodies([moved], [0, 0, 0], [1, 2, 3], 37)[0];
+  const result = detailEdges(rotated, rotated.edgeTreatment!.indices, 'fillet', 3, true);
+  const comparison = detailEdges({ ...body, origin: moved.origin }, [0, 1, 2], 'fillet', 3);
+  expect(result.mesh.volume).toBeCloseTo(comparison.mesh.volume, 3);
+  const removed = removeEdgeTreatment(result.body),
+    shape = createShape(removed);
+  expect(removed.edgeTreatment).toBeUndefined();
+  expect(meshBody(removed, shape).volume).toBeCloseTo(600 * 560 * 18, 3);
+  shape.delete();
+  const top = first.mesh.faces.find((f) => f.planar && f.normal[2] > 0.99)!;
+  const pushed = pushPullFace(first.body, top.ref, 5);
+  expect(pushed.edgeTreatment).toBeUndefined();
+  expect(pushed.feature.height).toBeCloseTo(23, 4);
+});
+it('joins three outer corner rounds on an already hollow cabinet', () => {
+  const outer = makeBody(600, 600, 2400),
+    inner = makeBody(564, 610, 2364, [18, -28, 18]);
+  const body = booleanBodies([outer], [inner], 'cut')[0],
+    shape = createShape(body);
+  const indices = meshBody(body, shape)
+    .detailEdges!.filter((e) =>
+      e.lines.some(
+        (_, i) => i % 3 === 0 && e.lines.slice(i, i + 3).every((v) => Math.abs(v) < 1e-6),
+      ),
+    )
+    .map((e) => e.index);
+  shape.delete();
+  expect(indices).toHaveLength(3);
+  const first = detailEdges(body, [indices[0]], 'fillet', 2);
+  const result = detailEdges(first.body, indices, 'fillet', 2, true);
+  expect(result.mesh.volume).toBeLessThan(first.mesh.volume);
+  expect(result.body.feature.type === 'brep' && result.body.feature.solid).toBe(true);
+});
+
+it('checks a four-way pyramid apex against the exact fillet kernel', () => {
+  const apex: [number, number, number] = [50, 50, 100];
+  const bottom: [number, number, number][] = [
+    [0, 0, 0],
+    [100, 0, 0],
+    [100, 100, 0],
+    [0, 100, 0],
+  ];
+  const faces = [
+    makePolygon([...bottom].reverse()),
+    ...bottom.map((p, i) => makePolygon([p, bottom[(i + 1) % 4], apex])),
+  ];
+  const solid = makeSolid(faces);
+  try {
+    const body = bodyFromShape(makeBody(100, 100, 100), solid),
+      mesh = meshBody(body, solid);
+    const indices = mesh
+      .detailEdges!.filter((e) =>
+        e.lines.some(
+          (_, i) =>
+            i % 3 === 0 && e.lines.slice(i, i + 3).every((n, j) => Math.abs(n - apex[j]) < 1e-5),
+        ),
+      )
+      .map((e) => e.index);
+    expect(indices).toHaveLength(4);
+    const result = detailEdges(body, indices, 'fillet', 2);
+    expect(result.mesh.volume).toBeGreaterThan(300000);
+    expect(result.mesh.volume).toBeLessThan(mesh.volume);
+  } finally {
+    solid.delete();
+    faces.forEach((f) => f.delete());
+  }
 });

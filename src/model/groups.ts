@@ -1,3 +1,5 @@
+import { isPointDimension } from './project';
+import { dimensionBodyIds } from './dimensions';
 import { uid, type Anchor, type Body, type BodyGroup, type Project, type Vec3 } from './project';
 import { add } from './geometry';
 
@@ -139,8 +141,21 @@ export function translateSelection(
       endAnchor: g.endAnchor ? remap(g.endAnchor) : undefined,
     }));
   const dimensions = project.dimensions
-    .filter((d) => bodyIds.has(d.bodyId))
-    .map((d) => ({ ...d, id: uid(), bodyId: bodyIds.get(d.bodyId)! }));
+    .filter((d) => {
+      const ids = dimensionBodyIds(d);
+      return ids.length > 0 && ids.every((id) => bodyIds.has(id));
+    })
+    .map((d) =>
+      isPointDimension(d)
+        ? {
+            ...d,
+            id: uid(),
+            start: remap(d.start),
+            end: remap(d.end),
+            fallback: d.fallback.map((p) => add(p, offset)) as [Vec3, Vec3],
+          }
+        : { ...d, id: uid(), bodyId: bodyIds.get(d.bodyId)! },
+    );
   return {
     project: {
       ...project,

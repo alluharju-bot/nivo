@@ -1,3 +1,5 @@
+import { isPointDimension, type Vec3 } from './model/project';
+import { resolveAnchor } from './model/guides';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CadClient } from './cad/client';
 import type { BodyMesh } from './cad/protocol';
@@ -94,6 +96,19 @@ export function useEditor() {
         if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
           ...resolved,
+          dimensions: resolved.dimensions.map((d) =>
+            isPointDimension(d)
+              ? {
+                  ...d,
+                  fallback: [d.start, d.end].map(
+                    (a, i) =>
+                      resolveAnchor(resolved.bodies, a) ??
+                      resolveAnchor(history.current.bodies, a) ??
+                      d.fallback[i],
+                  ) as [Vec3, Vec3],
+                }
+              : d,
+          ),
           updatedAt: new Date().toISOString(),
         });
         if (!validated.success)

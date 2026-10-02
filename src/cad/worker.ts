@@ -7,7 +7,7 @@ import type { Body } from '../model/project';
 import { booleanBodies, splitFace, offsetFace, offsetOutline, removeBoundary } from './operations';
 import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
-import { detailEdges } from './details';
+import { detailEdges, removeEdgeTreatment } from './details';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 type Entry = { key: string; shape: AnyShape; mesh: BodyMesh };
@@ -18,7 +18,7 @@ function build(bodies: Body[]): Entry[] {
   const allocated: AnyShape[] = [];
   try {
     for (const body of bodies) {
-      const key = JSON.stringify([body.feature, body.origin]);
+      const key = JSON.stringify([body.feature, body.origin, body.edgeTreatment]);
       const previous = cache.get(body.id);
       if (previous?.key === key) next.set(body.id, previous);
       else {
@@ -61,8 +61,15 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = offsetOutline(request.body, request.face, request.distance);
       else if (request.type === 'remove-boundary')
         reply.result = removeBoundary(request.body, request.faces);
+      else if (request.type === 'remove-detail') reply.result = removeEdgeTreatment(request.body);
       else if (request.type === 'edge-detail')
-        reply.result = detailEdges(request.body, request.indices, request.operation, request.size);
+        reply.result = detailEdges(
+          request.body,
+          request.indices,
+          request.operation,
+          request.size,
+          request.editing,
+        );
       else {
         const entries = build(request.bodies);
         if (request.type === 'build') reply.result = entries.map((e) => e.mesh);

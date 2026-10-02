@@ -82,8 +82,24 @@ export class CadClient {
   removeBoundary(body: Body, faces: [FaceRef, FaceRef]) {
     return this.request<Body>({ type: 'remove-boundary', body, faces });
   }
-  edgeDetail(body: Body, indices: number[], operation: 'fillet' | 'chamfer', size: number) {
-    return this.request<EdgeDetailResult>({ type: 'edge-detail', body, indices, operation, size });
+  edgeDetail(
+    body: Body,
+    indices: number[],
+    operation: 'fillet' | 'chamfer',
+    size: number,
+    editing = false,
+  ) {
+    return this.request<EdgeDetailResult>({
+      type: 'edge-detail',
+      body,
+      indices,
+      operation,
+      size,
+      editing,
+    });
+  }
+  removeDetail(body: Body) {
+    return this.request<Body>({ type: 'remove-detail', body });
   }
   cancel(message = 'Laskenta peruttiin.') {
     this.worker?.terminate();

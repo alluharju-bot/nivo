@@ -3106,3 +3106,83 @@ p {
   white-space: nowrap;
   border: 0;
 }
+
+.material-swatches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.material-swatches button {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  font-size: 10px;
+  padding: 6px;
+  border: 1px solid var(--line, #cbd2cc);
+  border-radius: 7px;
+  background: transparent;
+}
+.material-swatches button[aria-pressed='true'] {
+  border-color: #376d63;
+  background: #e0e9e3;
+}
+.material-swatches span {
+  width: 100%;
+  height: 38px;
+  border-radius: 4px;
+  background-size: cover;
+}
+.surface-properties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.render-panel input[type='number'],
+.render-panel input[type='text'],
+.render-panel input:not([type]) {
+  width: 100%;
+  border: 1px solid #bdc7c0;
+  border-radius: 5px;
+  padding: 7px;
+  background: #fff;
+}
+.texture-editor {
+  border-top: 1px solid #bcc9c0;
+  padding-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+.texture-editor p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.texture-handles {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  gap: 20px;
+  transform: translate(-50%, -60px);
+}
+.texture-handles[hidden] {
+  display: none;
+}
+.texture-handles button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid #447c78;
+  background: #f9fffc;
+  color: #285e59;
+  cursor: grab;
+  font-size: 24px;
+  box-shadow: 0 2px 8px #0003;
+  touch-action: none;
+}
+.model-dimensions .broken path {
+  stroke: #a96f34;
+  stroke-dasharray: 4 3;
+}
+.model-dimensions .broken text {
+  fill: #a96f34;
+}

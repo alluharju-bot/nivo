@@ -61,12 +61,11 @@ perspektiivin vakaa hiiriohjaus, suorakulmion/ympyrän kahden napsautuksen piirt
 sekä piirtotavan Automaattinen / Uusi osa / Pinnan alue. Kaapin aukon päälle
 piirretty ovi syntyy automaattisesti itsenäiseksi osaksi.
 
-Mitoituksen jatkokehitys: vapaasti poimitut kaksi pistettä, vinon reunan oma
-pituus, halkaisija/säde ja kulma, mittalapun siirtäminen sekä usean näkymän arkit.
+V0.9.0 toteuttaa kahden vapaasti poimitun pisteen mitan, vinon reunan pituuden
+ja mittalapun siirtämisen. Jatkokehitys: halkaisija/säde, kulma ja usean näkymän arkit.
 
 Viisteiden, pyöristysten ja ryhmähierarkian ensimmäinen versio on toteutettu
-v0.8.0:ssa, ja reunakäsittelyn hiiri-/kosketussäätö v0.8.3:ssa. Seuraaviksi
-jäävät jälkikäteen muokattavat parametrit, laajempi mitoitus ja referenssikuvan kalibrointi. Fyysinen tabletti
+v0.8.0:ssa, ja reunakäsittelyn hiiri-/kosketussäätö v0.8.3:ssa. Muokattavat reunaparametrit ja kahden pisteen mitoitus valmistuivat v0.9.0:ssa. Seuraavaksi jää referenssikuvan kalibrointi. Fyysinen tabletti
 ja Safari varmennetaan erikseen. Linkitetyt komponentit seuraavat myöhemmin.
 
 ## Toteutettu v0.7.0: osan muokkaustila ja geometrian korjaus
@@ -110,8 +109,7 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
 - Virheellinen mitta tai mahdoton geometria säilyttää alkuperäisen osan.
   Osan ja ryhmän Hold estää muokkauksen. Nimi, väri, ryhmä ja säilyvät viitteet
   pysyvät mukana; historia ja tarkka BRep tallentuvat.
-- Hiirellä vetäminen valmistui v0.8.3:ssa. Jatkokehitys: parametristen reunakäsittelyjen
-  muuttaminen myöhemmin, erimittaiset viisteet ja tangentiaalisten reunaketjujen valinta.
+- Hiirellä vetäminen valmistui v0.8.3:ssa. Parametrien jatkomuokkaus valmistui v0.9.0:ssa. Jatkokehitys: erimittaiset viisteet ja tangentiaalisten reunaketjujen valinta.
   Olennaisia seuraavia detaljeja ovat poraukset, upotukset ja toistokuviot.
 
 ## Toteutettu v0.8.0: renderöinnin ensimmäinen versio
@@ -120,7 +118,7 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
   osavärit ja koko valinnan materiaalinvaihto.
 - Kolme studioympäristön sävyä, valotus, varjot ja PNG-vienti nykyisestä kamerasta
   1 600 tai 2 400 pikselin leveydellä. Materiaalit ja valoasetukset tallentuvat.
-- Jatkokehitys: omat tekstuurit ja syysuunnan/skaalan säätö, tallennetut kamerat,
+- Omat tekstuurit ja syysuunnan/skaalan säätö valmistuivat v0.9.0:ssa. Jatkokehitys: tallennetut kamerat,
   valaisimet ja emissio, laatutasot ja säteenjäljitys.
 
 | Vaihe | Tila                 | Sisältö                                                                                                                         |
@@ -129,15 +127,14 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
 | 1     | Työnkulku toteutettu | Suorakulmio → push/pull → valinta/siirto ja tartunnat → etukuva ja mitta → projektitiedosto/SVG, tallennus, historia, kosketus. |
 | 2     | Osin toteutettu      | Sisäkkäiset ryhmät, nimet, näkyvyys, Hold ja ryhmäkopiointi tehty. Layerit ja linkitetyt komponentit myöhemmin.                 |
 | 3     | Osin toteutettu      | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.              |
-| 4     | Osin toteutettu      | Viisi materiaalia ja puutekstuuri tehty. Oma teksturointi, pintasijoittelu ja emissio myöhemmin.                                |
+| 4     | Osin toteutettu      | 27 presettiä, omat tekstuurit ja pintasijoittelu tehty. Emissio ja UV-saarekkeet myöhemmin.                                     |
 | 5     | Osin toteutettu      | Studiovalaistus, esitysnäkymä ja PNG-vienti tehty. Tallennetut scenet ja kamerat myöhemmin.                                     |
 | 6     | Suunniteltu          | Laaja mitoitus, arkit, PDF, useat näkymät ja leikkaukset. HLR/SVG-perusta on jo toteutettu.                                     |
 | 7     | Suunniteltu          | Fyysisen tabletin työnkulut, suorituskyky, valinnan hienosäätö ja resurssibudjetit.                                             |
 
 Jokainen vaihe pysyy ajettavana. Uusi toteutus ei saa rikkoa aiempien projektien
 tuontia, historiaa tai mitoitusta. Hyväksymisesimerkit A–C täydennetään työkalujen
-valmistuessa. Nykyinen kaappiesimerkki on kuuden itsenäisen levyn runko eikä
-vielä täytä esimerkin A ovi-, layer-, komponentti- tai tekstuurivaatimuksia.
+valmistuessa. V0.9.0 lisää viimeistellyn kaapin ovineen, mittoineen ja tekstuureineen. Layerit, linkitetyt komponentit ja tallennetut kamerat jäävät A–C-esimerkkien jatkotyöksi.
 
 ## Backlog: mittakaavaan kalibroitava referenssikuva
 
@@ -236,12 +233,13 @@ perustyökalua ja noudattaa E/O-työkalujen tuttua veto- ja numerosyöttöä.
   vapautus ennen hiirtä ei korvaa valintaa. M siirtää vapaasti valitut osat
   yhdessä ilman ryhmää. Shiftin viitepoiminta kuuluu muihin työkaluihin.
 
-## Seuraava reunakäsittely: jatkuvat kulmaliitokset (korkea prioriteetti)
+## Toteutettu v0.9.0: jatkuvat kulmaliitokset
 
 Kaapin etureunan pyöristys voi estää viereisen lyhyen reunan käsittelyn
-seuraavassa operaatiossa. Nykyinen CAD-ydin osaa käsitellä useita reunoja
-yhdessä, mutta Nivo säilyttää hyväksynnän jälkeen vain tulosgeometrian,
-ei alkuperäisiä pyöristysparametreja. Tämä erotetaan kulmatyypin valinnasta.
+seuraavassa operaatiossa. CAD-ydin osaa käsitellä useita reunoja yhdessä.
+Ennen v0.9.0:aa Nivo säilytti hyväksynnän jälkeen vain tulosgeometrian;
+nyt uusien käsittelyjen lähde ja parametrit säilyvät jatkomuokkausta varten.
+Erillinen kulmatyypin valinta jää alla kuvattuun jatkokehitykseen.
 
 - Säilytä lähde ja reunakäsittelyn parametrit, jotta kohtaavia reunoja voidaan
   lisätä samaan pyöristyskokonaisuuteen ja laskea kulmaliitos uudelleen.
@@ -254,9 +252,26 @@ ei alkuperäisiä pyöristysparametreja. Tämä erotetaan kulmatyypin valinnasta
 - Hyväksyntä: etureuna ensin, sitten siihen liittyvät lyhyet sivureunat;
   tarkka esikatselu, muuttaminen, Peru/Palauta sekä tallennus ja uudelleenavaus.
 
-## Suunniteltu laaja yöpassi: viimeistelty, mitoitettu ja materiaalitettu malli
+## Toteutettu v0.9.0: viimeistelty, mitoitettu ja materiaalitettu malli
 
-**Tila: suunnitelma, laajennettu käyttäjän pyynnöstä.** Varsinaiseen tavoitteeseen
+**Tila: toteutettu 3.10.2026.**
+
+- F säilyttää lähdegeometrian, reunat ja koon. Kolmen kohtaavan reunan jatkaminen
+  testattu 18 mm levyllä, pitkällä sivulla ja ontolla kaapilla. Neljän reunan
+  pyramidikärki toimii testissä; Setback ja kaikkien topologioiden kattaminen
+  eivät kuulu todettuun tukeen.
+- T → Dimensio: kaksi poimittua pistettä, sivusijoitus, vedettävä teksti,
+  akselimitta, pysyvät viitteet, mittakuva ja SVG.
+- 27 paikallista presettiä, omat kuvat, projektin materiaalikirjasto sekä
+  tekstuurin siirto-, koko- ja kiertokahvat. PNG ja renderin kohdistinnavigointi.
+- Siirron yhtenäinen ruutukoordinaateissa tehtävä poiminta, liikkuvien osien
+  omien pisteiden poissulku ja tarkka geometriatartunta ennen ruudukkoa.
+  Ruudukkoaskel on nyt säädettävissä asetuksista.
+- V6-projekti ja V2-historia: kuvat ovat kerran aineistotaulussa, vanhat
+  projektit ja historia migroidaan. Uusi viimeistelty kaappiesimerkki on
+  avattavissa aloitusnäkymästä ja tiedostona `public/examples/viimeistelty-kaappi.nivo`.
+
+Alla säilyy toteutuksen hyväksytty suunnitelma ja sen ratkaisut. Varsinaiseen tavoitteeseen
 kuuluvat kaikki kolme kokonaisuutta: muokattavat reunakäsittelyt, vapaasti
 poimittu kahden pisteen mitoitus ja laajennettu materiaalien/tekstuurien työnkulku.
 Niitä toteutetaan yhtenä kokonaisuutena, jonka lopputulos on mitoitettu kaappi,
@@ -369,7 +384,7 @@ jos jokin erikoisempi kulmaliitos vaatii erillistä jatkotutkimusta.
 
 ## Yöpassin reunakäsittelyosuus: kaapin reunat valmiiksi ja myöhemmin muokattaviksi
 
-**Tila: osa yllä olevaa laajaa yöpassisuunnitelmaa.** Tavoite on, että käyttäjä voi viimeistellä
+**Tila: toteutettu v0.9.0:ssa; seuraava kuvaa hyväksyttyä työnkulkua.** Tavoite on, että käyttäjä voi viimeistellä
 kaapin tai oven kohtaavat reunat, jatkaa käsittelyä myöhemmin ja muuttaa sen
 mittaa samassa F-työkalussa. Tämä yhdistää korkeimman prioriteetin
 kulmaongelman ja jo suunnitellut muokattavat reunaparametrit yhdeksi työnkuluksi.

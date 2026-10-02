@@ -1,3 +1,4 @@
+import { detailSourceShape } from './detailSource';
 import {
   drawRectangle,
   drawCircle,
@@ -253,6 +254,21 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     midpointsCAD,
     edgesCAD,
     detailEdges,
+    sourceDetailEdges: body.edgeTreatment
+      ? (() => {
+          const source = detailSourceShape(body),
+            edges = source.edges;
+          try {
+            return edges.map((edge, index) => ({
+              index,
+              lines: edge.meshEdges({ tolerance: 0.15 }).lines,
+            }));
+          } finally {
+            edges.forEach((edge) => edge.delete());
+            source.delete();
+          }
+        })()
+      : undefined,
     boundaries: faceBoundaries(shape, faces),
   };
 }
@@ -311,6 +327,11 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
     return bodySchema.parse({
       ...body,
       origin,
+      edgeTreatment: undefined,
+      textureFrame: {
+        offset: sub(add(body.origin, body.textureFrame?.offset ?? [0, 0, 0]), origin),
+        rotation: body.textureFrame?.rotation ?? [0, 0, 0, 1],
+      },
       vertexRefs,
       linearEdges,
       feature: {

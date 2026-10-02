@@ -1,3 +1,4 @@
+import { createPointDimensions } from './pointDimensions';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -24,6 +25,7 @@ interface SceneApi {
   command: (command: CameraCommand) => void;
   annotations: () => void;
   interactionSync: () => void;
+  dimensionDisplay: () => void;
   dispose: () => void;
 }
 
@@ -44,6 +46,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   renderer.domElement.setAttribute('data-testid', 'viewport');
   renderer.domElement.tabIndex = 0;
   container.append(renderer.domElement);
+  const pointDimensions = createPointDimensions(container);
   const modelDimensions = createModelDimensions(container);
   const perspective = new THREE.PerspectiveCamera(40, 1, 0.1, 1_000_000);
   const orthographic = new THREE.OrthographicCamera(-900, 900, 700, -700, 0.1, 1_000_000);
@@ -89,6 +92,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       camera.position.distanceTo(controls.target),
       current().axisStyle,
       current().axisLabels,
+      current().gridStep,
     );
     renderer.render(scene, camera);
     renderer.domElement.dataset.camera = JSON.stringify({
@@ -98,6 +102,13 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       target: controls.target.toArray(),
       zoom: camera.zoom,
     });
+    pointDimensions.update(
+      current().bodies,
+      current().dimensions,
+      current().selectedIds,
+      current().dimensionDisplay,
+      camera,
+    );
     modelDimensions.update(
       current().bodies,
       current().dimensions,
@@ -871,6 +882,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     sync,
     annotations,
     interactionSync: interactions.sync,
+    dimensionDisplay: render,
     preview,
     command,
     dispose() {
@@ -885,6 +897,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       disposeGroup(ghost);
       workspaceGrid?.dispose();
       modelDimensions.dispose();
+      pointDimensions.dispose();
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
           obj.geometry.dispose();
@@ -931,9 +944,9 @@ export function Viewport(props: Props) {
     props.booleanTools,
     props.axisStyle,
     props.axisLabels,
-    props.dimensions,
-    props.dimensionDisplay,
+    props.gridStep,
   ]);
+  useEffect(() => api.current?.dimensionDisplay(), [props.dimensions, props.dimensionDisplay]);
   useEffect(
     () => api.current?.preview(),
     [

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { axisIndex, corners, type Body, type Dimension } from '../model/project';
+import { isPointDimension, axisIndex, corners, type Body, type Dimension } from '../model/project';
 import { formatLength } from '../model/units';
 const ns = 'http://www.w3.org/2000/svg';
 const svgNode = <K extends keyof SVGElementTagNameMap>(name: K) =>
@@ -40,6 +40,7 @@ export function createModelDimensions(container: HTMLElement) {
         return { x: ((v.x + 1) * width) / 2, y: ((1 - v.y) * height) / 2, z: v.z };
       };
       for (const dimension of dimensions) {
+        if (isPointDimension(dimension)) continue;
         if (
           display === 'hidden' ||
           (display === 'selected' && !selected.includes(dimension.bodyId))

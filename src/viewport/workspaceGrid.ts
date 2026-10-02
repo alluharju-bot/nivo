@@ -121,14 +121,15 @@ export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElemen
       distance: number,
       style: 'subtle' | 'strong',
       showLabels: boolean,
+      gridStep = 10,
     ) {
       const height = Math.max(1, container.clientHeight);
       const visible =
         camera instanceof THREE.OrthographicCamera
           ? (camera.top - camera.bottom) / camera.zoom
           : 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-      const desired = Math.max(1, visible / 30);
-      const base = Math.pow(10, Math.floor(Math.log10(desired)));
+      const desired = Math.max(gridStep, visible / 30);
+      const base = gridStep * Math.pow(10, Math.floor(Math.log10(desired / gridStep)));
       const spacing = base * ([1, 2, 5, 10].find((n) => n * base >= desired) ?? 10);
       material.uniforms.spacing.value = spacing;
       material.uniforms.cameraXY.value.set(camera.position.x, camera.position.y);

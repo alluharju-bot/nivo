@@ -1,3 +1,4 @@
+import { Quaternion, Vector3 } from 'three';
 import { bodySchema, type Body, type Vec3 } from '../model/project';
 import { add, sub, unit } from '../model/geometry';
 import { requireMovable, rotatePoint } from '../model/transforms';
@@ -29,6 +30,36 @@ export function rotateBodies(bodies: Body[], pivot: Vec3, axis: Vec3, angle: num
       ];
       return bodySchema.parse({
         ...next,
+        textureFrame: {
+          offset: sub(
+            rotatePoint(
+              add(body.origin, body.textureFrame?.offset ?? [0, 0, 0]),
+              pivot,
+              direction,
+              angle,
+            ),
+            next.origin,
+          ),
+          rotation: new Quaternion()
+            .setFromAxisAngle(new Vector3(...direction), (angle * Math.PI) / 180)
+            .multiply(new Quaternion(...(body.textureFrame?.rotation ?? [0, 0, 0, 1])))
+            .normalize()
+            .toArray(),
+        },
+        edgeTreatment: body.edgeTreatment
+          ? {
+              ...body.edgeTreatment,
+              offset: sub(
+                rotatePoint(add(body.origin, body.edgeTreatment.offset), pivot, direction, angle),
+                next.origin,
+              ),
+              rotation: new Quaternion()
+                .setFromAxisAngle(new Vector3(...direction), (angle * Math.PI) / 180)
+                .multiply(new Quaternion(...body.edgeTreatment.rotation))
+                .normalize()
+                .toArray(),
+            }
+          : undefined,
         vertexRefs: Object.fromEntries(
           references.map(({ key, point }) => [
             key,

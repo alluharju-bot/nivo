@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { History } from './history';
-import { freshProject, makeBody } from './project';
+import { freshProject, makeBody, parseProject } from './project';
 
 it('restores both directions, and a new edit discards the restored redo branch', () => {
   const start = freshProject(),
@@ -42,7 +42,7 @@ it('ignores corrupt, mismatched and unsupported history without changing the act
     valid = history.serialize()!;
   for (const value of [
     'not json',
-    JSON.stringify({ ...JSON.parse(valid), version: 2 }),
+    JSON.stringify({ ...JSON.parse(valid), version: 999 }),
     JSON.stringify({ ...JSON.parse(valid), current: initial }),
     JSON.stringify({ ...JSON.parse(valid), past: [{ broken: true }] }),
   ]) {
@@ -52,4 +52,36 @@ it('ignores corrupt, mismatched and unsupported history without changing the act
   }
   expect(history.restore(valid)).toBe(true);
   expect(history.peekUndo()).toEqual(initial);
+});
+
+it('stores an image once across undo snapshots and restores imports after undo', () => {
+  const first = {
+    ...freshProject(),
+    assets: {
+      texture: {
+        name: 'image.png',
+        width: 1,
+        height: 1,
+        dataUrl: 'data:image/png;base64,' + 'A'.repeat(10000),
+      },
+    },
+  };
+  const history = new History(first);
+  for (let i = 0; i < 10; i++) history.commit({ ...first, name: `Stage ${i}` });
+  const serialized = history.serialize()!;
+  expect(serialized.match(/data:image\/png;base64/g)).toHaveLength(1);
+  expect(serialized.length).toBeLessThan(20000);
+  const restored = new History(history.current);
+  expect(restored.restore(serialized)).toBe(true);
+  expect(restored.undo().assets).toEqual(first.assets);
+});
+it('migrates version 5 project history together with the active project', () => {
+  const start = { ...freshProject(), version: 5 },
+    old = { ...start, name: 'Old current' };
+  const current = parseProject(JSON.stringify(old)),
+    history = new History(current);
+  expect(
+    history.restore(JSON.stringify({ version: 1, current: old, past: [start], future: [] })),
+  ).toBe(true);
+  expect(history.undo().version).toBe(6);
 });

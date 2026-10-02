@@ -1,4 +1,4 @@
-import { projectSchema, type Project } from './project';
+import { parseProject, type Project } from './project';
 
 const MAX_SAVED_BYTES = 8 * 1024 * 1024;
 const MAX_SAVED_STEPS = 20;
@@ -46,7 +46,18 @@ export class History {
     const past = this.past.slice(-maxSteps),
       future = this.future.slice(-maxSteps);
     while (true) {
-      const data = JSON.stringify({ version: 1, current: this.current, past, future });
+      const pool = Object.assign(
+        {},
+        ...[...past, ...future, this.current].map((p) => p.assets ?? {}),
+      );
+      const pack = (p: Project) => ({ ...p, assets: p.assets ? Object.keys(p.assets) : undefined });
+      const data = JSON.stringify({
+        version: 2,
+        assets: pool,
+        current: pack(this.current),
+        past: past.map(pack),
+        future: future.map(pack),
+      });
       if (
         past.length + future.length <= maxSteps &&
         new TextEncoder().encode(data).length <= maxBytes
@@ -63,16 +74,29 @@ export class History {
     if (!serialized || new TextEncoder().encode(serialized).length > MAX_SAVED_BYTES) return false;
     try {
       const data = JSON.parse(serialized);
+      if (data.version === 2) {
+        const unpack = (p: any) => ({
+          ...p,
+          assets: Array.isArray(p.assets)
+            ? Object.fromEntries(p.assets.map((id: string) => [id, data.assets[id]]))
+            : undefined,
+        });
+        data.current = unpack(data.current);
+        data.past = data.past.map(unpack);
+        data.future = data.future.map(unpack);
+        data.version = 1;
+      }
       if (
         data.version !== 1 ||
         !Array.isArray(data.past) ||
         !Array.isArray(data.future) ||
         data.past.length + data.future.length > MAX_SAVED_STEPS ||
-        JSON.stringify(data.current) !== JSON.stringify(this.current)
+        JSON.stringify(parseProject(JSON.stringify(data.current))) !==
+          JSON.stringify(parseProject(JSON.stringify(this.current)))
       )
         return false;
-      const past = data.past.map((project: unknown) => projectSchema.parse(project));
-      const future = data.future.map((project: unknown) => projectSchema.parse(project));
+      const past = data.past.map((project: unknown) => parseProject(JSON.stringify(project)));
+      const future = data.future.map((project: unknown) => parseProject(JSON.stringify(project)));
       this.past = past;
       this.future = future;
       return true;
