@@ -147,6 +147,7 @@ export function ShapeProperties({
   thickness,
   onField,
   purpose,
+  constructionLine,
   onPurpose,
   name,
   onName,
@@ -167,6 +168,7 @@ export function ShapeProperties({
   thickness: string;
   onField: (key: string, value: string) => void;
   purpose: Body['purpose'];
+  constructionLine: boolean;
   onPurpose: (purpose: Body['purpose']) => void;
   name: string;
   onName: (name: string) => void;
@@ -259,6 +261,7 @@ export function ShapeProperties({
         Paksuus · mm
         <input
           aria-label="Muodon paksuus"
+          disabled={constructionLine}
           inputMode="decimal"
           value={thickness}
           onChange={(e) => onField('thickness', e.target.value)}
@@ -281,6 +284,7 @@ export function ShapeProperties({
         Piirtotapa
         <select
           aria-label="Piirtotapa"
+          disabled={constructionLine}
           value={surfaceMode}
           onChange={(e) => onSurfaceMode(e.target.value as typeof surfaceMode)}
         >
@@ -292,17 +296,23 @@ export function ShapeProperties({
       </label>
       <p className="muted">
         {frameLabel}.{' '}
-        {surfaceMode === 'new' || purpose !== 'model'
-          ? 'Muoto syntyy omaksi objektiksi. Aloituspinta toimii piirtotasona.'
-          : `Muokataan: ${editingBodyName}. Paksuus 0 jakaa pinnan, positiivinen lisää materiaalia ja negatiivinen leikkaa.`}
+        {constructionLine
+          ? 'Rakennusviiva ei jaa eikä leikkaa pintaa. Voit käyttää sitä piirtämisen ja mittaamisen apuna.'
+          : surfaceMode === 'new' || purpose !== 'model'
+            ? 'Muoto syntyy omaksi objektiksi. Aloituspinta toimii piirtotasona.'
+            : `Muokataan: ${editingBodyName}. Paksuus 0 jakaa pinnan, positiivinen lisää materiaalia ja negatiivinen leikkaa.`}
       </p>
-      {!editingBodyName && (
+      {!editingBodyName && !constructionLine && (
         <p className="muted">
           Pinnan jakaminen: avaa osa ensin tuplaklikkauksella tai Muokkaa osaa -painikkeella.
         </p>
       )}
       {purpose === 'construction' && (
-        <p className="muted">Sininen apumuoto tarjoaa tartunnat ja jää pois mittakuvasta.</p>
+        <p className="muted">
+          {constructionLine
+            ? 'Katkoviivana näkyvä ääriviiva tallentuu erikseen ja jää pois mittakuvasta ja renderöinnistä.'
+            : 'Sininen apumuoto tarjoaa tartunnat ja jää pois mittakuvasta.'}
+        </p>
       )}
       {purpose === 'drawing' && (
         <p className="muted">Piirros näkyy ääriviivoina ja tulee mukaan mittakuvaan.</p>

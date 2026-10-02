@@ -6,6 +6,20 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.8.1: **83 yksikkö-/CAD-testiä hyväksytty** ja **20/20 selaintapausta
+hyväksytty (5,4 min)** työpöytä- ja tablettiprofiileilla. Uudet kokeet
+varmentavat reunasta aloitetun mittauksen loppupään reuna-, keskipiste- ja
+nurkkakorostuksen sekä tarkan 283/323 mm tartunnan ruudukosta riippumatta.
+Myös X-lukko ja vapaan mittaviivan tallentuva loppupään reuna-ankkuri tarkistettiin.
+
+Rakennusviivasuorakulmio, ympyrä, ellipsi ja suljettu pystytason kynämuoto
+säilyttivät alkuperäisen osan täsmälleen ennallaan myös muokkaustilassa.
+Ääriviivan valinta, sisäpuolelta alla olevan osan valinta, tartuntapisteet,
+Peru/Palauta ja uudelleenavaus varmennettiin. Tavalliseen pintamuokkaukseen
+palaaminen tuotti edelleen oikean BRep-jaon. Regressiot kattavat apuviivojen
+risteykset, lähtömitat, kumituksen, R/Shift-kierron, perspektiivin kaikki
+siirtoakselit ja aiemmat muotoroolit. Kuvakaappaukset tarkistettiin.
+
 V0.8.0:n koonti: **83 yksikkö- ja CAD-testiä hyväksytty**, TypeScript,
 tuotantopaketointi ja koko repon muotoilutarkistus hyväksytty. Lisäkokeet
 varmentavat läpireiän sisäreunan 2 mm viisteen ja pyöristyksen; osan nimi,

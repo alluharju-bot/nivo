@@ -314,6 +314,15 @@ export default function App() {
   const [mode, setMode] = useState<'model' | 'drawing'>('model');
   const [fields, setFields] = useState<Fields>(defaults);
   const fieldsRef = useRef(fields);
+  const constructionLine =
+    shapePurpose === 'construction' &&
+    (() => {
+      try {
+        return parseLength(fields.thickness, true, true) === 0;
+      } catch {
+        return false;
+      }
+    })();
   const [draftId, setDraftId] = useState<string>(uid);
   const [axis, setAxis] = useState<Axis>();
   const [gridSnap, setGridSnap] = useState(true);
@@ -1010,7 +1019,9 @@ export default function App() {
     } else if (
       await editor.transact(
         { ...project, bodies: [...project.bodies, candidate] },
-        'Muoto valmis. Voit muokata pintaa E:llä tai käyttää kappaletta Cut/Join-työkalussa.',
+        candidate.purpose === 'construction' && !featureIsSolid(candidate.feature)
+          ? 'Rakennusviiva valmis. Osan pinta säilyi; viivan pisteet tarjoavat tartunnat.'
+          : 'Muoto valmis. Voit muokata pintaa E:llä tai käyttää kappaletta Cut/Join-työkalussa.',
       )
     )
       finishOperation(candidate.id);
@@ -2651,6 +2662,33 @@ export default function App() {
                 </button>
               </div>
             )}
+            {['rectangle', 'circle', 'pen'].includes(tool) && (
+              <div
+                className="guide-actions shape-mode-actions"
+                role="toolbar"
+                aria-label="Muodon toiminnot"
+              >
+                <button
+                  disabled={busy}
+                  aria-pressed={!constructionLine}
+                  onClick={() => setShapePurpose('model')}
+                >
+                  <Square size={15} />
+                  Kappale
+                </button>
+                <button
+                  disabled={busy}
+                  aria-pressed={constructionLine}
+                  onClick={() => {
+                    setShapePurpose('construction');
+                    field('thickness', '0');
+                  }}
+                >
+                  <Ruler size={15} />
+                  Mittaus/rakennusviiva
+                </button>
+              </div>
+            )}
             {tool === 'measure' && measureMenu && (
               <div className="measure-mode-menu" role="menu" aria-label="Mittatyökalun tila">
                 <button
@@ -2925,6 +2963,7 @@ export default function App() {
                       thickness={fields.thickness}
                       onField={field}
                       purpose={shapePurpose}
+                      constructionLine={constructionLine}
                       onPurpose={setShapePurpose}
                       name={shapeName}
                       onName={setShapeName}
@@ -3456,7 +3495,7 @@ export default function App() {
                   <span>
                     {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                   </span>
-                  <span>v0.8.0</span>
+                  <span>v0.8.1</span>
                 </div>
               </>
             )}

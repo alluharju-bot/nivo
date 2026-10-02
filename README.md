@@ -3,7 +3,8 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.8.0** tuo sisäkkäiset ryhmät, koko valinnan siirron ja kopioinnin,
+Versio **0.8.1** korjaa mittauksen loppupään tartunnat ja tuo muotojen
+**Mittaus/rakennusviiva**-pikavalinnan. Versio 0.8.0 toi sisäkkäiset ryhmät, koko valinnan siirron ja kopioinnin,
 tarkat CAD-viisteet ja pyöristykset sekä erillisen renderöintinäkymän ja PNG-viennin.
 Muokkaustila ja apuviivat ovat selkeämpiä: viivan valinta ei aloita siirtoa,
 apuviivojen risteyksiin voi tarttua ja kumitus poistaa myös apuviivan.
@@ -116,6 +117,29 @@ pinnoilla. Suorat ja kaarevat CAD-reunat ovat valittavissa. Yhdellä toiminnolla
 käsitellään yhden osan reunat; seuraava osa voidaan valita samalla työkalulla.
 Liian suuri mitta tai geometrian kannalta mahdoton reunayhdistelmä näyttää
 virheen ja säilyttää alkuperäisen osan. Hold suojaa myös tältä muokkaukselta.
+
+## Rakennusviivana piirtäminen
+
+Suorakulmion, ympyrän, ellipsin, monikulmion ja Kynän pienessä toimintovalikossa
+on **Mittaus/rakennusviiva**. Valitse se ennen piirtämistä tai kesken luonnoksen.
+Muoto syntyy nollapaksuiseksi apumuodoksi: katkoviivainen ääriviiva tarjoaa
+piste- ja keskipistetartunnat eikä jaa, leikkaa tai pursota alla olevaa osaa.
+Tämä toimii myös osan muokkaustilassa ja pystypinnalla. Kynän muoto suljetaan
+palaamalla alkupisteeseen tai Sulje muoto -painikkeella.
+
+**Kappale** palauttaa tavallisen piirtämisen. Muokkaustilassa se noudattaa
+Piirtotapa-valintaa kuten ennenkin. Rakennusviivan ääriviivaa napsauttamalla
+voi valita apumuodon; sen sisäpuolelta valitaan alla oleva osa. Apumuoto on myös
+kappalelistassa, joten sen voi nimetä, siirtää tai poistaa erikseen. Se tallentuu
+projektiin ja kuuluu Peru/Palauta-historiaan, mutta jää pois mittakuvasta ja
+renderöinnistä. Käyttö-valinnan aiemmat kolmiulotteiset apumuodot säilyvät tuettuina.
+
+Reunasta aloitettu mittaus tunnistaa myös loppupään reunan, nurkan ja reunan
+keskipisteen. Korostus näkyy poimitussa kohdassa, ja tarkka tartunta ohittaa
+ruudukon pyöristyksen. Rinnakkaisen apuviivan mitta on edelleen kohtisuora
+etäisyys lähtöreunasta; vapaa mittaviiva mittaa päätepisteiden välin.
+
+![Erillinen rakennusviiva säilyttää levyn pinnan ehjänä](docs/images/nivo-construction.png)
 
 ## Renderöinti ja kuvavienti
 

@@ -188,7 +188,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const reference = !!props.editingBodyId && !context;
       const target = props.tool === 'boolean' && props.booleanTargets.includes(data.id),
         cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
-        auxiliary = body.purpose === 'construction' || body.purpose === 'drawing';
+        auxiliary = body.purpose === 'construction' || body.purpose === 'drawing',
+        constructionLine = body.purpose === 'construction' && !featureIsSolid(body.feature);
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
@@ -223,7 +224,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           polygonOffsetFactor: 1,
           polygonOffsetUnits: 1,
           transparent: auxiliary || cutter,
-          opacity: cutter ? 0.22 : auxiliary ? 0.035 : 1,
+          opacity: constructionLine ? 0 : cutter ? 0.22 : auxiliary ? 0.035 : 1,
           depthWrite: !auxiliary && !cutter,
           depthTest: !cutter,
         });
@@ -234,6 +235,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       // Parts still cast a ground shadow; their own surfaces use stable direct lighting.
       mesh.receiveShadow = false;
       mesh.userData = { id: body.id, faces: data.faces, purpose: body.purpose };
+      if (constructionLine) mesh.raycast = () => {};
       bodies.add(mesh);
       const edges = new THREE.BufferGeometry();
       edges.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
@@ -268,7 +270,16 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           depthTest: !cutter,
         }),
       );
-      outline.userData = { id: body.id };
+      if (constructionLine) {
+        outline.material.dispose();
+        outline.material = new THREE.LineDashedMaterial({
+          color: selected ? '#267e65' : '#487b91',
+          dashSize: 8,
+          gapSize: 4,
+        });
+        outline.computeLineDistances();
+      }
+      outline.userData = { id: body.id, constructionLine };
       bodies.add(outline);
       if (context) {
         const editBounds = bounds([body]);
@@ -586,6 +597,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     }
     const body = current().preview;
     if (body) {
+      const constructionLine = body.purpose === 'construction' && !featureIsSolid(body.feature);
       const { width, depth, height } = body.feature;
       let geometry: THREE.BufferGeometry;
       const position = new THREE.Vector3(...body.origin);
@@ -633,7 +645,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         new THREE.MeshBasicMaterial({
           color: '#3b967a',
           transparent: true,
-          opacity: 0.22,
+          opacity: constructionLine ? 0 : 0.22,
           depthWrite: false,
           side: THREE.DoubleSide,
           polygonOffset: true,
@@ -645,9 +657,17 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       ghost.add(mesh);
       const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(geometry),
-        new THREE.LineBasicMaterial({ color: '#17755d', depthTest: false }),
+        constructionLine
+          ? new THREE.LineDashedMaterial({
+              color: '#487b91',
+              dashSize: 8,
+              gapSize: 4,
+              depthTest: false,
+            })
+          : new THREE.LineBasicMaterial({ color: '#17755d', depthTest: false }),
       );
       edges.position.copy(position);
+      if (constructionLine) edges.computeLineDistances();
       ghost.add(edges);
     }
     render();

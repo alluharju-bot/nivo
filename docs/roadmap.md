@@ -172,3 +172,16 @@ tyhjän tilan turvallinen tuplaklikkauspoistuminen, apuviivan lähtöetäisyys,
 3D-risteystartunnat sekä viivan valinta, toimintovalikko ja kumitus. Koko
 mallin oikean painikkeen kontekstivalikko on jatkokehitystä; kameran oikealla
 painikkeella tehtävä kierto säilyy nykyisellään.
+
+## Toteutettu v0.8.1: loppupään mittatartunta ja rakennusviivamuodot
+
+Reunasta aloitetun apuviivan loppupää tunnistaa reunan, nurkan ja keskipisteen;
+korostus jää osoitettuun kohteeseen. Tarkka geometrinen tartunta ohittaa
+ruudukon pyöristyksen. Vapaa mittaviiva voi tallentaa loppupään reuna-ankkurin.
+
+Muototyökalujen toimintovalikon Mittaus/rakennusviiva tuottaa tasomaisen
+katkoviivaääriviivan erilliseksi apumuodoksi. Pohjana oleva kappale pysyy
+muuttumattomana myös muokkaustilassa. Suorakulmio, ympyrä, ellipsi, säännöllinen
+monikulmio ja suljettu kynämuoto käyttävät samaa toimintoa. Kappale-valinta
+palauttaa normaalin piirtotavan. Apumuodot tallentuvat ja ovat peruttavissa,
+mutta ne eivät tule mittakuvaan tai renderöintiin.

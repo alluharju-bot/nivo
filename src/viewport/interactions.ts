@@ -3,7 +3,13 @@ import { faceDepthSnap } from '../model/extrusion';
 import { formatLength } from '../model/units';
 import * as THREE from 'three';
 import type { BodyMesh, FaceTarget, BoundaryTarget } from '../cad/protocol';
-import type { Anchor, Axis, Vec3, WorkPlane } from '../model/project';
+import {
+  featureIsSolid,
+  type Anchor,
+  type Axis,
+  type Vec3,
+  type WorkPlane,
+} from '../model/project';
 import {
   planeAxes,
   resolveAnchor,
@@ -303,7 +309,11 @@ export function installInteractions({
     show(snapped);
     return snapped.point;
   };
-  const nearest = (event: PointerEvent, verticesOnly = false) => {
+  const nearest = (
+    event: PointerEvent,
+    verticesOnly = false,
+    accepts: (point: Vec3) => boolean = () => true,
+  ) => {
     const props = current(),
       rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
@@ -333,6 +343,7 @@ export function installInteractions({
             : []),
         ];
     return points
+      .filter((p) => accepts(p.point))
       .map((p) => ({
         ...p,
         distance: Math.hypot(screen(p.point).x - x, screen(p.point).y - y),
@@ -352,9 +363,24 @@ export function installInteractions({
   };
   const faceAt = (event: PointerEvent) => {
     setRay(event);
-    const hit = raycaster
-      .intersectObjects(bodies.children)
-      .find((h) => h.object instanceof THREE.Mesh);
+    raycaster.params.Line.threshold = worldPerPixel(current().bodies[0]?.origin ?? [0, 0, 0]) * 6;
+    const hits = raycaster.intersectObjects(bodies.children);
+    let hit = hits.find((h) => h.object instanceof THREE.Mesh);
+    // A flat construction shape is selectable by its outline; its interior
+    // remains transparent to face picking, including E/O and sketch planes.
+    if (['select', 'move'].includes(current().tool)) {
+      const outline = hits.find((h) => h.object.userData.constructionLine);
+      if (
+        outline &&
+        (!hit || outline.distance <= hit.distance + worldPerPixel(outline.point.toArray() as Vec3))
+      ) {
+        const surface = bodies.children.find(
+          (object) =>
+            object instanceof THREE.Mesh && object.userData.id === outline.object.userData.id,
+        );
+        if (surface) hit = { ...outline, object: surface, faceIndex: 0 };
+      }
+    }
     if (!hit) return;
     const data = current().meshes.find((m) => m.id === hit.object.userData.id),
       index = (hit.faceIndex ?? 0) * 3;
@@ -406,6 +432,9 @@ export function installInteractions({
           raycaster.ray.origin.distanceTo(new THREE.Vector3(...vertex.point)) -
             worldPerPixel(vertex.point) * 2)
     ) {
+      const body = current().bodies.find((b) => b.id === vertex.anchor.bodyId);
+      if (hit?.face.planar && body?.purpose === 'construction' && !featureIsSolid(body.feature))
+        return hit.target;
       const mesh = current().meshes.find((m) => m.id === vertex.anchor.bodyId);
       const towardCamera = raycaster.ray.direction.clone().negate().toArray() as Vec3;
       // A corner can miss the triangle mesh or belong to several faces. Pick
@@ -593,7 +622,7 @@ export function installInteractions({
     canvas.dataset.detailHover = hover ? `${hover.bodyId}:${hover.index}` : '';
     render();
   };
-  const edgeAt = (event: PointerEvent) => {
+  const edgeAt = (event: PointerEvent, accepts: (point: Vec3) => boolean = () => true) => {
     setRay(event);
     const rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
@@ -629,6 +658,7 @@ export function installInteractions({
         undefined,
         point,
       );
+      if (!accepts(point.toArray() as Vec3)) return false;
       const projected = point.clone().project(camera());
       const visibility = new THREE.Raycaster();
       visibility.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
@@ -720,6 +750,25 @@ export function installInteractions({
           Number(b.intersection) - Number(a.intersection) || distance(a.point) - distance(b.point),
       )
       .at(0);
+  };
+  // Both endpoints use the same screen-space candidates. Filter before choosing
+  // the nearest point so an off-plane corner cannot mask an eligible midpoint.
+  const measureTargetAt = (
+    event: PointerEvent,
+    accepts: (point: Vec3) => boolean,
+  ): (Snap & { anchor?: Anchor }) | undefined => {
+    const point = nearest(event, false, accepts);
+    const edge = point ? undefined : edgeAt(event, accepts);
+    const guide = !point && !edge ? guideAt(event) : undefined;
+    highlightEdge(edge?.edge);
+    if (point) {
+      const vertex = current()
+        .meshes.flatMap((m) => m.verticesCAD)
+        .find((v) => v.point.every((n, i) => Math.abs(n - point.point[i]) < 1e-6));
+      return { ...point, anchor: vertex?.anchor ?? { point: point.point } };
+    }
+    if (edge) return { point: edge.point, key: 'edge-target', label: 'Reuna', anchor: edge.anchor };
+    if (guide && accepts(guide.point)) return guide;
   };
   const selectableGuideAt = (event: PointerEvent) => {
     setRay(event);
@@ -1048,34 +1097,29 @@ export function installInteractions({
           ? framePoint(event, measureSession.frame)
           : planePoint(event, plane, start);
       if (!raw) return;
-      let guideSnap = guideAt(event);
       const normal =
         measureSession.frame?.normal ?? axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
-      if (guideSnap && Math.abs(dot(sub(guideSnap.point, start), normal)) > 1e-5)
-        guideSnap = undefined;
-      // A guide close in screen space can be far from the locked axis in 3D.
-      // Projecting such a point onto the axis would erase the intended offset.
-      if (
-        guideSnap &&
-        axis &&
-        Math.hypot(...sub(guideSnap.point, projectOnLine(guideSnap.point, start, axis))) > 1e-5
-      )
-        guideSnap = undefined;
-      if (guideSnap) raw = axis ? projectOnLine(guideSnap.point, start, axis) : guideSnap.point;
+      const target = measureTargetAt(
+        event,
+        (point) =>
+          Math.abs(dot(sub(point, start), normal)) < 1e-5 &&
+          (!axis || Math.hypot(...sub(point, projectOnLine(point, start, axis))) < 1e-5),
+      );
+      if (target) raw = target.point;
       else if (!axis && measureSession.frame) raw = frameSnap(raw, measureSession.frame);
       let offset = axis ? sub(raw, start) : sub(raw, projectOnLine(raw, start, direction));
-      if (axis && props.gridSnap && !guideSnap)
+      if (axis && props.gridSnap && !target)
         offset = scale(axis, Math.round(dot(offset, axis) / 10) * 10);
       const end = add(start, offset);
       show(
         {
-          point: end,
-          key: 'edge-offset',
-          label: guideSnap
-            ? guideSnap.label
-            : axis
+          point: target?.point ?? end,
+          key: target?.key ?? 'edge-offset',
+          label:
+            target?.label ??
+            (axis
               ? `${props.axis!.toUpperCase()} · Siirtosuunta lukittu`
-              : 'Reunan suuntainen apuviiva',
+              : 'Reunan suuntainen apuviiva'),
           line: [start, end],
         },
         plane,
@@ -1095,35 +1139,30 @@ export function installInteractions({
     if (axis && !isEdge) plane = planeForDirection(axis, plane);
     const raw = axis && !isEdge ? linePoint(event, start, axis) : planePoint(event, plane, base);
     if (!raw) return;
-    const found = vertexAt(event);
-    const vertex =
-      found &&
-      Math.abs(
-        found.point[planeAxes[measureSession.plane][2]] - start[planeAxes[measureSession.plane][2]],
-      ) < 1e-5
-        ? found
-        : undefined;
-    const guideSnap = guideAt(event);
-    const onPlane =
-      guideSnap &&
-      Math.abs(guideSnap.point[planeAxes[plane][2]] - start[planeAxes[plane][2]]) < 1e-5;
-    const end =
-      vertex && !axis
-        ? vertex.point
-        : onPlane
-          ? axis
-            ? projectOnLine(guideSnap.point, start, axis)
-            : guideSnap.point
-          : axis
-            ? raw
-            : snap(raw, plane);
-    if (onPlane) show({ ...guideSnap, point: end });
+    const target = measureTargetAt(
+      event,
+      (point) =>
+        Math.abs(point[planeAxes[plane][2]] - start[planeAxes[plane][2]]) < 1e-5 &&
+        (!axis || Math.hypot(...sub(point, projectOnLine(point, start, axis))) < 1e-5),
+    );
+    const end = target?.point ?? (axis ? raw : snap(raw, plane));
+    if (target) show(target, plane);
+    else if (axis)
+      show(
+        { point: end, key: 'axis', label: `${props.axis!.toUpperCase()} · Siirtosuunta lukittu` },
+        plane,
+      );
     const from = props.freeRotate ? base : start;
     const direction =
       (!isEdge && axis) ||
       guideDirection(
         plane,
-        angleBetween(from, end, plane, props.freeRotate || shift || props.measureMode === 'free'),
+        angleBetween(
+          from,
+          end,
+          plane,
+          !!target || props.freeRotate || shift || props.measureMode === 'free',
+        ),
       );
     props.onGesture({
       type: 'measure',
@@ -1131,7 +1170,7 @@ export function installInteractions({
       end,
       plane,
       freeAngle: shift || props.freeRotate,
-      endAnchor: vertex?.anchor,
+      endAnchor: target?.anchor,
       direction,
       edgeLength: measureSession.edgeLength,
     });
@@ -1806,9 +1845,7 @@ export function installInteractions({
           drag = undefined;
           return;
         }
-        const hit = raycaster
-          .intersectObjects(bodies.children)
-          .find((h) => h.object instanceof THREE.Mesh);
+        const hit = faceAt(event)?.hit;
         if (hit) {
           const faces = hit.object.userData.faces as BodyMesh['faces'],
             index = (hit.faceIndex ?? 0) * 3;

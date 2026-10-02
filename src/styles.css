@@ -2787,3 +2787,10 @@ p {
     border-top: 1px solid var(--line);
   }
 }
+
+.shape-mode-actions {
+  border-radius: 24px;
+}
+.shape-mode-actions button {
+  border-radius: 19px;
+}

@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.8.0
+# Arkkitehtuuri — v0.8.1
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -365,3 +365,16 @@ PNG-vienti piirtää nykyisen perspektiivikameran valittuun pikselileveyteen,
 säilyttää kuvasuhteen ja palauttaa interaktiivisen piirtoalueen koon. Näkymä
 piirretään vain muutoksissa; sulkeminen vapauttaa geometriat, materiaalit,
 tekstuurit, ympäristökartan, varjokartan, kuuntelijat ja WebGL-renderöijän.
+
+Mittauksen loppupään `measureTargetAt` kokoaa CAD-pisteet, reunat ja apuviivat
+samassa näytön pikselietäisyyteen perustuvassa poiminnassa. Aktiivisen tason ja
+akselilukon kelpoisuus tarkistetaan ennen lähimmän kohteen valintaa. Poimittu
+kohde säilyttää oman korostuksensa, vaikka rinnakkaisen apuviivan etäisyys
+lasketaan kohtisuoraan lähtöreunasta. Vapaa mittaviiva tallentaa myös
+loppupääksi poimitun CAD-reunan ankkurin.
+
+Rakennusviivat käyttävät olemassa olevaa `purpose: construction` -roolia ja
+nollapaksuista profiilia. Uutta tiedostoformaattia ei tarvita. Näkymä piirtää
+vain katkoviivaisen ääriviivan; CAD-pinta säilyy tartuntapisteiden laskentaan,
+mutta sen raycast ohitetaan. Valinta ja siirto poimivat ääriviivan erikseen.
+Pintatyökalut ja piirtotason poiminta tavoittavat alla olevan oikean kappaleen.
