@@ -6,6 +6,24 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.8.4: **91 yksikkö-/CAD-testiä hyväksytty**. Kameran laskentakokeet
+varmentavat näkyvän valinnan yhteisen keskuksen, muokkaustilan etusijan,
+zoomin työskentelysyvyyden ja sivussa olevan kiertokeskuksen säilymisen sekä
+perspektiivissä että ortografisessa näkymässä. TypeScript, tuotantopaketointi
+ja repon muotoilutarkistus hyväksytty.
+
+Kameran ja navigoinnin selainajo: **14/14 hyväksytty (1,7 min)** työpöytä-
+ja tablettiprofiileissa; kaksi vain kosketukselle tarkoitettua tapausta rajattiin
+työpöydältä pois. Rullazoomauksen lähennys ja loitonnus säilyttävät osoitetun
+pisteen alle yhden CSS-pikselin tarkkuudella (selaimen wheel-tapahtuman
+koordinaatit pyöristyvät pikseleiksi). Valinta ja muokkaustila säilyttävät
+kameran sijainnin ja suunnan, ryhmä käyttää yhteistä keskusta, tyhjä klikkaus
+säilyttää muokattavan osan keskuksen, kierto toimii myös kohdistinzoomauksen
+jälkeen ja panorointi pysyy vapaana. Kahden sormen zoomaus pitää sormien
+keskipisteen vakaana eikä sulje muokkaustilaa. Aiemmat muokkaustilan piirto-,
+viitepiste-, kahden sormen keskeytys- ja kaukaisen ruudukon kokeet hyväksytty.
+Paikallinen kehityspalvelin vastasi HTTP 200 portissa 5173.
+
 V0.8.3: **87 yksikkö-/CAD-testiä hyväksytty**. Uusi koonvetolaskennan koe
 varmentaa napsautuskynnyksen, vakaan suunnan, suunnanvaihdon ja pienentämisen
 alkumitan alle, kameran mittakaavan sekä sallitut rajat. TypeScript ja

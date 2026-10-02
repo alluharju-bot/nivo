@@ -16,6 +16,7 @@ import { rotationHandles } from '../model/rotationHandles';
 import { dot, unit } from '../model/geometry';
 import { createWorkspaceGrid } from './workspaceGrid';
 import { createModelDimensions } from './modelDimensions';
+import { installCameraNavigation } from './cameraNavigation';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   sync: () => void;
@@ -60,6 +61,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   controls.minDistance = 2;
   controls.maxDistance = 250_000;
   controls.screenSpacePanning = true;
+  const navigation = installCameraNavigation(controls, renderer.domElement);
   const labels: { element: HTMLDivElement; point: THREE.Vector3; xray: boolean }[] = [];
   const extrusionLabels: typeof labels = [];
   let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
@@ -86,6 +88,13 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().axisLabels,
     );
     renderer.render(scene, camera);
+    renderer.domElement.dataset.camera = JSON.stringify({
+      position: camera.position.toArray(),
+      quaternion: camera.quaternion.toArray(),
+      projection: camera.projectionMatrix.toArray(),
+      target: controls.target.toArray(),
+      zoom: camera.zoom,
+    });
     modelDimensions.update(
       current().bodies,
       current().dimensions,
@@ -169,6 +178,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const sync = () => {
     disposeGroup(bodies);
     const props = current();
+    navigation.sync(props.bodies, props.selectedIds, props.editingBodyId);
     renderer.domElement.dataset.selectionKind = props.selectedFace
       ? 'face'
       : props.selectedIds.length
@@ -859,6 +869,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     command,
     dispose() {
       observer.disconnect();
+      navigation.dispose();
       controls.dispose();
       interactions.dispose();
       disposeGroup(guides);

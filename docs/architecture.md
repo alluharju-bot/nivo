@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.8.3
+# Arkkitehtuuri — v0.8.4
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -246,6 +246,14 @@ jotta värin selaaminen ei täytä undo-historiaa.
 Pointer Events kattaa hiiren, kosketuksen ja kynän. Napautus valitsee.
 Yksi sormi käyttää työkalua; toinen sormi keskeyttää muokkausvedon ja vaihtaa
 panorointiin/zoomaukseen. Navigoi-tila tarjoaa orbitoinnin yhdellä sormella.
+OrbitControlsin kohdistinzoomaus toimii perspektiivissä ja ortografisessa
+näkymässä; kosketus käyttää kahden sormen keskipistettä. `cameraNavigation`
+laskee keskuksen näkyvän valinnan rajalaatikosta, ensisijaisesti muokattavasta
+osasta. Zoomin syvyysviite projisoidaan kameran katseluakselille muuttamatta
+kameran sijaintia tai suuntaa. Kiertoliikkeen aikana keskus säilytetään kameran
+paikallisissa koordinaateissa siirtämällä kameraa ja OrbitControlsin targetia
+yhdessä. Näin sivussa oleva valittu osa toimii kiertokeskuksena ilman
+valinnan aiheuttamaa näkymän hyppyä. Panorointi säilyy vapaana.
 Keskeiset painikkeet ovat kosketuksella vähintään 44 CSS-pikseliä.
 Tartunnat suosivat todellisia verteksiä ja reunojen keskipisteitä ennen
 apuviivoja, viitteen suuntia ja 45° ennakointia. Hystereesi vähentää värähtelyä.

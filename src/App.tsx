@@ -3606,7 +3606,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.8.3</span>
+                    <span>v0.8.4</span>
                   </div>
                 </>
               )}
@@ -3805,8 +3805,10 @@ export default function App() {
               sormea panoroi ja zoomaa. Navigoi-työkalulla yksi sormi kiertää.
             </p>
             <p>
-              <strong>Hiiri:</strong> oikea painike kiertää, keskipainike panoroi ja rulla zoomaa.
-              Navigoi-työkalulla myös vasen painike kiertää.
+              <strong>Hiiri:</strong> oikea painike kiertää, keskipainike panoroi ja rulla zoomaa
+              kohdistimeen. Valittu osa tai ryhmä toimii kameran kiertokeskuksena. Muokkaustilassa
+              kamera käyttää muokattavaa osaa. Valinta säilyttää näkymän rajauksen; Sovita näkymään
+              keskittää valinnan. Navigoi-työkalulla myös vasen painike kiertää.
             </p>
             <p>
               <strong>Säilytä työsi:</strong> automaattitallennus palauttaa työn tässä selaimessa.

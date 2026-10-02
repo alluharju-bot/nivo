@@ -212,3 +212,30 @@ perustyökalua ja noudattaa E/O-työkalujen tuttua veto- ja numerosyöttöä.
 - Kosketuksen toinen sormi keskeyttää vedon. Historia ja tiedostomuoto säilyvät.
 - Jälkikäteen muokattavat reunaparametrit, erimittaiset viisteet ja
   tangenttiketjujen valinta jäävät jatkokehitykseen.
+
+## Toteutettu v0.8.4: kohdistinzoomaus ja valinnan kamerakeskus
+
+- Rulla zoomaa kohdistimeen perspektiivissä ja rinnakkaisprojektiossa;
+  kahden sormen zoomaus käyttää sormien keskipistettä.
+- Valinnan yhteinen keskipiste ohjaa kameran kiertoa ja zoomin työskentelysyvyyttä.
+  Muokattava osa on ensisijainen myös silloin, kun valinta tyhjenee.
+- Valinta ei siirrä kameraa eikä käännä katselusuuntaa. Erillinen Sovita näkymään
+  säilyy tapana keskittää ja sovittaa valinta. Panorointi toimii edelleen.
+
+## Seuraava reunakäsittely: jatkuvat kulmaliitokset (korkea prioriteetti)
+
+Kaapin etureunan pyöristys voi estää viereisen lyhyen reunan käsittelyn
+seuraavassa operaatiossa. Nykyinen CAD-ydin osaa käsitellä useita reunoja
+yhdessä, mutta Nivo säilyttää hyväksynnän jälkeen vain tulosgeometrian,
+ei alkuperäisiä pyöristysparametreja. Tämä erotetaan kulmatyypin valinnasta.
+
+- Säilytä lähde ja reunakäsittelyn parametrit, jotta kohtaavia reunoja voidaan
+  lisätä samaan pyöristyskokonaisuuteen ja laskea kulmaliitos uudelleen.
+- Tavoite: kolmen reunan Rolling Ball -liitos toimii myös jatkettaessa aiempaa
+  käsittelyä. Neljän reunan tapaukset ja eri säteet varmennetaan geometrian mukaan.
+- Setback on vaihtoehtoinen pehmeä siirtymä; sen toteutuskelpoisuus nykyisellä
+  ytimellä tutkitaan erikseen. Tangenttiketjun valinta on erillinen toiminto.
+- Viisteiden kohtaaminen käsitellään omana tapauksena. Mahdoton säde tai
+  leikkaava siirtymä ei saa rikkoa alkuperäistä osaa tai muuttaa mittaa hiljaisesti.
+- Hyväksyntä: etureuna ensin, sitten siihen liittyvät lyhyet sivureunat;
+  tarkka esikatselu, muuttaminen, Peru/Palauta sekä tallennus ja uudelleenavaus.

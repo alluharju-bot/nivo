@@ -3,7 +3,8 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.8.3** tuo viisteiden ja pyöristysten suoran hiiri- ja kosketussäädön.
+Versio **0.8.4** tuo kohdistimeen zoomauksen ja valittuun osaan sidotun kameran.
+Versio 0.8.3 toi viisteiden ja pyöristysten suoran hiiri- ja kosketussäädön.
 Versio 0.8.2 selkeytti kappalelistan ja lisäsi ryhmiin raahauksen; 0.8.1 toi
 muotojen **Mittaus/rakennusviiva**-pikavalinnan. Sisäkkäiset ryhmät, yhteinen
 siirto ja kopiointi sekä renderöintinäkymä ja PNG-vienti ovat myös käytettävissä.
@@ -388,8 +389,13 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
 - Napautus valitsee. Työkalun yhden sormen veto hyväksytään sormen noustessa.
   Kosketuksella **Poimi viite** ja pisteen napautus korvaavat Shiftillä poimimisen.
 - Kahden sormen ele panoroi ja zoomaa. **Navigoi**-tilassa yksi sormi kiertää.
-- Hiiren oikea painike kiertää, keskipainike panoroi ja rulla zoomaa.
+- Hiiren oikea painike kiertää, keskipainike panoroi ja rulla zoomaa kohdistimeen.
   Navigoi-tilassa myös vasen painike kiertää.
+- Valittu osa tai ryhmä toimii kameran kiertokeskuksena ja zoomin syvyysviitteenä.
+  Muokkaustilassa keskus säilyy muokattavassa osassa myös valinnan tyhjentyessä.
+  Valitseminen ei hyppäytä näkymää; **Sovita näkymään** keskittää valinnan erikseen.
+  Kohdistin määrää zoomin suunnan sekä perspektiivissä että rinnakkaisprojektiossa.
+  Kosketuszoomauksessa käytetään sormien keskipistettä.
 - V = valitse, S = suorakulmio, R = kierrä (apuviivaa muokattaessa viivan kierto),
   O = Offset, E = push/pull, G = kiinnitä/vapauta, M = siirrä, K = kynä,
   C = ympyrä/muut muodot, B = Muotoile (Cut/Join), T = mittatyökalu, H = navigoi.
