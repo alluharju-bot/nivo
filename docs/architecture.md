@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.8.2
+# Arkkitehtuuri — v0.8.3
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -398,3 +398,24 @@ Listan oma vieritys pysyy erillään valinnan/työkalun vierityksestä.
 ObjectTree on samassa kohdassa työkalusta riippumatta: suljetut ryhmät eivät
 avaudu itsestään työkalua vaihdettaessa. Ryhmän päälle pudottaminen avaa
 kohderyhmän. Harvemmin käytetyt ominaisuudet ovat natiiveissa details-osioissa.
+
+## Reunakäsittelyn veto v0.8.3
+
+`sizeDrag` lukitsee ruutusuunnan 4 px liikkeen jälkeen ja muuntaa etumerkillisen
+siirtymän millimetreiksi vedon aloituspisteen kameramittakaavassa. Kamerasta
+kohti osoittava tai kaareva reuna ei vaadi projektiotason leikkausta. Vastaliike
+pienentää mittaa, ja puhdas napsautus säilyy reunavalintana.
+
+Viewport säilyttää poimitun CAD-reunan eleen loppuun asti. Veto varmistaa
+reunan kuulumisen valintaan poistamatta muita valittuja reunoja. Numerosyöttö
+käyttää samaa offset-kentän lukkoa kuin nykyiset työkalut; uusi veto avaa lukon.
+Pointercancel, ikkunan blur ja toinen kosketus palauttavat vetoa edeltäneen
+valinnan, mitan ja numerolukon. Esc käyttää tavallista eleen nollausta.
+
+`useEdgeDetailPreview` pitää enintään yhden CAD-pyynnön käynnissä ja yhden
+uusimman odottamassa. Edellinen kelvollinen saman kohteen esikatselu jää
+näkyviin uuden laskennan ajaksi; tulos kantaa todellisen esikatselukokonsa.
+Eri kohteen, operaation tai reunavalinnan tulos ei vuoda seuraavaan eleeseen.
+Virheellinen syöte/geometria palauttaa alkuperäisen näkymän. Vapautus ja Enter
+laskevat aina hyväksyttävän geometrian viimeisimmästä kenttäarvosta, eivät
+vanhasta esikatselusta. Yksi hyväksyntä tekee yhden historiatransaktion.

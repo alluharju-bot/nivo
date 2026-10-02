@@ -65,8 +65,8 @@ Mitoituksen jatkokehitys: vapaasti poimitut kaksi pistettä, vinon reunan oma
 pituus, halkaisija/säde ja kulma, mittalapun siirtäminen sekä usean näkymän arkit.
 
 Viisteiden, pyöristysten ja ryhmähierarkian ensimmäinen versio on toteutettu
-v0.8.0:ssa. Seuraavaksi reunakäsittelyn hiirisäätö ja jälkikäteen muokattavat
-parametrit, laajempi mitoitus ja referenssikuvan kalibrointi. Fyysinen tabletti
+v0.8.0:ssa, ja reunakäsittelyn hiiri-/kosketussäätö v0.8.3:ssa. Seuraaviksi
+jäävät jälkikäteen muokattavat parametrit, laajempi mitoitus ja referenssikuvan kalibrointi. Fyysinen tabletti
 ja Safari varmennetaan erikseen. Linkitetyt komponentit seuraavat myöhemmin.
 
 ## Toteutettu v0.7.0: osan muokkaustila ja geometrian korjaus
@@ -110,8 +110,8 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
 - Virheellinen mitta tai mahdoton geometria säilyttää alkuperäisen osan.
   Osan ja ryhmän Hold estää muokkauksen. Nimi, väri, ryhmä ja säilyvät viitteet
   pysyvät mukana; historia ja tarkka BRep tallentuvat.
-- Jatkokehitys: hiirellä vetäminen, parametristen reunakäsittelyjen muuttaminen
-  myöhemmin, erimittaiset viisteet ja tangentiaalisten reunaketjujen valinta.
+- Hiirellä vetäminen valmistui v0.8.3:ssa. Jatkokehitys: parametristen reunakäsittelyjen
+  muuttaminen myöhemmin, erimittaiset viisteet ja tangentiaalisten reunaketjujen valinta.
   Olennaisia seuraavia detaljeja ovat poraukset, upotukset ja toistokuviot.
 
 ## Toteutettu v0.8.0: renderöinnin ensimmäinen versio
@@ -195,3 +195,20 @@ mutta ne eivät tule mittakuvaan tai renderöintiin.
   Näkyvyys ja Hold pysyvät riveillä, purkaminen siirtyi ryhmän asetuksiin.
 - Lista pysyy paneelin yläosassa, valinnan tiedot ja työkalut sen alla.
   Väri, sijainti, nimeäminen/ryhmä ja mallinnuksen lisätoiminnot avataan tarvittaessa.
+
+## Toteutettu v0.8.3: viisteiden ja pyöristysten suora säätö
+
+Valittu seuraavaksi kokonaisuudeksi, koska se viimeistelee korkean prioriteetin
+perustyökalua ja noudattaa E/O-työkalujen tuttua veto- ja numerosyöttöä.
+
+- F → veto reunasta säätää sädettä tai viisteen kokoa. Vapautus hyväksyy,
+  Enter toimii myös numerosyötön jälkeen ja Esc peruu.
+- Napsautus säilyy monivalintana. Jo valitusta reunasta veto säätää koko
+  reunavalintaa; kirjoitettu mitta lukitsee koon vedon loppuun asti.
+- Vakaa aloitussuunta ja kameran mittakaava, palautetta reunan vieressä,
+  CAD-esikatselussa ja samassa sivupaneelissa. Ei uutta työkalua tai valikkoa.
+- Viimeisin koko lasketaan hyväksyttäessä tarkasti. Virheellinen mitta säilyttää
+  alkuperäisen geometrian; Hold ja osan muokkauskonteksti pysyvät voimassa.
+- Kosketuksen toinen sormi keskeyttää vedon. Historia ja tiedostomuoto säilyvät.
+- Jälkikäteen muokattavat reunaparametrit, erimittaiset viisteet ja
+  tangenttiketjujen valinta jäävät jatkokehitykseen.

@@ -1,4 +1,5 @@
 import { offsetDirection } from '../model/faceBoundary';
+import { dragSize, type SizeDrag } from '../model/sizeDrag';
 import { faceDepthSnap } from '../model/extrusion';
 import { formatLength } from '../model/units';
 import * as THREE from 'three';
@@ -158,6 +159,18 @@ export function installInteractions({
     face?: FaceTarget;
     sketch?: SketchFrame;
     bodyId?: string;
+  };
+  let detailSession:
+    | (SizeDrag & {
+        edge: { bodyId: string; index: number; point: Vec3 };
+        pointerId: number;
+        started: boolean;
+      })
+    | undefined;
+  const cancelDetailDrag = () => {
+    if (detailSession?.started) current().onDetailDragCancel();
+    detailSession = undefined;
+    canvas.dataset.detailDragging = '';
   };
   let shapeSession: Drag | undefined;
   let offsetSession: { target: FaceTarget; direction: Vec3; initial: number } | undefined;
@@ -622,6 +635,30 @@ export function installInteractions({
     canvas.dataset.detailHover = hover ? `${hover.bodyId}:${hover.index}` : '';
     render();
   };
+  const showDetailSize = (size = current().detailSize) => {
+    if (!detailSession?.started) return;
+    const label = current().detailOperation === 'fillet' ? 'Säde' : 'Viiste';
+    show({
+      point: detailSession.edge.point,
+      key: 'edge-detail',
+      label: `${label} ${Number.isFinite(size) ? formatLength(size) + ' mm' : '—'}${current().detailSizeLocked ? ' · lukittu' : ''}`,
+    });
+    highlightDetail(detailSession.edge);
+  };
+  const updateDetail = (event: PointerEvent) => {
+    const active = detailSession;
+    if (!active || event.pointerId !== active.pointerId) return;
+    const size = dragSize(active, event.clientX, event.clientY);
+    if (size === undefined) return;
+    const starting = !active.started;
+    if (starting) {
+      active.started = true;
+      current().onDetailEdge(active.edge.bodyId, active.edge.index, true);
+    }
+    canvas.dataset.detailDragging = active.edge.bodyId;
+    current().onGesture({ type: 'detail', size });
+    showDetailSize(!starting && current().detailSizeLocked ? current().detailSize : size);
+  };
   const edgeAt = (event: PointerEvent, accepts: (point: Vec3) => boolean = () => true) => {
     setRay(event);
     const rect = canvas.getBoundingClientRect(),
@@ -959,6 +996,8 @@ export function installInteractions({
       drag = undefined;
       rotationDrag = undefined;
       offsetSession = undefined;
+      detailSession = undefined;
+      canvas.dataset.detailDragging = '';
       extrudeSession = undefined;
       shapeSession = undefined;
       canvas.dataset.depthTarget = '';
@@ -1010,8 +1049,10 @@ export function installInteractions({
         else if (current().tool === 'measure' && measureSession) updateMeasure(lastEvent);
       }
     }
-    if (current().tool === 'detail')
-      highlightDetail(lastEvent ? detailEdgeAt(lastEvent) : undefined);
+    if (current().tool === 'detail') {
+      if (detailSession?.started) showDetailSize();
+      else highlightDetail(lastEvent ? detailEdgeAt(lastEvent) : undefined);
+    }
   };
   const updatePen = (event: PointerEvent): Vec3 | undefined => {
     const props = current(),
@@ -1254,6 +1295,7 @@ export function installInteractions({
     }
     pointers.add(event.pointerId);
     if (pointers.size > 1) {
+      cancelDetailDrag();
       emptySelectionClicks = 0;
       drag = undefined;
       extrudeSession = undefined;
@@ -1268,6 +1310,17 @@ export function installInteractions({
     if (props.tool === 'detail') {
       const edge = detailEdgeAt(event);
       highlightDetail(edge);
+      detailSession = edge
+        ? {
+            edge,
+            pointerId: event.pointerId,
+            started: false,
+            x: event.clientX,
+            y: event.clientY,
+            initial: Number.isFinite(props.detailSize) ? props.detailSize : 2,
+            millimetersPerPixel: worldPerPixel(edge.point),
+          }
+        : undefined;
       drag = {
         start: [0, 0, 0],
         origin: [0, 0, 0],
@@ -1611,12 +1664,14 @@ export function installInteractions({
     const props = current();
     if (blocked || props.busy) return;
     if (props.tool === 'detail') {
+      if (detailSession && drag) {
+        updateDetail(event);
+        return;
+      }
       const edge = detailEdgeAt(event);
       highlightDetail(edge);
       props.onSnap(
-        edge
-          ? 'Reuna · napsauta lisätäksesi tai poistaaksesi valinnasta.'
-          : 'Valitse kappaleen reuna.',
+        edge ? 'Reuna · vedä kokoa tai napsauta valintaan.' : 'Valitse kappaleen reuna.',
       );
       return;
     }
@@ -1803,9 +1858,19 @@ export function installInteractions({
       const moved =
         active.moved ||
         Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
-      if (props.tool === 'detail' && !moved) {
-        const edge = detailEdgeAt(event);
-        if (edge) props.onDetailEdge(edge.bodyId, edge.index);
+      if (props.tool === 'detail') {
+        if (event.button !== 0 || (detailSession && event.pointerId !== detailSession.pointerId))
+          return;
+        if (detailSession?.started) {
+          // Keep the last pointer value or typed dimension, just like Offset.
+          current().onAccept();
+        } else if (!moved) {
+          const edge = detailEdgeAt(event);
+          if (edge) props.onDetailEdge(edge.bodyId, edge.index);
+        }
+        detailSession = undefined;
+        canvas.dataset.detailDragging = '';
+        show();
       } else if (props.tool === 'erase' && !moved) {
         const guide = selectableGuideAt(event);
         if (guide) props.onRemoveGuide(guide.object.userData.guideId);
@@ -1883,12 +1948,18 @@ export function installInteractions({
         props.onAccept();
       }
     }
+    if (detailSession) {
+      cancelDetailDrag();
+      show();
+    }
     pointers.delete(event.pointerId);
     drag = undefined;
     rotationDrag = undefined;
     if (!pointers.size) blocked = false;
   };
   const cancel = (event: PointerEvent) => {
+    cancelDetailDrag();
+    show();
     emptySelectionClicks = 0;
     pointers.delete(event.pointerId);
     drag = undefined;
@@ -1976,6 +2047,7 @@ export function installInteractions({
     }
   };
   const blur = () => {
+    cancelDetailDrag();
     emptySelectionClicks = 0;
     shift = false;
     current().onCopyMove(false);
@@ -1996,7 +2068,7 @@ export function installInteractions({
   };
   const leave = () => {
     if (current().tool === 'detail') {
-      highlightDetail();
+      if (!detailSession?.started) highlightDetail();
       return;
     }
     if (!drag && !measureSession) {

@@ -3,10 +3,10 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.8.2** tuo kappaleiden ja alaryhmien raahauksen ryhmiin sekä selkeämmän
-oikean sivupaneelin. Versio 0.8.1 korjasi mittauksen loppupään tartunnat ja toi
-muotojen **Mittaus/rakennusviiva**-pikavalinnan. Versio 0.8.0 toi sisäkkäiset ryhmät, koko valinnan siirron ja kopioinnin,
-tarkat CAD-viisteet ja pyöristykset sekä erillisen renderöintinäkymän ja PNG-viennin.
+Versio **0.8.3** tuo viisteiden ja pyöristysten suoran hiiri- ja kosketussäädön.
+Versio 0.8.2 selkeytti kappalelistan ja lisäsi ryhmiin raahauksen; 0.8.1 toi
+muotojen **Mittaus/rakennusviiva**-pikavalinnan. Sisäkkäiset ryhmät, yhteinen
+siirto ja kopiointi sekä renderöintinäkymä ja PNG-vienti ovat myös käytettävissä.
 Muokkaustila ja apuviivat ovat selkeämpiä: viivan valinta ei aloita siirtoa,
 apuviivojen risteyksiin voi tarttua ja kumitus poistaa myös apuviivan.
 Normaalisti piirto luo itsenäisen osan; **tuplaklikkaus** avaa yhden osan
@@ -123,11 +123,21 @@ säilyttävät hierarkian.
 
 ## Viisteet ja pyöristykset
 
-**Reunat (F)** avaa reunakäsittelyn. Napsauta mallista yhtä tai useaa reunaa;
-uusi napsautus poistaa reunan valinnasta. Valitse **Pyöristys** tai **Viiste**,
-kirjoita säde tai viisteen koko millimetreinä ja tarkista tarkasta CAD-mallista
-laskettu esikatselu. Enter tai **Hyväksy reunakäsittely** tallentaa tuloksen,
-Esc peruu. **Kaikki reunat** valitsee nykyisen osan reunat kerralla.
+![Reunan suora hiirisäätö](docs/images/nivo-edge-drag.png)
+
+**Reunat (F)** avaa reunakäsittelyn. Valitse **Pyöristys** tai **Viiste** ja
+**vedä mallin reunasta** säätääksesi kokoa. Aloitussuunta kasvattaa mittaa;
+takaisin vetäminen pienentää sitä. Mitta näkyy reunan vieressä ja oikeassa
+paneelissa. CAD-esikatselu päivittyy vedon aikana. **Vapautus hyväksyy**,
+**Esc peruu**. Sama veto toimii yhdellä sormella; toinen sormi keskeyttää
+vedon ja palauttaa sitä edeltäneen reunavalinnan sekä mitan.
+
+Tavallinen napsautus lisää reunan valintaan tai poistaa sen siitä. Voit valita
+useita reunoja ja vetää jo valitusta reunasta: koko valinta saa saman mitan.
+**Kaikki reunat** valitsee nykyisen osan reunat kerralla. Kirjoita halutessasi
+tarkka mitta kesken vedon; se lukitsee koon hiiren myöhemmistä liikkeistä
+riippumatta. Enter tai **Hyväksy reunakäsittely** toimii myös ilman vetoa.
+Uusi veto vapauttaa aiemman numerolukituksen.
 
 Pyöristyksen mitta on säde. Viiste käyttää samaa etäisyyttä reunan molemmilla
 pinnoilla. Suorat ja kaarevat CAD-reunat ovat valittavissa. Yhdellä toiminnolla
@@ -433,14 +443,14 @@ Yleinen pintamuokkaus tallentaa tarkan BRep-geometrian. Ennallaan säilyvät
 CAD-verteksit säilyttävät viitteensä; poistuneet kohteet näytetään rikkoutuneina.
 Join siirtää säilyvät lähdeviitteet tuloskappaleeseen. Siirtyvien tai muuttuvien
 topologiakohteiden yleinen nimeäminen on jatkotyötä.
-Tarkka kopiointi, mesh-tuonti, layerit, ryhmähierarkia,
-linkitetyt komponentit, pintamateriaalit, scenet sekä PDF-,
-STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
+Jälkikäteen muokattavat reunakäsittelyt, mesh-tuonti, layerit, linkitetyt
+komponentit, referenssikuvan kalibrointi, omat tekstuurit ja tallennetut kamerat
+sekä PDF-, STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
 
 Piirustus sisältää yhden ortografisen näkymän ja osien kokonaismittoja. Monien
 mittaviivojen sijoittelu, useat näkymät ja leikkaukset kuuluvat vaiheeseen 6.
 **Käytettävyys ja perustyökalut ovat seuraavien vaiheiden etusijalla.**
-Layerit, ryhmähierarkia ja linkitetyt komponentit seuraavat toimivaa mallinnuksen perustaa.
+Layerit ja linkitetyt komponentit seuraavat toimivaa mallinnuksen perustaa.
 
 - [Alkuperäinen määrittely](docs/requirements.fi.md)
 - [Arkkitehtuuri ja päätökset](docs/architecture.md)

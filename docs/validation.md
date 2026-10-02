@@ -6,6 +6,29 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.8.3: **87 yksikkö-/CAD-testiä hyväksytty**. Uusi koonvetolaskennan koe
+varmentaa napsautuskynnyksen, vakaan suunnan, suunnanvaihdon ja pienentämisen
+alkumitan alle, kameran mittakaavan sekä sallitut rajat. TypeScript ja
+tuotantopaketointi hyväksytty.
+
+Reunakäsittelyn selainajo: **17/17 hyväksytty (2,8 min)** työpöytä- ja
+tablettiprofiileissa; pelkkä kosketuskoe rajattiin työpöydältä pois.
+Suoran reunan säteen kasvattaminen ja pienentäminen, vapautushyväksyntä,
+monivalinnan viiste, kirjoitetun 3,5 mm mitan lukitus, Enter + vapautuksen
+kertahyväksyntä, Esc, virheellinen syöte/geometria ja palautuminen testattiin.
+Nopeat mittamuutokset päätyivät uusimpaan CAD-esikatseluun. Kaareva
+sylinterin reuna toimi perspektiivissä myös vapautettaessa ennen esikatselun
+valmistumista. Periytyvä Hold esti vedon. Pointercancel, ikkunan blur ja
+kosketuksen toinen sormi palauttivat edeltäneen valinnan ja mitan.
+Numerotyönkulku, pysyvä undo/redo ja projektin uudelleenavaus säilyivät.
+Työpöydän kuvakaappaukset tarkistettiin.
+
+Yhteisten osoitintapahtumien regressioajo: **9/9 hyväksytty (1,6 min)**.
+Offsetin hiirisäätö ja numerolukitus, koko objektin valinta ja Ctrl-kopio,
+tabletin viitepiste ja kahden sormen navigointi sekä täysi mallinnus → historia →
+mittakuva → vienti → palautus varmennettiin. Yhteensä **26 erillistä
+selaintapausta** hyväksytty. Koko repon muotoilutarkistus hyväksytty.
+
 V0.8.2: **85 yksikkö-/CAD-testiä hyväksytty**. Uudet ryhmittelykokeet
 varmentavat, että monivalinnan järjestely muuttaa vain ryhmäviitteet:
 3D-sijainnit, geometria, tunnisteet, mitat ja apuviivat säilyvät. Virheelliset

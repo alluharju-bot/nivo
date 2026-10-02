@@ -28,8 +28,8 @@ export function EdgeDetailPanel({
     <section className="edge-detail-panel" aria-label="Viisteet ja pyöristykset">
       <h2>Viimeistele reunat</h2>
       <p>
-        Klikkaa yhtä tai useaa reunaa. Uusi napsautus poistaa reunan valinnasta. Tarkista esikatselu
-        ja hyväksy.
+        Vedä reunasta säätääksesi kokoa. Vapautus hyväksyy. Voit myös napsauttaa useita reunoja
+        valintaan ja kirjoittaa tarkan mitan. Enter hyväksyy, Esc peruu.
       </p>
       <label className="modeling-field">
         Reunakäsittely
@@ -72,7 +72,8 @@ export function EdgeDetailPanel({
       </button>
       <p className="muted">
         Pyöristyksen mitta on säde. Viiste käyttää samaa etäisyyttä reunan molemmilla pinnoilla.
-        Peru palauttaa alkuperäiset reunat.
+        Valitusta reunasta vetäminen säätää koko reunavalintaa. Vastakkainen vetosuunta pienentää
+        mittaa. Kirjoitettu mitta pysyy lukittuna vedon loppuun asti.
       </p>
     </section>
   );

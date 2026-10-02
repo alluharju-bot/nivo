@@ -45,6 +45,7 @@ export type Gesture =
   | { type: 'rectangle'; origin: Vec3; start?: Vec3; width: number; depth: number }
   | { type: 'extrude'; distance: number }
   | { type: 'offset'; distance: number }
+  | { type: 'detail'; size: number }
   | { type: 'move'; origin: Vec3; bodyId?: string }
   | {
       type: 'measure';
@@ -65,7 +66,12 @@ export interface ViewportProps {
   onEditBlocked: (position: { x: number; y: number }) => void;
   detailTarget?: EdgeDetailTarget;
   detailPreview?: EdgeDetailResult;
-  onDetailEdge: (bodyId: string, index: number) => void;
+  detailSize: number;
+  detailSizeLocked: boolean;
+  detailOperation: 'fillet' | 'chamfer';
+  detailPreviewSize?: number;
+  onDetailEdge: (bodyId: string, index: number, dragging?: boolean) => void;
+  onDetailDragCancel: () => void;
   onRemoveBoundary: (target: BoundaryTarget) => void;
   onRemoveGuide: (id: string) => void;
   rotation?: Rotation;

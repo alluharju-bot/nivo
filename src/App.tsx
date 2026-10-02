@@ -174,7 +174,7 @@ const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = 
 ];
 const instructions: Record<Tool, string> = {
   detail:
-    'F · Valitse reunat, anna säde tai viisteen koko ja tarkista esikatselu. Enter hyväksyy, Esc peruu.',
+    'F · Napsauta reunat tai vedä reunasta säätääksesi kokoa. Kirjoita tarkka mitta. Vapautus tai Enter hyväksyy, Esc peruu.',
   erase:
     'U · Osoita pintojen välistä jakoviivaa. Korostetut tasopinnat yhdistyvät klikkauksella. Kulmat ja aukot säilyvät.',
   rotate:
@@ -276,6 +276,17 @@ export default function App() {
   const [sketchTarget, setSketchTarget] = useState<FaceTarget>();
   const sketchTargetRef = useRef<FaceTarget | undefined>(undefined);
   const [detailTarget, setDetailTarget] = useState<EdgeDetailTarget>();
+  const detailDragBefore = useRef<
+    | {
+        target?: EdgeDetailTarget;
+        size: string;
+        locked: boolean;
+        selected?: string;
+        selectedIds: string[];
+        awaiting: boolean;
+      }
+    | undefined
+  >(undefined);
   const [detailOperation, setDetailOperation] = useState<'fillet' | 'chamfer'>('fillet');
   const [surfaceMode, setSurfaceMode] = useState<'new' | 'region'>('new');
   const [editingBodyId, setEditingBodyId] = useState<string>();
@@ -510,6 +521,7 @@ export default function App() {
   };
   const field = (key: string, value: string) => {
     gestureActive.current = true;
+    if (tool === 'detail' && key === 'offset') editor.setError('');
     if (tool === 'extrude' && (key === 'height' || key === 'remaining')) {
       if (key === 'height' && /^[+-]/.test(value.trim())) {
         try {
@@ -547,6 +559,7 @@ export default function App() {
   const resetGesture = () => {
     gestureActive.current = false;
     setDetailTarget(undefined);
+    detailDragBefore.current = undefined;
     copyMoveRef.current = false;
     setCopyMove(false);
     rotationRef.current = undefined;
@@ -1393,6 +1406,8 @@ export default function App() {
         setExtrusionMode('height');
         writeFields({ height: `${event.distance >= 0 ? '+' : ''}${inputNumber(event.distance)}` });
       }
+    } else if (event.type === 'detail') {
+      if (!lockRef.current.has('offset')) writeFields({ offset: inputNumber(event.size) });
     } else if (event.type === 'offset') {
       if (!lockRef.current.has('offset')) writeFields({ offset: inputNumber(event.distance) });
     } else if (event.type === 'move') {
@@ -2520,19 +2535,51 @@ export default function App() {
             <Viewport
               detailTarget={detailTarget}
               detailPreview={tool === 'detail' ? detailPreview.result : undefined}
-              onDetailEdge={(id, index) => {
+              detailSize={offsetDistance}
+              detailSizeLocked={locked.has('offset')}
+              detailOperation={detailOperation}
+              detailPreviewSize={tool === 'detail' ? detailPreview.size : undefined}
+              onDetailDragCancel={() => {
+                const before = detailDragBefore.current;
+                if (!before) return;
+                detailDragBefore.current = undefined;
+                setDetailTarget(before.target);
+                setSelected(before.selected);
+                setSelectedIds(before.selectedIds);
+                setAwaitingStart(before.awaiting);
+                writeFields({ offset: before.size });
+                if (before.locked) lockRef.current.add('offset');
+                else lockRef.current.delete('offset');
+                setLocked(new Set(lockRef.current));
+              }}
+              onDetailEdge={(id, index, dragging = false) => {
                 if (editingBodyId && id !== editingBodyId) {
                   explainEditContext();
                   return;
                 }
                 const source = project.bodies.find((b) => b.id === id);
                 if (!source || bodyLocked(source, project.groups)) return;
+                if (dragging) {
+                  detailDragBefore.current = {
+                    target: detailTarget,
+                    size: fieldsRef.current.offset,
+                    locked: lockRef.current.has('offset'),
+                    selected,
+                    selectedIds,
+                    awaiting: awaitingStart,
+                  };
+                  lockRef.current.delete('offset');
+                  setLocked(new Set(lockRef.current));
+                }
+                editor.setError('');
                 setDetailTarget((old) => ({
                   bodyId: id,
                   indices:
                     old?.bodyId === id
                       ? old.indices.includes(index)
-                        ? old.indices.filter((i) => i !== index)
+                        ? dragging
+                          ? old.indices
+                          : old.indices.filter((i) => i !== index)
                         : [...old.indices, index]
                       : [index],
                 }));
@@ -3559,7 +3606,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.8.2</span>
+                    <span>v0.8.3</span>
                   </div>
                 </>
               )}

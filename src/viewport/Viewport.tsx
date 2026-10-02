@@ -332,6 +332,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       );
     renderer.domElement.dataset.copyMove = String(current().copyMove);
     renderer.domElement.dataset.detailPreview = current().detailPreview?.body.id ?? '';
+    renderer.domElement.dataset.detailPreviewSize = current().detailPreviewSize?.toString() ?? '';
     renderer.domElement.dataset.offsetPreview = current().offsetOutline
       ? String(current().offsetPreviewDistance)
       : '';
@@ -921,6 +922,7 @@ export function Viewport(props: Props) {
     [
       props.preview,
       props.detailPreview,
+      props.detailPreviewSize,
       props.faceTarget,
       props.faceDistance,
       props.faceSpan,
@@ -936,7 +938,15 @@ export function Viewport(props: Props) {
   );
   useEffect(
     () => api.current?.interactionSync(),
-    [props.reference, props.axis, props.penPoints.length, props.freeRotate, props.detailTarget],
+    [
+      props.reference,
+      props.axis,
+      props.penPoints.length,
+      props.freeRotate,
+      props.detailTarget,
+      props.detailSize,
+      props.detailSizeLocked,
+    ],
   );
   useEffect(
     () => api.current?.annotations(),
