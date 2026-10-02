@@ -254,9 +254,122 @@ ei alkuperäisiä pyöristysparametreja. Tämä erotetaan kulmatyypin valinnasta
 - Hyväksyntä: etureuna ensin, sitten siihen liittyvät lyhyet sivureunat;
   tarkka esikatselu, muuttaminen, Peru/Palauta sekä tallennus ja uudelleenavaus.
 
-## Suunniteltu yöpassi: kaapin reunat valmiiksi ja myöhemmin muokattaviksi
+## Suunniteltu laaja yöpassi: viimeistelty, mitoitettu ja materiaalitettu malli
 
-**Tila: suunnitelma.** Kokonaisuuden tavoite on, että käyttäjä voi viimeistellä
+**Tila: suunnitelma, laajennettu käyttäjän pyynnöstä.** Varsinaiseen tavoitteeseen
+kuuluvat kaikki kolme kokonaisuutta: muokattavat reunakäsittelyt, vapaasti
+poimittu kahden pisteen mitoitus ja laajennettu materiaalien/tekstuurien työnkulku.
+Niitä toteutetaan yhtenä kokonaisuutena, jonka lopputulos on mitoitettu kaappi,
+muokattava pintakuviointi ja vietävä esityskuva. Aiempi pelkkiin reunoihin
+rajattu yöpassi on tämän suunnitelman ensimmäinen osuus.
+
+### Kahden pisteen dimensio
+
+- Mittatyökalun selkeä **Dimensio**-tila: poimi ensimmäinen ja toinen piste,
+  siirrä osoitin sivulle ja vahvista mittaviivan paikka klikkauksella.
+  Myös toisesta pisteestä alkava veto ja vapautus toimii. Esikatselu näyttää
+  mitta-apuviivat, mittaviivan ja arvon heti. Työkalu pysyy käytössä.
+- Tartunnat verteksiin, reunan pisteeseen/keskipisteeseen, ympyrän keskukseen
+  ja apuviivojen risteyksiin. Pisteet voivat olla eri kappaleissa, jotta
+  esimerkiksi oven välys tai kahden kaapin väli voidaan mitoittaa.
+- Oletus on pisteiden välinen todellinen etäisyys. X/Y/Z valitsee erikseen
+  akselin suuntaisen mitan; valittu mittatapa näkyy esikatselussa.
+- Valmiin mittaviivan sijoitusta voi muuttaa vetämällä. Mittateksti pysyy
+  luettavana zoomatessa. Mitta näkyy 3D:ssä, sopivassa mittakuvan näkymässä
+  ja SVG-viennissä. Vinon 3D-mitan projektiota ei esitetä huomaamatta
+  todellisena tasomittana: näkymään sopimaton mitta jätetään siitä näkymästä pois.
+- Päätepisteet sidotaan osaan ja säilyvään geometriaviitteeseen silloin,
+  kun sellainen on saatavissa. Siirto päivittää mitan. Jos muutos poistaa
+  viitteen, mitta merkitään korjattavaksi eikä arvata lähintä uutta reunaa.
+- Tämä on geometriaa kuvaava mittamerkintä. Mittaviivan siirtäminen muuttaa
+  sijoittelua, ei kappaleen kokoa. Nykyiset X/Y/Z-kokonaismitat säilyvät.
+
+### Tekstuurin lisääminen ja suora muokkaus
+
+1. Valitse osa tai useita osia ja materiaali; oman tekstuurin saa **Lisää kuva**
+   -toiminnolla PNG-, JPEG- tai WebP-tiedostosta.
+2. Valitse **Muokkaa tekstuuria**. Pintaa pitkin vetäminen siirtää kuviota,
+   kokokahva skaalaa sitä ja kiertokahva muuttaa suuntaa. Suhdelukko on oletuksena
+   päällä. Sivupaneelista voi syöttää myös leveyden/korkeuden millimetreinä,
+   siirtymän ja kulman sekä palauttaa oletussijoittelun.
+3. Muutos näkyy jatkuvasti renderissä. Hyväksyntä tallentaa yhden muutosaskeleen;
+   Esc palauttaa edeltäneen sijoittelun. Tekstuurin siirto ei liikuta kappaletta.
+4. Puun syysuunta, kuvion koko ja kohdistus säilyvät osaa siirrettäessä,
+   kierrettäessä, kopioitaessa ja projektia uudelleen avattaessa.
+
+Materiaalit pysyvät yhdessä sivupaneelissa: materiaalikategoria, visuaaliset
+esikatselut ja valitun materiaalin tavalliset säädöt. Tekstuurin kahvat näkyvät
+vain sen muokkaustilassa. Oikea painike jatkaa kameran kiertoa ja rulla zoomausta;
+vasen veto muokkaa tekstuuria. Renderin kamera saa saman kohdistinzoomauksen ja
+pinnasta poimitun orbitin kuin mallinnusnäkymä.
+
+### Materiaalikirjaston tavoite: 27 nimettyä presettiä
+
+| Ryhmä             | Presetit                                                       |
+| ----------------- | -------------------------------------------------------------- |
+| Massiivipuut (6)  | Luonnontammi, vaalea tammi, savutammi, pähkinä, koivu, mänty   |
+| Metallit (4)      | Harjattu alumiini, harjattu ruostumaton teräs, kromi, messinki |
+| Lasit (3)         | Kirkas, savulasi, huurre                                       |
+| Muovit (4)        | Matta ABS, kiiltävä ABS, kirkas akryyli, huurteinen akryyli    |
+| Kivet (4)         | Graniitti, marmori, liuskekivi, travertiini                    |
+| Posliini (3)      | Kiiltävä valkoinen, matta valkoinen, tumma lasitettu           |
+| Kalustepinnat (3) | Valkoinen melamiini, harmaa laminaatti, maalattu kalustepinta  |
+
+Presetit määrittävät myös pintakuvion, karheuden, metallisuuden ja tarvittaessa
+läpäisevyyden/pinnoitteen. Puulajit ja kivet tarvitsevat erottuvat kuviot;
+pelkkä saman materiaalin nimeäminen ja värjääminen ei täytä tavoitetta.
+Sävyä ja tavallisia pintaominaisuuksia voi muuttaa, ja valmis oma materiaali
+voidaan tallentaa projektin materiaalikirjastoon. Nykyiset viisi materiaalia
+avataan yhteensopivasti. Mukana toimitettavat presetit toimivat paikallisesti.
+
+### Toteutusjärjestys
+
+1. **Yhteinen tallennuspohja ja CAD-varmennus.** Määrittele reunakäsittelyjen
+   lähteet, dimensioiden ankkurit, materiaalit ja tekstuuriaineistojen viitteet.
+   Varmenna kohtaavien reunojen laskentatapa alla olevan reunasuunnitelman mukaan.
+2. **Reunatyönkulku valmiiksi.** Lähteestä uudelleen laskeminen, reunojen
+   lisääminen/poistaminen, mitan muuttaminen ja F-paneelin jatkomuokkaus.
+3. **Dimensio alusta vientiin.** Poiminta, sijoitus, myöhempi siirto,
+   geometrian mukana päivittyminen, mittakuva ja SVG.
+4. **Materiaalit ja reaaliaikainen tekstuurityökalu.** Presetkirjasto,
+   kuvan tuonti, objektin mukana pysyvä kuviointi, suorat kahvat ja tarkat mitat.
+5. **Yhteinen viimeistely.** Tallennus, Peru/Palauta, kopiot, vanhat tiedostot,
+   renderin kameran yhdenmukaisuus ja PNG-vienti. Yksi avattava kaappiesimerkki
+   käy kaikki uudet työvaiheet läpi.
+
+### Tekninen pohja ja hyväksyntä
+
+- Nykyinen dimensio tuntee vain osan min/max-ulkomitan. Laajenna se myös
+  kahden ankkurin, mittatavan ja sijoitustason sisältäväksi merkinnäksi.
+  Käytä yhtä mittalaskentaa 3D:ssä ja SVG:ssä; paperitekstin koko säilyy
+  tulostuksessa ja 3D-tekstin koko ruudulla luettavana.
+- Nykyinen puukuviointi käyttää maailman koordinaatteja ja kiinteää skaalaa.
+  Uusi sijoittelu sidotaan objektin omaan koordinaatistoon. Tasomaiset ja
+  laatikkomaiset kalusteosat saavat hallittavan projektion, ja pyöristysten
+  saumakohdat tarkistetaan oikeassa materiaaliesimerkissä.
+- Muuta tekstuurin muunnosta ja materiaalin asetuksia esikatselussa ilman
+  CAD-laskentaa tai kaikkien meshien uudelleenluontia jokaisella hiiritapahtumalla.
+  Kuvan sisältö voidaan jakaa, mutta yhden osan tekstuurimuunnos ei saa muuttaa
+  muiden osien sijoittelua.
+- Kuvia ei monisteta jokaisen osan tai Peru-askeleen sisään. Aineistot saavat
+  omat tunnisteet, niille käytetään kohtuullista esikatselutarkkuutta ja ne
+  sisällytetään projektin vientiin. Nykyinen 10 Mt JSON-tuontiraja ja 8 MiB
+  historiabudjetti huomioidaan uuden tallennusmuodon suunnittelussa.
+- Valmistumiskoe: viimeistele oven kohtaavat reunat, mitoita kaksi pistettä
+  ja oven välys, valitse tammimateriaali, kohdista syyt ja kuvion koko vetämällä,
+  tuo oma kuva toiselle osalle, kopioi osat ja tallenna. Uudelleenavaus säilyttää
+  muokattavat käsittelyt, mitat ja kuvioinnin; SVG ja PNG vastaavat näkymää.
+- CAD- ja selaintestit kattavat uuden kokonaisuuden sekä aiemmat E/O/M-,
+  ryhmä-, Hold-, valinta- ja kameratyönkulut. Presetit tarkistetaan visuaalisesti
+  sekä erillisillä näytekappaleilla että kaapissa.
+
+Valmistumista arvioidaan näiden toimivien työnkulkujen perusteella.
+Dimension ja materiaaliputken toteutus kuuluu yöpassin tavoitteeseen myös,
+jos jokin erikoisempi kulmaliitos vaatii erillistä jatkotutkimusta.
+
+## Yöpassin reunakäsittelyosuus: kaapin reunat valmiiksi ja myöhemmin muokattaviksi
+
+**Tila: osa yllä olevaa laajaa yöpassisuunnitelmaa.** Tavoite on, että käyttäjä voi viimeistellä
 kaapin tai oven kohtaavat reunat, jatkaa käsittelyä myöhemmin ja muuttaa sen
 mittaa samassa F-työkalussa. Tämä yhdistää korkeimman prioriteetin
 kulmaongelman ja jo suunnitellut muokattavat reunaparametrit yhdeksi työnkuluksi.
@@ -299,7 +412,7 @@ kulmaongelman ja jo suunnitellut muokattavat reunaparametrit yhdeksi työnkuluks
 - Setback ja neljän reunan kaikki yhdistelmät ovat geometriaytimen erillisiä
   varmennuksia. Niille ei lisätä käyttöliittymävalintaa ennen toimivaa toteutusta.
 
-**Yöpassi on valmis**, kun kohtaavien reunojen jatkaminen, mitan muuttaminen,
+**Reunakäsittelyosuus on valmis**, kun kohtaavien reunojen jatkaminen, mitan muuttaminen,
 käsittelyn poistaminen ja uudelleenavaus toimivat samalla esimerkkiosalla
 ilman geometriavirheitä tai aikaisempien muutosten katoamista. Jos ensimmäinen
 CAD-varmennus paljastaa ytimen rajoitteen, ongelma rajataan testillä ja
