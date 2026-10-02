@@ -289,6 +289,10 @@ test('pen closure creates one mesh, extrudes, merges selected parts, undo restor
   await page.locator('.object-list .object-select').last().click();
   await page.getByRole('button', { name: 'Monivalinta', exact: true }).click();
   await page.locator('.object-list .object-select').first().click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Mitat ja mallinnus$/ })
+    .click();
   await page.getByRole('button', { name: 'Yhdistä valitut', exact: true }).click();
   await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   let model = await save(page);

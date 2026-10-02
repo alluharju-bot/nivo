@@ -2794,3 +2794,302 @@ p {
 .shape-mode-actions button {
   border-radius: 19px;
 }
+
+/* Keep the hierarchy in view while tools and selection properties change below it. */
+.inspector {
+  overflow: hidden;
+}
+.inspector > .object-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 155px;
+  max-height: 46%;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.inspector-details {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.inspector-details > .panel-title {
+  padding: 18px 18px 12px;
+}
+.inspector-details .panel-title h2 {
+  margin-top: 4px;
+  font-size: 16px;
+}
+.inspector-details .selection-info {
+  padding: 0 18px 18px;
+}
+.inspector-details .dimensions-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 0 8px;
+}
+.inspector-details .dimensions-grid strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.inspector-details .origin-readout {
+  padding-bottom: 10px;
+}
+.inspector-details .object-actions-panel {
+  margin: 12px 0;
+  gap: 8px;
+}
+.inspector-details .group-actions-panel {
+  padding: 0 18px 18px;
+  border: 0;
+  background: transparent;
+}
+.inspector-details .panel-description {
+  padding: 0 18px 18px;
+}
+.inspector-details .selection-actions {
+  gap: 15px;
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+.inspector-details .panel-footer {
+  padding: 12px 18px;
+}
+.inspector-disclosure {
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+}
+.inspector-disclosure > summary {
+  cursor: pointer;
+  padding: 12px 0;
+  color: #52634d;
+  font-weight: 500;
+}
+.disclosure-content {
+  display: grid;
+  gap: 10px;
+  padding: 0 0 12px;
+}
+.disclosure-content .button {
+  margin: 0;
+}
+.color-summary {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-left: 7px;
+  border-radius: 50%;
+  border: 1px solid #0002;
+  vertical-align: middle;
+}
+.inspector > .object-panel > .panel-tabs {
+  flex-shrink: 0;
+  gap: 15px;
+  padding: 0 15px;
+}
+.inspector > .object-panel > .dimension-list,
+.inspector > .object-panel > .guide-list {
+  overflow-y: auto;
+  min-height: 0;
+}
+.object-tree {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  min-height: 0;
+}
+.object-tree-heading {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  gap: 8px;
+}
+.object-tree-heading button {
+  border-radius: 5px;
+  min-height: 32px;
+}
+.object-tree-heading button[aria-pressed='true'] {
+  background: #e1ead9;
+  color: #395631;
+}
+.object-list {
+  padding: 4px 8px 10px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+.tree-root-drop {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 8px 4px;
+  padding: 9px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 10px;
+  color: #697b62;
+}
+.tree-root-drop > span {
+  margin-left: auto;
+  font-size: 9px;
+  color: #8b9685;
+}
+.object-row,
+.object-group-heading {
+  user-select: none;
+}
+.object-row .object-select {
+  min-height: 38px;
+  padding: 0 5px;
+  gap: 4px;
+  cursor: grab;
+}
+.object-row .object-select > span.tree-drag-grip {
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  color: #99a592;
+  touch-action: none;
+}
+.object-group {
+  margin-top: 3px;
+  padding-left: 0;
+  border-left: 0;
+}
+.object-group-heading {
+  border-radius: 5px;
+}
+.object-group-heading > .group-select {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #405839;
+  cursor: grab;
+}
+.group-select > span:not(.tree-drag-grip) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  flex: 1;
+}
+.group-select > small {
+  font-weight: 400;
+  font-size: 10px;
+  color: #87977d;
+  padding: 0 3px;
+}
+.group-select > .tree-drag-grip {
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 34px;
+  touch-action: none;
+  color: #99a592;
+}
+.object-group-heading > .group-collapse {
+  min-width: 20px;
+}
+.object-group-heading > .object-action {
+  min-width: 30px;
+}
+.object-group-heading > .group-rename {
+  background: white;
+  border: 1px solid #618b65;
+}
+.object-group-children {
+  padding-left: 7px;
+  margin-left: 10px;
+}
+.object-action {
+  height: 36px;
+}
+.object-action:not([aria-pressed='true']) {
+  color: #8c9b86;
+}
+.group-empty {
+  padding: 10px;
+  color: #94a18b;
+  font-size: 10px;
+  border-radius: 5px;
+}
+.tree-arranging .tree-root-drop {
+  border-style: dashed;
+  border-color: #8ca67e;
+}
+.tree-drop-active {
+  background: #e1edda !important;
+  outline: 2px solid #719362;
+  outline-offset: -2px;
+}
+.tree-drop-invalid {
+  background: #f3e6df !important;
+  outline: 2px solid #b78269;
+  outline-offset: -2px;
+}
+.tree-dragging {
+  opacity: 0.5;
+}
+.tree-drag-preview {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  width: 218px;
+  padding: 10px 12px;
+  border: 1px solid #a0b196;
+  border-radius: 8px;
+  background: #f7faf3;
+  color: #405839;
+  box-shadow: 0 6px 20px #25341c26;
+  display: grid;
+  gap: 5px;
+  font-size: 11px;
+}
+.tree-drag-preview strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-drag-preview.invalid {
+  border-color: #b78269;
+  background: #fff5ee;
+  color: #815238;
+}
+@media (pointer: coarse) {
+  .object-row .object-select,
+  .object-action,
+  .object-group-heading > button {
+    min-height: 44px;
+  }
+  .object-row .object-select > span.tree-drag-grip {
+    flex-basis: 26px;
+    min-height: 44px;
+  }
+  .group-select > .tree-drag-grip {
+    min-width: 24px;
+    min-height: 44px;
+  }
+  .object-group-heading > .object-action {
+    min-width: 32px;
+  }
+  .inspector-disclosure > summary {
+    min-height: 44px;
+    padding-block: 15px;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

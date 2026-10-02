@@ -25,6 +25,28 @@ export const groupPath = (groups: BodyGroup[], id?: string) =>
     .map((g) => g.name)
     .join(' / ');
 
+export type TreeMove = { kind: 'bodies'; ids: string[] } | { kind: 'group'; id: string };
+
+/** Change only hierarchy. Keep world positions, geometry and references intact. */
+export function moveInTree(project: Project, move: TreeMove, parentId?: string): Project {
+  if (parentId && !project.groups.some((g) => g.id === parentId))
+    throw new Error('Kohderyhmää ei löydy.');
+  if (move.kind === 'group') {
+    const group = project.groups.find((g) => g.id === move.id);
+    if (!group) throw new Error('Ryhmää ei löydy.');
+    if (group.parentId === parentId) return project;
+    return reparentGroup(project, move.id, parentId);
+  }
+  const ids = new Set(move.ids);
+  if (!ids.size || [...ids].some((id) => !project.bodies.some((b) => b.id === id)))
+    throw new Error('Siirrettäviä kappaleita ei löydy.');
+  if (!project.bodies.some((b) => ids.has(b.id) && b.groupId !== parentId)) return project;
+  return {
+    ...project,
+    bodies: project.bodies.map((b) => (ids.has(b.id) ? { ...b, groupId: parentId } : b)),
+  };
+}
+
 export function reparentGroup(project: Project, id: string, parentId?: string): Project {
   if (!project.groups.some((g) => g.id === id)) throw new Error('Ryhmää ei löydy.');
   if (

@@ -57,6 +57,8 @@ import {
   reparentGroup,
   dissolveGroup,
   translateSelection,
+  moveInTree,
+  type TreeMove,
 } from './model/groups';
 import { useEdgeDetailPreview } from './ui/useEdgeDetailPreview';
 import { EdgeDetailPanel } from './ui/EdgeDetailPanel';
@@ -370,6 +372,7 @@ export default function App() {
   };
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
+  const inspectorDetails = useRef<HTMLDivElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
   const selectedGroup = project.groups.find((g) => g.id === selectedGroupId);
   const editingBody = project.bodies.find((b) => b.id === editingBodyId);
@@ -403,6 +406,9 @@ export default function App() {
       'pen',
       'rotate',
     ].includes(tool);
+  useLayoutEffect(() => {
+    if (inspectorDetails.current) inspectorDetails.current.scrollTop = 0;
+  }, [tool, editing, selected, selectedGroupId]);
   const offsetDistance = (() => {
     try {
       return parseLength(fields.offset);
@@ -1749,6 +1755,28 @@ export default function App() {
       editor.setError((e as Error).message);
     }
   };
+  const arrangeTree = async (move: TreeMove, parentId?: string) => {
+    if (busy || editingBodyId || editing || tool === 'boolean') return;
+    try {
+      const next = moveInTree(project, move, parentId);
+      if (next === project) return;
+      if (
+        await editor.transact(
+          next,
+          parentId ? 'Valinta siirretty ryhmään.' : 'Valinta siirretty päätasolle.',
+        )
+      ) {
+        resetGesture();
+        setAwaitingStart(true);
+        setSelectedGroupId(move.kind === 'group' ? move.id : undefined);
+        const ids = move.kind === 'group' ? groupBodies(next, move.id).map((b) => b.id) : move.ids;
+        setSelectedIds(ids);
+        setSelected(ids[0]);
+      }
+    } catch (e) {
+      editor.setError((e as Error).message);
+    }
+  };
   const createGroup = async (parentId?: string) => {
     if (busy) return;
     const group = {
@@ -2028,7 +2056,10 @@ export default function App() {
       onGroup={(id, patch) => void patchGroup(id, patch)}
       selectedGroupId={selectedGroupId}
       onNewGroup={() => void createGroup()}
-      onRemoveGroup={(id) => void removeGroup(id)}
+      arrangingDisabled={!!editingBodyId || editing || tool === 'boolean'}
+      multiSelect={multiSelect}
+      onMultiSelect={() => setMultiSelect(!multiSelect)}
+      onMove={(move, parentId) => void arrangeTree(move, parentId)}
     />
   );
   const objectActions = body && !selectedGroup && mode === 'model' && (
@@ -2824,683 +2855,715 @@ export default function App() {
 
         {panelOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
-            {numericInput}
-            {tool === 'detail' ? (
-              <EdgeDetailPanel
-                operation={detailOperation}
-                onOperation={setDetailOperation}
-                count={detailTarget?.indices.length ?? 0}
-                bodyName={detailSource?.name}
-                busy={busy}
-                loading={detailPreview.loading}
-                error={detailPreview.error}
-                onAccept={() => void apply()}
-                onCancel={cancel}
-                all={() => {
-                  if (detailSource) {
-                    setDetailTarget({
-                      bodyId: detailSource.id,
-                      indices:
-                        editor.meshes
-                          .find((m) => m.id === detailSource.id)
-                          ?.detailEdges?.map((e) => e.index) ?? [],
-                    });
-                    setAwaitingStart(false);
-                    gestureActive.current = true;
-                  }
-                }}
-                clear={() => setDetailTarget((old) => (old ? { ...old, indices: [] } : undefined))}
-              />
-            ) : tool === 'rotate' && editing ? (
-              <RotationPanel
-                rotation={rotation}
-                busy={busy}
-                onChange={changeRotation}
-                onCenter={() =>
-                  rotationRef.current &&
-                  changeRotation({
-                    pivot: bodiesCenter(
-                      project.bodies.filter((b) => rotationRef.current!.ids.includes(b.id)),
-                    ),
-                    picking: undefined,
-                  })
-                }
-                onError={editor.setError}
-              />
-            ) : tool === 'boolean' ? (
-              <BooleanPanel
-                bodies={project.bodies}
-                operation={booleanOperation}
-                onOperation={changeOperation}
-                targets={booleanTargets}
-                tools={booleanTools}
-                active={booleanActive}
-                onActive={setBooleanActive}
-                onToggle={toggleBoolean}
-                onSwap={() => {
-                  setBooleanTargets(booleanTools);
-                  setBooleanTools(booleanTargets);
-                }}
-                keepTools={keepTools}
-                onKeepTools={setKeepTools}
-                onAccept={() => void apply()}
-                onCancel={() => {
-                  setTool('select');
-                  resetGesture();
-                }}
-                busy={busy}
-              />
-            ) : editing ? (
-              <>
-                <div className="panel-title">
-                  <div>
-                    <span className="eyebrow">TYÖKALU</span>
-                    <h2>
-                      {tool === 'offset'
-                        ? 'Offset · sisennys'
-                        : tool === 'rotate'
-                          ? 'Kierrä kappaletta'
-                          : tool === 'rectangle'
-                            ? 'Suorakulmio'
-                            : tool === 'circle'
-                              ? shapeKind === 'circle'
-                                ? 'Ympyrä'
-                                : shapeKind === 'ellipse'
-                                  ? 'Ellipsi'
-                                  : 'Monikulmio'
-                              : tool === 'extrude'
-                                ? 'Push / pull'
-                                : tool === 'measure'
-                                  ? 'Mittatyökalu'
-                                  : tool === 'pen'
-                                    ? 'Kynä'
-                                    : 'Siirrä kappaletta'}
-                    </h2>
-                  </div>
-                  <span className="step-number">{tool === 'rectangle' ? '01' : '02'}</span>
-                </div>
-                <p className="panel-description">
-                  {tool === 'offset'
-                    ? 'Liikuta hiirtä sisennyksen säätämiseksi tai kirjoita tarkka mitta. Klikkaus, vedon päättäminen tai Enter hyväksyy. E tekee syvennyksen tai läpireiän.'
-                    : tool === 'rectangle'
-                      ? 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
-                      : tool === 'circle'
-                        ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
-                        : tool === 'extrude'
-                          ? 'E · Vedä pintaa vapaasti. Pidä Shift pohjassa ja osoita tavoitepintaa: sininen korostus näyttää kohteen. Vapauta Shift jatkaaksesi vapaata vetoa samasta mitasta. Voit myös kirjoittaa mitan.'
-                          : tool === 'pen'
-                            ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
-                            : tool === 'measure'
-                              ? measureMode === 'guide'
-                                ? 'Aloita verteksistä tai vedä reunasta sen suuntainen apuviiva. Piirtäminen ja siirtäminen tarttuvat viivaan.'
-                                : 'Valitse kaksi pistettä nähdäksesi niiden etäisyyden.'
-                              : 'Anna siirtymä nykyisestä sijainnista tai vedä kappaletta näkymässä.'}
-                </p>
-                <div className="tool-fields">
-                  {tool === 'offset' && offsetPreview.error && (
-                    <p role="status" className="muted">
-                      {offsetPreview.error}
-                    </p>
-                  )}
-                  {tool === 'move' && (
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        aria-label="Siirrä kopio"
-                        checked={copyMove}
-                        onChange={(e) => changeCopyMove(e.target.checked)}
-                      />
-                      Siirrä kopio · Ctrl vedon aikana
-                    </label>
-                  )}
-                  {['rectangle', 'circle', 'pen'].includes(tool) && (
-                    <ShapeProperties
-                      tool={tool as 'rectangle' | 'circle' | 'pen'}
-                      kind={shapeKind}
-                      onKind={setShapeKind}
-                      width={fields.width}
-                      depth={fields.depth}
-                      thickness={fields.thickness}
-                      onField={field}
-                      purpose={shapePurpose}
-                      constructionLine={constructionLine}
-                      onPurpose={setShapePurpose}
-                      name={shapeName}
-                      onName={setShapeName}
-                      surfaceMode={surfaceMode}
-                      onSurfaceMode={setSurfaceMode}
-                      editingBodyName={editingBody?.name}
-                      sides={shapeSides}
-                      onSides={setShapeSides}
-                      onOperation={changeOperation}
-                      frameLabel={
-                        sketchTarget
-                          ? `Pinta: ${project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name}`
-                          : 'Valitse piste työtasolta tai kappaleen pinnalta'
-                      }
-                      onAccept={() => void apply(tool === 'pen')}
-                    />
-                  )}
-                  {tool === 'extrude' && faceTarget && (
-                    <div className="shape-properties">
-                      <div className="extrusion-readout" data-testid="extrusion-readout">
-                        {faceSpan ? (
-                          <>
-                            <span>
-                              Nykyinen mitta <strong>{formatLength(faceSpan.depth)} mm</strong>
-                            </span>
-                            <span>
-                              Toteutuva kokonaismitta <strong>{formatLength(finalSize!)} mm</strong>
-                            </span>
-                            <span>
-                              Siirtymä{' '}
-                              <strong>
-                                {faceDistance > 0 ? '+' : ''}
-                                {formatLength(faceDistance)} mm
-                              </strong>
-                            </span>
-                          </>
-                        ) : (
-                          <span>{spanLoading ? 'Mitataan vastapintaa…' : spanError}</span>
-                        )}
-                      </div>
-                      <p className="muted">
-                        Tab vaihtaa siirtymän ja toteutuvan kokonaismitan välillä ja säilyttää
-                        kirjoittamasi luvun. Miinus työntää sisään, plus vetää ulos. Ilman
-                        etumerkkiä luku seuraa vedon suuntaa.
-                      </p>
-                      <p className="muted">
-                        Vihreä mittaviiva näyttää toteutuvan kokonaismitan tässä kohdassa,
-                        kohtisuoraan valittua pintaa vastaan. Nolla avaa rajatun alueen läpi. Voit
-                        myös vetää pinnan vastapinnan ohi tai valita Leikkaa läpi.
-                      </p>
-                      <button
-                        className="button outlined full"
-                        aria-pressed={pickDepth}
-                        onClick={() => setPickDepth(!pickDepth)}
+            <div className="object-panel">
+              <div className="panel-tabs">
+                <button aria-pressed={tab === 'objects'} onClick={() => setTab('objects')}>
+                  Kappaleet <span>{project.bodies.length}</span>
+                </button>
+                <button aria-pressed={tab === 'dimensions'} onClick={() => setTab('dimensions')}>
+                  Mitat <span>{project.dimensions.length}</span>
+                </button>
+                <button aria-pressed={tab === 'guides'} onClick={() => setTab('guides')}>
+                  Viivat <span>{project.guides.length}</span>
+                </button>
+              </div>
+              {tab === 'objects' ? (
+                objectTree
+              ) : tab === 'guides' ? (
+                <div className="guide-list">
+                  {project.guides.map((g) => {
+                    const points = guideMeasurement(project.bodies, g);
+                    return (
+                      <div
+                        key={g.id}
+                        className={!points ? 'broken' : selectedGuideId === g.id ? 'selected' : ''}
                       >
-                        {pickDepth ? 'Osoita päättävää pintaa' : 'Poimi syvyys pinnasta'}
-                      </button>
-                      <button
-                        className="button dark full"
-                        onClick={() => {
-                          const target = project.bodies.find((b) => b.id === faceTarget.bodyId)!;
-                          writeFields({
-                            height: String(
-                              -Math.hypot(
-                                target.feature.width,
-                                target.feature.depth,
-                                target.feature.height,
-                              ) - 1,
-                            ),
-                          });
-                          extrusionModeRef.current = 'height';
-                          setExtrusionMode('height');
-                          void apply();
-                        }}
-                      >
-                        Leikkaa läpi
-                      </button>
-                    </div>
-                  )}
-                  <p className="muted">
-                    Kirjoita numero aloittaaksesi ensimmäisestä kentästä. Tab siirtyy seuraavaan.
-                    Enter tai vedon päättäminen hyväksyy osan.
-                  </p>
-                  {tool === 'measure' && (
-                    <>
-                      <button
-                        className="button outlined"
-                        onClick={() => setMeasureMenu(!measureMenu)}
-                      >
-                        {measureMode === 'guide' ? 'Apuviiva' : 'Vapaa mittaviiva'} · Vaihda tilaa
-                      </button>
-                      <button
-                        className="button outlined"
-                        onClick={() => rotateGuide()}
-                        disabled={!guideDraft}
-                      >
-                        <RotateCw size={16} />
-                        Kierrä 45° · R
-                      </button>
-                      <p className="muted">
-                        X/Y/Z lukitsee siirtosuunnan; sama näppäin vapauttaa. Esc päättää työkalun.
-                        Shift+R käynnistää vapaan kierron; osoita suunta ja hyväksy.
-                      </p>
-                      <button
-                        className="button outlined"
-                        aria-pressed={freeRotate}
-                        disabled={!guideDraft}
-                        onClick={() => rotateGuide(true)}
-                      >
-                        Vapaa kierto · Shift+R
-                      </button>
-                      {guideDraft && (
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={!!guideDraft.xray}
-                            onChange={(e) => {
-                              guideRef.current = { ...guideRef.current!, xray: e.target.checked };
-                              setGuideDraft(guideRef.current);
-                            }}
+                        <button onClick={() => selectGuide(g.id)}>
+                          <Ruler size={15} />
+                          <span>
+                            {points
+                              ? `${g.mode === 'guide' ? 'Apuviiva' : 'Mittaviiva'} · ${formatLength(Math.hypot(...points[1].map((n, i) => n - points[0][i])))} mm`
+                              : 'Viite puuttuu'}
+                            <small>
+                              {formatLength(g.angle)}° · {g.plane}
+                            </small>
+                          </span>
+                        </button>
+                        <label className="guide-xray" title="Näytä tämä viiva kappaleiden läpi">
+                          <CommitCheckbox
+                            label="Viivan x-ray"
+                            disabled={busy}
+                            checked={!!g.xray}
+                            onChange={(checked) =>
+                              editor.transact(
+                                {
+                                  ...project,
+                                  guides: project.guides.map((line) =>
+                                    line.id === g.id ? { ...line, xray: checked } : line,
+                                  ),
+                                },
+                                'Viivan x-ray muutettu.',
+                              )
+                            }
                           />
-                          Tämä apuviiva x-ray
+                          X-ray
                         </label>
-                      )}
-                    </>
+                        <IconButton
+                          label="Poista viiva"
+                          disabled={busy}
+                          onClick={() =>
+                            void editor.transact(
+                              {
+                                ...project,
+                                guides: project.guides.filter((line) => line.id !== g.id),
+                              },
+                              'Viiva poistettu.',
+                            )
+                          }
+                        >
+                          <X size={15} />
+                        </IconButton>
+                      </div>
+                    );
+                  })}
+                  {!project.guides.length && (
+                    <p className="empty-list">Mittatyökalulla voit luoda mitta- ja apuviivoja.</p>
                   )}
-                  {tool === 'pen' && (
-                    <>
-                      <p className="muted">
-                        {penPoints.length} verteksiä. Palaa ensimmäiseen verteksiin sulkeaksesi
-                        muodon.
-                      </p>
-                      <button
-                        className="button outlined"
-                        disabled={penPoints.length < 3 || busy}
-                        onClick={() => void apply(true)}
-                      >
-                        Sulje muoto
-                      </button>
-                      <button
-                        className="button subtle"
-                        disabled={!penPoints.length}
-                        onClick={() => {
-                          penRef.current = penRef.current.slice(0, -1);
-                          setPenPoints(penRef.current);
-                        }}
-                      >
-                        Poista viimeinen verteksi
-                      </button>
-                    </>
-                  )}
-                  {['move', 'pen', 'measure'].includes(tool) && (
-                    <>
-                      <span className="field-caption">Lukitse vetosuunta</span>
-                      <div className="axis-locks">
-                        {(['x', 'y', 'z'] as const).map((a) => (
-                          <button
-                            key={a}
-                            aria-label={`Lukitse ${a.toUpperCase()}-akseli`}
-                            aria-pressed={axis === a}
-                            onClick={() => {
-                              setAxis(axis === a ? undefined : a);
-                              setFreeRotate(false);
-                            }}
-                          >
-                            {a.toUpperCase()}
+                </div>
+              ) : (
+                <div className="dimension-list">
+                  {project.dimensions.length ? (
+                    project.dimensions.map((d) => {
+                      const value = dimensionValue(project, d);
+                      return (
+                        <div key={d.id} className={value === null ? 'broken' : ''}>
+                          <button onClick={() => select(d.bodyId)}>
+                            <Ruler size={15} />
+                            <span>
+                              {value === null
+                                ? 'Viite puuttuu'
+                                : `${d.axis.toUpperCase()} · ${formatLength(value)} mm`}
+                              <small>
+                                {project.bodies.find((b) => b.id === d.bodyId)?.name ??
+                                  'Poistettu kappale'}
+                              </small>
+                            </span>
                           </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  {['rectangle', 'pen', 'move'].includes(tool) && (
-                    <p className="muted">
-                      {tool === 'pen' && penPoints.length
-                        ? 'Shift lukitsee piirtosuunnan pituuden poimimista varten. Erillisen viitepisteen saat Poimi viite -painikkeesta.'
-                        : 'Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen suuntalinjat ohjaavat piirtämistä ja siirtoa. Kosketuksella käytä Poimi viite -painiketta.'}
-                    </p>
-                  )}
-                </div>
-                <div className="tool-tip">
-                  <span className="tiny-dot" />
-                  {snapLabel}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="panel-title">
-                  <div>
-                    <span className="eyebrow">{body ? 'VALINTA' : 'PROJEKTI'}</span>
-                    <h2>{selectedGroup?.name ?? body?.name ?? 'Kokonaisuus'}</h2>
-                  </div>
-                  <Box size={21} />
-                </div>
-                {body && !selectedGroup ? (
-                  <div className="selection-info">
-                    <span className="selection-tag">
-                      {featureIsSolid(body.feature) ? 'CAD-kappale' : 'Tasoluonnos'}
-                      {selectedFace ? ` · ${faceNames[selectedFace] ?? 'Valittu pinta'}` : ''}
-                    </span>
-                    <div className="dimensions-grid">
-                      <div>
-                        <span>Leveys</span>
-                        <strong>
-                          {formatLength(body.feature.width)}
-                          <small>mm</small>
-                        </strong>
-                      </div>
-                      <div>
-                        <span>Syvyys</span>
-                        <strong>
-                          {formatLength(body.feature.depth)}
-                          <small>mm</small>
-                        </strong>
-                      </div>
-                      <div>
-                        <span>Korkeus · Z</span>
-                        <strong data-testid="selected-height">
-                          {formatLength(body.feature.height)}
-                          <small>mm</small>
-                        </strong>
-                      </div>
+                          <IconButton
+                            label="Poista mitta"
+                            disabled={busy}
+                            onClick={() =>
+                              void editor.transact(
+                                {
+                                  ...project,
+                                  dimensions: project.dimensions.filter((m) => m.id !== d.id),
+                                },
+                                'Mitta poistettu.',
+                              )
+                            }
+                          >
+                            <X size={15} />
+                          </IconButton>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="empty-list">
+                      <Ruler size={26} />
+                      <p>
+                        Lisää ensimmäinen mitta
+                        <br />
+                        Mittakuva-työtilassa.
+                      </p>
                     </div>
-                    <p className="origin-readout">
-                      X {formatLength(body.origin[0])} · Y {formatLength(body.origin[1])} · Z{' '}
-                      {formatLength(body.origin[2])}
-                    </p>
-                    <button
-                      className="button outlined full"
-                      disabled={
-                        busy ||
-                        !project.bodies.some(
-                          (b) =>
-                            (selectedIds.length ? selectedIds.includes(b.id) : b.id === body.id) &&
-                            b.purpose !== 'construction',
-                        )
-                      }
-                      onClick={() => void dimensionSelection()}
-                    >
-                      <Ruler size={16} /> Lisää kokonaismitat
+                  )}
+                  {mode === 'drawing' && (
+                    <button className="button subtle full" onClick={() => setTab('objects')}>
+                      <Box size={16} />
+                      Valitse kappale
                     </button>
-                    {objectActions}
-                    {mode === 'model' && (
-                      <>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div ref={inspectorDetails} className="inspector-details">
+              {numericInput}
+              {tool === 'detail' ? (
+                <EdgeDetailPanel
+                  operation={detailOperation}
+                  onOperation={setDetailOperation}
+                  count={detailTarget?.indices.length ?? 0}
+                  bodyName={detailSource?.name}
+                  busy={busy}
+                  loading={detailPreview.loading}
+                  error={detailPreview.error}
+                  onAccept={() => void apply()}
+                  onCancel={cancel}
+                  all={() => {
+                    if (detailSource) {
+                      setDetailTarget({
+                        bodyId: detailSource.id,
+                        indices:
+                          editor.meshes
+                            .find((m) => m.id === detailSource.id)
+                            ?.detailEdges?.map((e) => e.index) ?? [],
+                      });
+                      setAwaitingStart(false);
+                      gestureActive.current = true;
+                    }
+                  }}
+                  clear={() =>
+                    setDetailTarget((old) => (old ? { ...old, indices: [] } : undefined))
+                  }
+                />
+              ) : tool === 'rotate' && editing ? (
+                <RotationPanel
+                  rotation={rotation}
+                  busy={busy}
+                  onChange={changeRotation}
+                  onCenter={() =>
+                    rotationRef.current &&
+                    changeRotation({
+                      pivot: bodiesCenter(
+                        project.bodies.filter((b) => rotationRef.current!.ids.includes(b.id)),
+                      ),
+                      picking: undefined,
+                    })
+                  }
+                  onError={editor.setError}
+                />
+              ) : tool === 'boolean' ? (
+                <BooleanPanel
+                  bodies={project.bodies}
+                  operation={booleanOperation}
+                  onOperation={changeOperation}
+                  targets={booleanTargets}
+                  tools={booleanTools}
+                  active={booleanActive}
+                  onActive={setBooleanActive}
+                  onToggle={toggleBoolean}
+                  onSwap={() => {
+                    setBooleanTargets(booleanTools);
+                    setBooleanTools(booleanTargets);
+                  }}
+                  keepTools={keepTools}
+                  onKeepTools={setKeepTools}
+                  onAccept={() => void apply()}
+                  onCancel={() => {
+                    setTool('select');
+                    resetGesture();
+                  }}
+                  busy={busy}
+                />
+              ) : editing ? (
+                <>
+                  <div className="panel-title">
+                    <div>
+                      <span className="eyebrow">TYÖKALU</span>
+                      <h2>
+                        {tool === 'offset'
+                          ? 'Offset · sisennys'
+                          : tool === 'rotate'
+                            ? 'Kierrä kappaletta'
+                            : tool === 'rectangle'
+                              ? 'Suorakulmio'
+                              : tool === 'circle'
+                                ? shapeKind === 'circle'
+                                  ? 'Ympyrä'
+                                  : shapeKind === 'ellipse'
+                                    ? 'Ellipsi'
+                                    : 'Monikulmio'
+                                : tool === 'extrude'
+                                  ? 'Push / pull'
+                                  : tool === 'measure'
+                                    ? 'Mittatyökalu'
+                                    : tool === 'pen'
+                                      ? 'Kynä'
+                                      : 'Siirrä kappaletta'}
+                      </h2>
+                    </div>
+                    <span className="step-number">{tool === 'rectangle' ? '01' : '02'}</span>
+                  </div>
+                  <p className="panel-description">
+                    {tool === 'offset'
+                      ? 'Liikuta hiirtä sisennyksen säätämiseksi tai kirjoita tarkka mitta. Klikkaus, vedon päättäminen tai Enter hyväksyy. E tekee syvennyksen tai läpireiän.'
+                      : tool === 'rectangle'
+                        ? 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
+                        : tool === 'circle'
+                          ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
+                          : tool === 'extrude'
+                            ? 'E · Vedä pintaa vapaasti. Pidä Shift pohjassa ja osoita tavoitepintaa: sininen korostus näyttää kohteen. Vapauta Shift jatkaaksesi vapaata vetoa samasta mitasta. Voit myös kirjoittaa mitan.'
+                            : tool === 'pen'
+                              ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
+                              : tool === 'measure'
+                                ? measureMode === 'guide'
+                                  ? 'Aloita verteksistä tai vedä reunasta sen suuntainen apuviiva. Piirtäminen ja siirtäminen tarttuvat viivaan.'
+                                  : 'Valitse kaksi pistettä nähdäksesi niiden etäisyyden.'
+                                : 'Anna siirtymä nykyisestä sijainnista tai vedä kappaletta näkymässä.'}
+                  </p>
+                  <div className="tool-fields">
+                    {tool === 'offset' && offsetPreview.error && (
+                      <p role="status" className="muted">
+                        {offsetPreview.error}
+                      </p>
+                    )}
+                    {tool === 'move' && (
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          aria-label="Siirrä kopio"
+                          checked={copyMove}
+                          onChange={(e) => changeCopyMove(e.target.checked)}
+                        />
+                        Siirrä kopio · Ctrl vedon aikana
+                      </label>
+                    )}
+                    {['rectangle', 'circle', 'pen'].includes(tool) && (
+                      <ShapeProperties
+                        tool={tool as 'rectangle' | 'circle' | 'pen'}
+                        kind={shapeKind}
+                        onKind={setShapeKind}
+                        width={fields.width}
+                        depth={fields.depth}
+                        thickness={fields.thickness}
+                        onField={field}
+                        purpose={shapePurpose}
+                        constructionLine={constructionLine}
+                        onPurpose={setShapePurpose}
+                        name={shapeName}
+                        onName={setShapeName}
+                        surfaceMode={surfaceMode}
+                        onSurfaceMode={setSurfaceMode}
+                        editingBodyName={editingBody?.name}
+                        sides={shapeSides}
+                        onSides={setShapeSides}
+                        onOperation={changeOperation}
+                        frameLabel={
+                          sketchTarget
+                            ? `Pinta: ${project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name}`
+                            : 'Valitse piste työtasolta tai kappaleen pinnalta'
+                        }
+                        onAccept={() => void apply(tool === 'pen')}
+                      />
+                    )}
+                    {tool === 'extrude' && faceTarget && (
+                      <div className="shape-properties">
+                        <div className="extrusion-readout" data-testid="extrusion-readout">
+                          {faceSpan ? (
+                            <>
+                              <span>
+                                Nykyinen mitta <strong>{formatLength(faceSpan.depth)} mm</strong>
+                              </span>
+                              <span>
+                                Toteutuva kokonaismitta{' '}
+                                <strong>{formatLength(finalSize!)} mm</strong>
+                              </span>
+                              <span>
+                                Siirtymä{' '}
+                                <strong>
+                                  {faceDistance > 0 ? '+' : ''}
+                                  {formatLength(faceDistance)} mm
+                                </strong>
+                              </span>
+                            </>
+                          ) : (
+                            <span>{spanLoading ? 'Mitataan vastapintaa…' : spanError}</span>
+                          )}
+                        </div>
+                        <p className="muted">
+                          Tab vaihtaa siirtymän ja toteutuvan kokonaismitan välillä ja säilyttää
+                          kirjoittamasi luvun. Miinus työntää sisään, plus vetää ulos. Ilman
+                          etumerkkiä luku seuraa vedon suuntaa.
+                        </p>
+                        <p className="muted">
+                          Vihreä mittaviiva näyttää toteutuvan kokonaismitan tässä kohdassa,
+                          kohtisuoraan valittua pintaa vastaan. Nolla avaa rajatun alueen läpi. Voit
+                          myös vetää pinnan vastapinnan ohi tai valita Leikkaa läpi.
+                        </p>
                         <button
                           className="button outlined full"
-                          disabled={busy}
-                          onClick={() => begin('boolean')}
+                          aria-pressed={pickDepth}
+                          onClick={() => setPickDepth(!pickDepth)}
                         >
-                          <Scissors size={17} />
-                          Cut / Join
+                          {pickDepth ? 'Osoita päättävää pintaa' : 'Poimi syvyys pinnasta'}
                         </button>
+                        <button
+                          className="button dark full"
+                          onClick={() => {
+                            const target = project.bodies.find((b) => b.id === faceTarget.bodyId)!;
+                            writeFields({
+                              height: String(
+                                -Math.hypot(
+                                  target.feature.width,
+                                  target.feature.depth,
+                                  target.feature.height,
+                                ) - 1,
+                              ),
+                            });
+                            extrusionModeRef.current = 'height';
+                            setExtrusionMode('height');
+                            void apply();
+                          }}
+                        >
+                          Leikkaa läpi
+                        </button>
+                      </div>
+                    )}
+                    <p className="muted">
+                      Kirjoita numero aloittaaksesi ensimmäisestä kentästä. Tab siirtyy seuraavaan.
+                      Enter tai vedon päättäminen hyväksyy osan.
+                    </p>
+                    {tool === 'measure' && (
+                      <>
+                        <button
+                          className="button outlined"
+                          onClick={() => setMeasureMenu(!measureMenu)}
+                        >
+                          {measureMode === 'guide' ? 'Apuviiva' : 'Vapaa mittaviiva'} · Vaihda tilaa
+                        </button>
+                        <button
+                          className="button outlined"
+                          onClick={() => rotateGuide()}
+                          disabled={!guideDraft}
+                        >
+                          <RotateCw size={16} />
+                          Kierrä 45° · R
+                        </button>
+                        <p className="muted">
+                          X/Y/Z lukitsee siirtosuunnan; sama näppäin vapauttaa. Esc päättää
+                          työkalun. Shift+R käynnistää vapaan kierron; osoita suunta ja hyväksy.
+                        </p>
+                        <button
+                          className="button outlined"
+                          aria-pressed={freeRotate}
+                          disabled={!guideDraft}
+                          onClick={() => rotateGuide(true)}
+                        >
+                          Vapaa kierto · Shift+R
+                        </button>
+                        {guideDraft && (
+                          <label className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={!!guideDraft.xray}
+                              onChange={(e) => {
+                                guideRef.current = { ...guideRef.current!, xray: e.target.checked };
+                                setGuideDraft(guideRef.current);
+                              }}
+                            />
+                            Tämä apuviiva x-ray
+                          </label>
+                        )}
+                      </>
+                    )}
+                    {tool === 'pen' && (
+                      <>
+                        <p className="muted">
+                          {penPoints.length} verteksiä. Palaa ensimmäiseen verteksiin sulkeaksesi
+                          muodon.
+                        </p>
+                        <button
+                          className="button outlined"
+                          disabled={penPoints.length < 3 || busy}
+                          onClick={() => void apply(true)}
+                        >
+                          Sulje muoto
+                        </button>
+                        <button
+                          className="button subtle"
+                          disabled={!penPoints.length}
+                          onClick={() => {
+                            penRef.current = penRef.current.slice(0, -1);
+                            setPenPoints(penRef.current);
+                          }}
+                        >
+                          Poista viimeinen verteksi
+                        </button>
+                      </>
+                    )}
+                    {['move', 'pen', 'measure'].includes(tool) && (
+                      <>
+                        <span className="field-caption">Lukitse vetosuunta</span>
+                        <div className="axis-locks">
+                          {(['x', 'y', 'z'] as const).map((a) => (
+                            <button
+                              key={a}
+                              aria-label={`Lukitse ${a.toUpperCase()}-akseli`}
+                              aria-pressed={axis === a}
+                              onClick={() => {
+                                setAxis(axis === a ? undefined : a);
+                                setFreeRotate(false);
+                              }}
+                            >
+                              {a.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {['rectangle', 'pen', 'move'].includes(tool) && (
+                      <p className="muted">
+                        {tool === 'pen' && penPoints.length
+                          ? 'Shift lukitsee piirtosuunnan pituuden poimimista varten. Erillisen viitepisteen saat Poimi viite -painikkeesta.'
+                          : 'Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen suuntalinjat ohjaavat piirtämistä ja siirtoa. Kosketuksella käytä Poimi viite -painiketta.'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="tool-tip">
+                    <span className="tiny-dot" />
+                    {snapLabel}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="panel-title">
+                    <div>
+                      <span className="eyebrow">
+                        {body || selectedGroup ? 'VALINTA' : 'PROJEKTI'}
+                      </span>
+                      <h2>
+                        {selectedGroup?.name ??
+                          (selectedIds.length > 1
+                            ? `${selectedIds.length} kappaletta`
+                            : body?.name) ??
+                          'Valitse kappale'}
+                      </h2>
+                    </div>
+                    <Box size={21} />
+                  </div>
+                  {body && !selectedGroup ? (
+                    <div className="selection-info">
+                      <span className="selection-tag">
+                        {selectedIds.length > 1
+                          ? `Mitat: ${body.name}`
+                          : featureIsSolid(body.feature)
+                            ? 'CAD-kappale'
+                            : 'Tasoluonnos'}
+                        {selectedFace ? ` · ${faceNames[selectedFace] ?? 'Valittu pinta'}` : ''}
+                      </span>
+                      <div className="dimensions-grid">
+                        <div>
+                          <span>Leveys</span>
+                          <strong>
+                            {formatLength(body.feature.width)}
+                            <small>mm</small>
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Syvyys</span>
+                          <strong>
+                            {formatLength(body.feature.depth)}
+                            <small>mm</small>
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Korkeus · Z</span>
+                          <strong data-testid="selected-height">
+                            {formatLength(body.feature.height)}
+                            <small>mm</small>
+                          </strong>
+                        </div>
+                      </div>
+                      <p className="origin-readout">
+                        X {formatLength(body.origin[0])} · Y {formatLength(body.origin[1])} · Z{' '}
+                        {formatLength(body.origin[2])}
+                      </p>
+                      {mode === 'model' && (
+                        <>
+                          <div className="selection-actions object-quick-actions">
+                            <button
+                              aria-label="Siirrä valittua"
+                              disabled={busy}
+                              onClick={() => begin('move')}
+                            >
+                              <Move3D size={15} /> Siirrä
+                            </button>
+                            <button
+                              aria-label="Kopioi kappale"
+                              disabled={busy}
+                              onClick={() => void copyBody()}
+                            >
+                              <Copy size={15} /> Kopioi
+                            </button>
+                            <button
+                              aria-label="Poista kappale"
+                              disabled={busy}
+                              onClick={() => void removeBody()}
+                            >
+                              <Trash2 size={15} /> Poista
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      {objectActions}
+                      {!featureIsSolid(body.feature) && mode === 'model' && (
                         <button
                           className="button outlined full"
                           disabled={busy}
                           onClick={() => begin('extrude')}
                         >
-                          <ArrowUpFromLine size={17} />
-                          {featureIsSolid(body.feature) ? 'Muokkaa pintaa' : 'Anna paksuus'}
+                          Anna paksuus
                         </button>
-                        <div className="selection-actions">
-                          <IconButton
-                            label="Siirrä valittua"
-                            disabled={busy}
-                            onClick={() => begin('move')}
-                          >
-                            <Move3D />
-                          </IconButton>
-                          <IconButton
-                            label="Kopioi kappale"
-                            disabled={busy}
-                            onClick={() => void copyBody()}
-                          >
-                            <Copy />
-                          </IconButton>
-                          <IconButton
-                            label="Poista kappale"
-                            disabled={busy}
-                            onClick={() => void removeBody()}
-                          >
-                            <Trash2 />
-                          </IconButton>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <p className="panel-description">
-                    {selectedGroup
-                      ? 'Ryhmän valintaa voi rajata napsauttamalla osia.'
-                      : project.bodies.length
-                        ? 'Valitse kappale näkymästä tai alla olevasta listasta.'
-                        : 'Jokainen hyvä suunnitelma alkaa yhdestä muodosta.'}
-                  </p>
-                )}
-
-                {mode === 'drawing' && (
-                  <div className="drawing-options">
-                    <h3>Lisää mitta</h3>
-                    <p className="muted">
-                      {body ? `Valittu: ${body.name}` : 'Valitse ensin kappale listasta.'}
-                    </p>
-                    <div className="dimension-buttons">
-                      <button
-                        className="button outlined"
-                        disabled={!body || busy || body.purpose === 'construction'}
-                        onClick={() => void addDimension(drawingView === 'right' ? 'y' : 'x')}
-                      >
-                        <ArrowLeftRight size={16} />
-                        {drawingView === 'right' ? 'Syvyys' : 'Leveys'}
-                      </button>
-                      <button
-                        className="button outlined"
-                        disabled={
-                          !body ||
-                          busy ||
-                          body.purpose === 'construction' ||
-                          (drawingView !== 'top' && !body?.feature.height)
-                        }
-                        onClick={() => void addDimension(drawingView === 'top' ? 'y' : 'z')}
-                      >
-                        <Ruler size={16} />
-                        {drawingView === 'top' ? 'Syvyys' : 'Korkeus'}
-                      </button>
-                    </div>
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={hidden}
-                        onChange={(e) => setHidden(e.target.checked)}
-                      />
-                      Näytä piiloviivat
-                    </label>
-                    <button
-                      className="button dark full"
-                      disabled={!sheet?.fits || !!sheet.orphanCount || busy}
-                      onClick={() =>
-                        sheet &&
-                        downloadFile(
-                          sheet.svg,
-                          `${safeFilename(project.name)}-${drawingView}.svg`,
-                          'image/svg+xml',
-                        )
-                      }
-                    >
-                      <ArrowDownToLine size={17} />
-                      Vie SVG-mittakuva
-                    </button>
-                    <p className="export-note">
-                      A4 vaaka · vektorigrafiikka
-                      <br />
-                      Tulosta 100 % koossa.
-                    </p>
-                  </div>
-                )}
-
-                {selectedGroup && mode === 'model' && (
-                  <GroupActions
-                    group={selectedGroup}
-                    groups={project.groups}
-                    count={selectedIds.length}
-                    total={groupBodies(project, selectedGroup.id).length}
-                    busy={busy}
-                    onChange={(patch) => void patchGroup(selectedGroup.id, patch)}
-                    onMove={() => begin('move')}
-                    onCopy={copyBody}
-                    onFit={fit}
-                    onSubgroup={() => void createGroup(selectedGroup.id)}
-                  />
-                )}
-                <div className="object-panel">
-                  <div className="multi-actions">
-                    <button aria-pressed={multiSelect} onClick={() => setMultiSelect(!multiSelect)}>
-                      Monivalinta
-                    </button>
-                    <button
-                      aria-label="Yhdistä valitut"
-                      disabled={
-                        busy ||
-                        selectedIds.length < 2 ||
-                        project.bodies
-                          .filter((b) => selectedIds.includes(b.id))
-                          .some((b) => !featureIsSolid(b.feature))
-                      }
-                      onClick={() => void mergeSelected()}
-                    >
-                      <Merge size={15} />
-                      Yhdistä {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
-                    </button>
-                  </div>
-                  <div className="panel-tabs">
-                    <button aria-pressed={tab === 'objects'} onClick={() => setTab('objects')}>
-                      Kappaleet <span>{project.bodies.length}</span>
-                    </button>
-                    <button
-                      aria-pressed={tab === 'dimensions'}
-                      onClick={() => setTab('dimensions')}
-                    >
-                      Mitat <span>{project.dimensions.length}</span>
-                    </button>
-                    <button aria-pressed={tab === 'guides'} onClick={() => setTab('guides')}>
-                      Viivat <span>{project.guides.length}</span>
-                    </button>
-                  </div>
-                  {tab === 'objects' ? (
-                    objectTree
-                  ) : tab === 'guides' ? (
-                    <div className="guide-list">
-                      {project.guides.map((g) => {
-                        const points = guideMeasurement(project.bodies, g);
-                        return (
-                          <div
-                            key={g.id}
-                            className={
-                              !points ? 'broken' : selectedGuideId === g.id ? 'selected' : ''
-                            }
-                          >
-                            <button onClick={() => selectGuide(g.id)}>
-                              <Ruler size={15} />
-                              <span>
-                                {points
-                                  ? `${g.mode === 'guide' ? 'Apuviiva' : 'Mittaviiva'} · ${formatLength(Math.hypot(...points[1].map((n, i) => n - points[0][i])))} mm`
-                                  : 'Viite puuttuu'}
-                                <small>
-                                  {formatLength(g.angle)}° · {g.plane}
-                                </small>
-                              </span>
-                            </button>
-                            <label className="guide-xray" title="Näytä tämä viiva kappaleiden läpi">
-                              <CommitCheckbox
-                                label="Viivan x-ray"
-                                disabled={busy}
-                                checked={!!g.xray}
-                                onChange={(checked) =>
-                                  editor.transact(
-                                    {
-                                      ...project,
-                                      guides: project.guides.map((line) =>
-                                        line.id === g.id ? { ...line, xray: checked } : line,
-                                      ),
-                                    },
-                                    'Viivan x-ray muutettu.',
-                                  )
-                                }
-                              />
-                              X-ray
-                            </label>
-                            <IconButton
-                              label="Poista viiva"
-                              disabled={busy}
-                              onClick={() =>
-                                void editor.transact(
-                                  {
-                                    ...project,
-                                    guides: project.guides.filter((line) => line.id !== g.id),
-                                  },
-                                  'Viiva poistettu.',
-                                )
-                              }
-                            >
-                              <X size={15} />
-                            </IconButton>
-                          </div>
-                        );
-                      })}
-                      {!project.guides.length && (
-                        <p className="empty-list">
-                          Mittatyökalulla voit luoda mitta- ja apuviivoja.
-                        </p>
                       )}
+                      <details className="inspector-disclosure">
+                        <summary>Mitat ja mallinnus</summary>
+                        <div className="disclosure-content">
+                          <button
+                            className="button outlined full"
+                            disabled={
+                              busy ||
+                              !project.bodies.some(
+                                (b) =>
+                                  (selectedIds.length
+                                    ? selectedIds.includes(b.id)
+                                    : b.id === body.id) && b.purpose !== 'construction',
+                              )
+                            }
+                            onClick={() => void dimensionSelection()}
+                          >
+                            <Ruler size={16} /> Lisää kokonaismitat
+                          </button>
+                          {mode === 'model' && (
+                            <>
+                              <button
+                                className="button outlined full"
+                                disabled={busy}
+                                onClick={() => begin('boolean')}
+                              >
+                                <Scissors size={17} />
+                                Cut / Join
+                              </button>
+                              <button
+                                className="button outlined full"
+                                disabled={busy}
+                                onClick={() => begin('extrude')}
+                              >
+                                <ArrowUpFromLine size={17} />
+                                Muokkaa pintaa
+                              </button>
+                              <button
+                                className="button outlined full"
+                                aria-label="Yhdistä valitut"
+                                disabled={
+                                  busy ||
+                                  selectedIds.length < 2 ||
+                                  project.bodies
+                                    .filter((b) => selectedIds.includes(b.id))
+                                    .some((b) => !featureIsSolid(b.feature))
+                                }
+                                onClick={() => void mergeSelected()}
+                              >
+                                <Merge size={15} />
+                                Yhdistä {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </details>
                     </div>
                   ) : (
-                    <div className="dimension-list">
-                      {project.dimensions.length ? (
-                        project.dimensions.map((d) => {
-                          const value = dimensionValue(project, d);
-                          return (
-                            <div key={d.id} className={value === null ? 'broken' : ''}>
-                              <button onClick={() => select(d.bodyId)}>
-                                <Ruler size={15} />
-                                <span>
-                                  {value === null
-                                    ? 'Viite puuttuu'
-                                    : `${d.axis.toUpperCase()} · ${formatLength(value)} mm`}
-                                  <small>
-                                    {project.bodies.find((b) => b.id === d.bodyId)?.name ??
-                                      'Poistettu kappale'}
-                                  </small>
-                                </span>
-                              </button>
-                              <IconButton
-                                label="Poista mitta"
-                                disabled={busy}
-                                onClick={() =>
-                                  void editor.transact(
-                                    {
-                                      ...project,
-                                      dimensions: project.dimensions.filter((m) => m.id !== d.id),
-                                    },
-                                    'Mitta poistettu.',
-                                  )
-                                }
-                              >
-                                <X size={15} />
-                              </IconButton>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="empty-list">
-                          <Ruler size={26} />
-                          <p>
-                            Lisää ensimmäinen mitta
-                            <br />
-                            Mittakuva-työtilassa.
-                          </p>
-                        </div>
-                      )}
-                      {mode === 'drawing' && (
-                        <button className="button subtle full" onClick={() => setTab('objects')}>
-                          <Box size={16} />
-                          Valitse kappale
+                    !selectedGroup && (
+                      <p className="panel-description">
+                        {project.bodies.length
+                          ? 'Valitse kappale näkymästä tai listasta. Vedä kappale ryhmään järjestääksesi mallin.'
+                          : 'Jokainen hyvä suunnitelma alkaa yhdestä muodosta.'}
+                      </p>
+                    )
+                  )}
+
+                  {mode === 'drawing' && (
+                    <div className="drawing-options">
+                      <h3>Lisää mitta</h3>
+                      <p className="muted">
+                        {body ? `Valittu: ${body.name}` : 'Valitse ensin kappale listasta.'}
+                      </p>
+                      <div className="dimension-buttons">
+                        <button
+                          className="button outlined"
+                          disabled={!body || busy || body.purpose === 'construction'}
+                          onClick={() => void addDimension(drawingView === 'right' ? 'y' : 'x')}
+                        >
+                          <ArrowLeftRight size={16} />
+                          {drawingView === 'right' ? 'Syvyys' : 'Leveys'}
                         </button>
-                      )}
+                        <button
+                          className="button outlined"
+                          disabled={
+                            !body ||
+                            busy ||
+                            body.purpose === 'construction' ||
+                            (drawingView !== 'top' && !body?.feature.height)
+                          }
+                          onClick={() => void addDimension(drawingView === 'top' ? 'y' : 'z')}
+                        >
+                          <Ruler size={16} />
+                          {drawingView === 'top' ? 'Syvyys' : 'Korkeus'}
+                        </button>
+                      </div>
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={hidden}
+                          onChange={(e) => setHidden(e.target.checked)}
+                        />
+                        Näytä piiloviivat
+                      </label>
+                      <button
+                        className="button dark full"
+                        disabled={!sheet?.fits || !!sheet.orphanCount || busy}
+                        onClick={() =>
+                          sheet &&
+                          downloadFile(
+                            sheet.svg,
+                            `${safeFilename(project.name)}-${drawingView}.svg`,
+                            'image/svg+xml',
+                          )
+                        }
+                      >
+                        <ArrowDownToLine size={17} />
+                        Vie SVG-mittakuva
+                      </button>
+                      <p className="export-note">
+                        A4 vaaka · vektorigrafiikka
+                        <br />
+                        Tulosta 100 % koossa.
+                      </p>
                     </div>
                   )}
-                </div>
-                <div className="panel-footer">
-                  <span className="tiny-dot" />
-                  <span>
-                    {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
-                  </span>
-                  <span>v0.8.1</span>
-                </div>
-              </>
-            )}
-            {(editing || tool === 'boolean') && objectActions}
-            {(editing || tool === 'boolean') && objectTree}
+
+                  {selectedGroup && mode === 'model' && (
+                    <GroupActions
+                      group={selectedGroup}
+                      groups={project.groups}
+                      count={selectedIds.length}
+                      total={groupBodies(project, selectedGroup.id).length}
+                      busy={busy}
+                      onChange={(patch) => void patchGroup(selectedGroup.id, patch)}
+                      onMove={() => begin('move')}
+                      onCopy={copyBody}
+                      onFit={fit}
+                      onSubgroup={() => void createGroup(selectedGroup.id)}
+                      onRemove={() => void removeGroup(selectedGroup.id)}
+                      onMerge={() => void mergeSelected()}
+                      canMerge={
+                        selectedIds.length > 1 &&
+                        project.bodies
+                          .filter((b) => selectedIds.includes(b.id))
+                          .every((b) => featureIsSolid(b.feature))
+                      }
+                    />
+                  )}
+                  <div className="panel-footer">
+                    <span className="tiny-dot" />
+                    <span>
+                      {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
+                    </span>
+                    <span>v0.8.2</span>
+                  </div>
+                </>
+              )}
+            </div>
           </aside>
         )}
       </div>

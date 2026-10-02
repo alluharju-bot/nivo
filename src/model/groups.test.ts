@@ -7,6 +7,7 @@ import {
   reparentGroup,
   dissolveGroup,
   translateSelection,
+  moveInTree,
 } from './groups';
 import { resolveAnchor } from './guides';
 
@@ -116,5 +117,36 @@ describe('nested groups and whole-selection transforms', () => {
     expect(result.project.bodies.at(-1)!.name).toBe('Muu kopio');
     expect(result.project.dimensions).toEqual(p.dimensions);
     expect(result.project.guides).toEqual(p.guides);
+  });
+});
+
+describe('tree rearrangement', () => {
+  it('moves a selection across hierarchy without moving geometry, changing IDs or losing references', () => {
+    const p = frame();
+    const ids = [p.bodies[0].id, p.bodies[15].id];
+    const next = moveInTree(p, { kind: 'bodies', ids }, 'child');
+    expect(next.groups).toEqual(p.groups);
+    expect(next.dimensions).toEqual(p.dimensions);
+    expect(next.guides).toEqual(p.guides);
+    next.bodies.forEach((b, i) =>
+      expect(b).toEqual(ids.includes(b.id) ? { ...p.bodies[i], groupId: 'child' } : p.bodies[i]),
+    );
+    const root = moveInTree(next, { kind: 'bodies', ids });
+    expect(root.bodies.filter((b) => ids.includes(b.id)).every((b) => !b.groupId)).toBe(true);
+    expect(p.bodies[0].groupId).toBe('root');
+  });
+  it('rejects missing entries and cycles, and preserves project identity on a no-op', () => {
+    const p = frame();
+    expect(moveInTree(p, { kind: 'bodies', ids: [p.bodies[0].id] }, 'root')).toBe(p);
+    expect(moveInTree(p, { kind: 'group', id: 'root' })).toBe(p);
+    expect(() => moveInTree(p, { kind: 'bodies', ids: ['missing'] }, 'root')).toThrow();
+    expect(() => moveInTree(p, { kind: 'bodies', ids: [] })).toThrow();
+    expect(() => moveInTree(p, { kind: 'group', id: 'root' }, 'child')).toThrow();
+    expect(() => moveInTree(p, { kind: 'group', id: 'root' }, 'root')).toThrow();
+    expect(() => moveInTree(p, { kind: 'group', id: 'missing' })).toThrow();
+    expect(() => moveInTree(p, { kind: 'bodies', ids: [p.bodies[0].id] }, 'missing')).toThrow();
+    const next = moveInTree(p, { kind: 'group', id: 'child' });
+    expect(next.bodies).toEqual(p.bodies);
+    expect(next.groups[1].parentId).toBeUndefined();
   });
 });

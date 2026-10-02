@@ -92,6 +92,10 @@ test('origin, hold, hide, names and groups survive undo and reload', async ({ pa
   const body = makeBody(100, 60, 20, [800, 300, 100], 'Ovi');
   await ready(page, [body]);
   await page.getByTestId(`body-${body.id}`).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Sijainti$/ })
+    .click();
   await page.getByRole('button', { name: 'Siirrä origoon', exact: true }).click();
   await expect(page.locator('.origin-readout')).toContainText('X 0');
   expect((await save(page)).bodies[0].origin).toEqual([0, 0, 0]);
@@ -111,10 +115,15 @@ test('origin, hold, hide, names and groups survive undo and reload', async ({ pa
   await expect(
     page.getByRole('button', { name: 'Kiinnitä paikalleen', exact: true }),
   ).toHaveAttribute('aria-pressed', 'false');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Nimi ja ryhmä$/ })
+    .click();
   await page.getByRole('textbox', { name: 'Kappaleen nimi', exact: true }).fill('Etuovi');
   await page.getByRole('textbox', { name: 'Kappaleen nimi', exact: true }).press('Enter');
   await expect(page.getByTestId(`body-${body.id}`)).toHaveText('Etuovi');
   await page.getByRole('button', { name: 'Uusi ryhmä', exact: true }).click();
+  await page.getByRole('button', { name: 'Valitse ryhmä: Ryhmä 1', exact: true }).dblclick();
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Ryhmä 1', exact: true }).fill('Keittiö');
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Ryhmä 1', exact: true }).press('Enter');
   await expect(page.getByRole('region', { name: 'Ryhmän toiminnot' })).toBeVisible();
@@ -132,6 +141,11 @@ test('origin, hold, hide, names and groups survive undo and reload', async ({ pa
   model = await save(page);
   expect(model.bodies[0].hidden).toBe(true);
   expect(model.groups[0].name).toBe('Keittiö');
+  await page.getByRole('button', { name: 'Valitse ryhmä: Keittiö', exact: true }).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Ryhmän asetukset$/ })
+    .click();
   await page.getByRole('button', { name: 'Pura ryhmä: Keittiö', exact: true }).click();
   model = await save(page);
   expect(model.groups).toHaveLength(0);

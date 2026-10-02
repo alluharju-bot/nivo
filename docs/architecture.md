@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.8.1
+# Arkkitehtuuri — v0.8.2
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -378,3 +378,23 @@ nollapaksuista profiilia. Uutta tiedostoformaattia ei tarvita. Näkymä piirtä�
 vain katkoviivaisen ääriviivan; CAD-pinta säilyy tartuntapisteiden laskentaan,
 mutta sen raycast ohitetaan. Valinta ja siirto poimivat ääriviivan erikseen.
 Pintatyökalut ja piirtotason poiminta tavoittavat alla olevan oikean kappaleen.
+
+## Kappalelistan järjestely v0.8.2
+
+`moveInTree` muuttaa vain osien `groupId`- tai ryhmän `parentId`-viitteitä.
+Geometria, origot, tunnisteet ja mitta-/apuviitteet säilyvät. Puuttuvat kohteet
+ja syklit hylätään; muuttumaton kohde palauttaa alkuperäisen projektin, joten
+historiaan ei synny tyhjää askelta. Yksi `editor.transact` kattaa koko valinnan.
+
+`useTreeDrag` erottaa napsautuksen vedosta 6 px kynnyksellä. Hiirellä koko nimi
+aloittaa vedon, kosketuksella vain `touch-action: none` -kahva. Pointer capture,
+window-tason päättäminen, Esc, pointercancel ja ikkunan blur pitävät keskeytykset
+turvallisina. DOM-kohdistus etsii vain oman listan kohderyhmät; rAF vierittää
+listan reunoilla. Vetämisen jälkeinen napsautus ei vaihda valintaa.
+Aktiivisen geometriatyökalun ja osan muokkaustilan aikana raahaus on estetty.
+Näkyvyys ja Hold periytyvät uudesta ryhmästä; osien omat liput säilyvät.
+
+Listan oma vieritys pysyy erillään valinnan/työkalun vierityksestä.
+ObjectTree on samassa kohdassa työkalusta riippumatta: suljetut ryhmät eivät
+avaudu itsestään työkalua vaihdettaessa. Ryhmän päälle pudottaminen avaa
+kohderyhmän. Harvemmin käytetyt ominaisuudet ovat natiiveissa details-osioissa.

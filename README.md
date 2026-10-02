@@ -3,8 +3,9 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.8.1** korjaa mittauksen loppupään tartunnat ja tuo muotojen
-**Mittaus/rakennusviiva**-pikavalinnan. Versio 0.8.0 toi sisäkkäiset ryhmät, koko valinnan siirron ja kopioinnin,
+Versio **0.8.2** tuo kappaleiden ja alaryhmien raahauksen ryhmiin sekä selkeämmän
+oikean sivupaneelin. Versio 0.8.1 korjasi mittauksen loppupään tartunnat ja toi
+muotojen **Mittaus/rakennusviiva**-pikavalinnan. Versio 0.8.0 toi sisäkkäiset ryhmät, koko valinnan siirron ja kopioinnin,
 tarkat CAD-viisteet ja pyöristykset sekä erillisen renderöintinäkymän ja PNG-viennin.
 Muokkaustila ja apuviivat ovat selkeämpiä: viivan valinta ei aloita siirtoa,
 apuviivojen risteyksiin voi tarttua ja kumitus poistaa myös apuviivan.
@@ -82,13 +83,29 @@ geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
 
 ## Ryhmät ja yhteinen siirto
 
-Kappalelistan **Ryhmä** kokoaa valitut osat. Ryhmän nimen voi kirjoittaa suoraan
-listaan. Ryhmän valinta ottaa mukaan myös alaryhmien osat. **Yläryhmä** siirtää
-ryhmän toisen sisään tai takaisin päätasolle; omaa alaryhmää ei voi valita
-vanhemmaksi. **Luo alaryhmä** kokoaa valitut osat uuden alaryhmän alle.
+![Kappalelista ja ryhmän toiminnot](docs/images/nivo-object-panel.png)
+
+Kappalelista pysyy oikean paneelin yläosassa; valinnan tiedot tai aktiivinen
+työkalu näkyvät sen alla. Väri, nimi/ryhmä, sijainti sekä mitoitus- ja
+mallinnustoiminnot avataan tarvittaessa omista osioistaan.
+
+**Vedä kappaleen nimi ryhmän päälle** siirtääksesi sen ryhmään. Pudota **Päätaso**-riville
+siirtääksesi sen pois ryhmästä. Valitusta kappaleesta aloitettu veto vie koko
+monivalinnan; valitsemattomasta aloitettu veto vie vain kyseisen kappaleen.
+Ryhmän nimestä vedetään koko alaryhmä sisältöineen. Kohde korostuu ja vetolappu
+näyttää kohderyhmän. Esc tai pudotus listan ulkopuolelle peruu. Listan reuna
+vierittää pitkää listaa vedon aikana. Kosketuksella vedä rivin pistekahvasta;
+nimen kohdalta voit vierittää listaa. Järjestely säilyttää osien 3D-sijainnit.
+
+Kappalelistan **Ryhmä** kokoaa valitut osat. Napsautus valitsee, **kaksoisnapsautus
+tai F2** avaa kappaleen tai ryhmän nimen kirjoitettavaksi. Ryhmän valinta ottaa
+mukaan myös alaryhmien osat. Raahauksen vaihtoehtona **Nimi ja ryhmä → Ryhmä**
+tai **Ryhmän asetukset → Yläryhmä** vaihtaa ryhmitystä valikolla. Ryhmää ei voi
+siirtää itsensä tai oman alaryhmänsä sisään. **Luo alaryhmä** kokoaa valitut
+osat uuden alaryhmän alle.
 
 Ryhmän silmä ja lukko koskevat koko hierarkiaa. Ryhmän näyttäminen tai
-vapauttaminen säilyttää osien omat piilotukset ja lukot. **Pura ryhmä** säilyttää
+vapauttaminen säilyttää osien omat piilotukset ja lukot. **Ryhmän asetukset → Pura ryhmä** säilyttää
 osat ja nostaa sen suorat osat sekä alaryhmät ylemmälle tasolle.
 
 Valitse ryhmä ja napsauta osia ilman lisänäppäintä poistaaksesi tai lisätäksesi
@@ -384,8 +401,8 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
   kiertää, Offset-muokata tai push/pullata ennen vapauttamista.
 - **Kappalelista:** valitse napsauttamalla, nimeä kaksoisnapsauttamalla tai
   Nimi-kentästä, piilota silmästä ja kiinnitä lukosta. **Ryhmä** kokoaa valitut osat.
-  Ryhmän nimen voi kirjoittaa suoraan listaan ja koko ryhmän piilottaa silmästä.
-  Ryhmän purkaminen säilyttää kappaleet. Ryhmät ovat tässä versiossa yksitasoisia.
+  Ryhmät toimivat myös sisäkkäin; niitä voi nimetä ja raahata kuten kappaleita.
+  Ryhmän purkaminen asetuksista säilyttää kappaleet.
 - **Asetukset:** Hillitty/Korostettu vaihtaa akselien voimakkuuden; nimitekstit
   saa erikseen näkyviin. Mukautuva ruudukko jatkuu kauas. Näyttöruudukon tiheys
   muuttuu zoomauksen mukana, mutta valinnainen ruudukkotartunta pysyy 10 mm:nä.

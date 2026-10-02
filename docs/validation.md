@@ -6,6 +6,32 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.8.2: **85 yksikkö-/CAD-testiä hyväksytty**. Uudet ryhmittelykokeet
+varmentavat, että monivalinnan järjestely muuttaa vain ryhmäviitteet:
+3D-sijainnit, geometria, tunnisteet, mitat ja apuviivat säilyvät. Virheelliset
+kohteet ja syklit hylätään, eikä samaan kohteeseen pudotus lisää historiaa.
+
+Kappalelistan ja ominaisuuksien selainajo: **25/25 hyväksytty (4,9 min)**
+työpöytä- ja tablettiprofiileissa. Yksi vain kosketukselle tarkoitettu tapaus
+rajattiin työpöytäprofiilista pois. Monivalinnan ja yksittäisen osan veto,
+Päätasolle palautus, suljettuun ryhmään pudotus, alaryhmän veto,
+syklien esto, Esc ja listan ulkopuolelle pudotus, pitkän listan reunavieritys,
+F2-nimeämisen peruutus, näppäimistövalinta vedon jälkeen ja valikkovaihtoehto
+varmennettiin. Kosketuskoe käyttää Chromiumin touch-tapahtumia.
+
+Peru/Palauta ja uudelleenavaus säilyttivät ryhmittelyn. Aiemmat 15 osan
+kopiointi/siirto-, ryhmä-/Hold-/näkyvyys-, kierto-, väri-, mitta- ja
+tiedostotyönkulut läpäisivät molemmat profiilit. Listan ja työkalun yhtäaikainen
+näkyvyys sekä kuvakaappaukset tarkistettiin.
+
+Viimeistelyn regressioajo: **12/12 hyväksytty (2,1 min)**. Työkalun avaaminen
+vieritettyjen ominaisuuksien jälkeen tuo mittakentät heti näkyviin, ryhmän
+asetuksista voi edelleen yhdistää valitut kappaleet ja Peru palauttaa osat.
+Kynä → paksuus → kopio → yhdistäminen, osan muokkaustila, koko näytön tila,
+390 px selainikkuna sekä mallinnus → historia → mittakuva → vienti → palautus
+varmennettiin molemmilla profiileilla. Yhteensä **37 erillistä selaintapausta**
+hyväksytty. TypeScript, tuotantopaketointi ja koko repon muotoilutarkistus hyväksytty.
+
 V0.8.1: **83 yksikkö-/CAD-testiä hyväksytty** ja **20/20 selaintapausta
 hyväksytty (5,4 min)** työpöytä- ja tablettiprofiileilla. Uudet kokeet
 varmentavat reunasta aloitetun mittauksen loppupään reuna-, keskipiste- ja

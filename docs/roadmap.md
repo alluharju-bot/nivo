@@ -185,3 +185,13 @@ muuttumattomana myös muokkaustilassa. Suorakulmio, ympyrä, ellipsi, säännöl
 monikulmio ja suljettu kynämuoto käyttävät samaa toimintoa. Kappale-valinta
 palauttaa normaalin piirtotavan. Apumuodot tallentuvat ja ovat peruttavissa,
 mutta ne eivät tule mittakuvaan tai renderöintiin.
+
+## Toteutettu v0.8.2: kappalelistan raahaus ja sivupaneeli
+
+- Osat ja monivalinnat voi vetää ryhmään ja Päätasolle. Ryhmän veto siirtää
+  koko alaryhmän; syklit on estetty. 3D-sijainti säilyy, Peru toimii yhdellä askeleella.
+- Korostettu kohde, vetolappu, reunavieritys ja kosketuksen pistekahvat.
+- Ryhmän nimi valitsee ryhmän; kaksoisnapsautus/F2 nimeää sekä osat että ryhmät.
+  Näkyvyys ja Hold pysyvät riveillä, purkaminen siirtyi ryhmän asetuksiin.
+- Lista pysyy paneelin yläosassa, valinnan tiedot ja työkalut sen alla.
+  Väri, sijainti, nimeäminen/ryhmä ja mallinnuksen lisätoiminnot avataan tarvittaessa.

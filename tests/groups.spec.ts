@@ -65,8 +65,13 @@ test('nested group rename, reparent, inherited visibility and Hold survive file 
   const other = { id: 'other', name: 'Kaluste', hidden: false };
   await ready(page, [part], [], [...groups, other]);
   const p = await view(page, [part]);
+  await page.getByRole('button', { name: 'Valitse ryhmä: Pystyt', exact: true }).dblclick();
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Pystyt', exact: true }).fill('Rimat');
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Pystyt', exact: true }).press('Enter');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Ryhmän asetukset$/ })
+    .click();
   await page.getByRole('combobox', { name: 'Ryhmän yläryhmä', exact: true }).selectOption('other');
   await expect(page.getByTestId('group-other').getByTestId('group-child')).toBeVisible();
   await page.getByRole('button', { name: 'Kiinnitä ryhmä: Kaluste', exact: true }).click();

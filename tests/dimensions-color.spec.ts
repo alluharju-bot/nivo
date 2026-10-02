@@ -26,6 +26,14 @@ test('shared 3D and drawing dimensions follow editing; part colors, dimensions a
   const source = makeBody(600, 400, 18, [0, 0, 0], 'Ovi');
   await ready(page, [source]);
   await page.getByTestId(`body-${source.id}`).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Mitat ja mallinnus$/ })
+    .click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^\s*Väri\s*$/ })
+    .click();
   await page.getByRole('button', { name: 'Lisää kokonaismitat', exact: true }).click();
   await expect(page.getByTestId('dimension-3d')).toHaveCount(3);
   await page.getByRole('button', { name: 'Lisää kokonaismitat', exact: true }).click();
@@ -68,6 +76,14 @@ test('color applies to a multi-selection in one undo step; custom color and 3D d
   await ready(page, [a, b]);
   await page.getByTestId(`body-${a.id}`).click();
   await page.getByTestId(`body-${b.id}`).click({ modifiers: ['Shift'] });
+  await page
+    .locator('summary')
+    .filter({ hasText: /^\s*Väri\s*$/ })
+    .click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Mitat ja mallinnus$/ })
+    .click();
   await expect(page.getByText('Väri · useita', { exact: true })).toBeVisible();
   const commonColor = await page.getByLabel('Oma osaväri', { exact: true }).inputValue();
   await page.getByRole('button', { name: 'Käytä väriä', exact: true }).click();
