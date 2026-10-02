@@ -60,7 +60,8 @@ export function ObjectActions({
       </div>
       {count > 1 && (
         <p className="muted">
-          Väri, kierto, kiinnitys, origoon siirto ja ryhmä koskevat kaikkia {count} valittua.
+          Siirto, kopiointi, väri, kierto, kiinnitys, origoon siirto ja ryhmä koskevat kaikkia{' '}
+          {count} valittua.
         </p>
       )}
       <details className="inspector-disclosure">

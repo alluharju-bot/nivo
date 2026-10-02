@@ -159,6 +159,7 @@ export function installInteractions({
     face?: FaceTarget;
     sketch?: SketchFrame;
     bodyId?: string;
+    extendSelection?: boolean;
   };
   let detailSession:
     | (SizeDrag & {
@@ -1645,6 +1646,8 @@ export function installInteractions({
       plane,
       second,
       bodyId: props.tool === 'move' ? selected?.id : undefined,
+      extendSelection:
+        props.tool === 'select' && (event.shiftKey || event.ctrlKey || event.metaKey),
     };
     if (props.tool === 'rectangle')
       props.onGesture({
@@ -1903,6 +1906,9 @@ export function installInteractions({
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
       } else if (props.tool === 'select' && !moved) {
+        // Remember modifiers from press time too: releasing Shift just before the
+        // mouse button must not replace the selection the user was extending.
+        const extend = !!active.extendSelection || event.shiftKey || event.ctrlKey || event.metaKey;
         const guideHit = selectableGuideAt(event);
         if (guideHit) {
           props.onSelectGuide(guideHit.object.userData.guideId);
@@ -1918,12 +1924,11 @@ export function installInteractions({
             props.onSelect(
               hit.object.userData.id,
               faces.find((f) => index >= f.start && index < f.start + f.count)?.ref,
-              event.shiftKey || event.ctrlKey || event.metaKey,
+              extend,
             );
         } else {
-          if (!event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey)
-            emptySelectionClicks = Math.min(2, previousEmptyClicks + 1);
-          props.onSelect(undefined, undefined, event.shiftKey);
+          if (!extend && !event.altKey) emptySelectionClicks = Math.min(2, previousEmptyClicks + 1);
+          props.onSelect(undefined, undefined, extend);
         }
       } else if (props.tool === 'pen') {
         const point = updatePen(event);
@@ -1993,6 +1998,8 @@ export function installInteractions({
     }
     if (event.key === 'Shift' && !event.repeat) {
       shift = true;
+      // In Select, Shift belongs exclusively to object multiselection.
+      if (props.tool === 'select') return;
       if (props.tool === 'extrude') {
         if (!props.busy && !props.pickDepth && lastEvent) updateExtrusion(lastEvent);
         return;

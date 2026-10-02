@@ -3,7 +3,8 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.8.4** tuo kohdistimeen zoomauksen ja valittuun osaan sidotun kameran.
+Versio **0.8.5** kiertää kameraa kohdistimen alla olevan pinnan ympäri.
+Versio 0.8.4 toi kohdistimeen zoomauksen ja valinnan työskentelykeskuksen.
 Versio 0.8.3 toi viisteiden ja pyöristysten suoran hiiri- ja kosketussäädön.
 Versio 0.8.2 selkeytti kappalelistan ja lisäsi ryhmiin raahauksen; 0.8.1 toi
 muotojen **Mittaus/rakennusviiva**-pikavalinnan. Sisäkkäiset ryhmät, yhteinen
@@ -388,11 +389,21 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
 
 - Napautus valitsee. Työkalun yhden sormen veto hyväksytään sormen noustessa.
   Kosketuksella **Poimi viite** ja pisteen napautus korvaavat Shiftillä poimimisen.
+- **Valitse (V) + Shift-klikkaus** lisää objektin valintaan tai poistaa sen siitä
+  myös suoraan 3D-näkymässä. **M** siirtää kaikki valitut yhdessä ilman ryhmää.
+  Shift huomioidaan jo hiiren painalluksesta, vaikka sen vapauttaisi ennen hiirtä.
+  Valitse-tilassa Shift ei poimi viitepistettä. Muokkaustila rajaa edelleen
+  valinnan avattuun osaan; Lopeta muokkaus palauttaa muiden osien valinnan.
 - Kahden sormen ele panoroi ja zoomaa. **Navigoi**-tilassa yksi sormi kiertää.
 - Hiiren oikea painike kiertää, keskipainike panoroi ja rulla zoomaa kohdistimeen.
   Navigoi-tilassa myös vasen painike kiertää.
-- Valittu osa tai ryhmä toimii kameran kiertokeskuksena ja zoomin syvyysviitteenä.
-  Muokkaustilassa keskus säilyy muokattavassa osassa myös valinnan tyhjentyessä.
+- Kameran kierto poimii keskipisteen kohdistimen alta vedon alussa ja säilyttää
+  sen vedon ajan. Pieni rengas näyttää pisteen. Sama toimii Navigoi-tilan
+  yhden sormen vedolla. Piilotetut osat ja apuviivat eivät kaappaa pistettä.
+- Tyhjästä tilasta aloitettu kierto käyttää muokattavan osan tai valinnan
+  keskipistettä; ilman valintaa nykyistä näkymäkeskusta. Valittu osa tai ryhmä
+  säilyy zoomin syvyysviitteenä. Muokkaustilassa viite säilyy osassa myös
+  valinnan tyhjentyessä.
   Valitseminen ei hyppäytä näkymää; **Sovita näkymään** keskittää valinnan erikseen.
   Kohdistin määrää zoomin suunnan sekä perspektiivissä että rinnakkaisprojektiossa.
   Kosketuszoomauksessa käytetään sormien keskipistettä.

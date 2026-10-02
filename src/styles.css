@@ -580,6 +580,19 @@ p {
   height: 100%;
   touch-action: none;
 }
+
+.orbit-pivot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #477365;
+  border-radius: 50%;
+  background: #f6f8f1b3;
+  box-shadow: 0 0 0 2px #f6f8f159;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 4;
+}
 .dynamic-input {
   position: absolute;
   z-index: 4;

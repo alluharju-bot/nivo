@@ -79,7 +79,7 @@ test('selection, editing and groups set the working center without moving the vi
   expect(after.quaternion).toEqual(before.quaternion);
 });
 
-test('orbit stays on the selected part after cursor zoom and still allows panning', async ({
+test('empty-space orbit stays on the selected part after cursor zoom and still allows panning', async ({
   page,
 }) => {
   const a = makeBody(200, 200, 100, [0, 0, 0], 'Vasen');
@@ -97,17 +97,129 @@ test('orbit stays on the selected part after cursor zoom and still allows pannin
   const radius = new THREE.Vector3(...(await camera(page)).position).distanceTo(
     new THREE.Vector3(...pivot),
   );
+  const rect = (await page.getByTestId('viewport').boundingBox())!;
+  const empty = { x: rect.x + rect.width - 130, y: rect.y + rect.height - 100 };
+  await page.mouse.move(empty.x, empty.y);
   await page.mouse.down({ button: 'right' });
-  await page.mouse.move(cursor.x + 90, cursor.y + 40, { steps: 12 });
+  await expect(page.getByTestId('viewport')).toHaveAttribute(
+    'data-orbit-pivot',
+    JSON.stringify(pivot),
+  );
+  await page.mouse.move(empty.x + 90, empty.y + 40, { steps: 12 });
   await page.mouse.up({ button: 'right' });
   expect(distance(await screenPoint(page, pivot), before)).toBeLessThan(0.2);
   expect(
     new THREE.Vector3(...(await camera(page)).position).distanceTo(new THREE.Vector3(...pivot)),
   ).toBeCloseTo(radius, 5);
   await page.mouse.down({ button: 'middle' });
-  await page.mouse.move(cursor.x + 160, cursor.y + 40, { steps: 8 });
+  await page.mouse.move(empty.x + 20, empty.y + 40, { steps: 8 });
   await page.mouse.up({ button: 'middle' });
   expect(distance(await screenPoint(page, pivot), before)).toBeGreaterThan(30);
+});
+
+for (const projection of ['perspective', 'orthographic']) {
+  test(`orbit locks to the pointed surface even while editing another part in ${projection}`, async ({
+    page,
+  }, info) => {
+    const edited = makeBody(300, 300, 100, [0, 0, 0], 'Muokattava');
+    const reference = { ...makeBody(300, 300, 170, [550, 0, 0], 'Viite'), locked: true };
+    await ready(page, [edited, reference]);
+    if (projection === 'orthographic') await view(page, [edited, reference]);
+    await editBody(page, edited.id);
+    const wanted: Vec3 = [760, 110, 170];
+    const cursor = await screenPoint(page, wanted);
+    await page.mouse.move(cursor.x, cursor.y);
+    const before = await camera(page);
+    await page.mouse.down({ button: 'right' });
+    await expect(page.getByTestId('orbit-pivot')).toBeVisible();
+    const pivot: Vec3 = JSON.parse(
+      (await page.getByTestId('viewport').getAttribute('data-orbit-pivot'))!,
+    );
+    expect(new THREE.Vector3(...pivot).distanceTo(new THREE.Vector3(...wanted))).toBeLessThan(1);
+    expect((await camera(page)).position).toEqual(before.position);
+    expect((await camera(page)).quaternion).toEqual(before.quaternion);
+    const anchor = await screenPoint(page, pivot);
+    const radius = new THREE.Vector3(...before.position).distanceTo(new THREE.Vector3(...pivot));
+    await page.mouse.move(cursor.x - 120, cursor.y + 50, { steps: 15 });
+    expect(distance(await screenPoint(page, pivot), anchor)).toBeLessThan(0.2);
+    expect(
+      new THREE.Vector3(...(await camera(page)).position).distanceTo(new THREE.Vector3(...pivot)),
+    ).toBeCloseTo(radius, 3);
+    await expect(page.getByTestId('viewport')).toHaveAttribute(
+      'data-orbit-pivot',
+      JSON.stringify(pivot),
+    );
+    if (info.project.name === 'desktop' && projection === 'perspective')
+      await page.screenshot({ path: info.outputPath('surface-orbit.png') });
+    await page.mouse.up({ button: 'right' });
+    await expect(page.getByTestId('orbit-pivot')).toBeHidden();
+    await expect(page.getByTestId('viewport')).toHaveAttribute('data-editing-body', edited.id);
+    // Each gesture picks afresh: an empty start now uses the edited part again.
+    await view(page, [edited, reference]);
+    const rect = (await page.getByTestId('viewport').boundingBox())!;
+    await page.mouse.move(rect.x + rect.width * 0.8, rect.y + rect.height * 0.8);
+    await page.mouse.down({ button: 'right' });
+    await expect(page.getByTestId('viewport')).toHaveAttribute('data-orbit-pivot', '[150,150,50]');
+    await page.mouse.up({ button: 'right' });
+  });
+}
+
+test('orbit picks the visible fillet preview while the original surface is hidden', async ({
+  page,
+}) => {
+  const part = makeBody(400, 300, 100);
+  await ready(page, [part]);
+  await view(page, [part]);
+  await page.getByTestId(`body-${part.id}`).click();
+  await page.keyboard.press('f');
+  await page.getByRole('button', { name: 'Kaikki reunat', exact: true }).click();
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-detail-preview', part.id);
+  const wanted: Vec3 = [280, 180, 100];
+  const cursor = await screenPoint(page, wanted);
+  await page.mouse.move(cursor.x, cursor.y);
+  await page.mouse.down({ button: 'right' });
+  const pivot: Vec3 = JSON.parse(
+    (await page.getByTestId('viewport').getAttribute('data-orbit-pivot'))!,
+  );
+  expect(new THREE.Vector3(...pivot).distanceTo(new THREE.Vector3(...wanted))).toBeLessThan(1);
+  await page.mouse.move(cursor.x - 45, cursor.y + 20, { steps: 5 });
+  await page.mouse.up({ button: 'right' });
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-detail-preview', part.id);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-detail-preview', '');
+});
+
+test('Navigate touch orbit picks the surface and a second finger releases the pivot', async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== 'tablet', 'Touch input profile');
+  const part = makeBody(400, 300, 100);
+  await ready(page, [part]);
+  await view(page, [part]);
+  await page.getByRole('button', { name: 'Navigoi', exact: true }).click();
+  const cursor = await screenPoint(page, [280, 180, 100]);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ ...cursor, id: 1 }],
+  });
+  await expect(page.getByTestId('orbit-pivot')).toBeVisible();
+  const pivot: Vec3 = JSON.parse(
+    (await page.getByTestId('viewport').getAttribute('data-orbit-pivot'))!,
+  );
+  expect(new THREE.Vector3(...pivot).distanceTo(new THREE.Vector3(280, 180, 100))).toBeLessThan(1);
+  const before = await screenPoint(page, pivot);
+  const finger = { x: cursor.x - 40, y: cursor.y + 30, id: 1 };
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [finger] });
+  expect(distance(await screenPoint(page, pivot), before)).toBeLessThan(0.2);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [finger, { x: finger.x + 100, y: finger.y, id: 2 }],
+  });
+  await expect(page.getByTestId('orbit-pivot')).toBeHidden();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+  await expect(page.getByTestId('orbit-pivot')).toBeHidden();
 });
 
 test('pinch zoom uses the fingers midpoint and keeps editing active', async ({ page }, info) => {

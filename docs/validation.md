@@ -6,6 +6,32 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
 ## Automaattiset tarkistukset
 
+V0.8.5: **94 yksikkö-/CAD-testiä hyväksytty**. Uudet kameran poimintakokeet
+varmentavat lähimmän näkyvän pinnan perspektiivissä ja ortografisessa
+näkymässä, piilotetun ryhmän ja läpinäkyvän pinnan ohituksen sekä kaarevan
+pinnan todellisen osumapisteen. Viivat eivät toimi pinnan korvikkeina.
+TypeScript, tuotantopaketointi ja repon muotoilutarkistus hyväksytty.
+
+Orbitin ja navigoinnin selainajo: **21/21 hyväksytty (2,4 min)** työpöytä-
+ja tablettiprofiileissa; kolme vain kosketukselle tarkoitettua tapausta
+rajattiin työpöydältä pois. Kohdistimen alla oleva piste säilyy kiertokeskuksena
+myös muun osan muokkaustilassa, Hold-osalla sekä pyöristyksen CAD-esikatselussa.
+Uusi veto poimii uuden keskuksen; tyhjästä aloitettu veto käyttää valinnan tai
+muokkaustilan keskusta. Navigoi-tilan kosketus poimii pinnan, toinen sormi
+vapauttaa keskuksen ja renkaan. Aiemmat zoomaus-, panorointi-, muokkaustilan
+piirto- ja ruudukkokokeet hyväksytty. Kiertopisteen rengas tarkistettiin
+työpöydän kuvakaappauksesta.
+
+Shift-monivalinnan korjaus toistettiin ensin epäonnistuvalla selaintestillä:
+Shiftin vapautus ennen hiirtä korvasi aiemman valinnan. Korjattu valinta
+huomioi myös painalluksen alun. **14/14 tarkistusta hyväksytty (2,0 min)**:
+vapaiden osien lisääminen/poistaminen valinnasta, Shift-klikkaus tyhjään,
+koko valinnan M-veto ja yksi Peru, tavallinen valinnan vaihto, etu-/sivunäkymät
+sekä muokkaustilan rajan säilyminen. Kynän Shift-suuntalukko ja haetun
+viitepisteen käyttö sekä orbitin perspektiivikoe hyväksytty molemmissa
+profiileissa. Yhteensä **33 erillistä selaintapausta** varmennettu.
+Paikallinen kehityspalvelin vastasi HTTP 200 portissa 5173.
+
 V0.8.4: **91 yksikkö-/CAD-testiä hyväksytty**. Kameran laskentakokeet
 varmentavat näkyvän valinnan yhteisen keskuksen, muokkaustilan etusijan,
 zoomin työskentelysyvyyden ja sivussa olevan kiertokeskuksen säilymisen sekä

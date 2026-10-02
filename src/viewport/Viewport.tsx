@@ -61,7 +61,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   controls.minDistance = 2;
   controls.maxDistance = 250_000;
   controls.screenSpacePanning = true;
-  const navigation = installCameraNavigation(controls, renderer.domElement);
+  const navigation = installCameraNavigation(controls, renderer.domElement, () => [
+    bodies,
+    ...ghost.children.filter((object) => object.userData.orbitSurface),
+  ]);
   const labels: { element: HTMLDivElement; point: THREE.Vector3; xray: boolean }[] = [];
   const extrusionLabels: typeof labels = [];
   let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
@@ -368,19 +371,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
-      ghost.add(
-        new THREE.Mesh(
-          geometry,
-          new THREE.MeshStandardMaterial({
-            color: body.color,
-            roughness: 0.8,
-            side: THREE.DoubleSide,
-            polygonOffset: true,
-            polygonOffsetFactor: 1,
-            polygonOffsetUnits: 1,
-          }),
-        ),
+      const surface = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({
+          color: body.color,
+          roughness: 0.8,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 1,
+        }),
       );
+      surface.userData.orbitSurface = true;
+      ghost.add(surface);
       const outline = new THREE.BufferGeometry();
       outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
       ghost.add(new THREE.LineSegments(outline, new THREE.LineBasicMaterial({ color: '#267aa8' })));
@@ -405,19 +408,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
           geometry.setIndex(data.triangles);
           geometry.applyMatrix4(transform);
-          ghost.add(
-            new THREE.Mesh(
-              geometry,
-              new THREE.MeshStandardMaterial({
-                color: body.color,
-                roughness: 0.8,
-                side: THREE.DoubleSide,
-                polygonOffset: true,
-                polygonOffsetFactor: 1,
-                polygonOffsetUnits: 1,
-              }),
-            ),
+          const surface = new THREE.Mesh(
+            geometry,
+            new THREE.MeshStandardMaterial({
+              color: body.color,
+              roughness: 0.8,
+              side: THREE.DoubleSide,
+              polygonOffset: true,
+              polygonOffsetFactor: 1,
+              polygonOffsetUnits: 1,
+            }),
           );
+          surface.userData.orbitSurface = true;
+          ghost.add(surface);
           const outline = new THREE.BufferGeometry();
           outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
           outline.applyMatrix4(transform);
@@ -478,6 +481,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           }),
         );
         mesh.position.set(...target.normal).multiplyScalar(current().faceDistance);
+        mesh.userData.orbitSurface = true;
         ghost.add(mesh);
         const wire = new THREE.LineSegments(
           new THREE.EdgesGeometry(geometry),
@@ -589,6 +593,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
             depthWrite: false,
           }),
         );
+        mesh.userData.orbitSurface = true;
         ghost.add(mesh);
         const outline = new THREE.BufferGeometry();
         outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
@@ -665,6 +670,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         }),
       );
       mesh.position.copy(position);
+      mesh.userData.orbitSurface = !constructionLine;
       ghost.add(mesh);
       const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(geometry),

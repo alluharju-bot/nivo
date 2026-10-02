@@ -2,7 +2,56 @@ import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeBody } from '../model/project';
-import { focusDepth, orbitAbout, selectionCenter } from './cameraNavigation';
+import { focusDepth, orbitAbout, orbitSurfacePoint, selectionCenter } from './cameraNavigation';
+
+it.each(['perspective', 'orthographic'])(
+  'picks the visible surface instead of a hidden part or a line (%s)',
+  (type) => {
+    const camera =
+      type === 'perspective'
+        ? new THREE.PerspectiveCamera(40, 1, 0.1, 1000)
+        : new THREE.OrthographicCamera(-100, 100, 100, -100, 0.1, 1000);
+    camera.position.set(0, 0, 100);
+    const geometry = new THREE.BoxGeometry(20, 20, 20);
+    const material = new THREE.MeshBasicMaterial();
+    const back = new THREE.Mesh(geometry, material);
+    const front = new THREE.Mesh(geometry, material);
+    front.position.z = 40;
+    const group = new THREE.Group();
+    group.add(front);
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-10, 0, 80),
+      new THREE.Vector3(10, 0, 80),
+    ]);
+    const lineMaterial = new THREE.LineBasicMaterial();
+    const line = new THREE.Line(lineGeometry, lineMaterial);
+    const objects = [line, back, group];
+    expect(orbitSurfacePoint(camera, new THREE.Vector2(), objects)?.z).toBeCloseTo(50);
+    group.visible = false;
+    expect(orbitSurfacePoint(camera, new THREE.Vector2(), objects)?.z).toBeCloseTo(10);
+    material.opacity = 0;
+    expect(orbitSurfacePoint(camera, new THREE.Vector2(), objects)).toBeUndefined();
+    geometry.dispose();
+    material.dispose();
+    lineGeometry.dispose();
+    lineMaterial.dispose();
+  },
+);
+
+it('picks curved geometry at the cursor, not its bounding-box center', () => {
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
+  camera.position.z = 100;
+  const geometry = new THREE.SphereGeometry(20, 64, 32);
+  const material = new THREE.MeshBasicMaterial();
+  const surface = new THREE.Mesh(geometry, material);
+  const point = orbitSurfacePoint(camera, new THREE.Vector2(0.2, 0.1), [surface])!;
+  expect(point.length()).toBeCloseTo(20, 1);
+  expect(point.x).toBeGreaterThan(0);
+  expect(point.y).toBeGreaterThan(0);
+  expect(point.z).toBeGreaterThan(0);
+  geometry.dispose();
+  material.dispose();
+});
 
 it('uses the visible selection bounds, with the edited part taking priority over selection', () => {
   const a = makeBody(100, 80, 20, [500, 0, 0]);

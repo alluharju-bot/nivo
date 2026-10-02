@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.8.4
+# Arkkitehtuuri — v0.8.5
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -248,11 +248,16 @@ Yksi sormi käyttää työkalua; toinen sormi keskeyttää muokkausvedon ja vaih
 panorointiin/zoomaukseen. Navigoi-tila tarjoaa orbitoinnin yhdellä sormella.
 OrbitControlsin kohdistinzoomaus toimii perspektiivissä ja ortografisessa
 näkymässä; kosketus käyttää kahden sormen keskipistettä. `cameraNavigation`
-laskee keskuksen näkyvän valinnan rajalaatikosta, ensisijaisesti muokattavasta
-osasta. Zoomin syvyysviite projisoidaan kameran katseluakselille muuttamatta
+laskee zoomin työskentelykeskuksen näkyvän valinnan rajalaatikosta, ensisijaisesti
+muokattavasta osasta. Kierron alussa poimitaan erikseen osoittimen alla oleva
+näkyvä pinta. Osumaton kierto käyttää muokattavan osan tai valinnan keskusta,
+ja ilman valintaa nykyistä OrbitControlsin targetia. Raycast huomioi piirretyt
+osan pinnat ja geometriaesikatselut; piilotetut pinnat, apuviivat ja kiertokahvat
+ohitetaan. Piste lukitaan eleen ajaksi ja osoitetaan pienellä renkaalla.
+Zoomin syvyysviite projisoidaan kameran katseluakselille muuttamatta
 kameran sijaintia tai suuntaa. Kiertoliikkeen aikana keskus säilytetään kameran
 paikallisissa koordinaateissa siirtämällä kameraa ja OrbitControlsin targetia
-yhdessä. Näin sivussa oleva valittu osa toimii kiertokeskuksena ilman
+yhdessä. Näin sivussa oleva yksityiskohta toimii kiertokeskuksena ilman
 valinnan aiheuttamaa näkymän hyppyä. Panorointi säilyy vapaana.
 Keskeiset painikkeet ovat kosketuksella vähintään 44 CSS-pikseliä.
 Tartunnat suosivat todellisia verteksiä ja reunojen keskipisteitä ennen

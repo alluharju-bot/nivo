@@ -222,6 +222,20 @@ perustyökalua ja noudattaa E/O-työkalujen tuttua veto- ja numerosyöttöä.
 - Valinta ei siirrä kameraa eikä käännä katselusuuntaa. Erillinen Sovita näkymään
   säilyy tapana keskittää ja sovittaa valinta. Panorointi toimii edelleen.
 
+## Toteutettu v0.8.5: orbit kohdistimen alla olevan pinnan ympäri
+
+- Kiertoliikkeen alussa poimitaan kohdistimen alla oleva näkyvä pinta ja piste
+  lukitaan vedon ajaksi. Pieni rengas näyttää kiertokeskuksen.
+- Pinta on ensisijainen myös muokkaustilassa, Hold-osalla ja geometrian
+  esikatselussa. Piilotetut osat, apuviivat ja kiertokahvat ohitetaan.
+- Tyhjästä tilasta aloitettu kierto käyttää muokattavan osan tai valinnan
+  keskipistettä; ilman valintaa nykyistä näkymäkeskusta.
+- Navigoi-tilan yhden sormen kierto käyttää samaa poimintaa. Toinen sormi
+  vaihtaa tavalliseen panorointiin/zoomaukseen. Kohdistinzoomaus säilyy.
+- Valitse-tilan Shift-monivalinta huomioi myös painalluksen alun, joten Shiftin
+  vapautus ennen hiirtä ei korvaa valintaa. M siirtää vapaasti valitut osat
+  yhdessä ilman ryhmää. Shiftin viitepoiminta kuuluu muihin työkaluihin.
+
 ## Seuraava reunakäsittely: jatkuvat kulmaliitokset (korkea prioriteetti)
 
 Kaapin etureunan pyöristys voi estää viereisen lyhyen reunan käsittelyn
@@ -239,3 +253,54 @@ ei alkuperäisiä pyöristysparametreja. Tämä erotetaan kulmatyypin valinnasta
   leikkaava siirtymä ei saa rikkoa alkuperäistä osaa tai muuttaa mittaa hiljaisesti.
 - Hyväksyntä: etureuna ensin, sitten siihen liittyvät lyhyet sivureunat;
   tarkka esikatselu, muuttaminen, Peru/Palauta sekä tallennus ja uudelleenavaus.
+
+## Suunniteltu yöpassi: kaapin reunat valmiiksi ja myöhemmin muokattaviksi
+
+**Tila: suunnitelma.** Kokonaisuuden tavoite on, että käyttäjä voi viimeistellä
+kaapin tai oven kohtaavat reunat, jatkaa käsittelyä myöhemmin ja muuttaa sen
+mittaa samassa F-työkalussa. Tämä yhdistää korkeimman prioriteetin
+kulmaongelman ja jo suunnitellut muokattavat reunaparametrit yhdeksi työnkuluksi.
+
+### Käyttäjälle valmistuva työnkulku
+
+1. Pyöristä etureuna esimerkiksi 3 mm säteellä ja hyväksy.
+2. Palaa F-työkaluun ja lisää samaan käsittelyyn kohtaavat lyhyet sivureunat.
+   Kulman pinnat lasketaan yhdessä alkuperäisestä geometriasta.
+3. Muuta säde 2 mm:iin vetämällä tai numerolla. Poista tarvittaessa yksi reuna
+   käsittelystä tai poista koko käsittely ja palauta terävä reuna.
+4. Tallenna, avaa uudelleen ja jatka samaa muokkausta. Peru/Palauta toimii
+   yhdellä askeleella per hyväksytty muutos.
+
+### Toteutusjärjestys ja valmistumisehdot
+
+| Vaihe                         | Toteutus                                                                                                                                                                                              | Valmistumisehto                                                                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Todennettava geometria     | Toista ongelma 600 × 600 × 18 mm levyllä, pitkällä kaappisivulla ja ontolla rungolla. Vertaa peräkkäisiä ja yhdessä laskettavia 2–3 kohtaavan reunan pyöristyksiä sekä viisteitä.                     | Tarkat CAD-testit osoittavat toimivan laskentatavan ja hylkäävät mahdottomat säteet ehjää osaa muuttamatta. Neljän reunan tapaus tutkitaan erikseen.            |
+| 2. Muokattava käsittely       | Tallenna lähdegeometria, käsittelyn tunniste, reunaviitteet, tyyppi ja mitta. Laske muutos lähteestä ja säilytä nykyinen tarkka tulos.                                                                | Säteen muutos, reunan lisääminen/poistaminen ja käsittelyn poisto tuottavat ehjän kappaleen; alkuperäiset valinnat löytyvät luotettavasti.                      |
+| 3. Yksi käyttöliittymä        | Näytä käsittely nykyisessä F-paneelissa. Avaa olemassa oleva käsittely myös sen pyöristetystä pinnasta. Tarjoa selkeä Jatka käsittelyä / Uusi käsittely -valinta vain, kun molemmat ovat mahdollisia. | Käyttäjä pystyy suorittamaan yllä olevan työnkulun ilman erillistä historiapaneelia. Hiiri, numero, Enter, Esc ja esikatselu toimivat samalla tavalla kuin nyt. |
+| 4. Tallennus ja muut työkalut | Päivitä projektiskeema, worker-viestit, kopiointi, siirto/kierto ja historian tallennus. Määrittele, miten myöhempi E/O/Cut/Join vaikuttaa käsittelyyn.                                               | Uudelleenavaus ja kopion muokkaus säilyttävät oikean lähteen. Muu muokkaus ei hiljaisesti katoa, kun pyöristyksen mittaa muutetaan.                             |
+| 5. Kokonainen kaappikoe       | Käy läpi oven ja rungon viimeistely, orbit-lähitarkastelu, mitoitus, ryhmäkopio, Hold, tallennus ja palautus.                                                                                         | Automaattiset CAD- ja selaintestit, tarkistetut kuvat sekä avattava esimerkkiprojekti osoittavat valmiin työnkulun.                                             |
+
+### Keskeiset toteutuspäätökset
+
+- Reunan tunniste sidotaan tallennettuun lähteeseen. Nykyisen tulosmeshin
+  vaihtuva reunaindeksi ei kelpaa pysyväksi viitteeksi. Epäselvää vastaavuutta
+  ei arvata: käyttäjä saa valita reunan uudelleen.
+- Ensimmäinen versio tukee yhtä mittaa per käsittely ja useita siihen kuuluvia
+  reunoja. Eri säteet samassa kulmassa ja tangenttiketjun laajennus tulevat
+  vasta perustyönkulun valmistuttua.
+- Kappaleen siirto, kierto ja kopio huomioivat myös käsittelyn lähteen.
+  Geometriaa muuttava myöhempi E/O/Cut/Join tarvitsee määritellyn toimintatavan:
+  joko riippuvuudet lasketaan oikein uudelleen tai käsittely viimeistellään
+  näkyvästi ennen jatkomuokkausta. Vanhaa lähdettä ei käytetä muun muokkauksen yli.
+- Vanhat `.nivo`-projektit avautuvat sellaisinaan. Jo valmiiksi pyöristetyn
+  BRepin puuttuvia lähdeparametreja ei päätellä varmoina; uusien käsittelyjen
+  muokattavuus ja vanhan geometrian mahdollinen korjaus erotetaan selvästi.
+- Setback ja neljän reunan kaikki yhdistelmät ovat geometriaytimen erillisiä
+  varmennuksia. Niille ei lisätä käyttöliittymävalintaa ennen toimivaa toteutusta.
+
+**Yöpassi on valmis**, kun kohtaavien reunojen jatkaminen, mitan muuttaminen,
+käsittelyn poistaminen ja uudelleenavaus toimivat samalla esimerkkiosalla
+ilman geometriavirheitä tai aikaisempien muutosten katoamista. Jos ensimmäinen
+CAD-varmennus paljastaa ytimen rajoitteen, ongelma rajataan testillä ja
+toimiva soveltuvuusalue kirjataan ennen käyttöliittymän lupausten laajentamista.

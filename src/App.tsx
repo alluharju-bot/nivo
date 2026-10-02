@@ -182,7 +182,7 @@ const instructions: Record<Tool, string> = {
   offset:
     'O · Osoita pintaa ja liikuta hiirtä tai vedä pinnasta. Kirjoita tarkka mitta. Klikkaus, vapautus tai Enter hyväksyy. Esc peruu.',
   select:
-    'Klikkaus valitsee osan, tuplaklikkaus avaa sen muokattavaksi. E/O muokkaa osoitettua pintaa. Shift+klikkaus lisää valintaan.',
+    'Klikkaus valitsee osan. Shift+klikkaus lisää tai poistaa valinnasta; M siirtää valitut. Tuplaklikkaus avaa osan muokattavaksi. E/O muokkaa osoitettua pintaa.',
   rectangle:
     'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. Myös veto tai numerosarja X → Tab → Y toimii. Enter hyväksyy.',
   circle:
@@ -3606,7 +3606,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.8.4</span>
+                    <span>v0.8.5</span>
                   </div>
                 </>
               )}
@@ -3705,6 +3705,13 @@ export default function App() {
                 ja vie SVG.
               </li>
             </ol>
+            <p>
+              <strong>Monivalinta:</strong> Valitse-tilassa (V) Shift + klikkaus lisää osan
+              valintaan tai poistaa sen valinnasta. M siirtää kaikki valitut yhdessä ilman ryhmän
+              luomista. Tavallinen klikkaus vaihtaa valinnan yhteen osaan, kun Monivalinta ei ole
+              päällä. Muokkaustilassa sulje ensin osan muokkaus valitaksesi muita osia. Muissa
+              työkaluissa Shift käyttää työkalun omaa viitettä tai suuntalukkoa.
+            </p>
             <p>
               <strong>Uusi osa vai pinnan muokkaus:</strong> normaalisti piirto tekee uuden osan,
               myös toisen kappaleen pinnalle. Valitse-työkalulla (V) tuplaklikkaa osaa tai valitse
@@ -3806,9 +3813,11 @@ export default function App() {
             </p>
             <p>
               <strong>Hiiri:</strong> oikea painike kiertää, keskipainike panoroi ja rulla zoomaa
-              kohdistimeen. Valittu osa tai ryhmä toimii kameran kiertokeskuksena. Muokkaustilassa
-              kamera käyttää muokattavaa osaa. Valinta säilyttää näkymän rajauksen; Sovita näkymään
-              keskittää valinnan. Navigoi-työkalulla myös vasen painike kiertää.
+              kohdistimeen. Kierto alkaa kohdistimen alla olevan pinnan ympäri; pieni rengas näyttää
+              kiertopisteen. Tyhjästä tilasta aloitettu kierto käyttää muokattavan osan tai valinnan
+              keskipistettä. Valinta säilyttää näkymän rajauksen; Sovita näkymään keskittää
+              valinnan. Navigoi-työkalulla myös vasen painike tai yksi sormi kiertää kosketettua
+              kohtaa.
             </p>
             <p>
               <strong>Säilytä työsi:</strong> automaattitallennus palauttaa työn tässä selaimessa.
