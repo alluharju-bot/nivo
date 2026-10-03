@@ -1,7 +1,11 @@
-// Run against a production build: node scripts/performance.mjs http://127.0.0.1:4173/nivo/
-// The same 296 boxes, camera and pointer events are used for every version.
+// Run against a production build: node scripts/performance.mjs http://127.0.0.1:4173/nivo/ 1184
+// Compare versions with the same part count, camera and pointer events.
 import { chromium } from '@playwright/test';
 const url = process.argv[2] ?? 'http://127.0.0.1:4173/nivo/';
+const count = Number(process.argv[3] ?? 296);
+if (!Number.isInteger(count) || count < 1 || count > 10000)
+  throw new Error('Part count must be an integer between 1 and 10000.');
+const columns = Math.max(20, Math.ceil(Math.sqrt(count)));
 const browser = await chromium.launch();
 const page = await browser.newPage({
   viewport: { width: 1440, height: 960 },
@@ -25,19 +29,19 @@ await page.addInitScript(() => {
 try {
   await page.goto(url);
   await page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true }).waitFor();
-  const bodies = Array.from({ length: 296 }, (_, i) => ({
+  const bodies = Array.from({ length: count }, (_, i) => ({
     id: `perf-${i}`,
     name: `Levy ${i + 1}`,
     kind: 'cad',
     feature: { type: 'rectangle-extrusion', width: 500, depth: 400, height: 18 },
-    origin: [(i % 20) * 600, Math.floor(i / 20) * 500, (i % 4) * 100],
+    origin: [(i % columns) * 600, Math.floor(i / columns) * 500, (i % 4) * 100],
     color: '#c3a57e',
   }));
   const project = {
     format: 'nivo',
     version: 6,
-    id: 'performance-296',
-    name: '296 levyä',
+    id: `performance-${count}`,
+    name: `${count} levyä`,
     units: 'mm',
     bodies,
     groups: [],
@@ -51,12 +55,18 @@ try {
     },
     updatedAt: new Date().toISOString(),
   };
+  const loadingStarted = performance.now();
   await page.getByTestId('project-file').setInputFiles({
     name: 'performance.nivo',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(project)),
   });
-  await page.locator('.object-list .object-select').last().waitFor();
+  await page.waitForFunction(
+    (count) => document.querySelectorAll('.object-list .object-select').length === count,
+    count,
+    { timeout: 60_000 },
+  );
+  const loadMs = Math.round(performance.now() - loadingStarted);
   await page.getByRole('button', { name: 'Ylhäältä', exact: true }).click();
   // Retract the new browser so it has no effect on the measuring area.
   await page.locator('canvas[data-testid="viewport"]').click({ position: { x: 600, y: 200 } });
@@ -118,7 +128,9 @@ try {
       orbit: await sample(true),
     };
   });
-  console.log(JSON.stringify({ url, parts: 296, chromium: browser.version(), ...result }, null, 2));
+  console.log(
+    JSON.stringify({ url, parts: count, loadMs, chromium: browser.version(), ...result }, null, 2),
+  );
 } finally {
   await browser.close();
 }

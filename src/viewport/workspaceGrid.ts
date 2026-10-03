@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { visibleAxisRange } from './workspaceAxes';
 
 /** Adaptive grid with no nearby edge; screen-sized world axes and origin marker. */
 export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElement) {
@@ -34,10 +35,16 @@ export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElemen
       #include <logdepthbuf_pars_fragment>
       float gridLine(float stepSize) {
         vec2 p = worldXY / stepSize;
-        vec2 footprint = fwidth(p);
+        vec2 dx = dFdx(p);
+        vec2 dy = dFdy(p);
+        vec2 footprint = abs(dx) + abs(dy);
         vec2 line = abs(fract(p - 0.5) - 0.5) / max(footprint, vec2(0.00001));
-        vec2 ink = (1.0 - min(line, vec2(1.0))) * (1.0 - smoothstep(vec2(0.2), vec2(0.6), footprint));
-        return max(ink.x, ink.y);
+        vec2 ink = 1.0 - min(line, vec2(1.0));
+        // Both directions fade together. The footprint length is invariant under
+        // rotation, so distant rows cannot survive alone as long axial streaks.
+        float density = sqrt(dot(dx, dx) + dot(dy, dy));
+        float visibility = 1.0 - smoothstep(0.2, 0.6, density);
+        return max(ink.x, ink.y) * visibility;
       }
       void main() {
         #include <logdepthbuf_fragment>
@@ -56,26 +63,30 @@ export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElemen
   group.add(grid);
   const colors = ['#cb4141', '#248b51', '#336eda'];
   const axes = colors.map((color, i) => {
-    const from = [0, 0, 0],
-      to = [0, 0, 0];
-    from[i] = -5_000_000;
-    to[i] = 5_000_000;
     const line = new Line2(
-      new LineGeometry().setPositions([...from, ...to]),
+      new LineGeometry().setPositions([0, 0, 0, 1, 0, 0]),
       new LineMaterial({
         color: new THREE.Color(color).getHex(),
         linewidth: 2.8,
         depthTest: false,
+        depthWrite: false,
         transparent: true,
         opacity: 0.8,
         toneMapped: false,
       }),
     );
+    // Endpoints are clipped on the CPU and updated in the existing buffer.
+    line.frustumCulled = false;
     line.renderOrder = 90;
     group.add(line);
     const arrow = new THREE.Mesh(
       new THREE.ConeGeometry(2.5, 8, 10),
-      new THREE.MeshBasicMaterial({ color, depthTest: false, toneMapped: false }),
+      new THREE.MeshBasicMaterial({
+        color,
+        depthTest: false,
+        depthWrite: false,
+        toneMapped: false,
+      }),
     );
     arrow.quaternion.setFromUnitVectors(
       new THREE.Vector3(0, 1, 0),
@@ -93,11 +104,21 @@ export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElemen
   });
   const origin = new THREE.Mesh(
     new THREE.SphereGeometry(1, 16, 12),
-    new THREE.MeshBasicMaterial({ color: '#ffffff', depthTest: false, toneMapped: false }),
+    new THREE.MeshBasicMaterial({
+      color: '#ffffff',
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    }),
   );
   const center = new THREE.Mesh(
     new THREE.SphereGeometry(0.55, 12, 8),
-    new THREE.MeshBasicMaterial({ color: '#223d31', depthTest: false, toneMapped: false }),
+    new THREE.MeshBasicMaterial({
+      color: '#223d31',
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    }),
   );
   origin.renderOrder = 92;
   center.renderOrder = 93;
@@ -115,6 +136,10 @@ export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElemen
     element.style.top = `${((1 - p.y) * container.clientHeight) / 2 + 10}px`;
     return p;
   };
+  const frustum = new THREE.Frustum();
+  const viewProjection = new THREE.Matrix4();
+  const axisStart = new THREE.Vector3();
+  const axisEnd = new THREE.Vector3();
   return {
     update(
       camera: THREE.PerspectiveCamera | THREE.OrthographicCamera,
@@ -124,6 +149,10 @@ export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElemen
       gridStep = 10,
     ) {
       const height = Math.max(1, container.clientHeight);
+      camera.updateMatrixWorld();
+      frustum.setFromProjectionMatrix(
+        viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
+      );
       const visible =
         camera instanceof THREE.OrthographicCamera
           ? (camera.top - camera.bottom) / camera.zoom
@@ -145,6 +174,27 @@ export function createWorkspaceGrid(scene: THREE.Scene, container: HTMLDivElemen
       const projectedOrigin = place(label, new THREE.Vector3(), camera);
       if (!showLabels) label.hidden = true;
       axes.forEach(({ line, arrow, label: axisLabel }, i) => {
+        const range = visibleAxisRange(frustum, i);
+        line.visible = !!range;
+        if (range) {
+          axisStart.set(0, 0, 0).setComponent(i, range[0]);
+          axisEnd.set(0, 0, 0).setComponent(i, range[1]);
+          const start = line.geometry.getAttribute(
+            'instanceStart',
+          ) as THREE.InterleavedBufferAttribute;
+          const end = line.geometry.getAttribute('instanceEnd') as THREE.InterleavedBufferAttribute;
+          start.setXYZ(0, axisStart.x, axisStart.y, axisStart.z);
+          end.setXYZ(0, axisEnd.x, axisEnd.y, axisEnd.z);
+          start.data.needsUpdate = true;
+          axisStart.project(camera);
+          axisEnd.project(camera);
+          // A directly end-on axis has no screen direction for the line shader.
+          line.visible =
+            Math.hypot(
+              (axisEnd.x - axisStart.x) * container.clientWidth,
+              (axisEnd.y - axisStart.y) * height,
+            ) > 0.5;
+        }
         line.material.resolution.set(container.clientWidth, height);
         line.material.linewidth = strong ? 2.8 : 1.1;
         line.material.opacity = strong ? 0.8 : 0.4;

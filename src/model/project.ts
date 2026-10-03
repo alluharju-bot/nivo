@@ -14,6 +14,8 @@ import {
 const length = z.number().finite().min(0.1).max(100_000);
 const coordinate = z.number().finite().min(-100_000).max(100_000);
 const id = z.string().min(1).max(100);
+// Project validation guard, not a promise of interactive rendering capacity.
+export const MAX_PROJECT_BODIES = 10_000;
 export const pointSchema = z.tuple([coordinate, coordinate, coordinate]);
 const rectangleFeature = z.object({
   type: z.literal('rectangle-extrusion'),
@@ -258,7 +260,7 @@ export const projectSchema = z
     units: z.literal('mm'),
     assets: z.record(z.string().max(100), assetSchema).optional(),
     materials: z.array(customMaterialSchema).max(200).optional(),
-    bodies: z.array(bodySchema).max(1000),
+    bodies: z.array(bodySchema).max(MAX_PROJECT_BODIES),
     groups: z.array(groupSchema).max(1000).default([]),
     dimensions: z.array(dimensionSchema).max(3000),
     guides: z.array(guideSchema).max(1000),
@@ -334,6 +336,29 @@ export const projectSchema = z
 export type Body = z.infer<typeof bodySchema>;
 export type Dimension = z.infer<typeof dimensionSchema>;
 export type Project = z.infer<typeof projectSchema>;
+export function projectValidationMessage(error: z.ZodError): string {
+  const collectionNames: Record<string, string> = {
+    bodies: 'osaa',
+    groups: 'ryhmää',
+    dimensions: 'mittaa',
+    guides: 'apuviivaa',
+    materials: 'omaa materiaalia',
+  };
+  for (const issue of error.issues) {
+    if (issue.code === 'too_big' && issue.origin === 'array' && issue.path.length === 1) {
+      const name = collectionNames[String(issue.path[0])];
+      if (name)
+        return `Projektissa voi olla enintään ${Number(issue.maximum).toLocaleString('fi-FI')} ${name}. Toiminto ylittäisi tämän määrän. Edellinen malli säilyi.`;
+    }
+    if (
+      (issue.code === 'too_big' && issue.origin === 'number' && issue.maximum === 100_000) ||
+      (issue.code === 'too_small' && issue.origin === 'number' && issue.minimum === -100_000)
+    )
+      return 'Mitta tai sijainti ylittää 100 000 mm:n rajan. Tarkista osan mitat ja sijainti. Edellinen malli säilyi.';
+    if (issue.code === 'custom') return issue.message;
+  }
+  return 'Projektin tiedot tai versio eivät ole sallittuja. Tarkista syöte. Edellinen malli säilyi.';
+}
 export type Guide = z.infer<typeof guideSchema>;
 export type VertexAnchor = z.infer<typeof vertexAnchorSchema>;
 export type EdgeAnchor = z.infer<typeof edgeAnchorSchema>;
@@ -424,8 +449,7 @@ export function parseProject(text: string): Project {
   if (value && typeof value === 'object' && 'version' in value && value.version === 5)
     value = { ...value, version: 6 };
   const result = projectSchema.safeParse(value);
-  if (!result.success)
-    throw new Error('Projektin versio tai sisältö ei ole tuettu. Nykyinen työ säilyi.');
+  if (!result.success) throw new Error(projectValidationMessage(result.error));
   return result.data;
 }
 export function mergeBodies(bodies: Body[]): Body {

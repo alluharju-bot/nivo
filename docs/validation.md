@@ -1,8 +1,32 @@
-# Validointi — 3.10.2026
+# Validointi — 4.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.13-korjaukset: työtilan viivat ja suuren valinnan kopiointi
+
+**154 yksikkö-/CAD-testiä hyväksytty (27 tiedostoa).** Uudet kokeet varmistavat
+akselien näkyvän osuuden perspektiivi-/ortokameroilla, 72 kulmalla ja neljällä
+korkeudella sekä origon ulkopuolelle panoroidun näkymän. Näkyvät akselit
+rajataan kameran tilavuuteen ennen paksun viivan projisointia GPU:lla;
+lähi-/kaukorajan ylittävät miljoonien millimetrien päätepisteet poistuvat.
+Ruudukon molemmat suunnat häivytetään yhdessä kuvapisteen koon perusteella.
+
+Erillisessä WebGL-selainvarmennuksessa 72 kamerakulmaa toistettiin ennen ja
+jälkeen korjauksen. Vanhoilla akseleilla X/Y-viiva katosi useista kulmista;
+korjattuna viiva säilyi. Täsmälleen samalle ruutusuoralle projisoituvat akselit
+voivat luonnollisesti peittää toisensa. Matalan horisontin kuvat tarkistettu;
+ei shader- tai selainvirheitä. Hillitty oletustyyli säilyy.
+
+Projektiraja 1 000 → 10 000 osaa; virheviestit erottelevat osamäärän,
+koordinaatin ja puuttuvan ryhmäviitteen. Desktopin selainregressio varmisti
+**296 → 592 → 1 184** osan ryhmäkopioinnin aidolla CAD-workerilla sekä
+Peru/Palauta-toiminnot, tiedostoviennin ja selaimen päivityksen. Alkuperäisten
+osien tiedot ja ryhmähierarkia säilyivät. Yksikkökoe tarkistaa myös rajan ylityksen.
+[1 184 osan suorituskykymittaus](performance.md) tehty erikseen tuotantopaketilla.
+Akselien oletustyyli, valinnaiset tekstit, asetusten säilyminen ja kauas zoomattu
+ruudukko läpäisivät myös olemassa olevan selainkokeen molemmilla profiileilla.
 
 ## V0.13.0 — mallin hallinta ja suorituskyky
 

@@ -2,6 +2,50 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## Seuraava yöpassi: suuren työmaan sujuva mallinnus
+
+Käyttäjän 296 osan kaappirivin kopiointi osoitti kaksi eri ongelmaa:
+projektissa oli 1 000 osan tarkistusraja ja 1 184 osaan kasvattaminen näytti
+harhaanjohtavan mittavirheen. Raja on korjattu 10 000 osaan ja virheet
+erottelevat määrän, mitat ja viitteet. Tämä ei vielä takaa 10 000 osan suorituskykyä.
+
+Yöpassin ehdotettu kokonaisuus on useiden huoneiden ja kalusteiden mallinnus.
+Työjärjestys:
+
+1. Mittaa 296, 1 184, 5 000 ja 10 000 osan mallit. Osoitus, orbit, valinta,
+   siirto, ryhmän kopiointi, tallennus ja uudelleenavaus erikseen. Mittaa myös
+   kolmiot, piirtojen määrä, pääsäikeen pitkät tehtävät ja muistin kehitys.
+   Laatikkolevyjen rinnalle pyöristettyjä ja leikattuja kalusteosia.
+2. Säilytä muuttumattomien osien GPU-resurssit. Valinta ja työkalun vaihto
+   päivittävät vain korostukset. Siirron esikatselu muuttaa olemassa olevien
+   näyttöobjektien muunnoksia; se ei rakenna koko valintaa joka osoitinliikkeellä.
+3. CAD-workerin delta-päivitykset: vain muuttuneet osat ja verkot siirretään.
+   Nimen, ryhmän ja näkyvyyden muutos ei tarvitse CAD-verkon palautusta.
+4. Linkitetyn komponentin yhteinen näyttögeometria ja soveltuvin osin
+   instanssipiirto. Jokainen esiintymä säilyy erillisenä valittavana CAD-osana;
+   omat materiaalit, Hold ja muokkaustila säilyttävät nykyisen toimintansa.
+5. Avaruusindeksi tartuntoihin ja sädepoimintaan, näkyvyysrajaus huoneittain
+   ja kokoamattomien ryhmien listan virtualisointi. Muut huoneet eivät kuormita
+   aktiivisen työalueen jokaista osoitinliikettä.
+6. Tallennuksen ja historian muistikuorman mittaus ja vähennys. Nykyinen
+   64 Mt:n tiedostotuonti, 8 MiB:n tallentuva historia ja 45 sekunnin
+   CAD-aikaraja arvioidaan todellisten mallien perusteella. Rajan ylitys ei
+   saa tuottaa väärää mittavirhettä tai hävittää nykyistä mallia.
+
+Hyväksyntä: sama testi ennen ja jälkeen samalla laitteella, 296 → 592 → 1 184
+kopiointi sekä suurempien mallien valinta/siirto/Peru/tallennus/uudelleenavaus.
+Desktopin tavoite on 60 kuvaa/s tavallisessa mallinnuksessa ja vähintään
+30 kuvaa/s sovitussa suuressa testimallissa laitteistokiihdytetyllä selaimella.
+Nämä ovat mitattavia tavoitteita, eivät vielä saavutettuja kapasiteettilupauksia.
+Tabletin kuorma mitataan erikseen. Mallinnuksen tarkkuutta tai erillisiä osia
+ei uhrata nopeudelle. [Nykyiset mittaukset ja rajat](performance.md).
+
+Samaan kokonaisuuteen ehdotetut käytettävyyslisät: aiemmin pyydetty
+kalibroitava pohja-/julkisivukuva (kaksi pistettä + tunnettu mitta, 1:1-skaala,
+läpinäkyvyys ja lukitus) sekä **Eristä valinta**. Eristäminen näyttää valitun
+huoneen tai kalusteen ja palauttaa lopuksi täsmälleen aiemmat piilotukset;
+se on tilapäinen työskentelytila, joka ei muuta ryhmiä tai osien mittoja.
+
 ## V0.13 — mallin hallinta ja ensimmäinen suorituskykypass
 
 Toteutettu: vasen läpikuultava mallilista (aktiivisena kevyt maitolasipinta,

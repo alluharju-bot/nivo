@@ -3,7 +3,12 @@ import { resolveAnchor } from './model/guides';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CadClient } from './cad/client';
 import type { BodyMesh } from './cad/protocol';
-import { freshProject, projectSchema, type Project } from './model/project';
+import {
+  freshProject,
+  projectSchema,
+  projectValidationMessage,
+  type Project,
+} from './model/project';
 import { History } from './model/history';
 import { loadLocalSession, saveLocal } from './storage/projects';
 import { synchronizeComponents } from './model/components';
@@ -117,10 +122,7 @@ export function useEditor() {
           ),
           updatedAt: new Date().toISOString(),
         });
-        if (!validated.success)
-          throw new Error(
-            'Mitat tai sijainti eivät ole sallituissa rajoissa. Tarkista syöte; enimmäismitta ja sijainti ovat 100 000 mm.',
-          );
+        if (!validated.success) throw new Error(projectValidationMessage(validated.error));
         const next = validated.data;
         const built = await cad.build(next.bodies);
         if (current !== revision.current) return false;

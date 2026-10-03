@@ -145,7 +145,8 @@ tuonnissa, jotta virhe voidaan näyttää käyttäjälle ja korjata. UUID:t ovat
 yksikäsitteisiä kunkin oliotyypin sisällä.
 
 Tuonti tarkistaa koon (64 Mt), version, tyypit, äärelliset luvut, rajat ja
-tunnisteet. Enintään 1000 kappaletta ja 3000 mittaa. CAD rakennetaan ja
+tunnisteet. Enintään 10 000 kappaletta ja 3000 mittaa. Osamääräraja ei ole
+suorituskykylupaus; ks. [mittaukset ja rajoitukset](performance.md). CAD rakennetaan ja
 validoidaan ennen nykyisen projektin vaihtamista. Virheellinen tuonti ei
 tyhjennä olemassa olevaa työtä.
 
