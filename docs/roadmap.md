@@ -46,6 +46,38 @@ läpinäkyvyys ja lukitus) sekä **Eristä valinta**. Eristäminen näyttää va
 huoneen tai kalusteen ja palauttaa lopuksi täsmälleen aiemmat piilotukset;
 se on tilapäinen työskentelytila, joka ei muuta ryhmiä tai osien mittoja.
 
+### Poikkileikkaus: yöpassin ydinkokonaisuus suorituskyvyn rinnalla
+
+Käyttäjä nosti leikkausnäkymät erityisen tärkeiksi rakennus-, remontointi- ja
+kalustetyöhön. Toteutussuunnitelma kattaa sekä mallin tutkimisen 3D:ssä että
+mitoitettavan leikkauspiirustuksen:
+
+- Yksi selkeä **Leikkaus**-toiminto. Leikkaustason lähtövalinta X/Y/Z tai
+  kappaleen tasopinta. Tason siirto kahvasta ja tarkalla millimetrisyötöllä;
+  näkyvän puolen vaihto sekä leikkauksen päälle/pois-kytkin.
+- Leikkaus on näkymäominaisuus. BRep, tilavuudet, osaluettelo, leikkauslista
+  ja valmistusmitat säilyvät ennallaan. Leikkauskohtaan muodostetaan näkyvä
+  täyttö/viivoitus todellisesta umpiaineesta: onteloa tai kaapin aukkoa ei täytetä.
+- Näkyvyys ja poiminta noudattavat leikkausta. Pois leikatun puolen geometria
+  ei saa varastaa tartuntaa tai valintaa. Leikkaustäyttö on esityspinta, jonka
+  osoittaminen ei käynnistä push/pullia olemattomaan CAD-faceen.
+- Nimeä ja tallenna leikkaus, esimerkiksi **A–A**. Projektiformaatti tallentaa
+  tason sijainnin, normaalin, näkyvän puolen ja nimen. Vanhat projektit avautuvat
+  ilman leikkauksia. Tason poistaminen poistaa vain näkymämäärityksen.
+- **Mittakuva leikkauksesta** käyttää samaa tasoa ja todellisia CAD-leikkausreunoja.
+  Viivapainot erottavat leikatun aineen taustalla näkyvistä reunoista.
+  Mitoitus, mittakaava, PDF ja SVG toimivat samalla tavalla kuin muissa mittakuvissa.
+  Mitta-ankkurin rikkoutuminen geometriamuutoksessa näytetään selvästi.
+
+Hyväksymismallit: huone seinineen, lattioineen ja oviaukkoineen; kalusterunko
+hyllyineen ja taustoineen; vino taso sekä pyöristetty osa. Leikkaustason
+siirto, suunnan vaihto, aukot, sisäkkäiset ryhmät, piilotukset, tallennus ja
+uudelleenavaus varmennetaan. Viedyn piirustuksen mitat ja mittakaava tarkistetaan
+CAD-mittoja vasten. Leikkaustason veto mitataan myös 1 184 osan mallilla.
+Tarkka CAD-leikkaus lasketaan workerissa; vanhentuneen laskennan tulos ei saa
+palauttaa tasoa aiempaan paikkaan. Useat samanaikaiset tasot ja rajauslaatikko
+ovat jatkoa yhden tason varmennetulle kokonaisuudelle.
+
 ## V0.13 — mallin hallinta ja ensimmäinen suorituskykypass
 
 Toteutettu: vasen läpikuultava mallilista (aktiivisena kevyt maitolasipinta,
