@@ -5,7 +5,7 @@ Mittaus ei käytä käyttäjän omaa mallia vaan 296 erillistä 500 × 400 × 18
 levyä, sijoitettuna ruudukkoon neljälle korkeudelle. Jokainen osa säilyy omana
 CAD-kappaleenaan ja valittavana objektinaan.
 
-## Mittaus 3.–4.10.2026
+## Mittaus 3.10.2026
 
 Apple M1 Pro / 16 Gt / macOS 26.2; Chromium 153.0.8010.12, headless,
 **ANGLE SwiftShader (ohjelmistorenderöinti)**. Selaimen koko 1440 × 960,
