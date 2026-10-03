@@ -10,7 +10,12 @@ const groups: BodyGroup[] = [
 const groupButton = (page: Page, name: string) =>
   page.getByRole('button', { name: `Valitse ryhmä: ${name}`, exact: true });
 async function drag(page: Page, source: Locator, target: Locator, release = true) {
+  const browser = page.getByRole('complementary', { name: 'Mallilista' });
+  if ((await browser.getAttribute('data-expanded')) === 'false')
+    await page.getByRole('button', { name: 'Näytä mallilista' }).click();
+  await expect(source).toBeEnabled();
   await source.scrollIntoViewIfNeeded();
+  await source.hover();
   const a = (await source.boundingBox())!;
   await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
   await page.mouse.down();
@@ -134,9 +139,10 @@ test('a long list scrolls during dragging; an unselected part moves alone and me
   await page.mouse.down();
   await page.mouse.move(box.x + 70, box.y + box.height - 12, { steps: 8 });
   await expect(page.getByTestId('tree-drag-preview')).toContainText('Osa 1');
-  await expect(groupButton(page, 'Hylly')).toBeInViewport();
+  await expect(groupButton(page, 'Hylly')).toBeInViewport({ ratio: 1 });
   const t = (await groupButton(page, 'Hylly').boundingBox())!;
   await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2);
+  await expect(page.getByTestId('tree-drag-preview')).toContainText('→ Hylly');
   await page.mouse.up();
   const result = await save(page);
   expect(result.bodies[0]).toEqual({ ...parts[0], groupId: 'other' });
@@ -149,7 +155,7 @@ test('a long list scrolls during dragging; an unselected part moves alone and me
   await page.getByTestId(`body-${parts[0].id}`).click();
   await page
     .locator('summary')
-    .filter({ hasText: /^Nimi ja ryhmä$/ })
+    .filter({ hasText: /^Ryhmä$/ })
     .click();
   await page.getByRole('combobox', { name: 'Kappaleen ryhmä', exact: true }).selectOption('');
   expect((await save(page)).bodies).toEqual(parts);

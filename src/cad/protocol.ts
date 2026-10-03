@@ -70,6 +70,7 @@ export interface Projection {
 }
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
+  | { type: 'instances'; source: Body; targets: Body[] }
   | { type: 'build'; bodies: Body[] }
   | { type: 'project'; bodies: Body[]; view: DrawingView }
   | { type: 'probe' }

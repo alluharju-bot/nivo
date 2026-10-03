@@ -30,6 +30,20 @@ export function rotateBodies(bodies: Body[], pivot: Vec3, axis: Vec3, angle: num
       ];
       return bodySchema.parse({
         ...next,
+        component: body.component
+          ? {
+              id: body.component.id,
+              offset: sub(
+                rotatePoint(add(body.origin, body.component.offset), pivot, direction, angle),
+                next.origin,
+              ),
+              rotation: new Quaternion()
+                .setFromAxisAngle(new Vector3(...direction), (angle * Math.PI) / 180)
+                .multiply(new Quaternion(...body.component.rotation))
+                .normalize()
+                .toArray(),
+            }
+          : undefined,
         textureFrame: {
           offset: sub(
             rotatePoint(

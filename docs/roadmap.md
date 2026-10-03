@@ -2,6 +2,33 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.13 — mallin hallinta ja ensimmäinen suorituskykypass
+
+Toteutettu: vasen läpikuultava mallilista (aktiivisena kevyt maitolasipinta,
+vetäytyneenä läpinäkyvä), nastakiinnitys ja kosketuspainikkeet; työkalupalkin
+neljä reunasijaintia vetämällä tai valikosta; otsikon suora nimeäminen,
+ryhmäpolku ja monivalinnan kokonaismitat. Delete/Backspace ja Valitse-tilan X
+poistavat koko valinnan yhdellä historiavaiheella, Holdia kunnioittaen.
+
+Kokoonpano valikoituu, siirtyy, kiertyy, kopioituu ja piiloutuu kokonaisena.
+Tuplaklikkaus avaa tason kerrallaan yksittäiset osat; tavallinen ryhmä säilyy
+listan järjestämisen välineenä. Kokoonpanon luonti säilyttää valittujen valmiiden
+ryhmien hierarkian. Komponenttikopiot jakavat geometrian omissa jäykissä
+koordinaatistoissaan. Tee uniikiksi, olemassa olevien osien linkitys ja
+esiintymäkohtainen materiaali ovat mukana. Linkitetyn Hold-kopion geometriaa ei
+muuteta hiljaisesti: koko toimi hylätään ja käyttäjä voi vapauttaa tai irrottaa linkin.
+
+P-maalipensseli, valinnan yhteinen toimintovalikko ja kappaleen kautta näkyvä
+siirtoakseli on toteutettu. Oikean napin veto säilyy orbitina.
+
+Suorituskyky: yhdenväriset CAD-pinnat käyttävät yhtä pintapiirtoa per osa;
+osoituskorostus on erillinen yhden pinnan verkko ja peräkkäiset piirtopyynnöt
+kootaan yhteen animaatioruutuun. [296 osan vertailu ja mittausskripti](performance.md).
+Seuraavan optimointipassin korkea prioriteetti: geometriaresurssien säilyttäminen
+valinnan vaihtuessa, Worker-siirtojen delta-päivitykset, tartuntapisteiden
+avaruusindeksi, listan virtualisointi ja oikean 296 osan käyttäjämallin profilointi.
+Tavoiterajat asetetaan laitteistokiihdytetyllä selaimella mitatusta aineistosta.
+
 Prioriteettia tarkennettu käyttäjän kanssa: helppokäyttöisyys, mittasyöttö ja
 perustyökalut toteutetaan ennen layereita, ryhmiä ja komponentteja. Alkuperäinen
 vaihenumerointi säilyy vertailua varten.
@@ -66,7 +93,7 @@ ja mittalapun siirtämisen. Jatkokehitys: halkaisija/säde, kulma ja usean näky
 
 Viisteiden, pyöristysten ja ryhmähierarkian ensimmäinen versio on toteutettu
 v0.8.0:ssa, ja reunakäsittelyn hiiri-/kosketussäätö v0.8.3:ssa. Muokattavat reunaparametrit ja kahden pisteen mitoitus valmistuivat v0.9.0:ssa. Seuraavaksi jää referenssikuvan kalibrointi. Fyysinen tabletti
-ja Safari varmennetaan erikseen. Linkitetyt komponentit seuraavat myöhemmin.
+ja Safari varmennetaan erikseen. Linkitetyt komponentit valmistuivat versiossa 0.13.0.
 
 ## Toteutettu v0.7.0: osan muokkaustila ja geometrian korjaus
 
@@ -121,16 +148,16 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
 - Omat tekstuurit ja syysuunnan/skaalan säätö valmistuivat v0.9.0:ssa. Jatkokehitys: tallennetut kamerat,
   omat valaistusympäristöt ja kohinanpoisto. Emissio, spotit ja progressiivinen path tracing valmistuivat v0.10:ssä.
 
-| Vaihe | Tila                 | Sisältö                                                                                                                         |
-| ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 0     | Perusta varmennettu  | CAD-worker, pursotus/leikkaus/pyöristys, BRep-serialisointi, pintaviite, ortografinen HLR. Fyysinen tabletti vielä testaamatta. |
-| 1     | Työnkulku toteutettu | Suorakulmio → push/pull → valinta/siirto ja tartunnat → etukuva ja mitta → projektitiedosto/SVG, tallennus, historia, kosketus. |
-| 2     | Osin toteutettu      | Sisäkkäiset ryhmät, nimet, näkyvyys, Hold ja ryhmäkopiointi tehty. Layerit ja linkitetyt komponentit myöhemmin.                 |
-| 3     | Osin toteutettu      | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.              |
-| 4     | Osin toteutettu      | 30 presettiä, tekstuurit, pintasijoittelu ja emissio tehty. UV-saarekkeet myöhemmin.                                            |
-| 5     | Osin toteutettu      | Studiovalaistus, esitysnäkymä ja PNG-vienti tehty. Tallennetut scenet ja kamerat myöhemmin.                                     |
-| 6     | Osin toteutettu      | A4, CAD-poiminta, PDF/SVG toteutettu. Useat näkymät ja leikkaukset myöhemmin.                                                   |
-| 7     | Suunniteltu          | Fyysisen tabletin työnkulut, suorituskyky, valinnan hienosäätö ja resurssibudjetit.                                             |
+| Vaihe | Tila                 | Sisältö                                                                                                                                  |
+| ----- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Perusta varmennettu  | CAD-worker, pursotus/leikkaus/pyöristys, BRep-serialisointi, pintaviite, ortografinen HLR. Fyysinen tabletti vielä testaamatta.          |
+| 1     | Työnkulku toteutettu | Suorakulmio → push/pull → valinta/siirto ja tartunnat → etukuva ja mitta → projektitiedosto/SVG, tallennus, historia, kosketus.          |
+| 2     | Osin toteutettu      | Sisäkkäiset ryhmät, nimet, näkyvyys, Hold ja ryhmäkopiointi tehty. Kokoonpanot ja linkitetyt komponentit tehty v0.13; layerit myöhemmin. |
+| 3     | Osin toteutettu      | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.                       |
+| 4     | Osin toteutettu      | 30 presettiä, tekstuurit, pintasijoittelu ja emissio tehty. UV-saarekkeet myöhemmin.                                                     |
+| 5     | Osin toteutettu      | Studiovalaistus, esitysnäkymä ja PNG-vienti tehty. Tallennetut scenet ja kamerat myöhemmin.                                              |
+| 6     | Osin toteutettu      | A4, CAD-poiminta, PDF/SVG toteutettu. Useat näkymät ja leikkaukset myöhemmin.                                                            |
+| 7     | Suunniteltu          | Fyysisen tabletin työnkulut, suorituskyky, valinnan hienosäätö ja resurssibudjetit.                                                      |
 
 Jokainen vaihe pysyy ajettavana. Uusi toteutus ei saa rikkoa aiempien projektien
 tuontia, historiaa tai mitoitusta. Hyväksymisesimerkit A–C täydennetään työkalujen

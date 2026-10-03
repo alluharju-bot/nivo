@@ -23,6 +23,7 @@ import type {
 import type { ReferencePoint } from '../model/snap';
 import type { SketchFrame } from '../model/sketch';
 export type Tool =
+  | 'paint'
   | 'detail'
   | 'erase'
   | 'offset'
@@ -63,6 +64,9 @@ export type Gesture =
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
   editingBodyId?: string;
+  scopeIds?: string[];
+  onPaint: (id: string) => void;
+  onContextMenu: (target: { x: number; y: number; bodyId?: string; guideId?: string }) => void;
   onEditBody: (id: string) => void;
   onCloseBodyEdit: () => void;
   onEditBlocked: (position: { x: number; y: number }) => void;
@@ -130,7 +134,7 @@ export interface ViewportProps {
   onReference: (point?: ReferencePoint) => void;
   onReferencePicked: () => void;
   onStart: () => void;
-  onMoveTarget: (id: string) => void;
+  onMoveTarget: (id: string) => string[];
   onFaceTarget: (target: FaceTarget) => void;
   onFaceHover: (target?: FaceTarget) => void;
   onSelectGuide: (id: string) => void;

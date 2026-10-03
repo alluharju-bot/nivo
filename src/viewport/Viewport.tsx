@@ -74,7 +74,16 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
   const clippingSphere = new THREE.Sphere(new THREE.Vector3(300, 200, 200), 1000);
   let workspaceGrid: ReturnType<typeof createWorkspaceGrid> | undefined;
+  let renderFrame = 0;
+  let disposed = false;
   const render = () => {
+    if (!disposed && !renderFrame)
+      renderFrame = requestAnimationFrame(() => {
+        renderFrame = 0;
+        renderNow();
+      });
+  };
+  const renderNow = () => {
     // Keep useful depth precision at CAD scales instead of a fixed 1:10,000,000 range.
     const distance = camera.position.distanceTo(clippingSphere.center),
       extent = Math.max(clippingSphere.radius * 1.8, 100);
@@ -96,6 +105,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().gridStep,
     );
     renderer.render(scene, camera);
+    renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls);
     renderer.domElement.dataset.camera = JSON.stringify({
       position: camera.position.toArray(),
       quaternion: camera.quaternion.toArray(),
@@ -211,7 +221,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (!body) continue;
       const selected = props.selectedIds.includes(data.id);
       const context = data.id === props.editingBodyId;
-      const reference = !!props.editingBodyId && !context;
+      const reference =
+        (!!props.editingBodyId && !context) ||
+        (!!props.scopeIds && !props.scopeIds.includes(data.id));
       const target = props.tool === 'boolean' && props.booleanTargets.includes(data.id),
         cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
         auxiliary = body.purpose === 'construction' || body.purpose === 'drawing',
@@ -222,7 +234,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       geometry.setIndex(data.triangles);
       materialUV(geometry, body);
       const baseMaterial = materialLibrary.create(body, props.assets);
-      const materials = data.faces.map((face, index) => {
+      // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
+      const materialFaces =
+        selected && props.selectedFace
+          ? data.faces
+          : [{ ref: undefined, start: 0, count: data.triangles.length }];
+      const materials = materialFaces.map((face, index) => {
         geometry.addGroup(face.start, face.count, index);
         const material = baseMaterial.clone();
         material.setValues({
@@ -895,6 +912,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     preview,
     command,
     dispose() {
+      disposed = true;
+      cancelAnimationFrame(renderFrame);
       observer.disconnect();
       navigation.dispose();
       controls.dispose();
@@ -948,6 +967,7 @@ export function Viewport(props: Props) {
     props.selectedGroupId,
     props.selectedFace,
     props.editingBodyId,
+    props.scopeIds,
     props.tool,
     props.epoch,
     props.booleanTargets,

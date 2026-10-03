@@ -8,6 +8,7 @@ import { booleanBodies, splitFace, offsetFace, offsetOutline, removeBoundary } f
 import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
 import { detailEdges, removeEdgeTreatment } from './details';
+import { instantiateComponents } from './components';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 type Entry = { key: string; shape: AnyShape; mesh: BodyMesh };
@@ -45,6 +46,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
+      else if (request.type === 'instances')
+        reply.result = instantiateComponents(request.source, request.targets);
       else if (request.type === 'rotate')
         reply.result = rotateBodies(request.bodies, request.pivot, request.axis, request.angle);
       else if (request.type === 'face-span')

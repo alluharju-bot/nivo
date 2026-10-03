@@ -10,6 +10,8 @@ import {
   LockKeyhole,
   Unlock,
   Layers2,
+  Boxes,
+  Link2,
 } from 'lucide-react';
 import { groupAncestors, groupContains, bodyLocked, type TreeMove } from '../model/groups';
 import { bodyVisible } from '../model/transforms';
@@ -130,6 +132,7 @@ export function ObjectTree({
               <GripVertical size={15} />
             </span>
             <span>{body.name}</span>
+            {body.component && <Link2 size={12} aria-label="Linkitetty komponentti" />}
           </button>
         )}
         <button
@@ -209,7 +212,10 @@ export function ObjectTree({
                   <span className="tree-drag-grip" aria-hidden="true">
                     <GripVertical size={14} />
                   </span>
-                  <span>{group.name}</span>
+                  <span>
+                    {group.kind === 'assembly' && <Boxes size={13} aria-label="Kokoonpano" />}{' '}
+                    {group.name}
+                  </span>
                   <small>
                     {bodies.filter((b) => groupContains(groups, group.id, b.groupId)).length}
                   </small>

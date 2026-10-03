@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as THREE from 'three';
-import { ready, view, click, save } from './helpers';
+import { ready, view, click, save, revealBrowser } from './helpers';
 import { makeBody } from '../src/model/project';
 
 test('pen hover and committed vertices stay exactly on an off-grid cabinet face', async ({
@@ -38,6 +38,7 @@ test('move locks one axis, X/Y/Z change it and released Ctrl keeps the copy', as
     b = makeBody(100, 100, 20, [350, 180, 14.625]);
   await ready(page, [a, b]);
   const p = await view(page, [a, b]);
+  await revealBrowser(page);
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
   const start = p(103.125, 106.375, 24.625),
@@ -135,7 +136,9 @@ test('a rectangle on the inside back of a hollow cabinet stays on that exact sur
     feature: { width: 200, depth: 0, height: 350 },
   });
   await page.keyboard.press('Escape');
+  const previousCamera = await page.getByTestId('viewport').getAttribute('data-camera');
   await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByTestId('viewport')).not.toHaveAttribute('data-camera', previousCamera!);
   const state = JSON.parse((await page.getByTestId('viewport').getAttribute('data-camera'))!);
   const camera = new THREE.Camera();
   camera.position.fromArray(state.position);
@@ -194,6 +197,7 @@ test('grid spacing controls free shapes and movement while exact typed dimension
   await expect(page.locator('.object-list .object-select')).toHaveCount(3);
   expect((await save(page)).bodies[2].feature.width).toBe(72);
   await page.keyboard.press('Escape');
+  await revealBrowser(page);
   await page.getByTestId(`body-${body.id}`).click();
   await page.keyboard.press('m');
   const start = p(3.125, 6.375, 24.625),

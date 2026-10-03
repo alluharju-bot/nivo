@@ -327,6 +327,9 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
     return bodySchema.parse({
       ...body,
       origin,
+      component: body.component
+        ? { ...body.component, offset: sub(add(body.origin, body.component.offset), origin) }
+        : undefined,
       edgeTreatment: undefined,
       textureFrame: {
         offset: sub(add(body.origin, body.textureFrame?.offset ?? [0, 0, 0]), origin),
@@ -367,7 +370,14 @@ export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
       if (height < 0.1) throw new Error('Pursotus poistaisi koko kappaleen.');
       const origin = [...body.origin] as Vec3;
       if (target.normal[2] < 0) origin[2] -= distance;
-      return bodySchema.parse({ ...body, origin, feature: { ...body.feature, height } });
+      return bodySchema.parse({
+        ...body,
+        origin,
+        component: body.component
+          ? { ...body.component, offset: sub(add(body.origin, body.component.offset), origin) }
+          : undefined,
+        feature: { ...body.feature, height },
+      });
     }
     // Keep a box parametric so its semantic corner anchors survive all six face edits.
     if (
@@ -383,7 +393,14 @@ export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
         if (size < 0.1) throw new Error('Pursotus poistaisi koko kappaleen.');
         const origin = [...body.origin] as Vec3;
         if (min) origin[i] -= distance;
-        return bodySchema.parse({ ...body, origin, feature: { ...body.feature, [key]: size } });
+        return bodySchema.parse({
+          ...body,
+          origin,
+          component: body.component
+            ? { ...body.component, offset: sub(add(body.origin, body.component.offset), origin) }
+            : undefined,
+          feature: { ...body.feature, [key]: size },
+        });
       }
     }
     const vector = new Vector(target.normal.map((n) => n * distance) as Vec3);

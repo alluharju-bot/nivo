@@ -4,6 +4,35 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.13.0 — mallin hallinta ja suorituskyky
+
+**146 yksikkö-/CAD-testiä hyväksytty (25 tiedostoa).** Uudet kokeet kattavat
+komponentin linkitetyn kopion, itsenäisen siirron/kierron, yhteisen ja paikallisen
+materiaalin, Hold-kopion suojauksen, ristiriitaisen geometriapäivityksen eston,
+linkin irrotuksen, sisäkkäisen kokoonpanon valinnan, hierarkian kopioinnin ja
+atomisen monipoiston. OpenCascade-kokeet varmistavat negatiivisen puolen
+push/pullin 90° kierrettyyn kopioon, muokkauksen kierretyltä osalta takaisin
+suoraan osaan sekä onton kaapin kopion mielivaltaisessa 37° kierrossa.
+
+Uusien työnkulkujen **12/12 tuotantopaketin selainkoetta hyväksytty** (1,5 min):
+mallilistan lasipinta/piilotus/nasta, suora nimeäminen, työkalupalkin painike- ja
+raahaussiirto sekä sijainnin muistaminen; kokoonpanon avaaminen/sulkeminen,
+monipoisto ja Peru; linkitys, pensselin jaettu/paikallinen materiaali ja uniikki
+osa; oikean napsautuksen valikko vs. orbit-veto ja siirtoakselin näyttö;
+komponentin kopiointi, push/pull, sivun päivitys, historian palautus ja saman
+projektitiedoston avaaminen; 15 osan kokoonpanon hierarkia, linkitetyt kopiot,
+siirto, Hold ja näkyvyys. Molemmat profiilit: desktop ja Chromium-tablettiemulointi.
+
+Kohdennetut regressiot kattavat myös Shift-/laatikkovalinnan, tarkan siirron ja
+Ctrl-kopioinnin, 10/25 mm ruudukon, off-grid-pinnan kynän/suorakulmion, onton
+kaapin sisäpinnan, Offset-läpileikkauksen, apuviivan kumituksen sekä ryhmän
+kopioinnin ja mallilistan raahauksen. Kameran diagnostiikkatietoa odotetaan
+animaatioruudun valmistumiseen asti; valinnan ja geometrian tarkkuus säilyy.
+
+[296 osan suorituskykymittaus](performance.md) vertaa samaa v0.12/v0.13-mallia
+samalla ohjelmistorenderöivällä Chromiumilla. Työpöytä- ja tablettiasettelut
+on tarkistettu myös kuvina. Fyysinen iPad ja Safari jäävät erilliseen testaukseen.
+
 ## V0.12.0 — räjäytyskuva ja leikkauslista
 
 **139 yksikkö-/CAD-testiä hyväksytty (23 tiedostoa).** Kuuden osan kaapin

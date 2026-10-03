@@ -3,12 +3,20 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.12.0** lisää **Osat → Leikkauslista** -näkymän: levykoko, sahausura, reunavarat, syysuunta, numeroidut sijoittelukuvat ja tulostettava PDF/CSV-osalista. Räjäytyskuvan osat irtoavat nyt kokoonpanon keskipisteestä suoraan ulospäin, myös takana olevat sidelistat.
+Versio **0.13.0** tuo läpikuultavan vetäytyvän mallilistan, reunoihin siirrettävän työkalupalkin, kokoonpanot, linkitetyt komponentit ja maalipensselin. 296 osan mallin piirtoja on vähennetty ja suorituskyvylle on toistettava [vertailumittaus](docs/performance.md).
+
+- Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
+- Napsauta valitun osan tai ryhmän otsikkonimeä nimetäksesi sen. Ryhmäpolku näkyy heti alla.
+- **Luo kokoonpano** yhdistää valinnan käsiteltäväksi kokonaisuudeksi. Tuplaklikkaa avataksesi yksittäiset osat; Esc tai Sulje kokoonpano päättää. **Ryhmä** järjestää vain listaa.
+- **Tee komponentti**: seuraavat kopiot jakavat geometrian ja oletuksena materiaalin. **Tee uniikiksi** irrottaa linkin. Sijainti, kierto, nimi, näkyvyys ja Hold ovat esiintymäkohtaisia. Olemassa olevat osat voi linkittää valittuun lähtöosaan.
+- **P – Maalipensseli**: valitse materiaali ja napsauta osia. Paletti kertoo, koskeeko maalaus koko valintaa ja linkitettyjä kopioita.
+- Oikean napin napsautus tai **Toiminnot** avaa valinnan yhteisen valikon. Oikean napin veto kiertää kameraa. Delete/Backspace tai Valitse-tilassa X poistaa koko valinnan yhdellä peruttavalla toiminnolla.
+- Siirron X/Y/Z-akseli näkyy tartuntapisteen kautta myös kappaleen läpi, ja mittalappu näyttää siirtymän.
 
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-![Kaapin materiaalit studiovalaistuksessa](docs/images/nivo-finished-cabinet.png)
+![Nivon läpikuultava mallilista ja työtila](docs/images/nivo-v013-workspace.png)
 
 ## Testaa selaimessa
 

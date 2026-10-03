@@ -106,6 +106,45 @@ export function installInteractions({
     return ids;
   };
   const overlay = new THREE.Group();
+  const moveAxisLine = new THREE.Mesh(
+    new THREE.CylinderGeometry(1, 1, 1, 8),
+    new THREE.MeshBasicMaterial({
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.64,
+    }),
+  );
+  moveAxisLine.visible = false;
+  moveAxisLine.renderOrder = 95;
+  overlay.add(moveAxisLine);
+  const moveAxisLabel = document.createElement('div');
+  moveAxisLabel.className = 'move-axis-label';
+  moveAxisLabel.hidden = true;
+  container.appendChild(moveAxisLabel);
+  const showMoveAxis = (axis?: Axis, start?: Vec3, end?: Vec3) => {
+    moveAxisLine.visible = !!axis && !!start && !!end;
+    moveAxisLabel.hidden = !moveAxisLine.visible;
+    canvas.dataset.visibleMoveAxis = axis ?? '';
+    if (!axis || !start || !end) return;
+    const color = { x: '#b7534e', y: '#388960', z: '#427dba' }[axis],
+      direction = axisVector(axis),
+      pixel = worldPerPixel(start);
+    moveAxisLine.position.set(...start);
+    moveAxisLine.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(...direction),
+    );
+    moveAxisLine.scale.set(
+      pixel * 1.15,
+      pixel * Math.max(canvas.clientWidth, canvas.clientHeight) * 5,
+      pixel * 1.15,
+    );
+    (moveAxisLine.material as THREE.MeshBasicMaterial).color.set(color);
+    const distance = dot(sub(end, start), direction);
+    moveAxisLabel.style.color = color;
+    moveAxisLabel.textContent = `${axis.toUpperCase()} lukittu · ${distance > 0 ? '+' : ''}${formatLength(distance)} mm`;
+  };
   scene.add(overlay);
   const makeMarker = (color: string) => {
     const marker = new THREE.Mesh(
@@ -539,7 +578,11 @@ export function installInteractions({
   };
   const editBlocked = (event: PointerEvent, bodyId: string) => {
     const props = current();
-    if (!props.editingBodyId || props.editingBodyId === bodyId) return false;
+    if (
+      (!props.editingBodyId || props.editingBodyId === bodyId) &&
+      (!props.scopeIds || props.scopeIds.includes(bodyId))
+    )
+      return false;
     const rect = container.getBoundingClientRect();
     props.onEditBlocked({
       x: event.clientX - rect.left,
@@ -592,6 +635,23 @@ export function installInteractions({
     canvas.dataset.sketchPlane = JSON.stringify(frame.normal);
     return { point, frame, target: matchesSurface ? target : undefined };
   };
+  const hoverFace = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    new THREE.MeshBasicMaterial({
+      color: '#2795cc',
+      transparent: true,
+      opacity: 0.22,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+  );
+  hoverFace.visible = false;
+  hoverFace.renderOrder = 4;
+  overlay.add(hoverFace);
+  let hoverKey = '';
   const highlightFace = (target?: FaceTarget, reference = false) => {
     if (
       !reference &&
@@ -600,18 +660,27 @@ export function installInteractions({
     )
       target = undefined;
     current().onFaceHover(reference ? undefined : target);
-    for (const obj of bodies.children)
-      if (obj instanceof THREE.Mesh) {
-        const faces = obj.userData.faces as BodyMesh['faces'];
-        (obj.material as THREE.MeshStandardMaterial[]).forEach((m, i) => {
-          const active =
-            !!target && target.bodyId === obj.userData.id && target.face === faces[i]?.ref;
-          m.emissive.set(active ? '#207cb8' : (m.userData.baseEmissive ?? '#000000'));
-          m.emissiveIntensity = active ? 0.45 : (m.userData.baseEmissiveIntensity ?? 0);
-        });
+    const mesh = target && current().meshes.find((m) => m.id === target.bodyId);
+    const face = mesh && mesh.faces.find((f) => f.ref === target!.face);
+    const key = face ? `${target!.bodyId}:${face.ref}` : '';
+    // One overlay is enough; moving across the same face does not allocate geometry.
+    if (key !== hoverKey || (mesh && hoverFace.userData.source !== mesh)) {
+      (hoverFace.material as THREE.MeshBasicMaterial).color.set('#2795cc');
+      hoverKey = key;
+      hoverFace.userData.source = mesh;
+      hoverFace.visible = !!face;
+      hoverFace.geometry.dispose();
+      hoverFace.geometry = new THREE.BufferGeometry();
+      if (face && mesh) {
+        hoverFace.geometry.setAttribute(
+          'position',
+          new THREE.Float32BufferAttribute(mesh.vertices, 3),
+        );
+        hoverFace.geometry.setIndex(mesh.triangles.slice(face.start, face.start + face.count));
       }
+      render();
+    }
     canvas.dataset.hoverFace = target?.face ?? '';
-    render();
   };
   const highlightBoundary = (target?: BoundaryTarget) => {
     (boundaryHighlight.material as THREE.LineBasicMaterial).color.set('#cc672b');
@@ -623,15 +692,25 @@ export function installInteractions({
       'position',
       new THREE.Float32BufferAttribute(target?.lines ?? [], 3),
     );
-    for (const obj of bodies.children)
-      if (obj instanceof THREE.Mesh && obj.userData.id === target?.bodyId) {
-        const faces = obj.userData.faces as BodyMesh['faces'];
-        (obj.material as THREE.MeshStandardMaterial[]).forEach((material, i) => {
-          const active = target!.faces.includes(faces[i].ref);
-          material.emissive.set(active ? '#ce8d4a' : '#000000');
-          material.emissiveIntensity = active ? 0.32 : 0;
-        });
+    if (target) {
+      const mesh = current().meshes.find((m) => m.id === target.bodyId);
+      if (mesh) {
+        hoverKey = `boundary:${target.bodyId}:${target.faces.join(',')}`;
+        hoverFace.visible = true;
+        (hoverFace.material as THREE.MeshBasicMaterial).color.set('#ce8d4a');
+        hoverFace.geometry.dispose();
+        hoverFace.geometry = new THREE.BufferGeometry();
+        hoverFace.geometry.setAttribute(
+          'position',
+          new THREE.Float32BufferAttribute(mesh.vertices, 3),
+        );
+        hoverFace.geometry.setIndex(
+          mesh.faces
+            .filter((f) => target.faces.includes(f.ref))
+            .flatMap((f) => mesh.triangles.slice(f.start, f.start + f.count)),
+        );
       }
+    }
     canvas.dataset.eraseBoundary = target
       ? JSON.stringify({ bodyId: target.bodyId, faces: target.faces })
       : '';
@@ -1445,6 +1524,7 @@ export function installInteractions({
     return lastSnap.point;
   };
   const sync = () => {
+    if (current().tool !== 'move' || !drag) showMoveAxis();
     if (externalReference !== current().reference) {
       externalReference = current().reference;
       if (!externalReference) heldReference = undefined;
@@ -1455,6 +1535,7 @@ export function installInteractions({
       epoch = current().epoch;
       tool = current().tool;
       drag = undefined;
+      showMoveAxis();
       rotationDrag = undefined;
       offsetSession = undefined;
       detailSession = undefined;
@@ -1787,7 +1868,10 @@ export function installInteractions({
     }
     current().onRotationAngle(shift ? Math.round(angle / 15) * 15 : Math.round(angle * 100) / 100);
   };
+  let contextStart: { x: number; y: number } | undefined;
+  const contextEvent = (event: MouseEvent) => event.preventDefault();
   const down = (event: PointerEvent) => {
+    if (event.button === 2) contextStart = { x: event.clientX, y: event.clientY };
     lastEvent = event;
     sync();
     if (event.button !== 0) {
@@ -1814,6 +1898,11 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.tool === 'navigate') return;
+    if (props.tool === 'paint') {
+      const picked = faceAt(event);
+      if (picked && !editBlocked(event, picked.target.bodyId)) props.onPaint(picked.target.bodyId);
+      return;
+    }
     if (
       (props.tool === 'measure' && props.measureMode === 'dimension') ||
       (props.tool === 'select' && (dimensionSession || dimensionHit(event)))
@@ -2064,7 +2153,7 @@ export function installInteractions({
       props.onSnap('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
       return;
     }
-    if (moveTarget) props.onMoveTarget(moveTarget);
+    const moveIds = moveTarget ? props.onMoveTarget(moveTarget) : undefined;
     if (props.tool !== 'select') props.onStart();
     const selected = props.bodies.find((b) => b.id === (moveTarget ?? props.selected)),
       origin = selected?.origin ?? ([0, 0, 0] as Vec3);
@@ -2164,7 +2253,7 @@ export function installInteractions({
         props.tool === 'move' && selected
           ? props.selectedIds.includes(selected.id)
             ? [...props.selectedIds]
-            : [selected.id]
+            : (moveIds ?? [selected.id])
           : undefined,
       extendSelection:
         props.tool === 'select' && (event.shiftKey || event.ctrlKey || event.metaKey),
@@ -2275,6 +2364,11 @@ export function installInteractions({
     if (props.tool === 'select' && drag?.moved) {
       boxSelection(event);
       highlightFace();
+      show();
+      return;
+    }
+    if (props.tool === 'paint') {
+      highlightFace(faceAt(event)?.target, true);
       show();
       return;
     }
@@ -2440,6 +2534,7 @@ export function installInteractions({
       show(indication, drag.plane);
       canvas.dataset.moveSnap = indication.key;
       canvas.dataset.moveEnd = JSON.stringify(end);
+      showMoveAxis(activeAxis, start, end);
       props.onGesture({
         type: 'move',
         bodyId: drag.bodyId,
@@ -2464,7 +2559,25 @@ export function installInteractions({
     }
   };
   const up = (event: PointerEvent) => {
+    if (event.button === 2) {
+      if (
+        contextStart &&
+        Math.hypot(event.clientX - contextStart.x, event.clientY - contextStart.y) < 5 &&
+        !current().busy
+      ) {
+        const guide = selectableGuideAt(event);
+        const picked = faceAt(event);
+        current().onContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          bodyId: picked?.target.bodyId,
+          guideId: guide?.object.userData.guideId,
+        });
+      }
+      contextStart = undefined;
+    }
     if (event.button !== 0) return;
+    showMoveAxis();
     const props = current(),
       active = drag;
     if (dimensionPress && event.pointerId === dimensionPress.id) {
@@ -2625,7 +2738,10 @@ export function installInteractions({
     if (!pointers.size) blocked = false;
   };
   const keydown = (event: KeyboardEvent) => {
-    if ((event.target as HTMLElement).closest('input,textarea,select,[contenteditable]')) return;
+    if (
+      (event.target as HTMLElement).closest('input,textarea,select,[contenteditable],[role=menu]')
+    )
+      return;
     if ((event.key === 'Control' || event.key === 'Alt') && current().tool === 'move') {
       event.preventDefault();
       if (!event.repeat) current().onCopyMove(!current().copyMove);
@@ -2774,9 +2890,11 @@ export function installInteractions({
       return;
     const target = editableFaceAt(event as PointerEvent);
     if (target) current().onEditBody(target.target.bodyId);
-    else if (current().editingBodyId && emptySelectionClicks === 2) current().onCloseBodyEdit();
+    else if ((current().editingBodyId || current().scopeIds) && emptySelectionClicks === 2)
+      current().onCloseBodyEdit();
     emptySelectionClicks = 0;
   };
+  canvas.addEventListener('contextmenu', contextEvent);
   canvas.addEventListener('dblclick', doubleClick);
   canvas.addEventListener('pointerleave', leave);
   canvas.addEventListener('pointerdown', down);
@@ -2789,6 +2907,7 @@ export function installInteractions({
   return {
     sync,
     dispose() {
+      canvas.removeEventListener('contextmenu', contextEvent);
       canvas.removeEventListener('dblclick', doubleClick);
       canvas.removeEventListener('pointerleave', leave);
       canvas.removeEventListener('pointerdown', down);
@@ -2798,6 +2917,7 @@ export function installInteractions({
       window.removeEventListener('keydown', keydown, true);
       window.removeEventListener('keyup', keyup);
       window.removeEventListener('blur', blur);
+      moveAxisLabel.remove();
       hint.remove();
       selectionBox.remove();
       scene.remove(overlay);

@@ -65,29 +65,8 @@ export function ObjectActions({
         </p>
       )}
       <details className="inspector-disclosure">
-        <summary>Nimi ja ryhmä</summary>
+        <summary>Ryhmä</summary>
         <div className="disclosure-content">
-          <label className="modeling-field">
-            Nimi
-            <input
-              key={body.id + body.name}
-              aria-label="Kappaleen nimi"
-              defaultValue={body.name}
-              disabled={busy}
-              maxLength={120}
-              onBlur={(e) => {
-                const name = e.target.value.trim();
-                if (name && name !== body.name) onChange({ name });
-                else e.target.value = body.name;
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  e.currentTarget.blur();
-                }
-              }}
-            />
-          </label>
           <label className="modeling-field">
             Ryhmä
             <select

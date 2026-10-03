@@ -52,6 +52,11 @@ export class CadClient {
   build(bodies: Body[]) {
     return this.request<BodyMesh[]>({ type: 'build', bodies });
   }
+  instances(source: Body, targets: Body[]) {
+    return targets.length
+      ? this.request<Body[]>({ type: 'instances', source, targets })
+      : Promise.resolve([]);
+  }
   project(bodies: Body[], view: DrawingView) {
     return this.request<Projection>({ type: 'project', bodies, view });
   }

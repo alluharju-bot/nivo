@@ -172,6 +172,19 @@ export const bodySchema = z.object({
     })
     .optional(),
   purpose: z.enum(['model', 'construction', 'drawing', 'component']).default('model'),
+  component: z
+    .object({
+      id,
+      offset: pointSchema,
+      rotation: z.tuple([
+        z.number().finite(),
+        z.number().finite(),
+        z.number().finite(),
+        z.number().finite(),
+      ]),
+    })
+    .optional(),
+  localMaterial: z.boolean().optional(),
   locked: z.boolean().default(false),
   hidden: z.boolean().default(false),
   groupId: id.optional(),
@@ -233,6 +246,7 @@ export const groupSchema = z.object({
   hidden: z.boolean().default(false),
   locked: z.boolean().optional(),
   parentId: id.optional(),
+  kind: z.enum(['folder', 'assembly']).optional(),
 });
 export type BodyGroup = z.infer<typeof groupSchema>;
 export const projectSchema = z

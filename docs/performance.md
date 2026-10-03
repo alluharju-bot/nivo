@@ -1,0 +1,69 @@
+# Mallinnusnäkymän suorituskyky
+
+296 osan käyttäjähavainnon perusteella lisättiin toistettava vertailu v0.13:ssa.
+Mittaus ei käytä käyttäjän omaa mallia vaan 296 erillistä 500 × 400 × 18 mm
+levyä, sijoitettuna ruudukkoon neljälle korkeudelle. Jokainen osa säilyy omana
+CAD-kappaleenaan ja valittavana objektinaan.
+
+## Mittaus 3.–4.10.2026
+
+Apple M1 Pro / 16 Gt / macOS 26.2; Chromium 153.0.8010.12, headless,
+**ANGLE SwiftShader (ohjelmistorenderöinti)**. Selaimen koko 1440 × 960,
+mallinnusalue 1072 × 863, pikselisuhde 1. Tuotantopaketit samalta koneelta.
+Vanha paketti on commit `3d258c2`, v0.12.0.
+
+| Tilanne                          | V0.12 mediaani / p95 | V0.13 mediaani / p95 | Piirrot / ruutu, mediaani ennen → jälkeen |
+| -------------------------------- | -------------------- | -------------------- | ----------------------------------------- |
+| Osoittimen liike pintojen päällä | 137,2 / 150,3 ms     | 43,0 / 46,2 ms       | 4 442 → 628                               |
+| Oikean napin kamerakierto        | 196,7 / 214,5 ms     | 36,9 / 50,0 ms       | 6 663 → 626                               |
+
+Kummassakin vaiheessa 150 animaatioruudun osoitintapahtumat, ensimmäiset
+30 lämmittelyyn ja seuraavat 120 tilastoon. WebGL:n draw-kutsut lasketaan
+animaatioruutujen väliltä: ne sisältävät myös varjot ja saman ruudun toistetut
+renderöinnit. Mallin latausaika ei sisälly lukuihin. Piirtojen määrä pieneni
+osoitinliikkeessä noin 86 % ja kierrossa noin 91 %.
+
+Nämä eivät ole käyttäjän laitteen FPS-lupauksia. Ohjelmistorenderöinti korostaa
+piirtojen kustannusta; todellinen 296 osan kaappimalli voi sisältää enemmän
+pintoja, käyriä, tekstuureja ja tartuntapisteitä. Toistot, laitteistokiihdytetty
+Chromium/Safari ja käyttäjän malli kuuluvat seuraavaan mittauskierrokseen.
+
+## Korjaukset
+
+Aiemmin jokainen CAD-face sai oman materiaalin ja piirtoerän, vaikka kuusi
+laatikon pintaa käyttivät samaa materiaalia. Nyt osa käyttää yhtä pintaerää;
+valitun yksittäisen facen materiaalijako säilyy tarvittaessa. Osoitettu face ja
+kumitettavat pintarajaukset korostetaan erillisellä pienellä verkolla. Osoitus ei
+päivitä kaikkien osien kaikkia materiaaleja.
+
+Useat saman tapahtuman piirtopyynnöt yhdistetään yhdeksi requestAnimationFrame-
+päivitykseksi. Näkymä piirtää pyynnöstä, ei jatkuvasti tyhjäkäynnillä. Muokkaus-
+rajauksen ja monivalinnan mittalaskennan React-arvot pidetään vakaina.
+
+## Toistaminen
+
+```sh
+NIVO_BASE_PATH=/nivo/ npm run build
+NIVO_BASE_PATH=/nivo/ npm run preview -- --port 4173
+node scripts/performance.mjs http://127.0.0.1:4173/nivo/
+```
+
+Skripti avaa erillisen tyhjän selainkontekstin, tuo oman testimallinsa ja tulostaa
+JSON-mittauksen. Se ei koske käyttäjän selaintallennukseen. Aja versiot
+peräkkäin ilman muuta selainkuormaa. Tuotantobuildia ei saa vaihtaa kesken ajon.
+Canvasin `data-draw-calls` kertoo myös viimeisen Three.js-renderöinnin piirrot.
+
+## Seuraava optimointikokonaisuus
+
+1. Käyttäjän todellisen mallin CPU-/GPU-profiili: osoitus, siirto, kamerakierto,
+   valinta, ryhmän kopiointi ja tallennus erikseen.
+2. Säilytä GPU-geometriat ja materiaalit muuttumattomilla osilla valinnan ja
+   työkalun vaihtuessa. Nykyinen scene-sync rakentaa nämä edelleen uudelleen.
+3. Workerilta vain muuttuneiden verkkojen siirto; metatietojen nimeäminen,
+   ryhmittely ja väri eivät tarvitse koko mallin verkkopäivitystä.
+4. Tartuntapisteiden välimuisti ja avaruusindeksi sekä rajattu säteenhaku.
+5. Mallilistan virtualisointi suurilla määrillä; geometrialle ja tekstuureille
+   muistibudjetti. Mittaukset 100 / 296 / 1 000 osalla.
+
+Optimointi ei saa vaihtaa millimetrimitoitusta likimääräiseksi, ohittaa
+näkyvyystarkistuksia tai yhdistää erillisiä CAD-osia pysyvästi.

@@ -1,5 +1,8 @@
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, type PointDimension } from './model/project';
+import { PaintPanel } from './ui/PaintPanel';
+import { ContextActions, type QuickAction } from './ui/ContextActions';
+import { defaultAppearance } from './model/materials';
 import { CabinetBuilder } from './ui/CabinetBuilder';
 import { insertCabinet } from './model/cabinet';
 import { useRenderJob } from './render/useRenderJob';
@@ -10,6 +13,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import {
   ArrowDownToLine,
   Eraser,
+  Paintbrush,
   ArrowLeftRight,
   ArrowUpFromLine,
   Box,
@@ -52,7 +56,9 @@ import {
 import {
   bodyLocked,
   groupAncestors,
+  groupContains,
   groupBodies,
+  groupPath,
   reparentGroup,
   dissolveGroup,
   translateSelection,
@@ -68,9 +74,15 @@ import { RenderStage } from './render/RenderStage';
 import { renderDefaults } from './render/scene';
 import { DrawingWorkspace } from './drawing/DrawingWorkspace';
 import { ToolRail } from './ui/ToolRail';
+import { ModelBrowser } from './ui/ModelBrowser';
+import { InlineName } from './ui/InlineName';
+import type { ToolDock } from './ui/ToolRail';
+import { removeSelection, selectionUnit, inAssembly } from './model/selection';
+import { asComponent, uniqueComponents } from './model/components';
 import { PartsWorkspace } from './ui/PartsWorkspace';
 import { useEditor } from './useEditor';
 import {
+  bounds,
   cabinetProject,
   dimensionValue,
   freshProject,
@@ -158,6 +170,7 @@ const faceNames: Record<FaceRef, string> = {
   'z:max': 'Yläpinta',
 };
 const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = [
+  { id: 'paint', label: 'Maalipensseli', icon: <Paintbrush />, shortcut: 'P' },
   { id: 'select', label: 'Valitse', icon: <MousePointer2 />, shortcut: 'V' },
   { id: 'rectangle', label: 'Suorakulmio', icon: <Square />, shortcut: 'S' },
   { id: 'circle', label: 'Ympyrä', icon: <Circle />, shortcut: 'C' },
@@ -186,6 +199,7 @@ const toolOrder: Tool[] = [
   'rotate',
   'offset',
   'detail',
+  'paint',
   'boolean',
   'measure',
   'navigate',
@@ -194,6 +208,8 @@ const toolOrder: Tool[] = [
 ];
 tools.sort((a, b) => toolOrder.indexOf(a.id) - toolOrder.indexOf(b.id));
 const instructions: Record<Tool, string> = {
+  paint:
+    'P · Valitse materiaali ja napsauta osia maalataksesi. Kohdevalinta kertoo, maalataanko koko valinta. Esc päättää.',
   detail:
     'F · Napsauta reunat tai vedä reunasta säätääksesi kokoa. Kirjoita tarkka mitta. Vapautus tai Enter hyväksyy, Esc peruu.',
   erase:
@@ -349,6 +365,15 @@ export default function App() {
   const [tool, setTool] = useState<Tool>('select');
   const [renderOpen, setRenderOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
+  const [actionMenu, setActionMenu] = useState<{ x: number; y: number }>();
+  const [brush, setBrush] = useState({ appearance: defaultAppearance('matte'), color: '#dbd3bd' });
+  const [paintAll, setPaintAll] = useState(true);
+  const [paintLinked, setPaintLinked] = useState(true);
+  const [openedAssembly, setOpenedAssembly] = useState<string>();
+  const [dock, setDock] = useState<ToolDock>(() => {
+    const saved = localStorage.getItem('nivo-tool-dock');
+    return ['left', 'right', 'top', 'bottom'].includes(saved ?? '') ? (saved as ToolDock) : 'left';
+  });
   const [cabinetOpen, setCabinetOpen] = useState(false);
   const renderJob = useRenderJob();
   const [mode, setMode] = useState<'model' | 'drawing'>('model');
@@ -413,14 +438,26 @@ export default function App() {
   const body = project.bodies.find((b) => b.id === selected);
   const selectedGroup = project.groups.find((g) => g.id === selectedGroupId);
   const editingBody = project.bodies.find((b) => b.id === editingBodyId);
+  const selectionBox = useMemo(
+    () => bounds(project.bodies.filter((b) => selectedIds.includes(b.id))),
+    [project.bodies, selectedIds],
+  );
+  const scopeIds = useMemo(
+    () => (openedAssembly ? groupBodies(project, openedAssembly).map((b) => b.id) : undefined),
+    [project.bodies, project.groups, openedAssembly],
+  );
+  const selectionSize = selectionBox.max.map((n, i) => n - selectionBox.min[i]);
   const selectedGuide = project.guides.find((g) => g.id === selectedGuideId);
   const [awaitingStart, setAwaitingStart] = useState(false);
   const visibleBodies = useMemo(
     () =>
       project.bodies
         .filter((b) => bodyVisible(b, project.groups))
-        .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
-    [project.bodies, project.groups],
+        .map((b) => ({
+          ...b,
+          locked: bodyLocked(b, project.groups) || !inAssembly(project, b.id, openedAssembly),
+        })),
+    [project.bodies, project.groups, openedAssembly],
   );
   const visibleDimensions = useMemo(
     () =>
@@ -681,9 +718,17 @@ export default function App() {
   };
   const explainEditContext = (position?: { x: number; y: number }) => {
     setEditNotice(position ?? {});
-    editor.setMessage('Muokkaat yhtä osaa. Valitse Lopeta muokkaus, jotta voit valita muita osia.');
+    editor.setMessage(
+      openedAssembly && !editingBodyId
+        ? 'Kokoonpano on avoinna. Sulje kokoonpano valitaksesi ulkopuolisia osia.'
+        : 'Muokkaat yhtä osaa. Valitse Lopeta muokkaus, jotta voit valita muita osia.',
+    );
   };
   const select = (id?: string, face?: FaceRef, additive = false, force = false) => {
+    if (id && !force && !inAssembly(project, id, openedAssembly)) {
+      editor.setMessage('Sulje avoin kokoonpano valitaksesi sen ulkopuolisia osia.');
+      return;
+    }
     if (editingBodyId && id && id !== editingBodyId && !force) {
       explainEditContext();
       return;
@@ -692,25 +737,37 @@ export default function App() {
       if (id) toggleBoolean(id);
       return;
     }
-    const extend = !force && (additive || multiSelect || !!selectedGroupId);
+    const extend =
+      !force &&
+      (additive || multiSelect || (!!selectedGroupId && selectedGroup?.kind !== 'assembly'));
+    const unit =
+      id && !force
+        ? selectionUnit(project, id, openedAssembly)
+        : { ids: id ? [id] : [], groupId: undefined };
     const ids = id
       ? extend
-        ? selectedIds.includes(id)
-          ? selectedIds.filter((v) => v !== id)
-          : [...selectedIds, id]
-        : [id]
+        ? unit.ids.every((key) => selectedIds.includes(key))
+          ? selectedIds.filter((key) => !unit.ids.includes(key))
+          : [...new Set([...selectedIds, ...unit.ids])]
+        : unit.ids
       : additive
         ? selectedIds
         : [];
     setSelected(ids.includes(id!) ? id : ids[0]);
     setSelectedIds(ids);
-    if (!extend || !id) setSelectedGroupId(undefined);
+    setSelectedGroupId(
+      extend && selectedGroup && selectedGroup.kind !== 'assembly'
+        ? selectedGroupId
+        : !extend
+          ? unit.groupId
+          : undefined,
+    );
     pickedFaceRef.current = id && face ? { bodyId: id, face } : undefined;
     setSelectedFace(force ? face : undefined);
     setAwaitingStart(true);
     setMeasureMenu(false);
     resetGesture();
-    if (tool === 'rotate' && id && !force) startRotation([id]);
+    if (tool === 'rotate' && id && !force) startRotation(ids);
   };
   const finishOperation = (id?: string, face?: FaceRef) => {
     if (editingBodyId && id && id !== editingBodyId) {
@@ -734,8 +791,19 @@ export default function App() {
   const openBodyEdit = (id: string) => {
     if (busy) return;
     const target = project.bodies.find((b) => b.id === id);
+    const unit = selectionUnit(project, id, openedAssembly);
     if (!target || bodyLocked(target, project.groups) || !bodyVisible(target, project.groups)) {
       editor.setMessage('Vapauta ja näytä osa ennen muokkaamista.');
+      return;
+    }
+    if (unit.groupId && !editingBodyId) {
+      resetGesture();
+      setTool('select');
+      setOpenedAssembly(unit.groupId);
+      setSelectedGroupId(undefined);
+      setSelectedIds([]);
+      setSelected(undefined);
+      setMultiSelect(false);
       return;
     }
     if (editingBodyId && editingBodyId !== id) {
@@ -758,6 +826,12 @@ export default function App() {
     hoveredFaceRef.current = undefined;
     setTool('select');
     setAwaitingStart(true);
+    if (!editingBodyId && openedAssembly)
+      setOpenedAssembly(
+        groupAncestors(project.groups, openedAssembly)
+          .slice(1)
+          .find((g) => g.kind === 'assembly')?.id,
+      );
     setSelected(editingBodyId);
     setSelectedIds(editingBodyId ? [editingBodyId] : []);
     setSelectedFace(undefined);
@@ -862,6 +936,10 @@ export default function App() {
         });
       return;
     }
+    if (next === 'paint') {
+      setPanelOpen(true);
+      return;
+    }
     if (next === 'measure') setMeasureMode('guide');
     if (
       ['rectangle', 'circle', 'extrude', 'offset', 'move', 'measure', 'pen', 'rotate'].includes(
@@ -883,7 +961,8 @@ export default function App() {
         (next === 'extrude' || (next === 'offset' && hovered)) &&
         faceBody &&
         !bodyLocked(faceBody, project.groups) &&
-        (!editingBodyId || faceBody.id === editingBodyId)
+        (!editingBodyId || faceBody.id === editingBodyId) &&
+        inAssembly(project, faceBody.id, openedAssembly)
       ) {
         const mesh = editor.meshes.find((m) => m.id === faceBody.id);
         const face =
@@ -1073,6 +1152,7 @@ export default function App() {
     setBooleanOperation(operation);
   };
   const commitShape = async (candidate: Body) => {
+    candidate = { ...candidate, groupId: candidate.groupId ?? openedAssembly };
     const target =
       editingBodyId && surfaceMode === 'region' && shapePurpose === 'model'
         ? sketchTargetRef.current
@@ -1430,6 +1510,12 @@ export default function App() {
     setSelectedFace(undefined);
     setMeasureMenu(false);
     editor.setError('');
+    if (openedAssembly && !editingBodyId && !hadGesture && tool === 'select')
+      setOpenedAssembly(
+        groupAncestors(project.groups, openedAssembly)
+          .slice(1)
+          .find((g) => g.kind === 'assembly')?.id,
+      );
     if (editingBodyId) {
       if (!hadGesture) {
         setEditingBodyId(undefined);
@@ -1815,14 +1901,19 @@ export default function App() {
                         signed: true,
                       }));
   const removeBody = async () => {
-    if (!body) return;
-    if (
-      await editor.transact(
-        { ...project, bodies: project.bodies.filter((b) => b.id !== body.id) },
-        'Kappale poistettu. Voit perua poiston.',
+    const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
+    if (!ids.length || busy) return;
+    try {
+      if (
+        await editor.transact(
+          removeSelection(project, ids),
+          `${ids.length} osaa poistettu. Peru palauttaa koko valinnan.`,
+        )
       )
-    )
-      select();
+        select(undefined, undefined, false, true);
+    } catch (e) {
+      editor.setError((e as Error).message);
+    }
   };
   const copyBody = () => {
     if (!selectedIds.length && !body) return;
@@ -1837,7 +1928,23 @@ export default function App() {
     const success = await editor.transact(
       {
         ...project,
-        bodies: project.bodies.map((b) => (ids.includes(b.id) ? { ...b, ...patch } : b)),
+        bodies: project.bodies.map((b) => {
+          if (!ids.includes(b.id)) return b;
+          if (patch.localMaterial === false && b.component) {
+            const family = project.bodies.filter(
+              (other) => other.component?.id === b.component?.id,
+            );
+            const shared = family.find((other) => !other.localMaterial) ?? family[0];
+            return {
+              ...b,
+              ...patch,
+              color: shared.color,
+              material: shared.material,
+              appearance: shared.appearance,
+            };
+          }
+          return { ...b, ...patch };
+        }),
       },
       patch.locked === true
         ? 'Kappale kiinnitetty paikalleen. G vapauttaa.'
@@ -1910,6 +2017,10 @@ export default function App() {
   };
   const arrangeTree = async (move: TreeMove, parentId?: string) => {
     if (busy || editingBodyId || editing || tool === 'boolean') return;
+    if (openedAssembly) {
+      editor.setMessage('Sulje kokoonpano ennen hierarkian järjestämistä.');
+      return;
+    }
     try {
       const next = moveInTree(project, move, parentId);
       if (next === project) return;
@@ -1930,24 +2041,51 @@ export default function App() {
       editor.setError((e as Error).message);
     }
   };
-  const createGroup = async (parentId?: string) => {
+  const createGroup = async (parentId?: string, assembly = false) => {
     if (busy) return;
     const group = {
       id: uid(),
-      name: `Ryhmä ${project.groups.length + 1}`,
+      name: `${assembly ? 'Kokoonpano' : 'Ryhmä'} ${project.groups.length + 1}`,
+      kind: assembly ? ('assembly' as const) : ('folder' as const),
       hidden: false,
       parentId,
     };
-    await editor.transact(
+    const fullGroups = project.groups.filter(
+      (g) =>
+        !groupContains(project.groups, g.id, parentId) &&
+        groupBodies(project, g.id).length &&
+        groupBodies(project, g.id).every((b) => selectedIds.includes(b.id)),
+    );
+    const roots = fullGroups.filter(
+      (g) =>
+        !fullGroups.some(
+          (other) => other.id !== g.id && groupContains(project.groups, other.id, g.id),
+        ),
+    );
+    const ok = await editor.transact(
       {
         ...project,
-        groups: [...project.groups, group],
+        groups: [
+          ...project.groups.map((g) =>
+            roots.some((r) => r.id === g.id) ? { ...g, parentId: group.id } : g,
+          ),
+          group,
+        ],
         bodies: project.bodies.map((b) =>
-          selectedIds.includes(b.id) ? { ...b, groupId: group.id } : b,
+          selectedIds.includes(b.id) &&
+          !roots.some((r) => groupContains(project.groups, r.id, b.groupId))
+            ? { ...b, groupId: group.id }
+            : b,
         ),
       },
-      'Ryhmä luotu. Voit nimetä sen listassa.',
+      assembly
+        ? 'Kokoonpano luotu. Tuplaklikkaa avataksesi sen.'
+        : 'Ryhmä luotu. Voit nimetä sen listassa.',
     );
+    if (ok) {
+      setSelectedGroupId(group.id);
+      setMultiSelect(!assembly);
+    }
   };
   const removeGroup = async (id: string) => {
     if (
@@ -1958,6 +2096,16 @@ export default function App() {
     )
       setSelectedGroupId(undefined);
   };
+  useEffect(() => {
+    if (
+      openedAssembly &&
+      (!project.groups.some((g) => g.id === openedAssembly) ||
+        groupAncestors(project.groups, openedAssembly).some((g) => g.hidden || g.locked))
+    ) {
+      setOpenedAssembly(undefined);
+      setEditingBodyId(undefined);
+    }
+  }, [project.groups, openedAssembly]);
   const newProject = async () => {
     if (
       await editor.transact(
@@ -2017,7 +2165,7 @@ export default function App() {
       if (file.size > 64 * 1024 * 1024)
         throw new Error('Projektitiedosto on liian suuri (enintään 64 MiB).');
       const loaded = parseProject(await file.text());
-      if (await editor.transact(loaded, 'Projekti avattu.')) {
+      if (await editor.transact(loaded, 'Projekti avattu.', 'replace')) {
         setEditingBodyId(undefined);
         setSurfaceMode('new');
         finishOperation();
@@ -2102,7 +2250,7 @@ export default function App() {
   // a redo pressed immediately after undo renders the new object list.
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || cabinetOpen) return;
+      if (event.defaultPrevented || cabinetOpen || actionMenu) return;
       if (event.key === 'Escape') {
         if (renderOpen || partsOpen || mode === 'drawing') {
           closeRender();
@@ -2177,7 +2325,7 @@ export default function App() {
       if (chosen) begin(chosen.id);
       if (tool === 'move' && ['x', 'y', 'z'].includes(key))
         setAxis(axis === key ? undefined : (key as Axis));
-      if (key === 'delete' || key === 'backspace') {
+      if (key === 'delete' || key === 'backspace' || (key === 'x' && tool === 'select')) {
         event.preventDefault();
         if (selectedGuideId) void removeGuide(selectedGuideId);
         else void removeBody();
@@ -2212,6 +2360,10 @@ export default function App() {
           return;
         }
         const ids = groupBodies(project, id).map((b) => b.id);
+        if (ids.some((bodyId) => !inAssembly(project, bodyId, openedAssembly))) {
+          editor.setMessage('Sulje avoin kokoonpano ennen ulkopuolisen ryhmän valintaa.');
+          return;
+        }
         if (tool === 'boolean') {
           ids.forEach((id) => toggleBoolean(id));
           return;
@@ -2219,7 +2371,7 @@ export default function App() {
         select(ids[0], undefined, false, true);
         setSelectedIds(ids);
         setSelectedGroupId(id);
-        setMultiSelect(true);
+        setMultiSelect(project.groups.find((g) => g.id === id)?.kind !== 'assembly');
         if (tool === 'rotate') startRotation(ids);
       }}
       onBody={(id, patch) => void patchBodies([id], patch)}
@@ -2232,6 +2384,98 @@ export default function App() {
       onMove={(move, parentId) => void arrangeTree(move, parentId)}
     />
   );
+  const linkSelected = async () => {
+    if (!body || busy) return;
+    const source = asComponent(body);
+    const targets = project.bodies
+      .filter((b) => selectedIds.includes(b.id) && b.id !== body.id)
+      .map((b) => asComponent(b, source.component!.id));
+    if ([source, ...targets].some((b) => bodyLocked(b, project.groups))) {
+      editor.setError('Vapauta Hold ennen komponenttien linkittämistä.');
+      return;
+    }
+    await editor.transact(
+      async () => {
+        const placed = await editor.cad.instances(source, targets);
+        const changes = new Map(
+          [
+            source,
+            ...placed.map((b) => ({
+              ...b,
+              color: source.color,
+              appearance: source.appearance,
+              material: source.material,
+              localMaterial: false,
+            })),
+          ].map((b) => [b.id, b]),
+        );
+        return { ...project, bodies: project.bodies.map((b) => changes.get(b.id) ?? b) };
+      },
+      targets.length
+        ? 'Osat linkitetty lähtöosan geometriaan. Sijainnit ja kierrot säilyivät.'
+        : 'Komponentti luotu. Sen kopiot ovat linkitettyjä.',
+    );
+  };
+  const makeUnique = () => {
+    void editor.transact(
+      uniqueComponents(project, selectedIds),
+      'Valinnan komponenttilinkit irrotettu.',
+    );
+  };
+  const paintBody = (id: string) => {
+    if (busy || !inAssembly(project, id, openedAssembly) || (editingBodyId && id !== editingBodyId))
+      return;
+    const ids = paintAll && selectedIds.includes(id) ? selectedIds : [id];
+    void editor.transact(
+      {
+        ...project,
+        bodies: project.bodies.map((b) =>
+          ids.includes(b.id) ? { ...b, ...brush, localMaterial: !paintLinked } : b,
+        ),
+      },
+      `${ids.length} osan materiaali päivitetty.`,
+    );
+  };
+  const quickActions: QuickAction[] = selectedGuide
+    ? [
+        { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
+        { label: 'Poista apuviiva', run: () => void removeGuide(selectedGuide.id), disabled: busy },
+      ]
+    : [
+        {
+          label: selectedGroup?.kind === 'assembly' ? 'Avaa kokoonpano' : 'Muokkaa osaa',
+          run: () => body && openBodyEdit(body.id),
+          disabled: busy || !body,
+        },
+        { label: 'Siirrä · M', run: () => begin('move'), disabled: busy || !body },
+        { label: 'Kopioi ja siirrä', run: copyBody, disabled: busy || !body },
+        { label: 'Kierrä · R', run: () => begin('rotate'), disabled: busy || !body },
+        { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
+        { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
+        {
+          label: 'Piilota valinta',
+          run: () =>
+            selectedGroup
+              ? void patchGroup(selectedGroup.id, { hidden: true })
+              : void patchBodies(selectedIds, { hidden: true }),
+          disabled: busy || !body,
+        },
+        ...(selectedIds.length > 1 && !selectedGroup
+          ? [
+              {
+                label: 'Luo kokoonpano',
+                run: () => void createGroup(openedAssembly, true),
+                disabled: busy,
+              },
+            ]
+          : []),
+        ...(body?.component ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }] : []),
+        {
+          label: `Poista valinta (${selectedIds.length})`,
+          run: () => void removeBody(),
+          disabled: busy || !selectedIds.length,
+        },
+      ];
   const objectActions = body && !selectedGroup && mode === 'model' && (
     <ObjectActions
       body={{ ...body, locked: bodyLocked(body, project.groups) }}
@@ -2608,9 +2852,15 @@ export default function App() {
       <div
         className={`workspace ${panelOpen ? 'panel-open' : ''} ${mode === 'drawing' ? 'drawing-workspace' : ''}`}
         hidden={renderOpen || partsOpen}
+        data-dock={mode === 'model' ? dock : undefined}
       >
         {mode === 'model' && (
           <ToolRail
+            dock={dock}
+            onDock={(next) => {
+              setDock(next);
+              localStorage.setItem('nivo-tool-dock', next);
+            }}
             tools={tools}
             tool={tool}
             busy={busy}
@@ -2672,6 +2922,154 @@ export default function App() {
           </div>
 
           <div className="model-stage" hidden={mode !== 'model'}>
+            <ModelBrowser>
+              <div className="object-panel">
+                <div className="panel-tabs">
+                  <button aria-pressed={tab === 'objects'} onClick={() => setTab('objects')}>
+                    Kappaleet <span>{project.bodies.length}</span>
+                  </button>
+                  <button aria-pressed={tab === 'dimensions'} onClick={() => setTab('dimensions')}>
+                    Mitat <span>{project.dimensions.length}</span>
+                  </button>
+                  <button aria-pressed={tab === 'guides'} onClick={() => setTab('guides')}>
+                    Viivat <span>{project.guides.length}</span>
+                  </button>
+                </div>
+                {tab === 'objects' ? (
+                  objectTree
+                ) : tab === 'guides' ? (
+                  <div className="guide-list">
+                    {project.guides.map((g) => {
+                      const points = guideMeasurement(project.bodies, g);
+                      return (
+                        <div
+                          key={g.id}
+                          className={
+                            !points ? 'broken' : selectedGuideId === g.id ? 'selected' : ''
+                          }
+                        >
+                          <button onClick={() => selectGuide(g.id)}>
+                            <Ruler size={15} />
+                            <span>
+                              {points
+                                ? `${g.mode === 'guide' ? 'Apuviiva' : 'Mittaviiva'} · ${formatLength(Math.hypot(...points[1].map((n, i) => n - points[0][i])))} mm`
+                                : 'Viite puuttuu'}
+                              <small>
+                                {formatLength(g.angle)}° · {g.plane}
+                              </small>
+                            </span>
+                          </button>
+                          <label className="guide-xray" title="Näytä tämä viiva kappaleiden läpi">
+                            <CommitCheckbox
+                              label="Viivan x-ray"
+                              disabled={busy}
+                              checked={!!g.xray}
+                              onChange={(checked) =>
+                                editor.transact(
+                                  {
+                                    ...project,
+                                    guides: project.guides.map((line) =>
+                                      line.id === g.id ? { ...line, xray: checked } : line,
+                                    ),
+                                  },
+                                  'Viivan x-ray muutettu.',
+                                )
+                              }
+                            />
+                            X-ray
+                          </label>
+                          <IconButton
+                            label="Poista viiva"
+                            disabled={busy}
+                            onClick={() =>
+                              void editor.transact(
+                                {
+                                  ...project,
+                                  guides: project.guides.filter((line) => line.id !== g.id),
+                                },
+                                'Viiva poistettu.',
+                              )
+                            }
+                          >
+                            <X size={15} />
+                          </IconButton>
+                        </div>
+                      );
+                    })}
+                    {!project.guides.length && (
+                      <p className="empty-list">Mittatyökalulla voit luoda mitta- ja apuviivoja.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="dimension-list">
+                    {project.dimensions.length ? (
+                      project.dimensions.map((d) => {
+                        const value = dimensionValue(project, d);
+                        return (
+                          <div key={d.id} className={value === null ? 'broken' : ''}>
+                            <button onClick={() => select(dimensionBodyIds(d)[0])}>
+                              <Ruler size={15} />
+                              <span>
+                                {value === null
+                                  ? 'Viite puuttuu'
+                                  : `${d.axis === 'distance' ? 'Pisteväli' : d.axis.toUpperCase()} · ${formatLength(value)} mm`}
+                                <small>
+                                  {(isPointDimension(d)
+                                    ? 'Kahden pisteen dimensio · vedä mittaa mallissa'
+                                    : project.bodies.find((b) => b.id === d.bodyId)?.name) ??
+                                    'Poistettu kappale'}
+                                </small>
+                              </span>
+                            </button>
+                            <IconButton
+                              label="Poista mitta"
+                              disabled={busy}
+                              onClick={() =>
+                                void editor.transact(
+                                  {
+                                    ...project,
+                                    dimensions: project.dimensions.filter((m) => m.id !== d.id),
+                                  },
+                                  'Mitta poistettu.',
+                                )
+                              }
+                            >
+                              <X size={15} />
+                            </IconButton>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="empty-list">
+                        <Ruler size={26} />
+                        <p>Lisää mitta Mittatyökalulla tai avaa Mittakuva.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </ModelBrowser>
+            {openedAssembly && !editingBody && (
+              <div className="edit-context assembly-context" data-testid="assembly-context">
+                <Box size={18} />
+                <div>
+                  <strong>Kokoonpano avoinna</strong>
+                  <span>{groupPath(project.groups, openedAssembly)}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setOpenedAssembly(
+                      groupAncestors(project.groups, openedAssembly)
+                        .slice(1)
+                        .find((g) => g.kind === 'assembly')?.id,
+                    );
+                    select(undefined, undefined, false, true);
+                  }}
+                >
+                  Sulje kokoonpano
+                </button>
+              </div>
+            )}
             {editingBody && (
               <div className="edit-context" data-testid="edit-context" data-notice={!!editNotice}>
                 <Pencil size={19} aria-hidden="true" />
@@ -2779,6 +3177,29 @@ export default function App() {
                 gestureActive.current = true;
               }}
               editingBodyId={editingBodyId}
+              scopeIds={scopeIds}
+              onPaint={paintBody}
+              onContextMenu={({ x, y, bodyId, guideId }) => {
+                if (busy) return;
+                if (
+                  bodyId &&
+                  (!inAssembly(project, bodyId, openedAssembly) ||
+                    (editingBodyId && bodyId !== editingBodyId))
+                ) {
+                  explainEditContext({ x, y });
+                  return;
+                }
+                if (guideId) {
+                  setSelectedGuideId(guideId);
+                } else {
+                  setSelectedGuideId(undefined);
+                  if (bodyId && !selectedIds.includes(bodyId)) select(bodyId);
+                }
+                if (bodyId || guideId || selectedIds.length) {
+                  setActionMenu({ x, y });
+                  setPanelOpen(true);
+                }
+              }}
               onEditBody={openBodyEdit}
               onCloseBodyEdit={closeBodyEdit}
               onEditBlocked={explainEditContext}
@@ -2808,12 +3229,17 @@ export default function App() {
               epoch={epoch}
               onSelect={select}
               onSelectMany={(ids, additive) => {
-                const allowed = ids.filter(
-                  (id) =>
-                    visibleBodies.some((b) => b.id === id) &&
-                    (!editingBodyId || id === editingBodyId),
-                );
-                const next = additive ? [...new Set([...selectedIds, ...allowed])] : allowed;
+                const allowed = ids
+                  .filter(
+                    (id) =>
+                      visibleBodies.some((b) => b.id === id) &&
+                      (!editingBodyId || id === editingBodyId) &&
+                      inAssembly(project, id, openedAssembly),
+                  )
+                  .flatMap((id) => selectionUnit(project, id, openedAssembly).ids);
+                const next = additive
+                  ? [...new Set([...selectedIds, ...allowed])]
+                  : [...new Set(allowed)];
                 setSelectedIds(next);
                 setSelected(next[0]);
                 setSelectedFace(undefined);
@@ -2919,10 +3345,14 @@ export default function App() {
               onMoveTarget={(id) => {
                 setSelected(id);
                 if (!selectedIds.includes(id)) {
-                  setSelectedIds([id]);
-                  setSelectedGroupId(undefined);
+                  const unit = selectionUnit(project, id, openedAssembly);
+                  setSelectedIds(unit.ids);
+                  setSelectedGroupId(unit.groupId);
+                  setSelectedFace(undefined);
+                  return unit.ids;
                 }
                 setSelectedFace(undefined);
+                return selectedIds;
               }}
             />
             {!panelOpen && numericInput}
@@ -3161,133 +3591,20 @@ export default function App() {
 
         {panelOpen && mode === 'model' && (
           <aside className="inspector" aria-label="Ominaisuudet">
-            <div className="object-panel">
-              <div className="panel-tabs">
-                <button aria-pressed={tab === 'objects'} onClick={() => setTab('objects')}>
-                  Kappaleet <span>{project.bodies.length}</span>
-                </button>
-                <button aria-pressed={tab === 'dimensions'} onClick={() => setTab('dimensions')}>
-                  Mitat <span>{project.dimensions.length}</span>
-                </button>
-                <button aria-pressed={tab === 'guides'} onClick={() => setTab('guides')}>
-                  Viivat <span>{project.guides.length}</span>
-                </button>
-              </div>
-              {tab === 'objects' ? (
-                objectTree
-              ) : tab === 'guides' ? (
-                <div className="guide-list">
-                  {project.guides.map((g) => {
-                    const points = guideMeasurement(project.bodies, g);
-                    return (
-                      <div
-                        key={g.id}
-                        className={!points ? 'broken' : selectedGuideId === g.id ? 'selected' : ''}
-                      >
-                        <button onClick={() => selectGuide(g.id)}>
-                          <Ruler size={15} />
-                          <span>
-                            {points
-                              ? `${g.mode === 'guide' ? 'Apuviiva' : 'Mittaviiva'} · ${formatLength(Math.hypot(...points[1].map((n, i) => n - points[0][i])))} mm`
-                              : 'Viite puuttuu'}
-                            <small>
-                              {formatLength(g.angle)}° · {g.plane}
-                            </small>
-                          </span>
-                        </button>
-                        <label className="guide-xray" title="Näytä tämä viiva kappaleiden läpi">
-                          <CommitCheckbox
-                            label="Viivan x-ray"
-                            disabled={busy}
-                            checked={!!g.xray}
-                            onChange={(checked) =>
-                              editor.transact(
-                                {
-                                  ...project,
-                                  guides: project.guides.map((line) =>
-                                    line.id === g.id ? { ...line, xray: checked } : line,
-                                  ),
-                                },
-                                'Viivan x-ray muutettu.',
-                              )
-                            }
-                          />
-                          X-ray
-                        </label>
-                        <IconButton
-                          label="Poista viiva"
-                          disabled={busy}
-                          onClick={() =>
-                            void editor.transact(
-                              {
-                                ...project,
-                                guides: project.guides.filter((line) => line.id !== g.id),
-                              },
-                              'Viiva poistettu.',
-                            )
-                          }
-                        >
-                          <X size={15} />
-                        </IconButton>
-                      </div>
-                    );
-                  })}
-                  {!project.guides.length && (
-                    <p className="empty-list">Mittatyökalulla voit luoda mitta- ja apuviivoja.</p>
-                  )}
-                </div>
-              ) : (
-                <div className="dimension-list">
-                  {project.dimensions.length ? (
-                    project.dimensions.map((d) => {
-                      const value = dimensionValue(project, d);
-                      return (
-                        <div key={d.id} className={value === null ? 'broken' : ''}>
-                          <button onClick={() => select(dimensionBodyIds(d)[0])}>
-                            <Ruler size={15} />
-                            <span>
-                              {value === null
-                                ? 'Viite puuttuu'
-                                : `${d.axis === 'distance' ? 'Pisteväli' : d.axis.toUpperCase()} · ${formatLength(value)} mm`}
-                              <small>
-                                {(isPointDimension(d)
-                                  ? 'Kahden pisteen dimensio · vedä mittaa mallissa'
-                                  : project.bodies.find((b) => b.id === d.bodyId)?.name) ??
-                                  'Poistettu kappale'}
-                              </small>
-                            </span>
-                          </button>
-                          <IconButton
-                            label="Poista mitta"
-                            disabled={busy}
-                            onClick={() =>
-                              void editor.transact(
-                                {
-                                  ...project,
-                                  dimensions: project.dimensions.filter((m) => m.id !== d.id),
-                                },
-                                'Mitta poistettu.',
-                              )
-                            }
-                          >
-                            <X size={15} />
-                          </IconButton>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="empty-list">
-                      <Ruler size={26} />
-                      <p>Lisää mitta Mittatyökalulla tai avaa Mittakuva.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             <div ref={inspectorDetails} className="inspector-details">
+              {tool === 'paint' && (
+                <PaintPanel
+                  {...brush}
+                  count={selectedIds.length}
+                  all={paintAll}
+                  linked={paintLinked}
+                  onChange={(appearance, color) => setBrush({ appearance, color })}
+                  onAll={setPaintAll}
+                  onLinked={setPaintLinked}
+                />
+              )}
               {numericInput}
-              {tool === 'measure' && measureMode === 'dimension' ? (
+              {tool === 'paint' ? null : tool === 'measure' && measureMode === 'dimension' ? (
                 <section className="dimension-tool-panel" aria-label="Dimensio">
                   <h2>Kahden pisteen dimensio</h2>
                   <p>
@@ -3753,20 +4070,130 @@ export default function App() {
                         {body || selectedGroup ? 'VALINTA' : 'PROJEKTI'}
                       </span>
                       <h2>
-                        {selectedGroup?.name ??
-                          (selectedIds.length > 1
-                            ? `${selectedIds.length} kappaletta`
-                            : body?.name) ??
-                          'Valitse kappale'}
+                        {selectedGroup ? (
+                          <InlineName
+                            key={selectedGroup.id}
+                            name={selectedGroup.name}
+                            label="Ryhmän nimi"
+                            disabled={busy}
+                            onChange={(name) => void patchGroup(selectedGroup.id, { name })}
+                          />
+                        ) : selectedIds.length > 1 ? (
+                          `${selectedIds.length} kappaletta`
+                        ) : body ? (
+                          <InlineName
+                            key={body.id}
+                            name={body.name}
+                            disabled={busy}
+                            onChange={(name) => void patchBodies([body.id], { name })}
+                          />
+                        ) : (
+                          'Valitse kappale'
+                        )}
                       </h2>
                     </div>
-                    <Box size={21} />
+                    {body || selectedGroup ? (
+                      <button
+                        className="selection-menu-trigger"
+                        aria-label="Valinnan toiminnot"
+                        onClick={(e) => {
+                          const r = e.currentTarget.getBoundingClientRect();
+                          setActionMenu({ x: r.left, y: r.bottom });
+                        }}
+                      >
+                        <MoreHorizontal size={20} />
+                        <span>Toiminnot</span>
+                      </button>
+                    ) : (
+                      <Box size={21} />
+                    )}
                   </div>
+                  {(body || selectedGroup) && (
+                    <p className="selection-group-path">
+                      {groupPath(
+                        project.groups,
+                        selectedGroup ? selectedGroup.parentId : body?.groupId,
+                      ) || 'Päätaso'}
+                      {selectedGroup?.kind === 'assembly' ? ' · Kokoonpano' : ''}
+                    </p>
+                  )}
+                  {selectedIds.length > 1 && !selectedGroup && (
+                    <div className="selection-collection-actions">
+                      <button
+                        className="button outlined"
+                        onClick={() => void createGroup(openedAssembly, true)}
+                        disabled={busy}
+                      >
+                        Luo kokoonpano
+                      </button>
+                      <button
+                        className="button subtle"
+                        onClick={() => void createGroup(openedAssembly)}
+                        disabled={busy}
+                      >
+                        Luo ryhmä
+                      </button>
+                    </div>
+                  )}
+                  {body && !selectedGroup && (
+                    <div className="component-actions">
+                      <p>
+                        {body.component
+                          ? `Linkitetty komponentti · ${project.bodies.filter((b) => b.component?.id === body.component?.id).length} esiintymää`
+                          : body.purpose === 'component'
+                            ? 'Komponentti · ensimmäinen kopio luo linkin'
+                            : 'Erillinen kappale'}
+                      </p>
+                      {selectedIds.length > 1 ? (
+                        <>
+                          <p>
+                            Linkitys käyttää osan ”{body.name}” muotoa. Valittujen osien sijainnit
+                            ja kierrot säilyvät.
+                          </p>
+                          <button
+                            className="button outlined"
+                            disabled={busy}
+                            onClick={() => void linkSelected()}
+                          >
+                            Linkitä valitut tähän osaan
+                          </button>
+                        </>
+                      ) : (
+                        !body.component && (
+                          <button
+                            className="button outlined"
+                            disabled={busy}
+                            onClick={() => void linkSelected()}
+                          >
+                            Tee komponentti
+                          </button>
+                        )
+                      )}
+                      {project.bodies.some((b) => selectedIds.includes(b.id) && b.component) && (
+                        <button className="button subtle" disabled={busy} onClick={makeUnique}>
+                          Tee uniikiksi
+                        </button>
+                      )}
+                      {body.component && (
+                        <label className="checkbox-label">
+                          <CommitCheckbox
+                            label="Esiintymäkohtainen materiaali"
+                            checked={!!body.localMaterial}
+                            disabled={busy}
+                            onChange={(localMaterial) =>
+                              patchBodies(selectedIds, { localMaterial })
+                            }
+                          />
+                          Materiaali vain tälle esiintymälle
+                        </label>
+                      )}
+                    </div>
+                  )}
                   {body && !selectedGroup ? (
                     <div className="selection-info">
                       <span className="selection-tag">
                         {selectedIds.length > 1
-                          ? `Mitat: ${body.name}`
+                          ? `Valinnan kokonaismitat · ${selectedIds.length} osaa`
                           : featureIsSolid(body.feature)
                             ? 'CAD-kappale'
                             : 'Tasoluonnos'}
@@ -3776,28 +4203,44 @@ export default function App() {
                         <div>
                           <span>Leveys</span>
                           <strong>
-                            {formatLength(body.feature.width)}
+                            {formatLength(
+                              selectedIds.length > 1 ? selectionSize[0] : body.feature.width,
+                            )}
                             <small>mm</small>
                           </strong>
                         </div>
                         <div>
                           <span>Syvyys</span>
                           <strong>
-                            {formatLength(body.feature.depth)}
+                            {formatLength(
+                              selectedIds.length > 1 ? selectionSize[1] : body.feature.depth,
+                            )}
                             <small>mm</small>
                           </strong>
                         </div>
                         <div>
                           <span>Korkeus · Z</span>
                           <strong data-testid="selected-height">
-                            {formatLength(body.feature.height)}
+                            {formatLength(
+                              selectedIds.length > 1 ? selectionSize[2] : body.feature.height,
+                            )}
                             <small>mm</small>
                           </strong>
                         </div>
                       </div>
                       <p className="origin-readout">
-                        X {formatLength(body.origin[0])} · Y {formatLength(body.origin[1])} · Z{' '}
-                        {formatLength(body.origin[2])}
+                        {selectedIds.length > 1 ? 'Valinnan alakulma · ' : ''}X{' '}
+                        {formatLength(
+                          selectedIds.length > 1 ? selectionBox.min[0] : body.origin[0],
+                        )}{' '}
+                        · Y{' '}
+                        {formatLength(
+                          selectedIds.length > 1 ? selectionBox.min[1] : body.origin[1],
+                        )}{' '}
+                        · Z{' '}
+                        {formatLength(
+                          selectedIds.length > 1 ? selectionBox.min[2] : body.origin[2],
+                        )}
                       </p>
                       {mode === 'model' && (
                         <>
@@ -3940,7 +4383,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.12.0</span>
+                    <span>v0.13.0</span>
                   </div>
                 </>
               )}
@@ -3949,6 +4392,19 @@ export default function App() {
         )}
       </div>
 
+      {actionMenu && (
+        <ContextActions
+          {...actionMenu}
+          title={
+            selectedGuide
+              ? 'Apuviiva'
+              : (selectedGroup?.name ??
+                (selectedIds.length > 1 ? `${selectedIds.length} osaa` : (body?.name ?? 'Valinta')))
+          }
+          actions={quickActions}
+          onClose={() => setActionMenu(undefined)}
+        />
+      )}
       {cabinetOpen && (
         <CabinetBuilder
           project={project}

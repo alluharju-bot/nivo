@@ -18,7 +18,7 @@ export async function ready(
   guides: Guide[] = [],
   groups: BodyGroup[] = [],
 ) {
-  await page.goto('/');
+  await page.goto(process.env.NIVO_BASE_PATH ?? '/');
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
   if (bodies.length || guides.length || groups.length) {
     await page.getByTestId('project-file').setInputFiles({
@@ -30,6 +30,12 @@ export async function ready(
   }
 }
 export async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {
+  if (
+    (await page
+      .getByRole('complementary', { name: 'Mallilista' })
+      .getAttribute('data-expanded')) === 'true'
+  )
+    await page.getByRole('button', { name: 'Piilota mallilista' }).click();
   await page
     .getByRole('button', {
       name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta' }[side],
@@ -75,7 +81,22 @@ export async function save(page: Page): Promise<Project> {
 }
 
 export async function editBody(page: Page, id: string) {
+  const browser = page.getByRole('complementary', { name: 'Mallilista' });
+  if ((await browser.count()) && (await browser.getAttribute('data-expanded')) === 'false')
+    await page.getByRole('button', { name: 'Näytä mallilista' }).click();
   await page.getByTestId(`body-${id}`).click();
   await page.getByRole('button', { name: 'Muokkaa osaa', exact: true }).click();
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-editing-body', id);
+  if (
+    (await page
+      .getByRole('complementary', { name: 'Mallilista' })
+      .getAttribute('data-expanded')) === 'true'
+  )
+    await page.getByRole('button', { name: 'Piilota mallilista' }).click();
+}
+
+export async function revealBrowser(page: Page) {
+  const browser = page.getByRole('complementary', { name: 'Mallilista' });
+  if ((await browser.getAttribute('data-expanded')) === 'false')
+    await page.getByRole('button', { name: 'Näytä mallilista' }).click();
 }

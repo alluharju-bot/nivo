@@ -238,3 +238,23 @@ räjäytysmäärää ja tulostearkkeja ei tallenneta: ne johdetaan nykyisestä m
 
 Osan tai ryhmän kopiointi kopioi myös osakohtaiset leikkausvalinnat uusille UUID:ille.
 Siirtäminen ei mitätöi aihiota, koska geometriaresepti säilyy.
+
+## Komponentit ja kokoonpanot (sovellus v0.13)
+
+V6:n valinnaiset lisäkentät:
+
+- `groups[].kind`: `folder` (puuttuvan kentän tulkinta) tai `assembly`.
+- `bodies[].component`: `{ id, offset: [x,y,z], rotation: [x,y,z,w] }`.
+  Sama `id` tarkoittaa yhteistä geometriamäärittelyä. Esiintymän koordinaatiston
+  maailmanorigo on `body.origin + offset`; `rotation` on yksikkökvaternio.
+  Jokainen esiintymä säilyttää edelleen oman tarkan geometriansa, joten sitä ei
+  tarvitse laskea muiden olemassaolon varassa tiedostoa avattaessa.
+- `bodies[].localMaterial`: `true` irrottaa esiintymän materiaalin perheen
+  yhteisestä materiaalista. Nimi, ryhmä, sijainti, kierto, näkyvyys ja Hold eivät
+  kuulu jaettuun määrittelyyn.
+
+Geometriamuokkaus muunnetaan lähde-esiintymän kehyksestä kopion kehykseen ennen
+projektin atomista hyväksyntää. Undo/redo palauttaa koko tallennetun tilan.
+Tiedoston avaaminen ei aja uutta linkkien synkronointia. Vanhojen tiedostojen
+komponentti-merkintä saa uuden perhetunnuksen vasta ensimmäisessä kopioinnissa.
+Vanha sovellusversio ei säilytä näitä uusia valinnaisia kenttiä uudelleen tallentaessa.

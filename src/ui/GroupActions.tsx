@@ -35,10 +35,20 @@ export function GroupActions({
   return (
     <section className="group-actions-panel" aria-label="Ryhmän toiminnot">
       <p>
-        {count} osaa valittu · ryhmässä {total}. Napsauta osia lisätäksesi tai poistaaksesi niitä
-        valinnasta.
+        {group.kind === 'assembly'
+          ? `${total} osan kokoonpano. Tuplaklikkaa mallissa avataksesi osat muokattaviksi.`
+          : `${count} osaa valittu · ryhmässä ${total}. Napsauta osia lisätäksesi tai poistaaksesi niitä valinnasta.`}
       </p>
       <div className="object-quick-actions">
+        <button
+          disabled={busy || groupAncestors(groups, group.parentId).some((g) => g.locked)}
+          onClick={() => onChange({ locked: !group.locked })}
+        >
+          {group.locked ? 'Vapauta Hold' : 'Kiinnitä · G'}
+        </button>
+        <button disabled={busy} onClick={() => onChange({ hidden: !group.hidden })}>
+          {group.hidden ? 'Näytä' : 'Piilota'}
+        </button>
         <button onClick={onMove} disabled={busy || !count || locked}>
           <Move3D size={15} /> Siirrä valinta
         </button>
@@ -55,24 +65,6 @@ export function GroupActions({
       <details className="inspector-disclosure">
         <summary>Ryhmän asetukset</summary>
         <div className="disclosure-content">
-          <label className="modeling-field">
-            Nimi
-            <input
-              key={group.id + group.name}
-              aria-label="Ryhmän nimi"
-              defaultValue={group.name}
-              disabled={busy}
-              maxLength={120}
-              onBlur={(e) => {
-                const name = e.target.value.trim();
-                if (name && name !== group.name) onChange({ name });
-                else e.target.value = group.name;
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur();
-              }}
-            />
-          </label>
           <label className="modeling-field">
             Yläryhmä
             <select

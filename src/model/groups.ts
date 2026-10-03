@@ -2,6 +2,7 @@ import { isPointDimension } from './project';
 import { dimensionBodyIds } from './dimensions';
 import { uid, type Anchor, type Body, type BodyGroup, type Project, type Vec3 } from './project';
 import { add } from './geometry';
+import { asComponent } from './components';
 
 export function groupAncestors(groups: BodyGroup[], id?: string): BodyGroup[] {
   const found: BodyGroup[] = [],
@@ -94,15 +95,25 @@ export function translateSelection(
       groupId: rootGroupId,
     };
   const bodyIds = new Map(chosen.map((b) => [b.id, uid()]));
-  const copiedGroups = rootGroupId
-    ? project.groups.filter(
-        (g) =>
-          groupContains(project.groups, rootGroupId, g.id) &&
-          chosen.some((b) => groupContains(project.groups, g.id, b.groupId)),
-      )
-    : [];
+  const copySources = chosen.map((b) => (b.purpose === 'component' ? asComponent(b) : b));
+  const sourceById = new Map(copySources.map((b) => [b.id, b]));
+  const roots = rootGroupId
+    ? [rootGroupId]
+    : project.groups
+        .filter(
+          (g) =>
+            g.kind === 'assembly' &&
+            groupBodies(project, g.id).length > 0 &&
+            groupBodies(project, g.id).every((b) => ids.includes(b.id)),
+        )
+        .map((g) => g.id);
+  const copiedGroups = project.groups.filter(
+    (g) =>
+      roots.some((root) => groupContains(project.groups, root, g.id)) &&
+      chosen.some((b) => groupContains(project.groups, g.id, b.groupId)),
+  );
   const groupIds = new Map(copiedGroups.map((g) => [g.id, uid()]));
-  const bodies = chosen.map((b) => ({
+  const bodies = copySources.map((b) => ({
     ...b,
     id: bodyIds.get(b.id)!,
     name: `${b.name.slice(0, 110)} kopio`,
@@ -112,7 +123,7 @@ export function translateSelection(
   const groups = copiedGroups.map((g) => ({
     ...g,
     id: groupIds.get(g.id)!,
-    name: g.id === rootGroupId ? `${g.name.slice(0, 110)} kopio` : g.name,
+    name: roots.includes(g.id) ? `${g.name.slice(0, 110)} kopio` : g.name,
     parentId: g.parentId ? (groupIds.get(g.parentId) ?? g.parentId) : undefined,
   }));
   const anchorIds = (a: Anchor): string[] =>
@@ -159,7 +170,7 @@ export function translateSelection(
   return {
     project: {
       ...project,
-      bodies: [...project.bodies, ...bodies],
+      bodies: [...project.bodies.map((b) => sourceById.get(b.id) ?? b), ...bodies],
       groups: [...project.groups, ...groups],
       guides: [...project.guides, ...guides],
       dimensions: [...project.dimensions, ...dimensions],

@@ -6,6 +6,7 @@ import type { BodyMesh } from './cad/protocol';
 import { freshProject, projectSchema, type Project } from './model/project';
 import { History } from './model/history';
 import { loadLocalSession, saveLocal } from './storage/projects';
+import { synchronizeComponents } from './model/components';
 
 export function useEditor() {
   const [cad] = useState(() => new CadClient());
@@ -85,14 +86,19 @@ export function useEditor() {
     async (
       candidate: Project | (() => Promise<Project>),
       label: string,
-      mode: 'commit' | 'undo' | 'redo' = 'commit',
+      mode: 'commit' | 'replace' | 'undo' | 'redo' = 'commit',
     ) => {
       const current = ++revision.current;
       setBusy(true);
       setError('');
       setMessage('Lasketaan tarkkaa geometriaa…');
       try {
-        const resolved = typeof candidate === 'function' ? await candidate() : candidate;
+        let resolved = typeof candidate === 'function' ? await candidate() : candidate;
+        if (current !== revision.current) return false;
+        if (mode === 'commit')
+          resolved = await synchronizeComponents(history.current, resolved, (source, targets) =>
+            cad.instances(source, targets),
+          );
         if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
           ...resolved,
