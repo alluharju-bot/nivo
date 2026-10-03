@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.10.0
+# Arkkitehtuuri — v0.11.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -176,13 +176,17 @@ Tavallinen E-veto käyttää eleen alussa lukittua, kameran projektiosta laskett
 normaalin suuntaista näyttövektoria. Lähes katselusuunnan suuntainen normaali
 käyttää pystysuuntaista hiiriliikettä ja paikallista mm/pikseli-suhdetta.
 Laskenta ei vaihdu liikkuvan osoitinsäteen mukaan, mikä poistaa perspektiivin
-lähes yhdensuuntaisten suorien singulariteetin. Shift kytkee pintakohdistuksen
-päälle ja päivittää kohteen myös ilman hiiren liikettä. Vapautus alustaa vapaan
+lähes yhdensuuntaisten suorien singulariteetin. Shift kytkee piste-/pintakohdistuksen
+päälle ja päivittää kohteen myös ilman hiiren liikettä. Jos E on jo valinnut
+osoitetun pinnan, Shift käynnistää eleen siitä ilman uutta lähtöklikkausta. Vapautus alustaa vapaan
 vedon hiiriankkurin ja perusmitan viimeiseen arvoon. Tyhjä/oma pinta ei muuta
 hakutilan mittaa, eikä virheellinen kohde hyväksy elettä. Numerolukitus on etusijalla.
 
-Pintakohdistus käyttää lähtöpinnan tarkkaa normaalia ja kohdepinnalle projisoitua
-raycast-pistettä: siirtymä on `(kohde − lähtö) · normaali`. Yhdensuuntaiset
+Kohdistus käyttää samaa näkyvyyden tarkistavaa näytön pistehakua kuin muut
+työkalut: CAD-kulma, keskipiste, reuna, apuviiva ja viimeisenä tasopinta.
+Lähdeosan oman liikkuvan tason pisteet ja osan keskipiste suodatetaan ennen
+valintaa; muiden osien samantasoiset pisteet ovat sallittuja.
+Kohdistus käyttää lähtöpinnan tarkkaa normaalia ja poimittua CAD-/raycast-pistettä: siirtymä on `(kohde − lähtö) · normaali`. Yhdensuuntaiset
 pinnat tulevat samalle tasolle; muussa tapauksessa kyse on poimitun pisteen
 tasosta, ei pintojen kallistamisesta. Lähdepinta säilyy eleen ajan, ensimmäinen
 klikkaus aloittaa ja toinen tai vedon vapautus hyväksyy. Kirjoitettu mitta
@@ -453,8 +457,7 @@ liikkuvat osat eivät tarjoa itselleen kohdepisteitä. Ruudukko on erillinen
 vapaan siirtymän varavaihtoehto.
 
 Materiaalien mukana toimitettavat kuviot syntyvät deterministisesti selaimessa.
-Kuvioinnin kolmen suunnan projektio käyttää objektin paikallista kehystä ja
-normaalipainotettua sekoitusta. Jaettu kuva saa jokaisella objektilla oman
+Kuvioinnin UV-projektio käyttää objektin paikallista kehystä ja pinnan normaalin pääsuuntaa. Sama geometria ja standardimateriaali toimii mallissa, rasterissa ja path tracingissa. Jaettu kuva saa jokaisella objektilla oman
 Texture-instanssin ja sijoitusmatriisin. Veto muuttaa vain tätä matriisia;
 CAD-worker ja meshien uudelleenluonti jäävät pois hiiriliikkeestä.
 Hyväksytty muutos kulkee normaalin transaktion läpi ja muodostaa yhden
@@ -510,3 +513,13 @@ result is ordinary editable parts, not a live parametric cabinet dependency grap
 The Pages build uses `--base=/nivo/` (local production tests use
 `NIVO_BASE_PATH=/nivo/` for both build and preview); worker, WASM, icons and example paths resolve
 under that base. No user project is uploaded: IndexedDB remains origin-local.
+
+## V0.11: poiminta, ruudukko ja PBR
+
+`viewport/picking.ts` valitsee pisteen oikeasti sisältävistä viereisistä tasopinnoista kameraa kohti olevan. Pintakolmiot estävät toisen samassa tasossa olevan alueen valinnan. Ruutupoiminta priorisoi verteksit, keskipisteet ja reunat; näkyvyys tarkistetaan vasta ruutukynnyksen sisällä oleville ehdokkaille. Piirtämisen hover ja painallus käyttävät samaa tasoa ja tarkkaa CAD-pistettä. Suorakulmion/ympyrän eksplisiittinen akseli tarkoittaa tason normaalia.
+
+Siirron akseli valitaan alkueleen ruutuprojektiosta ja pidetään samana vedon ajan. Kohdepiste projisoidaan tälle akselille, muut koordinaatit säilyvät. Vapaa XYZ-siirto on valinnainen. Ctrl keydown vaihtaa kopioinnin, keyup ei nollaa sitä. Vapaan mitan ruudukko lasketaan suhteessa alkupisteeseen; push/pull pyöristää toteutuvan kokonaismitan. Näkyvä CAD-tartunta ja kirjoitettu luku ohittavat pyöristyksen.
+
+`render/materials.ts` tuottaa normal-/karheuskartat paikallisista kuvioista ja lukee tuodut PBR-kanavat lineaarisina. Värikuva on sRGB. Bump muunnetaan tangenttiavaruuden normal-kartaksi, koska GPU-tracer ei tue suoraa bumpMap-kanavaa. Sijoittelu tallennetaan Texture.repeat/offset/rotation-kenttiin: tracerin atlaslataus voi palauttaa matriisin ja kutsua updateMatrixa ilman muunnoksen menetystä. Esikatselu ja tilannekuvan luonti odottavat kuvien decode-vaiheen sekä bump-muunnoksen valmistumista. Virheellinen kuva keskeyttää tarkennuksen näkyvään virheeseen.
+
+Progressiivinen esikatselu käyttää 1×1-laatoitusta: jokainen näyte päivittää koko kuvaa. Erillinen kuvatyö säilyttää oman renderöijän, resurssikopiot ja piilotetun laskennan laatoituksen. Tarkennus odottaa uusia karttoja myös materiaalin vaihtuessa.

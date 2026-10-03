@@ -3,11 +3,8 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.10.0** selkeyttää työkalupalkin ja mittakuvan, lisää laatikkovalinnan,
-PDF-viennin, levyrungon rakentajan, osaluettelon ja räjäytyskuvan. Renderöinnissä on 30 materiaalipresettiä,
-valaisevat pinnat, spotit, tarkentuva esikatselu ja mallinnuksen aikana valmistuva path tracing -kuva.
-Tarkat CAD-työkalut, tartunnat, tekstuurien sijoittelu, ryhmät ja pysyvä
-Peru/Palauta-historia säilyvät.
+Versio **0.11.0** tarkentaa pinnan ja tartuntapisteen valintaa. Push/pullin Shift poimii tavoitemitan kulmasta, keskipisteestä, reunasta, apuviivasta tai pinnasta. Siirto käyttää oletuksena yhtä akselia, Ctrl vaihtaa kopioinnin päälle ja pois, ja vapaat mitat noudattavat ruudukkoa. Mallin osan tiedoista löytyvät materiaalit ja valaisevat pinnat. 40 materiaalipresettiä sisältää melamiinit ja kalustelevyt; PBR-kuvien tuonti tukee normal-, bump-, karheus- ja metallisuuskarttoja. Tarkentuva esikatselu päivittää koko kuvaa kerralla.
+
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
@@ -44,17 +41,23 @@ npm run build       # tyyppitarkistus ja dist/
 npm run preview     # tuotantopaketin paikallinen esikatselu
 ```
 
+## Ruudukko ja pinnalle piirtäminen
+
+10 mm:n ruudukolla vapaa suorakulmion sivu, ympyrän halkaisija ja push/pullin toteutuva paksuus askeltavat 10 mm. Siirto askeltaa siirtymää lähtöpisteestä, joten se ei muuta muiden akselien sijaintia. Ruudukon askel on vaihdettavissa asetuksissa. Kirjoitettu tarkka mitta ja korostettu geometriatartunta ohittavat ruudukon: esimerkiksi 18 mm:n levyn pinnalle piirretty muoto pysyy levyn pinnalla.
+
+Piirtämisen alku valitsee näkyvän pinnan. Yhteisessä nurkassa suositaan kameraa kohti olevaa pintaa; etupuolella oleva geometria estää takakulmaan tarttumisen. Suorakulmion ja ympyrän X/Y/Z valitsee piirtotason normaalin: X = YZ, Y = XZ ja Z = XY. Tason voi vaihtaa myös ensimmäisen pisteen jälkeen. Kynän X/Y/Z lukitsee viivan suunnan.
+
 ## Ensimmäinen työnkulku
 
 1. Piirrä suorakulmio: napsauta alkukulmaa, siirrä osoitinta ja napsauta vastakulmaa.
    Voit myös vetää painike pohjassa tai kirjoittaa tarkat mitat.
 2. Toinen napsautus, Enter tai vedon päättäminen hyväksyy luonnoksen. Paina **E**, osoita pintaa
    ja vedä sille paksuus. Samalla työkalulla voi muokata kappaleen muitakin tasopintoja.
-3. Klikkaa koko kappale valituksi. M siirtää; pidä Ctrl pohjassa vedon aikana
-   tehdäksesi kopion. Osoita pintaa ja paina E tai O pinnan muokkaamiseen.
+3. Klikkaa koko kappale valituksi. M siirtää; paina Ctrl kerran vedon aikana
+   tehdäksesi kopion (uusi painallus poistaa kopioinnin). Osoita pintaa ja paina E tai O pinnan muokkaamiseen.
 4. Siirrossa korostus näyttää tartuntapisteen ennen painallusta. Poimi kulma,
-   reuna tai keskipiste ja vie se toisen osan tarkkaan pisteeseen. X/Y/Z
-   lukitsee siirtoakselin; Shift lukitsee aloitetun siirron pääakselille.
+   reuna tai keskipiste ja vie se toisen osan tarkkaan pisteeseen. Siirto valitsee vedon alussa yhden akselin; X/Y/Z
+   vaihtaa sen. Vapaa siirto (XYZ) sallii usean akselin liikkeen.
    Vapaa siirtymä käyttää asetusten ruudukkoaskelta (oletus 10 mm).
    Lukitulla akselilla osoitettu piste antaa tämän akselin tavoitemitan.
    Liikkuva valinta ja siihen kiinnitetyt apuviivat eivät toimi omina kohteinaan.
@@ -126,7 +129,7 @@ osat ja nostaa sen suorat osat sekä alaryhmät ylemmälle tasolle.
 Valitse ryhmä ja napsauta osia ilman lisänäppäintä poistaaksesi tai lisätäksesi
 niitä valintaan. Sininen korostus kertoo valitun joukon. **Sovita valinta** tuo
 kaikki valitut osat näkymään. **Siirrä valinta** tai **M** siirtää koko joukkoa;
-**Ctrl vedon aikana** tekee kopion. **Kopioi valinta** aloittaa saman työkalun
+**Ctrl-painallus vedon aikana** vaihtaa kopioinnin päälle tai pois. **Kopioi valinta** aloittaa saman työkalun
 kopiointitilassa. Kirjoita X/Y/Z-siirtymät ja hyväksy Enterillä tai vedä halutusta
 tartuntapisteestä. Esc peruu keskeneräisen sijoituksen. Myös yksittäisen osan
 Kopioi-painike aloittaa sijoituksen näin.
@@ -208,9 +211,13 @@ etäisyys lähtöreunasta; vapaa mittaviiva mittaa päätepisteiden välin.
 
 ## Renderöinti ja kuvavienti
 
+Materiaalit löytyvät jo **Malli → valitse osa → Materiaali**. Valitse preset, tuo värikuva tai tee osasta valaiseva pinta. **Pinnan rakenne · PBR** tarjoaa normal-, bump-/korkeus-, karheus- ja metallisuuskartat. Ne käyttävät samaa sijoittelua kuin värikuva. Normal-kartta käyttää OpenGL (+Y) -suuntaa; bump muunnetaan normal-kartaksi. Datakuvat tallennetaan häviöttöminä PNG-kuvina enintään 1024 pikselin kokoon. Valmiit kuviot ovat paikallisesti tuotettuja, eivät valokuvattuja materiaaliskannauksia. Niiden mukana syntyvät normal- ja karheuskartat.
+
+Renderin **Materiaali**-välilehti sisältää osan tarkemmat valosäädöt ja erikseen avattavan Studion valaistus -kohdan. **Kuva** sisältää esikatselun ja viennin. Tarkentuva esikatselu päivittää koko kuvaa jokaisella näytteellä; erillinen PNG-työ voi jatkua mallinnuksen aikana.
+
 **Renderöi** avaa esitysnäkymän. Valitse yksi osa, mallin valinta tai kaikki
 näkyvät osat. Materiaaliryhmistä löytyvät kuusi puuta, neljä metallia, kolme
-lasia, neljä muovia, neljä kiveä, kolme posliinia, kolme kalustepintaa ja kolme LED-valoa.
+lasia, neljä muovia, neljä kiveä, kolme posliinia, kolme kalustepintaa ja kolme LED-valoa sekä viisi melamiinia ja viisi kalustelevymateriaalia.
 Kuviot toimitetaan paikallisesti; eri puu- ja kivilajeilla on omat kuviot.
 Väri, karheus, metallisuus, läpäisevyys ja pinnoite ovat säädettävissä.
 Oman materiaalin voi tallentaa projektin materiaalikirjastoon.
@@ -338,17 +345,17 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
   normaalinsa suunnassa tai valitse pinta, paina E ja kirjoita siirtymä. Positiivinen
   arvo vetää ulospäin, negatiivinen työntää sisään. Toimii laatikon kaikilla kuudella
   pinnalla, kynämuodoilla ja yhdistettyjen osien tasopinnoilla.
-- **Push/pull tavoitepintaan:** klikkaa E-työkalulla lähtöpintaa, osoita toisen
-  osan tai saman osan toista tasopintaa **Shift pohjassa** ja klikkaa hyväksyäksesi.
-  Myös vedon vapautus Shift pohjassa tavoitepinnan päällä toimii. Sininen korostus
-  näyttää kohteen. Tavallinen veto ei tartu pintoihin. Lähtöpinta ja liikkuva
-  esikatselu eivät kelpaa tavoitteiksi. Shiftin aikana tyhjä tila tai lähtöpinta
-  säilyttää edellisen mitan; Shiftin vapautus jatkaa siitä vapaasti ilman hyppyä.
-  Kosketuksella **Poimi syvyys pinnasta** → pinta → Enter toimii ilman näppäimistöä.
-  Yhdensuuntaiset pinnat tulevat samalle tasolle. Vinosta tavoitepinnasta
-  poimitaan osoitetun pisteen taso lähtöpinnan normaalin suunnassa;
-  lähtöpinta ei kallistu. Myös Hold-osa käy viitteeksi. Kirjoitettu mitta
-  ohittaa tartunnan, Esc peruu. Kaarevia tavoitepintoja ei vielä käytetä.
+- **Push/pull tavoitemittaan:** osoita lähtöpintaa ja paina E (tai klikkaa sitä E-työkalulla), pidä **Shift pohjassa**
+  ja osoita kulmaa, reunan tai kappaleen keskipistettä, reunaa, apuviivaa tai tasopintaa.
+  Kulmat ovat etusijalla, sitten keskipisteet, reunat ja pinnat. Korostettu piste antaa
+  tavoitetason lähtöpinnan normaalin suunnassa; sivuttainen etäisyys ei vaikuta mittaan.
+  Klikkaus tai vedon vapautus hyväksyy. Myös Hold-osa käy viitteeksi.
+  Lähtöpinta, sen reunapisteet, oman osan keskipiste ja liikkuva esikatselu eivät kelpaa
+  tavoitteiksi. Tyhjä tila säilyttää edellisen mitan. Shiftin vapautus jatkaa siitä
+  ilman hyppyä. **Poimi tavoitemitta** tarjoaa saman haun kosketuksella → kohde → Enter.
+  Yhdensuuntaiset tasopinnat tulevat samalle tasolle; vinosta pinnasta poimitaan
+  osoitetun pisteen taso. Lähtöpinta ei kallistu. Kirjoitettu mitta ohittaa tartunnan,
+  Esc peruu. Kaarevan pinnan vapaata pintapoimintaa ei vielä käytetä.
 - **Toteutuva kokonaismitta:** push/pull näyttää siirtymän ja toteutuvan kokonaismitan.
   652 mm osassa siirtymä `−150` jättää 502 mm. Paina Tab: sama luku muuttuu
   lopulliseksi mitaksi 150 mm, ja siirtymäksi lasketaan −502 mm. Shift+Tab

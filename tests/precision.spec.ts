@@ -31,6 +31,7 @@ test('move ignores guides attached to the moving part but still snaps to fixed g
   const p = await view(page, [a, b]);
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
+  await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   await page.mouse.move(p(60, 60, 20).x, p(60, 60, 20).y);
   await page.mouse.down();
   await page.mouse.move(p(233, 154, 20).x, p(233, 154, 20).y, { steps: 6 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { faceDepthSnap } from './extrusion';
+import { faceDepthSnap, pointDepthSnap } from './extrusion';
 import type { FaceTarget } from '../cad/protocol';
 import type { Vec3 } from './project';
 
@@ -18,9 +18,24 @@ describe('push/pull target references', () => {
             distance,
             parallel: true,
           });
+          expect(pointDepthSnap(source, point, 'b')).toEqual({ distance });
         }
         expect(faceDepthSnap(source, source)).toBeUndefined();
       }
+  });
+  it('rejects only the moving face boundary, retaining other parts at the same level and stable source points', () => {
+    const source: FaceTarget = {
+      bodyId: 'a',
+      face: 'z:max',
+      point: [10, 20, 40],
+      normal: [0, 0, 1],
+    };
+    expect(pointDepthSnap(source, [0, 0, 40], 'a')).toBeUndefined();
+    expect(pointDepthSnap(source, [100, 100, 40], 'b')).toEqual({ distance: 0 });
+    expect(pointDepthSnap(source, [0, 0, 0], 'a')).toEqual({ distance: -40 });
+    expect(pointDepthSnap({ ...source, normal: [0, 0.6, 0.8] }, [200, 80, 120], 'b')).toEqual({
+      distance: 100,
+    });
   });
   it('handles oblique source faces and distinguishes a picked point on a nonparallel target', () => {
     const source: FaceTarget = {

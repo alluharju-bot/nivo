@@ -16,6 +16,7 @@ export function progressiveRenderer(
   scene: THREE.Scene,
   camera: THREE.Camera,
   onStatus: (status: TraceStatus) => void,
+  ready: () => Promise<void> = async () => {},
 ) {
   let tracer: WebGLPathTracer | undefined, environment: GradientEquirectTexture | undefined;
   let enabled = false,
@@ -26,6 +27,8 @@ export function progressiveRenderer(
     frame = 0,
     request = 0,
     lastStatus = 0;
+  let preparing = false,
+    sceneVersion = 0;
   let options = { ...traceDefaults };
   const status = (state: TraceStatus['state'], message?: string) =>
     onStatus({
@@ -64,7 +67,24 @@ export function progressiveRenderer(
     frame = requestAnimationFrame(loop);
     if (document.hidden || paused || complete) return;
     try {
-      if (dirty) rebuild();
+      if (dirty) {
+        if (!preparing) {
+          preparing = true;
+          const version = sceneVersion,
+            token = request;
+          void ready()
+            .then(() => {
+              if (!disposed && enabled && token === request && version === sceneVersion) rebuild();
+            })
+            .catch((e) => {
+              if (!disposed && enabled && token === request) fail(e);
+            })
+            .finally(() => {
+              preparing = false;
+            });
+        }
+        return;
+      }
       if (renderer.getContext().isContextLost())
         throw new Error('Näytönohjaimen yhteys katkesi. Kokeile nopeaa esikatselua.');
       tracer.renderSample();
@@ -104,6 +124,8 @@ export function progressiveRenderer(
       const token = ++request;
       status('loading');
       try {
+        await ready();
+        if (disposed || token !== request) return;
         if (!renderer.extensions.has('EXT_color_buffer_float'))
           throw new Error(
             'Tämä selain tai näytönohjain ei tue tarkentuvaa renderöintiä. Nopea esikatselu toimii edelleen.',
@@ -113,7 +135,8 @@ export function progressiveRenderer(
           if (disposed || token !== request) return;
           environment = new module.GradientEquirectTexture(128);
           tracer = new module.WebGLPathTracer(renderer);
-          tracer.tiles.set(3, 3);
+          tracer.tiles.set(1, 1);
+          renderer.domElement.dataset.traceTiles = '1';
           tracer.minSamples = 1;
           tracer.renderDelay = 150;
           tracer.fadeDuration = 0;
@@ -143,7 +166,10 @@ export function progressiveRenderer(
       status(complete ? 'complete' : value ? 'paused' : 'rendering');
     },
     invalidate(rebuildScene = false) {
-      if (rebuildScene) dirty = true;
+      if (rebuildScene) {
+        dirty = true;
+        sceneVersion++;
+      }
       if (enabled && tracer) {
         quality();
         tracer.updateCamera();

@@ -1,3 +1,4 @@
+import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, type PointDimension } from './model/project';
 import { CabinetBuilder } from './ui/CabinetBuilder';
 import { insertCabinet } from './model/cabinet';
@@ -204,13 +205,13 @@ const instructions: Record<Tool, string> = {
   select:
     'Klikkaus valitsee osan. Vedä laatikko valitaksesi sen sisällä olevat osat. Shift lisää valintaan; M siirtää valitut. Tuplaklikkaus avaa osan muokattavaksi. E/O muokkaa osoitettua pintaa.',
   rectangle:
-    'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. Myös veto tai numerosarja X → Tab → Y toimii. Enter hyväksyy.',
+    'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. X/Y/Z vaihtaa piirtotasoa. Myös veto tai numerosarja → Tab toimii. Enter hyväksyy.',
   circle:
     'C · Klikkaa keskipistettä ja sitten reunaa tai vedä säde. Kirjoita halkaisija, Tab vaihtaa kenttää. Enter hyväksyy.',
   boolean: 'Valitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.',
   extrude:
-    'E · Vedä vapaasti. Pidä Shift pohjassa poimiaksesi tavoitepinnan. Kirjoitettu mitta ohittaa tartunnan. Enter tai klikkaus hyväksyy.',
-  move: 'Vedä tartuntapisteestä tai kirjoita siirtymä. Ctrl vedon aikana tekee kopion; alkuperäinen jää paikalleen. Esc peruu.',
+    'E · Shift poimii tavoitemitan pisteestä, reunasta, apuviivasta tai pinnasta. Kirjoitettu mitta ohittaa tartunnan. Enter tai klikkaus hyväksyy.',
+  move: 'Vedä tartuntapisteestä yhdellä akselilla. X/Y/Z vaihtaa akselia. Ctrl painallus vaihtaa kopioinnin päälle tai pois. Esc peruu.',
   pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc päättää työkalun.',
   measure:
     'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc päättää työkalun. R kiertää 45°, Shift+R vapaasti.',
@@ -262,6 +263,8 @@ function IconButton({
 export default function App() {
   const editor = useEditor();
   const { project, busy, ready } = editor;
+  const liveProject = useRef({ project, busy });
+  liveProject.current = { project, busy };
   const [selected, setSelected] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [multiSelect, setMultiSelect] = useState(false);
@@ -478,6 +481,35 @@ export default function App() {
     detailOperation,
     offsetDistance,
   );
+  const changeAppearance = (
+    ids: string[],
+    ...[appearance, color, asset]: Parameters<MaterialChange>
+  ) => {
+    // Image decoding can finish after another edit or opening a different project.
+    const current = liveProject.current;
+    if (
+      current.busy ||
+      current.project.id !== project.id ||
+      !current.project.bodies.some((b) => ids.includes(b.id))
+    ) {
+      editor.setError(
+        'Materiaalin kohde muuttui tai sitä muokataan. Valitse osa ja kokeile uudelleen.',
+      );
+      return Promise.resolve(false);
+    }
+    return editor.transact(
+      {
+        ...current.project,
+        assets: asset
+          ? { ...current.project.assets, [asset.id]: asset.asset }
+          : current.project.assets,
+        bodies: current.project.bodies.map((b) =>
+          ids.includes(b.id) ? { ...b, appearance, color: color ?? b.color } : b,
+        ),
+      },
+      'Materiaali ja tekstuuri tallennettu.',
+    );
+  };
   const changeCopyMove = (copy: boolean) => {
     copyMoveRef.current = copy;
     setCopyMove(copy);
@@ -1461,8 +1493,8 @@ export default function App() {
     gestureActive.current = true;
     const patch: Partial<Fields> = {};
     if (event.type === 'profile') {
-      if (!lockRef.current.has('width')) patch.width = String(Math.round(event.width * 100) / 100);
-      if (!lockRef.current.has('depth')) patch.depth = String(Math.round(event.depth * 100) / 100);
+      if (!lockRef.current.has('width')) patch.width = String(event.width);
+      if (!lockRef.current.has('depth')) patch.depth = String(event.depth);
       let frame = event.frame;
       if (tool === 'rectangle' && event.start && event.end) {
         const relative = { ...frame, origin: event.start },
@@ -2752,6 +2784,7 @@ export default function App() {
               onEditBlocked={explainEditContext}
               onRemoveBoundary={(target) => void eraseBoundary(target)}
               onRemoveGuide={(id) => void removeGuide(id)}
+              assets={project.assets}
               bodies={visibleBodies}
               meshes={visibleMeshes}
               selected={selected}
@@ -2820,6 +2853,7 @@ export default function App() {
               onDimensionPreview={setDimensionDraft}
               onDimensionCommit={(d) => void commitDimension(d)}
               dimensionDisplay={project.settings.dimensionDisplay}
+              moveMode={project.settings.moveMode ?? 'axis'}
               copyMove={copyMove}
               onCopyMove={changeCopyMove}
               offsetDistance={offsetDistance}
@@ -2998,7 +3032,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            {editing &&
+            {(editing || ['rectangle', 'circle'].includes(tool)) &&
               !['extrude', 'offset', 'rotate', 'detail'].includes(tool) &&
               (tool !== 'move' || !!axis) &&
               !(tool === 'measure' && measureMode === 'dimension') && (
@@ -3435,7 +3469,7 @@ export default function App() {
                         : tool === 'circle'
                           ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
                           : tool === 'extrude'
-                            ? 'E · Vedä pintaa vapaasti. Pidä Shift pohjassa ja osoita tavoitepintaa: sininen korostus näyttää kohteen. Vapauta Shift jatkaaksesi vapaata vetoa samasta mitasta. Voit myös kirjoittaa mitan.'
+                            ? 'E · Vedä pintaa. Pidä Shift pohjassa ja osoita kulmaa, keskipistettä, reunaa tai pintaa: korostus näyttää tavoitteen. Vapauta Shift jatkaaksesi vapaata vetoa samasta mitasta. Voit myös kirjoittaa mitan.'
                             : tool === 'pen'
                               ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
                               : tool === 'measure'
@@ -3451,14 +3485,58 @@ export default function App() {
                       </p>
                     )}
                     {tool === 'move' && (
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          aria-label="Siirrä kopio"
-                          checked={copyMove}
-                          onChange={(e) => changeCopyMove(e.target.checked)}
-                        />
-                        Siirrä kopio · Ctrl vedon aikana
+                      <>
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            aria-label="Siirrä kopio"
+                            checked={copyMove}
+                            onChange={(e) => changeCopyMove(e.target.checked)}
+                          />
+                          Siirrä kopio · Ctrl vaihtaa
+                        </label>
+                        <label className="checkbox-label">
+                          <CommitCheckbox
+                            label="Vapaa siirto (XYZ)"
+                            checked={project.settings.moveMode === 'free'}
+                            onChange={(free) =>
+                              editor.transact(
+                                {
+                                  ...project,
+                                  settings: {
+                                    ...project.settings,
+                                    moveMode: free ? 'free' : 'axis',
+                                  },
+                                },
+                                'Siirtotapa vaihdettu.',
+                              )
+                            }
+                          />
+                          Vapaa siirto (XYZ)
+                        </label>
+                        <p className="muted">
+                          Oletuksena yksi akseli vedon suunnasta. X/Y/Z vaihtaa akselin. Ctrl
+                          painallus vaihtaa siirron ja kopion välillä.
+                        </p>
+                      </>
+                    )}
+                    {['rectangle', 'circle'].includes(tool) && (
+                      <label>
+                        Piirtotaso
+                        <select
+                          aria-label="Piirtotaso"
+                          value={axis ?? 'auto'}
+                          onChange={(e) =>
+                            setAxis(
+                              e.target.value === 'auto' ? undefined : (e.target.value as Axis),
+                            )
+                          }
+                        >
+                          <option value="auto">Pinnan mukaan</option>
+                          <option value="x">YZ-taso · X</option>
+                          <option value="y">XZ-taso · Y</option>
+                          <option value="z">XY-taso · Z</option>
+                        </select>
                       </label>
                     )}
                     {['rectangle', 'circle', 'pen'].includes(tool) && (
@@ -3528,7 +3606,7 @@ export default function App() {
                           aria-pressed={pickDepth}
                           onClick={() => setPickDepth(!pickDepth)}
                         >
-                          {pickDepth ? 'Osoita päättävää pintaa' : 'Poimi syvyys pinnasta'}
+                          {pickDepth ? 'Osoita tavoitetta' : 'Poimi tavoitemitta'}
                         </button>
                         <button
                           className="button dark full"
@@ -3655,7 +3733,7 @@ export default function App() {
                     {['rectangle', 'pen', 'move'].includes(tool) && (
                       <p className="muted">
                         {tool === 'move'
-                          ? 'Poimi korostettu kulma, reuna tai keskipiste ja vedä kohteeseen. Shift lukitsee aloitetun siirron pääakselille. Lukittuna kohdepiste antaa tämän akselin tavoitemitan.'
+                          ? 'Poimi korostettu kulma, reuna tai keskipiste. Siirto lukittuu oletuksena yhdelle akselille. X/Y/Z vaihtaa siirron pääakselille. Lukittuna kohdepiste antaa tämän akselin tavoitemitan.'
                           : tool === 'pen' && penPoints.length
                             ? 'Shift lukitsee piirtosuunnan pituuden poimimista varten. Erillisen viitepisteen saat Poimi viite -painikkeesta.'
                             : 'Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen suuntalinjat ohjaavat piirtämistä. Kosketuksella käytä Poimi viite -painiketta.'}
@@ -3748,6 +3826,17 @@ export default function App() {
                           </div>
                         </>
                       )}
+                      <ModelMaterials
+                        bodies={project.bodies.filter((b) =>
+                          selectedIds.length ? selectedIds.includes(b.id) : b.id === body.id,
+                        )}
+                        assets={project.assets}
+                        materials={project.materials}
+                        busy={busy}
+                        onChange={(...args) =>
+                          changeAppearance(selectedIds.length ? selectedIds : [body.id], ...args)
+                        }
+                      />
                       {objectActions}
                       {!featureIsSolid(body.feature) && mode === 'model' && (
                         <button
@@ -3851,7 +3940,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.10.0</span>
+                    <span>v0.11.0</span>
                   </div>
                 </>
               )}
@@ -3912,18 +4001,7 @@ export default function App() {
           onClose={closeRender}
           assets={project.assets}
           materials={project.materials}
-          onAppearance={(ids, appearance, color, asset) =>
-            editor.transact(
-              {
-                ...project,
-                assets: asset ? { ...project.assets, [asset.id]: asset.asset } : project.assets,
-                bodies: project.bodies.map((b) =>
-                  ids.includes(b.id) ? { ...b, appearance, color: color ?? b.color } : b,
-                ),
-              },
-              'Materiaali ja tekstuuri tallennettu.',
-            )
-          }
+          onAppearance={changeAppearance}
           onSaveMaterial={(name, appearance, color) =>
             editor.transact(
               {
@@ -4069,14 +4147,14 @@ export default function App() {
               alueen vastapinnan läpi.
             </p>
             <p>
-              <strong>Pintaan kohdistus:</strong> E → klikkaa lähtöpintaa → pidä Shift pohjassa ja
-              osoita tavoitepintaa → klikkaa hyväksyäksesi. Myös vedon vapautus Shift pohjassa
-              tavoitepinnan päällä hyväksyy. Ilman Shiftiä veto on vapaa. Lähtöpinta ei kelpaa
-              tavoitteeksi. Shiftin vapautus jatkaa saavutetusta mitasta ilman hyppyä. Kosketuksella
-              käytä Poimi syvyys pinnasta -painiketta. Sininen korostus ja vihjeteksti näyttävät
-              kohteen. Yhdensuuntaiset tasopinnat osuvat samalle tasolle; vinosta tasopinnasta
-              poimitaan osoitetun pisteen taso lähdepinnan normaalin suunnassa. Kirjoitettu mitta
-              ohittaa tartunnan. Esc peruu.
+              <strong>Tavoitemitan poiminta:</strong> E → klikkaa lähtöpintaa → pidä Shift pohjassa
+              ja osoita kulmaa, keskipistettä, reunaa tai pintaa → klikkaa hyväksyäksesi. Myös vedon
+              vapautus Shift pohjassa korostetun tavoitteen päällä hyväksyy. Ilman Shiftiä veto on
+              vapaa. Lähtöpinta ei kelpaa tavoitteeksi. Shiftin vapautus jatkaa saavutetusta mitasta
+              ilman hyppyä. Kosketuksella käytä Poimi tavoitemitta -painiketta. Piste- tai
+              reunakorostus ja vihjeteksti näyttävät kohteen. Yhdensuuntaiset tasopinnat osuvat
+              samalle tasolle; vinosta tasopinnasta poimitaan osoitetun pisteen taso lähdepinnan
+              normaalin suunnassa. Kirjoitettu mitta ohittaa tartunnan. Esc peruu.
             </p>
             <p>
               <strong>Mitat ja värit:</strong> valitse osa tai useita osia ja paina Lisää
@@ -4093,16 +4171,18 @@ export default function App() {
             </p>
             <p>
               <strong>Valitse ja kopioi:</strong> yksi klikkaus valitsee koko kappaleen. M siirtää
-              tartuntapisteestä. Pidä Ctrl (tai Alt) pohjassa vedon aikana ja vapauta hiiri: kopio
+              tartuntapisteestä. Paina Ctrl (tai Alt) kerran vedon aikana ja vapauta hiiri: kopio
               asettuu uuteen paikkaan ja alkuperäinen jää paikalleen. Voit myös valita Siirrä kopio
-              ja kirjoittaa siirtymän. Esc peruu keskeneräisen siirron.
+              ja kirjoittaa siirtymän. Uusi Ctrl-painallus poistaa kopioinnin. Esc peruu
+              keskeneräisen siirron.
             </p>
             <p>
               <strong>Tarkka siirto (M):</strong> odota kulman, reunan tai keskipisteen korostusta,
               tartu siitä ja vie se kohteen korostettuun pisteeseen. Geometriatartunta ohittaa
-              ruudukon. X/Y/Z lukitsee akselin; Shift lukitsee aloitetun siirron pääakselille.
-              Lukittuna toisesta pisteestä poimitaan vain tämän akselin mitta. Ruudukon askelta voi
-              muuttaa asetuksissa. Vapaa siirto askeltaa siirtymää lähtöpisteestä.
+              ruudukon. Oletuksena siirto käyttää yhtä akselia. X/Y/Z vaihtaa akselin. Lukittuna
+              toisesta pisteestä poimitaan vain tämän akselin mitta. Ruudukon askelta voi muuttaa
+              asetuksissa. Siirtymä askeltaa lähtöpisteestä. Vapaa siirto (XYZ) sallii liikkeen
+              usealla akselilla.
             </p>
             <p>
               <strong>Dimensio:</strong> paina T ja valitse aktiivisen mittatyökalun valikosta
@@ -4119,11 +4199,14 @@ export default function App() {
               tallennuksessa.
             </p>
             <p>
-              <strong>Materiaalit ja tekstuurit:</strong> Renderöi-näkymässä on 27 materiaalia ja
-              Lisää kuva -toiminto omille PNG-, JPEG- ja WebP-kuville. Valitse yksi osa ja Muokkaa
-              tekstuuria. Vedä pintaa siirtääksesi kuviota; kahvat säätävät kokoa ja kiertoa. Mitat
-              voi syöttää myös millimetreinä. Enter hyväksyy yhden muutosaskeleen, Esc peruu. Oikea
-              painike kiertää kameraa. Oman materiaalin voi tallentaa projektin kirjastoon.
+              <strong>Materiaalit ja tekstuurit:</strong> mallin osan Materiaali-valikossa on 40
+              presettiä, myös melamiinit, kalustelevyt ja valaisevat materiaalit. Pinnan rakenne
+              -kohdassa voit tuoda normal-, bump-, karheus- ja metallisuuskartat. Renderöi-näkymässä
+              säädät myös studion valoja. Lisää kuva tuo oman PNG-, JPEG- tai WebP-värikuvan.
+              Valitse yksi osa ja Muokkaa tekstuuria. Vedä pintaa siirtääksesi kuviota; kahvat
+              säätävät kokoa ja kiertoa. Mitat voi syöttää myös millimetreinä. Enter hyväksyy yhden
+              muutosaskeleen, Esc peruu. Oikea painike kiertää kameraa. Oman materiaalin voi
+              tallentaa projektin kirjastoon.
             </p>
             <p>
               <strong>Koko näyttö:</strong> yläpalkin Siirry koko näyttöön -painike piilottaa

@@ -146,7 +146,7 @@ test('emission and spot controls persist, and progressive rendering accumulates 
     .getAttribute('value');
   await target.selectOption(id!);
   await page.getByRole('combobox', { name: 'Materiaali', exact: true }).selectOption('led-warm');
-  await page.getByRole('button', { name: 'Valo', exact: true }).click();
+  await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
   await page.getByText('Osa valonlähteenä', { exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Valaiseva materiaali' })).toBeChecked();
   await page.getByRole('combobox', { name: 'Valon tyyppi' }).selectOption('spot');
@@ -202,5 +202,8 @@ test('choosing a rectangle waits for an explicit first corner and draws only aft
   const model = await save(page);
   expect(model.bodies).toHaveLength(2);
   expect(model.bodies[1].origin).toEqual([20, 20, 100]);
-  expect(model.bodies[1].feature).toMatchObject({ width: 60, depth: 60, height: 0 });
+  // Preserve CAD coordinates without rounding them to display precision.
+  expect(model.bodies[1].feature.width).toBeCloseTo(60, 10);
+  expect(model.bodies[1].feature.depth).toBeCloseTo(60, 10);
+  expect(model.bodies[1].feature.height).toBe(0);
 });

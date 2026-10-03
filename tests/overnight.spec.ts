@@ -108,6 +108,7 @@ test('move uses the same visible grab point and exact destination with grid enab
   const p = await view(page, [a, b]);
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
+  await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const start = p(100, 80, 20),
     end = p(257.375, 143.625, 20);
   await page.mouse.move(start.x, start.y);
@@ -184,7 +185,11 @@ test('texture editor previews, cancels, commits one step and restores imported i
     x.fillRect(16, 0, 16, 16);
     return c.toDataURL().split(',')[1];
   });
-  await page.locator('.render-panel input[type=file]').setInputFiles({
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Lisää kuva', exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
     name: 'testi.png',
     mimeType: 'image/png',
     buffer: Buffer.from(image, 'base64'),
@@ -224,6 +229,7 @@ test('move snaps edge points and axis references and obeys a saved grid step', a
   await page.locator('.viewport-settings summary').click();
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
+  await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const start = p(27, 80, 20),
     end = p(284.375, 143.625, 20);
   await page.mouse.move(start.x, start.y);
@@ -241,6 +247,7 @@ test('move snaps edge points and axis references and obeys a saved grid step', a
   await page.keyboard.press('Escape');
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
+  await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const corner = p(100, 80, 20);
   await page.mouse.move(corner.x, corner.y);
   await page.mouse.down();

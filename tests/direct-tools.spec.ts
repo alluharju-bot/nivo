@@ -129,6 +129,7 @@ test('drag an edge-parallel guide, rotate after creation, lock and unlock a tran
   await expect(page.getByTestId('guide-angle')).toHaveValue(String((before + 45) % 360));
   await page.keyboard.press('Enter');
   await expect(page.locator('.guide-list>div')).toHaveCount(1);
+  await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   await page.keyboard.press('Shift+R');
   await expect(
     page.getByRole('button', { name: 'Vapaa kierto · Shift+R', exact: true }),

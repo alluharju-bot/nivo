@@ -1,3 +1,4 @@
+import { SurfaceMaps } from '../ui/MaterialSurface';
 import { traceDefaults, type TraceStatus, type TraceOptions } from './progressive';
 import type { RenderSnapshot } from './snapshot';
 import type { RenderJobOptions } from './traceJob';
@@ -94,7 +95,7 @@ export function RenderStage(props: Props) {
   const [exportMode, setExportMode] = useState<'quick' | 'path'>('quick');
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
-  const [renderTab, setRenderTab] = useState<'material' | 'light' | 'image'>('material');
+  const [renderTab, setRenderTab] = useState<'material' | 'image'>('material');
   const [traceOptions, setTraceOptions] = useState<TraceOptions>(traceDefaults);
   const [trace, setTrace] = useState<TraceStatus>({ state: 'off', samples: 0 });
   const [category, setCategory] = useState('Massiivipuut');
@@ -298,7 +299,6 @@ export function RenderStage(props: Props) {
           {(
             [
               ['material', 'Materiaali'],
-              ['light', 'Valo'],
               ['image', 'Kuva'],
             ] as const
           ).map(([id, label]) => (
@@ -623,8 +623,14 @@ export function RenderStage(props: Props) {
               </button>
             </section>
           )}
-        </div>
-        <div className="render-tab-content" hidden={renderTab !== 'light'}>
+          {!textureDraft && (
+            <SurfaceMaps
+              appearance={appearance}
+              assets={props.assets}
+              busy={busy || !ids.length}
+              onChange={(value, color, asset) => props.onAppearance(ids, value, color, asset)}
+            />
+          )}
           <details className="emission-controls">
             <summary>Osa valonlähteenä</summary>
             <label className="render-check">
@@ -748,114 +754,115 @@ export function RenderStage(props: Props) {
               </>
             )}
           </details>
-          <hr />
-          <label>
-            Valaistus
-            <select
-              aria-label="Valaistus"
-              value={settings.environment}
-              disabled={busy}
-              onChange={(e) =>
-                props.onSettings({
-                  ...settings,
-                  environment: e.target.value as RenderSettings['environment'],
-                })
-              }
-            >
-              <option value="studio">Studio</option>
-              <option value="warm">Lämmin</option>
-              <option value="dark">Tumma</option>
-            </select>
-          </label>
-          <label>
-            Valotus <output>{exposure.toFixed(1)}</output>
-            <input
-              aria-label="Valotus"
-              type="range"
-              min="0.3"
-              max="2.5"
-              step="0.1"
-              value={exposure}
-              disabled={busy}
-              onChange={(e) => setExposure(Number(e.target.value))}
-              onPointerUp={commitExposure}
-              onKeyUp={commitExposure}
-              onBlur={commitExposure}
-            />
-          </label>
-          <details className="studio-controls">
-            <summary>Studion säädöt</summary>
+          <details className="studio-lighting">
+            <summary>Studion valaistus</summary>
             <label>
-              Valon suunta
+              Valaistus
               <select
-                aria-label="Studiovalon suunta"
-                value={settings.lightRotation ?? 0}
+                aria-label="Valaistus"
+                value={settings.environment}
                 disabled={busy}
                 onChange={(e) =>
-                  void props.onSettings({ ...settings, lightRotation: Number(e.target.value) })
+                  props.onSettings({
+                    ...settings,
+                    environment: e.target.value as RenderSettings['environment'],
+                  })
                 }
               >
-                {[0, 45, 90, 135, 180, 225, 270, 315].map((value) => (
-                  <option key={value} value={value}>
-                    {value}°
-                  </option>
-                ))}
+                <option value="studio">Studio</option>
+                <option value="warm">Lämmin</option>
+                <option value="dark">Tumma</option>
               </select>
             </label>
             <label>
-              Studiovalot
-              <select
-                aria-label="Studiovalojen voimakkuus"
-                value={settings.lightPower ?? 1}
+              Valotus <output>{exposure.toFixed(1)}</output>
+              <input
+                aria-label="Valotus"
+                type="range"
+                min="0.3"
+                max="2.5"
+                step="0.1"
+                value={exposure}
                 disabled={busy}
-                onChange={(e) =>
-                  void props.onSettings({ ...settings, lightPower: Number(e.target.value) })
-                }
-              >
-                {[0, 0.25, 0.5, 1, 2, 4].map((value) => (
-                  <option key={value} value={value}>
-                    {value === 0 ? 'Pois' : `${value * 100} %`}
-                  </option>
-                ))}
-              </select>
+                onChange={(e) => setExposure(Number(e.target.value))}
+                onPointerUp={commitExposure}
+                onKeyUp={commitExposure}
+                onBlur={commitExposure}
+              />
             </label>
-            <label>
-              Ympäristövalo
-              <select
-                aria-label="Ympäristövalon voimakkuus"
-                value={settings.environmentPower ?? 1}
-                disabled={busy}
-                onChange={(e) =>
-                  void props.onSettings({ ...settings, environmentPower: Number(e.target.value) })
-                }
-              >
-                {[0, 0.25, 0.5, 1, 2, 4].map((value) => (
-                  <option key={value} value={value}>
-                    {value === 0 ? 'Pois' : `${value * 100} %`}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <details className="studio-controls">
+              <summary>Studion säädöt</summary>
+              <label>
+                Valon suunta
+                <select
+                  aria-label="Studiovalon suunta"
+                  value={settings.lightRotation ?? 0}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void props.onSettings({ ...settings, lightRotation: Number(e.target.value) })
+                  }
+                >
+                  {[0, 45, 90, 135, 180, 225, 270, 315].map((value) => (
+                    <option key={value} value={value}>
+                      {value}°
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Studiovalot
+                <select
+                  aria-label="Studiovalojen voimakkuus"
+                  value={settings.lightPower ?? 1}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void props.onSettings({ ...settings, lightPower: Number(e.target.value) })
+                  }
+                >
+                  {[0, 0.25, 0.5, 1, 2, 4].map((value) => (
+                    <option key={value} value={value}>
+                      {value === 0 ? 'Pois' : `${value * 100} %`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Ympäristövalo
+                <select
+                  aria-label="Ympäristövalon voimakkuus"
+                  value={settings.environmentPower ?? 1}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void props.onSettings({ ...settings, environmentPower: Number(e.target.value) })
+                  }
+                >
+                  {[0, 0.25, 0.5, 1, 2, 4].map((value) => (
+                    <option key={value} value={value}>
+                      {value === 0 ? 'Pois' : `${value * 100} %`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="render-check">
+                <CommitCheckbox
+                  label="Studion lattia"
+                  checked={settings.ground ?? true}
+                  disabled={busy}
+                  onChange={(ground) => props.onSettings({ ...settings, ground })}
+                />{' '}
+                Studion lattia
+              </label>
+            </details>
             <label className="render-check">
               <CommitCheckbox
-                label="Studion lattia"
-                checked={settings.ground ?? true}
+                label="Varjot"
+                checked={settings.shadows}
                 disabled={busy}
-                onChange={(ground) => props.onSettings({ ...settings, ground })}
-              />{' '}
-              Studion lattia
+                onChange={(shadows) => props.onSettings({ ...settings, shadows })}
+              />
+              Varjot
             </label>
           </details>
-          <label className="render-check">
-            <CommitCheckbox
-              label="Varjot"
-              checked={settings.shadows}
-              disabled={busy}
-              onChange={(shadows) => props.onSettings({ ...settings, shadows })}
-            />
-            Varjot
-          </label>
-          <hr />
         </div>
         <div className="render-tab-content" hidden={renderTab !== 'image'}>
           <section className="trace-controls" aria-label="Tarkentuva renderöinti">
@@ -1012,19 +1019,28 @@ export function RenderStage(props: Props) {
               </label>
               <button
                 className="button dark full"
-                disabled={busy || !bodies.length || !!textureDraft || props.renderJobActive}
-                onClick={() => {
+                disabled={
+                  busy || exporting || !bodies.length || !!textureDraft || props.renderJobActive
+                }
+                onClick={async () => {
+                  setExporting(true);
                   try {
                     api.current?.trace.stop();
-                    const snapshot = api.current?.capture();
+                    const snapshot = await api.current?.capture();
                     if (snapshot)
                       props.onStartRender(snapshot, { width, samples: jobSamples }, props.name);
                   } catch (e) {
                     setError((e as Error).message);
+                  } finally {
+                    setExporting(false);
                   }
                 }}
               >
-                {props.renderJobActive ? 'Kuvan laskenta käynnissä…' : 'Laske tarkka kuva'}
+                {exporting
+                  ? 'Valmistellaan kuvaa…'
+                  : props.renderJobActive
+                    ? 'Kuvan laskenta käynnissä…'
+                    : 'Laske tarkka kuva'}
               </button>
               <p className="muted">
                 Voit jatkaa mallintamista laskennan aikana. Kuva käyttää tämänhetkistä mallia ja

@@ -1,3 +1,4 @@
+import type { TextureAsset } from '../model/materials';
 import type { Rotation } from '../model/transforms';
 import type {
   Anchor,
@@ -79,6 +80,7 @@ export interface ViewportProps {
   onRotationPick: (pivot: Vec3, axis?: Vec3, bodyId?: string) => void;
   onRotationAngle: (angle: number) => void;
   onRotationAxis: (axis: Vec3) => void;
+  assets?: Record<string, TextureAsset>;
   bodies: Body[];
   dimensions: Dimension[];
   dimensionDisplay: 'all' | 'selected' | 'hidden';
@@ -89,6 +91,7 @@ export interface ViewportProps {
   selectedFace?: FaceRef;
   tool: Tool;
   preview?: Body;
+  moveMode?: 'axis' | 'free';
   copyMove: boolean;
   onCopyMove: (copy: boolean) => void;
   offsetDistance: number;

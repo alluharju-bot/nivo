@@ -216,3 +216,7 @@ is needed. Background render snapshots, progress and completed PNGs are session-
 
 Projektitiedoston tuontiraja on 64 MiB, jotta V6:n sallitut yhteensä 32 Mt
 kuva-aineistot ja geometria mahtuvat samaan avattavaan tiedostoon.
+
+## V0.11: tarkka siirto ja pintakartat
+
+Valinnainen `settings.moveMode` on `axis` tai `free`; puuttuva arvo käyttää yhtä akselia. `appearance.maps` sisältää valinnaiset `normal`, `bump`, `roughness`, `metalness`-asset-tunnisteet. `normalStrength` on 0–5 ja `surfaceDetail` ottaa normal-/karheuskartan käyttöön tai pois. Vanhat projektit toimivat ilman näitä kenttiä. Kaikkien kanavien sekä omien materiaalireseptien asset-viitteet validoidaan. Datakartan tuonti käyttää häviötöntä PNG:tä enintään 1024 pikseliin, värikuva enintään 2048 pikselin WebP:tä. Molemmat ovat mukana samassa assets-taulussa ja pysyvässä historiassa.

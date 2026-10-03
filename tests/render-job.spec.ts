@@ -68,7 +68,8 @@ test('render cancellation releases the job and preview reaches a sample target a
     timeout: 75_000,
   });
   await page.getByRole('button', { name: 'Nopea', exact: true }).click();
-  await page.getByRole('button', { name: 'Valo', exact: true }).click();
+  await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
+  await page.getByText('Studion valaistus', { exact: true }).click();
   await page.getByText('Studion säädöt', { exact: true }).click();
   await page.getByLabel('Studiovalon suunta', { exact: true }).selectOption('90');
   await page.getByLabel('Studiovalojen voimakkuus', { exact: true }).selectOption('2');

@@ -216,3 +216,37 @@ describe('actual OpenCascade kernel', () => {
     }
   });
 });
+
+it('chooses the camera-facing adjacent drawing face without accepting a remote coplanar patch', async () => {
+  const { contextualFace, moveAxisFromScreen } = await import('../viewport/picking');
+  const body = makeBody(18, 600, 800, [3.125, 6.375, 4.625]);
+  const shape = createShape(body);
+  try {
+    const mesh = meshBody(body, shape);
+    expect(contextualFace(mesh, [21.125, 6.375, 804.625], [0.9, -0.2, 0.1])?.ref).toBe('x:max');
+    expect(contextualFace(mesh, [21.125, 6.375, 804.625], [0.1, -0.9, 0.2])?.ref).toBe('y:min');
+    expect(contextualFace(mesh, [21.125, 1000, 804.625], [0.9, -0.2, 0.1])).toBeUndefined();
+    expect(
+      moveAxisFromScreen(
+        [30, 4],
+        [
+          [100, 0],
+          [0, -100],
+          [0, 0],
+        ],
+      ),
+    ).toBe('x');
+    expect(
+      moveAxisFromScreen(
+        [0, -30],
+        [
+          [100, 0],
+          [0, -100],
+          [0, 0],
+        ],
+      ),
+    ).toBe('y');
+  } finally {
+    shape.delete();
+  }
+});

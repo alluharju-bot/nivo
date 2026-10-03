@@ -79,8 +79,8 @@ test('Shift with E clicks or drags to a locked target face, grows and shrinks ex
   await ready(page, [source, taller, shorter]);
   const point = await view(page, [source, taller, shorter]);
   const a = point(100, 100, 40),
-    b = point(350, 40, 90),
-    c = point(350, 160, 18);
+    b = point(325, 25, 90),
+    c = point(325, 145, 18);
   await page.keyboard.press('e');
   await click(page, a);
   await page.keyboard.down('Shift');
@@ -125,7 +125,7 @@ test('typed push/pull wins over target snapping and Escape cancels a live target
   await ready(page, [source, target]);
   const point = await view(page, [source, target]);
   const a = point(100, 100, 40),
-    b = point(350, 50, 90);
+    b = point(325, 50, 90);
   await page.keyboard.press('e');
   await click(page, a);
   await page.keyboard.down('Shift');
@@ -163,7 +163,7 @@ test('a nonparallel target supplies the pointed level without tilting the source
   await ready(page, [source, target]);
   const point = await view(page, [source, target]);
   const top = { ...frame, origin: [300, 12, 176] as Vec3 };
-  const level = fromUV([75, 75], top);
+  const level = fromUV([40, 40], top);
   await page.keyboard.press('e');
   await click(page, point(100, 100, 40));
   await page.keyboard.down('Shift');
@@ -171,7 +171,8 @@ test('a nonparallel target supplies the pointed level without tilting the source
   await page.mouse.move(end.x, end.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-depth-kind', 'point');
   const measured = Number(await page.getByTestId('height-input').inputValue());
-  expect(measured).toBeCloseTo(level[2] - 40, 4);
+  // Browser pointer coordinates are subpixel-rounded; face raycasts allow 0.0005 mm.
+  expect(measured).toBeCloseTo(level[2] - 40, 3);
   await click(page, end);
   await page.keyboard.up('Shift');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
@@ -181,7 +182,7 @@ test('a nonparallel target supplies the pointed level without tilting the source
     width: 200,
     depth: 200,
   });
-  expect(model.bodies[0].feature.height).toBeCloseTo(level[2], 4);
+  expect(model.bodies[0].feature.height).toBeCloseTo(level[2], 3);
   expect(model.bodies[1]).toEqual(target);
 });
 
@@ -193,7 +194,7 @@ test('free E ignores other faces; Shift searches immediately and release continu
   await ready(page, [source, target]);
   const point = await view(page, [source, target]);
   const a = point(100, 100, 40),
-    b = point(350, 50, 90);
+    b = point(325, 50, 90);
   const field = page.getByTestId('height-input'),
     canvas = page.getByTestId('viewport');
   await page.keyboard.press('e');
@@ -228,6 +229,8 @@ test('perspective E grows smoothly while the cursor stays inside its own face, w
 }) => {
   const source = makeBody(600, 400, 18);
   await ready(page, [source]);
+  // This test verifies continuous drag mapping; grid stepping has its own regression.
+  await page.getByRole('button', { name: 'Ruudukko 10 mm', exact: true }).click();
   const point = await view(page, [source]);
   await page.locator('.projection-button').click();
   const a = point(300, 200, 18);

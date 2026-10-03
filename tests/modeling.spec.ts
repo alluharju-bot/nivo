@@ -321,8 +321,8 @@ test('depth can be picked from another face while the original region stays sele
   await drag(page, point(200, 150, 40), point(250, 150, 40));
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   await page.keyboard.press('e');
-  await page.getByRole('button', { name: 'Poimi syvyys pinnasta', exact: true }).click();
-  const picked = point(500, 150, 10);
+  await page.getByRole('button', { name: 'Poimi tavoitemitta', exact: true }).click();
+  const picked = point(475, 125, 10);
   await page.mouse.click(picked.x, picked.y);
   await expect(page.getByTestId('height-input')).toHaveValue('-30');
   await page.keyboard.press('Enter');

@@ -177,6 +177,7 @@ test('construction guide attracts both drawing and moving, follows its source an
   expect(model.bodies[2].origin[0]).toBeCloseTo(model.bodies[2].origin[1], 3);
   await page.locator('.object-list .object-select').nth(1).click();
   await page.getByRole('button', { name: 'Siirrä', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const a = point(320, 0),
     b = point(240, 243);
   await page.mouse.move(a.x, a.y);

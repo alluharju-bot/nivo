@@ -1,3 +1,4 @@
+import { createMaterialLibrary, materialUV, disposeMaterial } from '../render/materials';
 import { createPointDimensions } from './pointDimensions';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -123,6 +124,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       label.element.style.top = `${((1 - p.y) * container.clientHeight) / 2}px`;
     }
   };
+  const materialLibrary = createMaterialLibrary(render);
   controls.addEventListener('change', render);
   controls.update();
   const resize = () => {
@@ -184,7 +186,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     group.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
         obj.geometry.dispose();
-        (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
+        (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(disposeMaterial);
       }
     });
     group.clear();
@@ -218,9 +220,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
+      materialUV(geometry, body);
+      const baseMaterial = materialLibrary.create(body, props.assets);
       const materials = data.faces.map((face, index) => {
         geometry.addGroup(face.start, face.count, index);
-        return new THREE.MeshStandardMaterial({
+        const material = baseMaterial.clone();
+        material.setValues({
           color: reference
             ? new THREE.Color(body.color).lerp(new THREE.Color('#eaece6'), 0.45)
             : target
@@ -241,8 +246,6 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                             0.3,
                           )
                         : body.color,
-          roughness: 0.8,
-          metalness: 0,
           side: THREE.DoubleSide,
           polygonOffset: true,
           polygonOffsetFactor: 1,
@@ -252,7 +255,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           depthWrite: !auxiliary && !cutter,
           depthTest: !cutter,
         });
+        material.userData.baseEmissive = material.emissive.getHex();
+        material.userData.baseEmissiveIntensity = material.emissiveIntensity;
+        return material;
       });
+      baseMaterial.dispose();
       const mesh = new THREE.Mesh(geometry, materials);
       mesh.castShadow = !auxiliary && !reference;
       // Self-shadow acne on broad coplanar CAD faces caused view-dependent striping.
@@ -906,6 +913,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
         }
       });
+      materialLibrary.dispose();
       key.shadow.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -947,6 +955,7 @@ export function Viewport(props: Props) {
     props.axisStyle,
     props.axisLabels,
     props.gridStep,
+    props.assets,
   ]);
   useEffect(() => api.current?.dimensionDisplay(), [props.dimensions, props.dimensionDisplay]);
   useEffect(

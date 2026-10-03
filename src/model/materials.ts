@@ -10,6 +10,16 @@ export const texturePlacementSchema = z.object({
 export const appearanceSchema = z.object({
   preset: z.string().min(1).max(100),
   assetId: z.string().max(100).optional(),
+  maps: z
+    .object({
+      normal: z.string().max(100).optional(),
+      bump: z.string().max(100).optional(),
+      roughness: z.string().max(100).optional(),
+      metalness: z.string().max(100).optional(),
+    })
+    .optional(),
+  normalStrength: z.number().min(0).max(5).optional(),
+  surfaceDetail: z.boolean().optional(),
   roughness: z.number().min(0).max(1).optional(),
   metalness: z.number().min(0).max(1).optional(),
   transmission: z.number().min(0).max(1).optional(),
@@ -63,7 +73,17 @@ export type MaterialPreset = {
   transmission?: number;
   clearcoat?: number;
   pattern?:
-    'oak' | 'walnut' | 'birch' | 'pine' | 'brushed' | 'granite' | 'marble' | 'slate' | 'travertine';
+    | 'oak'
+    | 'walnut'
+    | 'birch'
+    | 'pine'
+    | 'brushed'
+    | 'granite'
+    | 'marble'
+    | 'slate'
+    | 'travertine'
+    | 'micro'
+    | 'fiber';
   seed?: number;
   emission?: number;
 };
@@ -304,6 +324,110 @@ export const materialPresets: MaterialPreset[] = [
     emission: 8,
   },
 ];
+materialPresets.push(
+  {
+    id: 'melamine-warm-white',
+    name: 'Melamiini · lämmin valkoinen',
+    category: 'Melamiinit',
+    color: '#eeece2',
+    roughness: 0.55,
+    metalness: 0,
+    pattern: 'micro',
+    seed: 41,
+  },
+  {
+    id: 'melamine-cool-white',
+    name: 'Melamiini · puhdas valkoinen',
+    category: 'Melamiinit',
+    color: '#f3f4f1',
+    roughness: 0.48,
+    metalness: 0,
+    pattern: 'micro',
+    seed: 42,
+  },
+  {
+    id: 'melamine-grey',
+    name: 'Melamiini · vaaleanharmaa',
+    category: 'Melamiinit',
+    color: '#b9bcb9',
+    roughness: 0.55,
+    metalness: 0,
+    pattern: 'micro',
+    seed: 43,
+  },
+  {
+    id: 'melamine-graphite',
+    name: 'Melamiini · grafiitti',
+    category: 'Melamiinit',
+    color: '#414644',
+    roughness: 0.6,
+    metalness: 0,
+    pattern: 'micro',
+    seed: 44,
+  },
+  {
+    id: 'melamine-oak',
+    name: 'Melamiini · tammikuvio',
+    category: 'Melamiinit',
+    color: '#c6a77a',
+    roughness: 0.52,
+    metalness: 0,
+    pattern: 'oak',
+    seed: 45,
+  },
+  {
+    id: 'mdf-raw',
+    name: 'MDF · käsittelemätön',
+    category: 'Kalustelevyt',
+    color: '#b59c75',
+    roughness: 0.92,
+    metalness: 0,
+    pattern: 'fiber',
+    seed: 46,
+  },
+  {
+    id: 'mdf-painted',
+    name: 'MDF · maalattu valkoinen',
+    category: 'Kalustelevyt',
+    color: '#ebece7',
+    roughness: 0.3,
+    metalness: 0,
+    clearcoat: 0.25,
+    pattern: 'micro',
+    seed: 47,
+  },
+  {
+    id: 'plywood-birch',
+    name: 'Koivuvaneri · pinta',
+    category: 'Kalustelevyt',
+    color: '#decda8',
+    roughness: 0.56,
+    metalness: 0,
+    pattern: 'birch',
+    seed: 48,
+  },
+  {
+    id: 'particleboard',
+    name: 'Lastulevy · käsittelemätön',
+    category: 'Kalustelevyt',
+    color: '#bda781',
+    roughness: 0.95,
+    metalness: 0,
+    pattern: 'fiber',
+    seed: 49,
+  },
+  {
+    id: 'laminate-matte',
+    name: 'Laminaatti · mattamusta',
+    category: 'Kalustelevyt',
+    color: '#292d2c',
+    roughness: 0.72,
+    metalness: 0,
+    pattern: 'micro',
+    seed: 50,
+  },
+);
+
 export const legacyPresets: MaterialPreset[] = [
   {
     id: 'matte',

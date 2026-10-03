@@ -91,12 +91,12 @@ test('hover O previews under the pointer, typed inset stays fixed and click comm
   await page.mouse.move(b.x, b.y, { steps: 5 });
   await expect
     .poll(async () => Number(await page.getByTestId('offset-input').inputValue()))
-    .toBeCloseTo(58, 0);
+    .toBeCloseTo(60, 8);
   await expect
     .poll(async () =>
       Number(await page.getByTestId('viewport').getAttribute('data-offset-preview')),
     )
-    .toBeCloseTo(58, 0);
+    .toBeCloseTo(60, 8);
   await page.keyboard.type('22');
   await page.mouse.move(b.x + 20, b.y - 10);
   await expect(page.getByTestId('offset-input')).toHaveValue('22');
@@ -124,7 +124,7 @@ test('tool-first Offset drags a selected body face and Escape discards the next 
   await page.mouse.move(b.x, b.y, { steps: 5 });
   await expect
     .poll(async () => Number(await page.getByTestId('offset-input').inputValue()))
-    .toBeCloseTo(38, 0);
+    .toBeCloseTo(40, 8);
   await page.mouse.up();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   const first = await save(page);
@@ -148,6 +148,7 @@ test('whole-object selection and late Ctrl copy keep the grabbed corner and orig
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-selection-kind', 'object');
   await expect(page.locator('.selection-tag')).toHaveText('CAD-kappale');
   await page.keyboard.press('m');
+  await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
   await page.mouse.move(a.x + 20, a.y - 10);

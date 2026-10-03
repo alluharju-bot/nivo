@@ -4,6 +4,64 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.11.0 — tartuntojen tarkkuus, ruudukko ja materiaalit
+
+**128 yksikkö-/CAD-testiä hyväksytty (21 tiedostoa).** Uudet kokeet kattavat
+kameran mukaan valittavan todellisen CAD-pinnan (myös 18 mm levyn sivupinnan),
+liikeakselin valinnan ja vapaan mitan ruudukon. Push/pullin pisteen taso
+varmennetaan kaikissa kuudessa akselisuunnassa ja vinolla normaalilla; oman
+liikkuvan tason piste hylätään mutta toisen osan samantasoinen piste hyväksytään.
+Materiaalikokeet varmentavat 40 presetin tunnisteet, kaikkien PBR-kanavien
+kuvaviitteet sekä tekstuurin sijoituksen säilymisen tracerin matriisin uudelleenlaskennassa.
+
+Tuotantopaketti rakennettiin `/nivo/`-pohjapolulle. Työpöydän laaja ajo ja
+kohdennetut uusinnat kattoivat uudet tarkkuus- ja materiaalikäytöt sekä aiemmat
+työnkulut. Vanhoista siirtokokeista tehtiin eksplisiittisesti vapaan XYZ-siirron
+kokeita; ruudukon odotuksia ja materiaalipaneelin valitsimia päivitettiin.
+
+Koko tablettiajo: **139 hyväksytty, 1 rajattu pois, 1 liian tiukka numeerinen
+vertailu (38,7 min)**. Pois rajattu CAD-workerin kehitystilakoe katetaan erikseen
+yksikkö-/CAD-ajossa. 60 mm:n suorakulmion syvyys oli liukulukulaskennan jälkeen
+59,99999999999997 mm; vertailulle sallitaan 0,00000000005 mm poikkeama.
+Koordinaatteja ei pyöristetty takaisin näyttötarkkuuteen.
+
+Lopullisella tuotantopaketilla **10/10 hyväksytty (1,4 min)** kummankin
+selainprofiilin yhteisessä uusinnassa: kolme katselusuuntaa kulma-/keski-/reunatartunnoille,
+ruudukosta poikkeavan tavoitemitan säilyminen Shiftin vapautuksessa,
+suora osoitus → E → Shift sekä suorakulmion aloituksen odottaminen ja valmis geometria.
+TypeScript, tuotantopaketointi, lisenssi- ja muotoilutarkistus hyväksytty.
+
+Tarkkuuden selaintyönkulut käyttävät myös ruudukosta poikkeavia CAD-koordinaatteja
+(3,125 / 6,375 / 4,625 mm), ontoksi muokatun kaapin sisäpintoja, 25 mm ruudukkoa
+sekä erikseen kirjoitettua 72 mm mittaa. Siirto pitää muut akselit muuttumattomina;
+Ctrl:n vapautus säilyttää kopion ja toinen painallus poistaa kopioinnin.
+Shift-push/pullin kulma-, keskipiste-, reuna- ja kappalekeskipistetartunnat
+varmennetaan ylä-, etu- ja sivunäkymässä. Kosketuksen tavoitepoiminta ja
+apuviiva antavat tarkan 72,625 mm lopputuloksen 10 mm ruudukon läpi.
+Oman liikkuvan pinnan kulman kohdalle projisoitu takakulma ei kelpaa viitteeksi.
+Suora osoitus → E → Shift ei tarvitse ylimääräistä lähtöpinnan klikkausta.
+Vinon pinnan vapaa raycast-poiminta sallii selaimen osoitinkoordinaateista
+johtuvan 0,0005 mm muunnostoleranssin; tarkat CAD-ankkurit tarkistetaan tiukemmin.
+
+Renderin kuvakokeissa punavihreän tuontitekstuurin värit säilyvät sekä
+kahdeksan näytteen esikatselussa että taustalla lasketussa PNG:ssä. Tammen,
+melamiinin ja koivuvanerin vaihto käynnissä olevassa tarkennuksessa tuottaa
+värillisen kuvion ilman GPU-virheitä. Esikatselu käyttää yhtä koko kuvan
+kattavaa ruutua. Malli-näkymässä materiaalin, emission ja häviöttömien
+PBR-karttojen muokkaus tallentuu ja palautuu; viivästynyt kuvan tuonti ei
+palauta välissä siirrettyä osaa vanhaan paikkaan.
+
+Käyttäjän mustan tekstuurin tarkkaa alkuperäistapausta ei saatu toistettua:
+yksinkertainen tuontikuva toimi myös vertailtavassa aiemmassa toteutuksessa.
+Korjattu todellinen tekstuurimuunnoksen nollautuminen ja kuvien latauksen
+odotus; onnistuneet kuvakokeet eivät todista kaikkien kuvatiedostojen tai
+laitteiden toimivuutta. Esiasetusten pintarakenteet ovat paikallisesti tuotettuja,
+eivät valokuvapohjainen PBR-kirjasto. Fyysinen iPad ja Safari ovat edelleen
+varmentamatta; tabletin selaintestit käyttävät Chromium-kosketusemulointia.
+
+Kuvantarkistus: [Shiftillä poimittu tavoitemitta](images/nivo-pushpull-reference-v011.png)
+ja [40 materiaalin luettelo](images/nivo-material-catalog-v011.png).
+
 ## V0.10.0 — laaja käytettävyys- ja esityskuvapassi
 
 **123 yksikkö-/CAD-testiä hyväksytty (21 tiedostoa).** Uudet laskentakokeet

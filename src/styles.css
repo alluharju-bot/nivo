@@ -3964,3 +3964,67 @@ p {
   text-align: left;
   font-size: 12px;
 }
+
+.model-materials select {
+  width: 100%;
+}
+.surface-maps,
+.studio-lighting {
+  margin-top: 12px;
+}
+.surface-maps > p {
+  line-height: 1.5;
+}
+.surface-map-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+}
+.surface-map-row > .outlined {
+  flex: 1;
+  font-size: 11px;
+}
+.surface-map-row > span {
+  max-width: 75px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.model-materials label,
+.surface-maps label {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+.model-materials label.checkbox-label,
+.surface-maps label.checkbox-label {
+  display: flex;
+}
+.model-materials select,
+.model-materials input[type='number'] {
+  min-width: 0;
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #bdc7c0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+.model-materials select:focus-visible,
+.model-materials input[type='number']:focus-visible {
+  outline: 2px solid #618b65;
+  outline-offset: 1px;
+}
+.surface-maps > summary,
+.studio-lighting > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.model-materials .checkbox-label {
+  align-items: center;
+}

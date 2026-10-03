@@ -250,6 +250,7 @@ export const projectSchema = z
     settings: z
       .object({
         guideXray: z.boolean(),
+        moveMode: z.enum(['axis', 'free']).optional(),
         gridStep: z.number().min(0.1).max(10000).optional(),
         axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
         axisLabels: z.boolean().default(false),
@@ -291,7 +292,11 @@ export const projectSchema = z
       ...p.bodies.map((b) => b.appearance),
       ...(p.materials ?? []).map((m) => m.appearance),
     ])
-      if (appearance?.assetId && !p.assets?.[appearance.assetId])
+      if (
+        [appearance?.assetId, ...Object.values(appearance?.maps ?? {})].some(
+          (id) => id && !p.assets?.[id],
+        )
+      )
         ctx.addIssue({ code: 'custom', message: 'Tekstuurin kuva puuttuu projektista.' });
     const groups = new Map(p.groups.map((g) => [g.id, g]));
     for (const group of p.groups) {

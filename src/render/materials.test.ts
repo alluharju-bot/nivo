@@ -41,9 +41,9 @@ it('keeps millimeter offsets independent of rotation and per-object texture scal
   a.dispose();
   b.dispose();
 });
-it('ships 30 distinct presets and rejects a missing imported image', () => {
-  expect(materialPresets).toHaveLength(30);
-  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(30);
+it('ships 40 distinct presets and rejects a missing imported image', () => {
+  expect(materialPresets).toHaveLength(40);
+  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(40);
   expect(
     new Set(materialPresets.filter((p) => p.category === 'Massiivipuut').map((p) => p.pattern))
       .size,
@@ -86,4 +86,56 @@ it('uses configurable grid spacing while keeping geometric targets exact', () =>
     snapPoint([257, 144, 0], [body], 5, undefined, undefined, undefined, true, { gridStep: 25 })
       .point,
   ).toEqual(body.origin);
+});
+
+it('keeps a texture placement after the path tracer reconstructs its matrix', () => {
+  const texture = new THREE.Texture();
+  texturePlacement(texture, {
+    width: 123,
+    height: 57,
+    offsetX: 31,
+    offsetY: -19,
+    rotation: 33,
+    lockAspect: false,
+  });
+  const expected = texture.matrix.clone();
+  texture.matrix.identity();
+  texture.updateMatrix();
+  expect(texture.matrix.elements).toEqual(expected.elements);
+  const clone = texture.clone();
+  clone.updateMatrix();
+  expect(clone.matrix.elements).toEqual(expected.elements);
+});
+it('preserves PBR asset references and rejects missing map images', () => {
+  const asset = { name: 'height', width: 1, height: 1, dataUrl: 'data:image/png;base64,AAAA' };
+  const appearance = {
+    ...defaultAppearance('melamine-oak'),
+    maps: { bump: 'height', roughness: 'rough' },
+    normalStrength: 1.2,
+  };
+  const project = {
+    ...freshProject(),
+    bodies: [{ ...makeBody(), appearance }],
+    assets: { height: asset, rough: asset },
+  };
+  expect(parseProject(JSON.stringify(project))).toEqual(project);
+  expect(() => parseProject(JSON.stringify({ ...project, assets: { height: asset } }))).toThrow();
+});
+it('quantizes free dimensions relative to an exact off-grid anchor', () => {
+  const start: [number, number, number] = [3.125, 6.375, 4.625];
+  const frame = sketchFrame(start);
+  const result = snapOnSketchPlane(
+    [76.125, 135.375, 4.625],
+    frame,
+    [],
+    [],
+    [],
+    0.01,
+    true,
+    undefined,
+    start,
+    [],
+    10,
+  );
+  expect(result.point).toEqual([73.125, 136.375, 4.625]);
 });

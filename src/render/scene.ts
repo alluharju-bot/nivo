@@ -1,6 +1,12 @@
 import { progressiveRenderer, type TraceStatus } from './progressive';
 import { captureRenderScene } from './snapshot';
-import { createMaterialLibrary, texturePlacement, textureFrameMatrix } from './materials';
+import {
+  createMaterialLibrary,
+  texturePlacement,
+  materialUV,
+  textureFrameMatrix,
+  disposeMaterial,
+} from './materials';
 import {
   defaultAppearance,
   emissionSettings,
@@ -79,6 +85,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   );
   floor.receiveShadow = true;
   scene.add(floor);
+  let disposed = false;
   let extent = 100,
     initialized = false;
   const draw = () => {
@@ -92,8 +99,12 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     });
     updateHandles();
   };
-  const progressive = progressiveRenderer(renderer, scene, camera, (status) =>
-    current().onTraceStatus?.(status),
+  const progressive = progressiveRenderer(
+    renderer,
+    scene,
+    camera,
+    (status) => current().onTraceStatus?.(status),
+    () => library.ready(),
   );
   const library = createMaterialLibrary(() => {
     progressive.invalidate(true);
@@ -140,8 +151,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     for (const object of model.children)
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
-        (object.material as THREE.MeshPhysicalMaterial).map?.dispose();
-        (object.material as THREE.Material).dispose();
+        disposeMaterial(object.material as THREE.Material);
       }
     model.clear();
     lights.traverse((o) => {
@@ -166,18 +176,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
-      const uv: number[] = [],
-        inverse = textureFrameMatrix(body).invert();
-      for (let i = 0; i < data.vertices.length; i += 3) {
-        const normal = new THREE.Vector3(...data.normals.slice(i, i + 3))
-            .transformDirection(inverse)
-            .toArray()
-            .map(Math.abs),
-          axis = normal.indexOf(Math.max(...normal)),
-          point = new THREE.Vector3(...data.vertices.slice(i, i + 3)).applyMatrix4(inverse);
-        uv.push(point.getComponent(axis === 0 ? 1 : 0), point.getComponent(axis === 2 ? 1 : 2));
-      }
-      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      materialUV(geometry, body);
       const surface = library.create(body, current().assets);
       const mesh = new THREE.Mesh(geometry, surface);
       mesh.userData.bodyId = body.id;
@@ -488,12 +487,17 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     fit,
     settings: settingsOnly,
     trace: progressive,
-    capture: () => captureRenderScene(scene, camera, camera.aspect, renderer.toneMappingExposure),
+    capture: async () => {
+      await library.ready();
+      if (disposed) throw new Error('Renderöintinäkymä suljettiin ennen kuvan aloitusta.');
+      return captureRenderScene(scene, camera, camera.aspect, renderer.toneMappingExposure);
+    },
     appearance(ids: string[], appearance: Appearance) {
       for (const object of model.children)
         if (object instanceof THREE.Mesh && ids.includes(object.userData.bodyId)) {
           const material = object.material as THREE.MeshPhysicalMaterial;
-          if (material.map) texturePlacement(material.map, appearance.texture);
+          for (const value of Object.values(material))
+            if (value instanceof THREE.Texture) texturePlacement(value, appearance.texture);
         }
       updateHandles();
       draw();
@@ -526,6 +530,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       }
     },
     dispose() {
+      disposed = true;
       progressive.dispose();
       observer.disconnect();
       controls.removeEventListener('change', draw);

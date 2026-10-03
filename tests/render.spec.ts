@@ -21,7 +21,8 @@ test('render materials and lighting persist without changing geometry or Hold', 
     'aria-pressed',
     'true',
   );
-  await page.getByRole('button', { name: 'Valo', exact: true }).click();
+  await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
+  await page.getByText('Studion valaistus', { exact: true }).click();
   await page.getByRole('combobox', { name: 'Valaistus', exact: true }).selectOption('warm');
   await expect(page.getByRole('combobox', { name: 'Valaistus', exact: true })).toHaveValue('warm');
   await page.getByRole('checkbox', { name: 'Varjot', exact: true }).uncheck();
@@ -48,7 +49,8 @@ test('render materials and lighting persist without changing geometry or Hold', 
   await expect(page.getByRole('button', { name: 'Renderöi', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Materiaali', exact: true })).toHaveValue('wood');
-  await page.getByRole('button', { name: 'Valo', exact: true }).click();
+  await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
+  await page.getByText('Studion valaistus', { exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Valaistus', exact: true })).toHaveValue('warm');
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('render-canvas')).toHaveCount(0);

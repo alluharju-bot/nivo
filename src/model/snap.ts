@@ -11,6 +11,15 @@ import { guidePoints, lineIntersection, planeAxes } from './guides';
 import type { BodyMesh } from '../cad/protocol';
 import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
 import { dot, sub, projectOnLine } from './geometry';
+/** Lower is stronger: explicit vertices, midpoints, edges, then inference/grid. */
+export const snapPriority = (point: { key: string; label: string }) =>
+  /:mid:|:center$/.test(point.key) || /keskipiste/i.test(point.label)
+    ? 1
+    : /edge|:line/.test(point.key) || point.label === 'Reuna'
+      ? 2
+      : 0;
+export const gridLength = (value: number, step: number, enabled = true) =>
+  enabled ? Number((Math.round(value / step) * step).toPrecision(14)) : value;
 export interface Snap {
   point: Vec3;
   label: string;
@@ -66,11 +75,12 @@ export function snapOnSketchPlane(
   extra: ReferencePoint[] = [],
   gridStep = 10,
   directionGrid: 'length' | 'coordinates' = 'length',
+  geometryPoints = modelSnapPoints(bodies, meshes),
 ): Snap {
   const onPlane = (p: Vec3) => Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5;
-  const candidates: (Snap & { priority: number })[] = [...modelSnapPoints(bodies, meshes), ...extra]
+  const candidates: (Snap & { priority: number })[] = [...geometryPoints, ...extra]
     .filter((p) => onPlane(p.point))
-    .map((p) => ({ ...p, priority: 0 }));
+    .map((p) => ({ ...p, priority: snapPriority(p) }));
   const lines: { id: string; points: [Vec3, Vec3] }[] = [];
   for (const guide of guides) {
     if (guide.mode !== 'guide') continue;
@@ -137,7 +147,10 @@ export function snapOnSketchPlane(
   return grid
     ? {
         point: fromUV(
-          [Math.round(uv[0] / gridStep) * gridStep, Math.round(uv[1] / gridStep) * gridStep],
+          uv.map((v, i) => {
+            const base = start ? toUV(start, frame)[i] : 0;
+            return base + gridLength(v - base, gridStep);
+          }) as [number, number],
           frame,
         ),
         label: `Ruudukko · ${gridStep} mm`,
@@ -220,7 +233,7 @@ export function snapPoint(
     ...modelSnapPoints(
       bodies.filter((b) => b.id !== options.excludeId && !options.excludeIds?.includes(b.id)),
       options.meshes,
-    ).map((p) => ({ ...p, priority: 0 })),
+    ).map((p) => ({ ...p, priority: snapPriority(p) })),
   ];
   const lines: { id: string; points: [Vec3, Vec3] }[] = [];
   for (const guide of options.guides ?? []) {
@@ -334,7 +347,10 @@ export function snapPoint(
   if (grid && !options.forceDirection)
     return {
       point: point.map((n, i) =>
-        (!axis ? i !== normal : i === axisIndex[axis]) ? Math.round(n / gridStep) * gridStep : n,
+        (!axis ? i !== normal : i === axisIndex[axis])
+          ? (options.inferenceOrigin?.[i] ?? 0) +
+            gridLength(n - (options.inferenceOrigin?.[i] ?? 0), gridStep)
+          : n,
       ) as Vec3,
       label: `Ruudukko · ${gridStep} mm`,
       key: 'grid',

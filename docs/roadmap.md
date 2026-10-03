@@ -492,3 +492,13 @@ tilannekuvan omalle renderöijälle. Käyttäjä voi palata malliin, muokata sit
 ladata valmiin kuvan tilakortista. Työ voidaan keskeyttää. Välilehden on pysyttävä
 auki; taustalle piilotettu selain voi keskeyttää laskennan tilapäisesti.
 Studion valoille suunta ja voimakkuus, ympäristövalon voimakkuus ja lattian näkyvyys.
+
+## V0.11: tarkkuus ennen lisäominaisuuksia
+
+Toteutettu: yhteinen hover-/painalluspoiminta, näkyvät priorisoidut CAD-pisteet, kameraa kohti olevan todellisen viereisen pinnan valinta, suorakulmion ja ympyrän vaihdettava piirtotaso, oletuksena yhden akselin siirto, Ctrl-kopioinnin vaihtokytkin sekä vapaan mittamuutoksen ruudukko. Tarkka kirjoitettu mitta ja tarkoituksellinen geometriatartunta säilyvät.
+
+Push/pullin Shift-haku ja kosketuksen Poimi tavoitemitta käyttävät kulma-, keskipiste-, reuna- ja apuviivatartuntoja ennen pintapoimintaa. Piste antaa tason liikkeen suunnassa; liikkuvan pinnan omat pisteet eivät kelpaa tavoitteiksi. Osoitus → E → Shift toimii ilman ylimääräistä lähtöpinnan klikkausta. Muototyökalun viitepisteen lukitus näkyy jo ennen alkupisteen valintaa.
+
+Materiaali ja valaistus löytyvät jo mallin osan tiedoista. Renderin erillinen Valo-välilehti yhdistyy Materiaaliin. Melamiinit ja kalustelevyt nostavat presetit 40:een. PBR-kanavat ja paikallisesti tuotetut kohokuviot, kuvien latauksen odotus ja tracerin palautusta kestävät tekstuurimuunnokset. Tarkentuva esikatselu päivittyy koko kuvan alueelta kerralla.
+
+Seuraavat renderöintiaskeleet: lisensoidut valokuvapohjaiset materiaalipaketit, pinnan UV-sauman hallinta kaarevilla pinnoilla, kohinanpoisto ja fyysisen iPadin GPU-varmennus. Muun käyttöönoton tarkkuushavainnot pysyvät lisäominaisuuksia tärkeämpinä.
