@@ -24,6 +24,39 @@ const horizontal: Guide = {
 };
 
 describe('guide measurements and intersections', () => {
+  it('snaps rectangle sides at 45 degrees while retaining pen length steps', () => {
+    const frame = sketchFrame([0, 0, 0], [0, 0, 1]);
+    const rectangle = snapOnSketchPlane(
+      [60, 60, 0],
+      frame,
+      [],
+      [],
+      [],
+      5,
+      true,
+      undefined,
+      [0, 0, 0],
+      [],
+      10,
+      'coordinates',
+    );
+    expect(rectangle.point[0]).toBeCloseTo(60);
+    expect(rectangle.point[1]).toBeCloseTo(60);
+    const pen = snapOnSketchPlane(
+      [60, 60, 0],
+      frame,
+      [],
+      [],
+      [],
+      5,
+      true,
+      undefined,
+      [0, 0, 0],
+      [],
+      10,
+    );
+    expect(Math.hypot(...pen.point)).toBeCloseTo(80);
+  });
   it.each<Vec3>([
     [80, 0, 0],
     [-80, 0, 0],

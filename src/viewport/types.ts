@@ -119,6 +119,7 @@ export interface ViewportProps {
   pickReference: boolean;
   epoch: number;
   onSelect: (id?: string, face?: FaceRef, additive?: boolean) => void;
+  onSelectMany: (ids: string[], additive: boolean) => void;
   onGesture: (gesture: Gesture) => void;
   onAccept: () => void;
   onPenHover: (point?: Vec3) => void;

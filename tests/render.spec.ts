@@ -21,6 +21,7 @@ test('render materials and lighting persist without changing geometry or Hold', 
     'aria-pressed',
     'true',
   );
+  await page.getByRole('button', { name: 'Valo', exact: true }).click();
   await page.getByRole('combobox', { name: 'Valaistus', exact: true }).selectOption('warm');
   await expect(page.getByRole('combobox', { name: 'Valaistus', exact: true })).toHaveValue('warm');
   await page.getByRole('checkbox', { name: 'Varjot', exact: true }).uncheck();
@@ -47,6 +48,7 @@ test('render materials and lighting persist without changing geometry or Hold', 
   await expect(page.getByRole('button', { name: 'Renderöi', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Materiaali', exact: true })).toHaveValue('wood');
+  await page.getByRole('button', { name: 'Valo', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Valaistus', exact: true })).toHaveValue('warm');
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('render-canvas')).toHaveCount(0);
@@ -68,6 +70,7 @@ test('studio cabinet exports the visible camera as a full resolution PNG', async
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   const canvas = page.getByTestId('render-canvas');
   await expect(canvas).toHaveAttribute('data-body-count', String(parts.length));
+  await page.getByRole('button', { name: 'Kuva', exact: true }).click();
   await page.getByRole('combobox', { name: 'Kuvan leveys', exact: true }).selectOption('1600');
   await page.screenshot({ path: info.outputPath('studio-render.png') });
   const pending = page.waitForEvent('download');
@@ -84,6 +87,7 @@ test('studio cabinet exports the visible camera as a full resolution PNG', async
   expect(size!.width).toBeLessThan(1600);
   expect((await save(page)).bodies).toEqual(parts);
   // Compile the reflective and transmissive material paths as well.
+  await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
   const material = page.getByRole('combobox', { name: 'Materiaali', exact: true });
   for (const preset of ['metal', 'glass', 'paint']) {
     await material.selectOption(preset);

@@ -1,3 +1,4 @@
+import { projectSelectionBounds, insideSelectionRect, type ScreenBounds } from './boxSelection';
 import { isPointDimension, uid, type PointDimension } from '../model/project';
 import { anchorBodyId, dimensionBodyIds, pointDimensionGeometry } from '../model/dimensions';
 import { offsetDirection } from '../model/faceBoundary';
@@ -71,6 +72,36 @@ export function installInteractions({
   hint.dataset.testid = 'snap-hint';
   hint.hidden = true;
   container.append(hint);
+  const selectionBox = document.createElement('div');
+  selectionBox.className = 'selection-box';
+  selectionBox.dataset.testid = 'selection-box';
+  selectionBox.hidden = true;
+  const selectionCount = document.createElement('span');
+  selectionBox.append(selectionCount);
+  container.append(selectionBox);
+  let selectionBounds: ScreenBounds[] = [];
+  const clearSelectionBox = () => {
+    selectionBox.hidden = true;
+    selectionBounds = [];
+  };
+  const boxSelection = (event: PointerEvent) => {
+    if (!drag) return [];
+    const rect = canvas.getBoundingClientRect(),
+      x1 = drag.screenX - rect.left,
+      y1 = drag.screenY - rect.top,
+      x2 = Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+      y2 = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+    const ids = insideSelectionRect(selectionBounds, x1, y1, x2, y2);
+    selectionBox.hidden = false;
+    Object.assign(selectionBox.style, {
+      left: `${Math.min(x1, x2)}px`,
+      top: `${Math.min(y1, y2)}px`,
+      width: `${Math.abs(x2 - x1)}px`,
+      height: `${Math.abs(y2 - y1)}px`,
+    });
+    selectionCount.textContent = `${ids.length} osaa${drag.extendSelection || event.shiftKey ? ' · lisää valintaan' : ''}`;
+    return ids;
+  };
   const overlay = new THREE.Group();
   scene.add(overlay);
   const makeMarker = (color: string) => {
@@ -329,6 +360,7 @@ export function installInteractions({
       start,
       extra,
       p.gridStep,
+      p.tool === 'rectangle' ? 'coordinates' : 'length',
     );
     show(snapped);
     return snapped.point;
@@ -1300,6 +1332,7 @@ export function installInteractions({
       show(lastSnap);
     }
     if (epoch !== current().epoch || tool !== current().tool) {
+      clearSelectionBox();
       epoch = current().epoch;
       tool = current().tool;
       drag = undefined;
@@ -1618,6 +1651,7 @@ export function installInteractions({
     }
     pointers.add(event.pointerId);
     if (pointers.size > 1) {
+      clearSelectionBox();
       cancelDetailDrag();
       if (dimensionSession) {
         dimensionSession = undefined;
@@ -1999,6 +2033,15 @@ export function installInteractions({
       extendSelection:
         props.tool === 'select' && (event.shiftKey || event.ctrlKey || event.metaKey),
     };
+    if (props.tool === 'select') {
+      const rect = canvas.getBoundingClientRect();
+      selectionBounds = projectSelectionBounds(
+        props.meshes.filter((m) => !props.editingBodyId || m.id === props.editingBodyId),
+        camera(),
+        rect.width,
+        rect.height,
+      );
+    }
     if (props.tool === 'rectangle')
       props.onGesture({
         type: 'rectangle',
@@ -2091,6 +2134,12 @@ export function installInteractions({
     }
     if (props.tool === 'offset' && offsetSession) {
       updateOffset(event);
+      return;
+    }
+    if (props.tool === 'select' && drag?.moved) {
+      boxSelection(event);
+      highlightFace();
+      show();
       return;
     }
     if (props.tool === 'select' || props.tool === 'offset') {
@@ -2251,6 +2300,7 @@ export function installInteractions({
     }
   };
   const up = (event: PointerEvent) => {
+    if (event.button !== 0) return;
     const props = current(),
       active = drag;
     if (dimensionPress && event.pointerId === dimensionPress.id) {
@@ -2325,6 +2375,13 @@ export function installInteractions({
       } else if (props.tool === 'boolean' && !moved) {
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
+      } else if (props.tool === 'select' && moved) {
+        const ids = boxSelection(event);
+        clearSelectionBox();
+        props.onSelectMany(
+          ids,
+          !!active.extendSelection || event.shiftKey || event.ctrlKey || event.metaKey,
+        );
       } else if (props.tool === 'select' && !moved) {
         // Remember modifiers from press time too: releasing Shift just before the
         // mouse button must not replace the selection the user was extending.
@@ -2377,12 +2434,14 @@ export function installInteractions({
       cancelDetailDrag();
       show();
     }
+    clearSelectionBox();
     pointers.delete(event.pointerId);
     drag = undefined;
     rotationDrag = undefined;
     if (!pointers.size) blocked = false;
   };
   const cancel = (event: PointerEvent) => {
+    clearSelectionBox();
     cancelDetailDrag();
     if (dimensionSession) {
       dimensionSession = undefined;
@@ -2490,6 +2549,7 @@ export function installInteractions({
     }
   };
   const blur = () => {
+    clearSelectionBox();
     cancelDetailDrag();
     if (dimensionSession) {
       dimensionSession = undefined;
@@ -2565,6 +2625,7 @@ export function installInteractions({
       window.removeEventListener('keyup', keyup);
       window.removeEventListener('blur', blur);
       hint.remove();
+      selectionBox.remove();
       scene.remove(overlay);
       overlay.traverse((o) => {
         if (o instanceof THREE.Mesh || o instanceof THREE.Line) {

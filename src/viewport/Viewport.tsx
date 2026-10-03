@@ -623,6 +623,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       return;
     }
     const body = current().preview;
+    renderer.domElement.dataset.shapePreview =
+      body && ['rectangle', 'circle'].includes(current().tool) ? 'true' : 'false';
     if (body) {
       const constructionLine = body.purpose === 'construction' && !featureIsSolid(body.feature);
       const { width, depth, height } = body.feature;

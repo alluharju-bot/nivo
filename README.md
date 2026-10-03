@@ -3,16 +3,26 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.9.0** tuo muokattavat viisteet ja pyöristykset, kahden pisteen
-mitoituksen sekä 27 materiaalipresettiä ja tekstuurien suoran sijoittelun.
-Siirron lähtö- ja kohdetartunnat käyttävät samaa poimintaa. Geometriaan
-osuva tartunta säilyttää tarkan koordinaatin; ruudukon askeleen voi vaihtaa.
-Sisäkkäiset ryhmät, yhteinen siirto/kopiointi, osan muokkaustila ja pysyvä
-Peru/Palauta-historia ovat käytössä kuten aiemmin.
+Versio **0.10.0** selkeyttää työkalupalkin ja mittakuvan, lisää laatikkovalinnan,
+PDF-viennin, levyrungon rakentajan, osaluettelon ja räjäytyskuvan. Renderöinnissä on 30 materiaalipresettiä,
+valaisevat pinnat, spotit, tarkentuva esikatselu ja mallinnuksen aikana valmistuva path tracing -kuva.
+Tarkat CAD-työkalut, tartunnat, tekstuurien sijoittelu, ryhmät ja pysyvä
+Peru/Palauta-historia säilyvät.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
 ![Kaapin materiaalit studiovalaistuksessa](docs/images/nivo-finished-cabinet.png)
+
+## Testaa selaimessa
+
+[**Avaa Nivon beta**](https://alluharju-bot.github.io/nivo/). Käyttäjätiliä tai asennusta ei tarvita.
+Aloita esimerkkikaapista tai valitse **Muodot → Levyrunko**. Kokeile osan valintaa,
+siirtoa (M), pinnan muokkausta (E), mittakuvaa ja **Osat**-näkymää.
+
+Tallennus on selain- ja laitekohtainen. Lataa `.nivo`-tiedosto yläpalkin
+Tallenna-painikkeesta, kun haluat siirtää mallin toiselle käyttäjälle tai laitteelle.
+Paikallisen osoitteen ja betaosoitteen tallennukset ovat erillisiä.
+Sovellus ei lähetä malleja palvelimelle.
 
 ## Käynnistä
 
@@ -69,7 +79,7 @@ kuvatekstuurin. [Avattava .nivo-esimerkki](public/examples/viimeistelty-kaappi.n
 
 ## Työtila ja kopiointi
 
-Yksi 60 px yläpalkki sisältää Nivon, **Malli / Mittakuva / Renderöi** -vaihdon, projektin
+Yksi 60 px yläpalkki sisältää Nivon, **Malli / Mittakuva / Renderöi / Osat** -vaihdon, projektin
 nimen ja tallennustilan, tiedostopainikkeet, historian, asetukset ja avun.
 **Siirry koko näyttöön** piilottaa selaimen palkit. Sama painike tai Esc palauttaa
 tavallisen ikkunan. Kapealla näytöllä tiedostot ja muut lisätoiminnot avataan
@@ -200,7 +210,7 @@ etäisyys lähtöreunasta; vapaa mittaviiva mittaa päätepisteiden välin.
 
 **Renderöi** avaa esitysnäkymän. Valitse yksi osa, mallin valinta tai kaikki
 näkyvät osat. Materiaaliryhmistä löytyvät kuusi puuta, neljä metallia, kolme
-lasia, neljä muovia, neljä kiveä, kolme posliinia ja kolme kalustepintaa.
+lasia, neljä muovia, neljä kiveä, kolme posliinia, kolme kalustepintaa ja kolme LED-valoa.
 Kuviot toimitetaan paikallisesti; eri puu- ja kivilajeilla on omat kuviot.
 Väri, karheus, metallisuus, läpäisevyys ja pinnoite ovat säädettävissä.
 Oman materiaalin voi tallentaa projektin materiaalikirjastoon.
@@ -217,12 +227,12 @@ mutta osien sijoittelut ovat itsenäisiä.
 Oikea painike kiertää kohdistimen alla olevan pinnan ympäri ja rulla zoomaa
 kohdistimeen myös tekstuuria muokattaessa. Valitse Studio, Lämmin tai Tumma
 valaistus sekä valotus ja varjot. **Tallenna PNG** vie nykyisen kameran kuvan
-1600 tai 2400 pikselin levyisenä. Hold säilyy mallissa, mutta sen korostus,
+800, 1600 tai 2400 pikselin levyisenä. Hold säilyy mallissa, mutta sen korostus,
 rakennusmuodot, apuviivat ja valintakahvat eivät tule esityskuvaan.
 
 ![Paikalliset materiaalinäytteet](docs/images/nivo-material-catalog.png)
 
-Tämä on WebGL-esityskuva. Säteenjäljitys, omat valaistusympäristöt ja erillinen
+Nopea esikatselu ja valinnainen tarkentuva path tracing käyttävät WebGL2:ta. Omat valaistusympäristöt ja erillinen
 UV-saarekkeiden editori ovat jatkotyötä. Kuviointi käyttää kappaleen omaan
 koordinaatistoon sidottua kolmen suunnan projektiota ja pehmeää saumasekoitusta.
 
@@ -479,12 +489,55 @@ npx playwright install chromium
 npm run test:e2e
 npm run build
 NIVO_PREVIEW=1 npm run test:e2e
+# GitHub Pagesin /nivo/-polun tuotantotarkistus:
+NIVO_BASE_PATH=/nivo/ npm run build
+NIVO_BASE_PATH=/nivo/ NIVO_PREVIEW=1 npm run test:e2e
 npm run format:check
 ```
 
 Geometriatestit käyttävät oikeaa WASM-ydintä. Selaintestit kattavat työpöytäkoon
 ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testattu.
 [Testiraportti](docs/validation.md) kuvaa tarkistukset ja rajat.
+
+## V0.10:n työnkulut
+
+![Levyrungon esikatselu ja mitat](docs/images/nivo-cabinet-builder.png)
+
+- **Muodot** avaa suorakulmion, ympyrän, ellipsin ja monikulmion. Valitse työkalu,
+  napsauta alkupiste ja napsauta loppupiste tai vedä muoto. Työkalun valinta ei
+  piirrä oletuskokoista muotoa. Numerosyöttö ja pikanäppäimet säilyvät.
+- **Valitse (V)**: vedä laatikko mistä tahansa näkymän kohdasta. Kokonaan laatikon
+  sisään jäävät osat valitaan. Shift lisää laatikon osat aiempaan valintaan;
+  Shift-klikkaus lisää tai poistaa yksittäisen osan. M siirtää valinnan.
+- **Mittakuva**: valitse kohde, näkymä ja Lisää kokonaismitat tai Lisää mitta.
+  Kahden pisteen mitta poimitaan suoraan piirroksesta ja sijoitetaan kolmannella
+  napsautuksella. Mitan suunnaksi voi valita vaaka-, pysty- tai pistevälimitan.
+  Itse lisättyä mittaviivaa voi siirtää vetämällä; Esc peruu ja Peru palauttaa. Vie PDF tai SVG. Arkin asetuksissa automaattinen/manuaalinen
+  mittakaava ja piiloviivat. Tulosta 100 % koossa.
+- **Renderöi**: Materiaali, Valo ja Kuva jakavat asetukset. Valot-materiaaliryhmässä
+  on kolme LED-presettiä. Valo-välilehdessä osan voi muuttaa valaisevaksi pinnaksi
+  tai suunnatuksi spotiksi. Pinnan valo valaisee ympäristöä Tarkentuvassa tilassa.
+  Kuva-välilehden Tarkentuva laskee lisää näytteitä paikallaan pysyvään kuvaan;
+  laskennan voi tauottaa. Kuvakulman/materiaalin muutos aloittaa kertymän alusta.
+  Esikatselun Kevyt/Täysi ja näytetavoite säätelevät kuormaa. Tavoitteen saavuttaminen
+  pysäyttää laskennan; näkymän muuttaminen käynnistää sen uudelleen.
+  **Kuvan laskenta → Tarkka → Laske tarkka kuva** ottaa tilannekuvan nykyisestä
+  mallista, materiaaleista ja kamerasta. Valitse 800/1 600/2 400 px ja 8–1 024 näytettä.
+  Voit palata malliin kuvan valmistuessa. Tilakortista näet etenemisen, keskeytät
+  tai lataat valmiin PNG:n. Työ ei säily sivun päivityksen tai sulkemisen yli.
+  Nopea esikatselu tallentuu heti. Valo → Studion säädöt: suunta, valo- ja
+  ympäristövoimakkuus sekä lattian näkyvyys.
+- **Osat**: automaattinen osaluettelo ja numeroitu räjäytyskuva. Valitse kokoonpano,
+  säädä räjäytystä, vie CSV/PNG. Yksi mallinnettu kiinteä kappale on yksi osa.
+  Ulkomitat ovat maailman X/Y/Z-mittoja. Sahauslista valmistusvaroineen on jatkotyötä.
+- **Muodot → Levyrunko**: anna leveys, syvyys, korkeus ja levypaksuus. Valitse
+  kannen/pohjan liitos sivuihin, taustan sijainti ja paksuus sekä hyllyjen määrä.
+  Voit lisätä yksi- tai parioven rakoineen. Esikatselu näyttää tuloksen ennen hyväksyntää.
+  Hyväksyminen luo nimetyn ryhmän ja erilliset muokattavat levykomponentit yhdellä
+  Peru-askeleella. Valittu osa antaa aloitusmitat ja sijainnin; erillinen
+  Korvaa lähtöosa -valinta korvaa sen levyillä. Hold suojaa korvaamiselta.
+  Ovet tulevat rungon eteen ja lisäävät kokonaissyvyyttä levypaksuuden verran.
+  Liitoksia, helaporauksia, sahausvaroja ja materiaalisuuntaa ei päätellä.
 
 ## Rajaus ja jatko
 
@@ -499,10 +552,10 @@ Join siirtää säilyvät lähdeviitteet tuloskappaleeseen. Siirtyvien tai muutt
 topologiakohteiden yleinen nimeäminen on jatkotyötä.
 Mesh-tuonti, layerit, linkitetyt
 komponentit, referenssikuvan kalibrointi ja tallennetut kamerat
-sekä PDF-, STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
+sekä STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
 
-Piirustus sisältää yhden ortografisen näkymän, osien kokonaismittoja ja näkymään sopivat kahden pisteen mitat. Monien
-mittaviivojen sijoittelu, useat näkymät ja leikkaukset kuuluvat vaiheeseen 6.
+Piirustus sisältää yhden ortografisen näkymän, osien kokonaismittoja ja näkymään sopivat kahden pisteen mitat. Automaattisten kokonaismittojen vapaa
+sijoittelu, useat näkymät ja leikkaukset kuuluvat vaiheeseen 6.
 **Käytettävyys ja perustyökalut ovat seuraavien vaiheiden etusijalla.**
 Layerit ja linkitetyt komponentit seuraavat toimivaa mallinnuksen perustaa.
 

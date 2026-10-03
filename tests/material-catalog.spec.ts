@@ -3,7 +3,7 @@ import { makeBody } from '../src/model/project';
 import { materialPresets, defaultAppearance } from '../src/model/materials';
 import { ready } from './helpers';
 
-test('all 27 local material presets render together without GPU errors', async ({ page }, info) => {
+test('all 30 local material presets render together without GPU errors', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -16,7 +16,7 @@ test('all 27 local material presets render together without GPU errors', async (
   }));
   await ready(page, bodies);
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
-  await expect(page.getByTestId('render-canvas')).toHaveAttribute('data-body-count', '27');
+  await expect(page.getByTestId('render-canvas')).toHaveAttribute('data-body-count', '30');
   await page.screenshot({ path: info.outputPath('material-catalog.png') });
   expect(errors).toEqual([]);
 });

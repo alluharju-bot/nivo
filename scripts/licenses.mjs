@@ -1,4 +1,11 @@
-import { readFileSync, readdirSync, copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+  readFileSync,
+  readdirSync,
+  copyFileSync,
+  mkdirSync,
+  writeFileSync,
+  existsSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 const output = 'public/licenses';
@@ -42,6 +49,8 @@ function collect(name) {
     `${name} ${pkg.version}: ${pkg.license ?? 'See package license'} (${license.map((f) => `${stem}-${f}`).join(', ')})`,
   );
   for (const dependency of Object.keys(pkg.dependencies ?? {})) collect(dependency);
+  for (const dependency of Object.keys({ ...pkg.peerDependencies, ...pkg.optionalDependencies }))
+    if (existsSync(join('node_modules', dependency, 'package.json'))) collect(dependency);
 }
 for (const dependency of Object.keys(app.dependencies)) collect(dependency);
 writeFileSync(join(output, 'NOTICE.txt'), `${lines.join('\n')}\n`);

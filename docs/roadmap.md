@@ -119,7 +119,7 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
 - Kolme studioympäristön sävyä, valotus, varjot ja PNG-vienti nykyisestä kamerasta
   1 600 tai 2 400 pikselin leveydellä. Materiaalit ja valoasetukset tallentuvat.
 - Omat tekstuurit ja syysuunnan/skaalan säätö valmistuivat v0.9.0:ssa. Jatkokehitys: tallennetut kamerat,
-  valaisimet ja emissio, laatutasot ja säteenjäljitys.
+  omat valaistusympäristöt ja kohinanpoisto. Emissio, spotit ja progressiivinen path tracing valmistuivat v0.10:ssä.
 
 | Vaihe | Tila                 | Sisältö                                                                                                                         |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -127,9 +127,9 @@ Muokkaustila, rajauksen poisto ja tallentuva palautushistoria on toteutettu.
 | 1     | Työnkulku toteutettu | Suorakulmio → push/pull → valinta/siirto ja tartunnat → etukuva ja mitta → projektitiedosto/SVG, tallennus, historia, kosketus. |
 | 2     | Osin toteutettu      | Sisäkkäiset ryhmät, nimet, näkyvyys, Hold ja ryhmäkopiointi tehty. Layerit ja linkitetyt komponentit myöhemmin.                 |
 | 3     | Osin toteutettu      | Pintaan piirtäminen, leikkaukset, booleanit, viisteet, pyöristykset, offset, muut piirtotyökalut ja mesh-muokkaus.              |
-| 4     | Osin toteutettu      | 27 presettiä, omat tekstuurit ja pintasijoittelu tehty. Emissio ja UV-saarekkeet myöhemmin.                                     |
+| 4     | Osin toteutettu      | 30 presettiä, tekstuurit, pintasijoittelu ja emissio tehty. UV-saarekkeet myöhemmin.                                            |
 | 5     | Osin toteutettu      | Studiovalaistus, esitysnäkymä ja PNG-vienti tehty. Tallennetut scenet ja kamerat myöhemmin.                                     |
-| 6     | Suunniteltu          | Laaja mitoitus, arkit, PDF, useat näkymät ja leikkaukset. HLR/SVG-perusta on jo toteutettu.                                     |
+| 6     | Osin toteutettu      | A4, CAD-poiminta, PDF/SVG toteutettu. Useat näkymät ja leikkaukset myöhemmin.                                                   |
 | 7     | Suunniteltu          | Fyysisen tabletin työnkulut, suorituskyky, valinnan hienosäätö ja resurssibudjetit.                                             |
 
 Jokainen vaihe pysyy ajettavana. Uusi toteutus ei saa rikkoa aiempien projektien
@@ -432,3 +432,63 @@ käsittelyn poistaminen ja uudelleenavaus toimivat samalla esimerkkiosalla
 ilman geometriavirheitä tai aikaisempien muutosten katoamista. Jos ensimmäinen
 CAD-varmennus paljastaa ytimen rajoitteen, ongelma rajataan testillä ja
 toimiva soveltuvuusalue kirjataan ennen käyttöliittymän lupausten laajentamista.
+
+## V0.10: nopeus, selkeys ja ensimmäinen jaettava beta
+
+- Työkalupalkin työpöytäversio on tiivis; kosketukselle suuremmat osumat.
+  Muodot ovat yhdessä valitsimessa, Push/pull heti Valitse-työkalun jälkeen.
+  Muototyökalun aktivointi odottaa käyttäjän alkupistettä ilman oletusesikatselua.
+- Valitse-tilan laatikkovalinta ottaa kokonaan ruudulla rajauksen sisään jäävät
+  osat, myös toisten osien takana. Shift lisää joukkoon. Klikkaus ja Shift-klikkaus
+  säilyvät. Muokkaustilan rajausta ja piilotuksia noudatetaan.
+- Mittakuvalla on oma työtila: kohde (valinta, osa, ryhmä, näkyvä malli), näkymä,
+  kahden pisteen mitat suoraan CAD-pisteistä/reunoista, kokonaismitat ja vienti.
+  Arkin automaattinen sovitus, A4-vektori-PDF ja SVG. Mallinnustyökalut eivät
+  näy mittakuvan työtilassa. Mittamerkintä ei muuta mallin geometriaa.
+- Esityskuvan asetukset: Materiaali / Valo / Kuva. Kolme LED-materiaalia nostaa
+  presetit 30:een. Osakohtainen emissio, spotin suunta, keilakulma, väri ja voimakkuus.
+- Valinnainen progressiivinen path tracing, näytemäärä, tauko/jatkaminen ja nykyisen
+  kuvan PNG. Kameran tai materiaalin muutos aloittaa kertymän uudelleen.
+  Esikatselu laskee renderöintinäkymässä. Erillinen kuvatyö jatkuu mallinnustilassa;
+  selaimen sulkemisen yli säilyvää työjonoa ei ole,
+  Blender Cyclesin koko ominaisuusvalikoimaa eikä kohinanpoistoa. Rasteriesikatselu
+  säilyy oletuksena. Fyysisen iPadin GPU-/muistirajat varmennetaan erikseen.
+- Osat-työtila muodostaa luettelon erillisistä kiinteistä malliosista ja ryhmistä.
+  Numeroitu, säädettävä räjäytyskuva, CSV ja PNG. Piilotetut kokoonpanon osat ovat
+  mukana luettelossa. Räjäytyksen siirtymät eivät muuta projektia tai mittoja.
+- GitHub Pages -työnkulku testaa ja paketoi `/nivo/`-polkuun. Selainkohtainen
+  paikallistallennus ja `.nivo`-tiedostot säilyvät; ei pilvisynkronointia.
+
+### Toteutettu: levyrunko. Seuraavaksi valmistuslista
+
+Automaattinen luettelo on luotettava vain, jos valmistettavat osat ovat erillisiä.
+Yksi ontoksi työstetty BRep on yksi osa. Sen pintoja ei lasketa erillisiksi levyiksi.
+**Muodot → Levyrunko** on valinnainen toiminto:
+
+1. Käyttäjä valitsee kaapin ulkomitat ja levypaksuuden.
+2. Hän valitsee kannen/pohjan suhteen sivuihin (välissä tai päällä/alla).
+3. Tausta valitaan: ei taustaa, päällä, upotettu; lisäksi paksuus ja upotus.
+4. Esikatselu näyttää nimettyinä sivut, kannen, pohjan ja taustan. Hyväksyntä
+   luo erilliset levyt ryhmään yhtenä peruttavana toimintona.
+5. Valinnaiset tasavälein jaetut hyllyt sekä yksi- tai pariovi rakoineen sisältyvät
+   esikatseluun. Rakenteellinen liitos on puskuliitos; porauksia ja heloja ei lisätä.
+
+Valitusta osasta voi ottaa mitat ja sijainnin. Lähtöosa säilyy oletuksena;
+Korvaa lähtöosa -valinta korvaa sen hyväksynnässä. Korvaus ja alkuperäiset
+mittaviitteet palautuvat yhdellä Perulla. Työkalu ei päättele liitoksia BRepin pinnoista. Tulevaa valmistuslistaa varten sahattavat mitat tulee johtaa osan paikallisesta
+valmistuskehyksestä; kiertyneen kappaleen maailman X/Y/Z-rajat eivät ole sahausmittoja.
+Materiaali, syysuunta, reunalistat, koneistukset ja toistuvien osien luotettava
+ryhmittely kuuluvat valmistuslistaan. Nykyinen CSV ilmoittaa ulkomitat, ei sahausmittoja.
+
+Muut seuraavat käytettävyyskohteet: ensimmäisen testaajan havainnot, yhtenäinen
+hyväksymis-/peruutuslogiikka kaikissa työkaluissa, useat mittakuvan näkymät ja
+leikkaukset, kalibroitava referenssikuva sekä linkitetyt komponentit.
+
+### Laajan passin renderöintilisäykset
+
+Kevyt/täysi esikatselu, pysäyttävä näytetavoite ja kameran vaihdon automaattinen
+uudelleenaloitus. Erillinen PNG-laskenta ottaa materiaalien, geometrian ja kameran
+tilannekuvan omalle renderöijälle. Käyttäjä voi palata malliin, muokata sitä ja
+ladata valmiin kuvan tilakortista. Työ voidaan keskeyttää. Välilehden on pysyttävä
+auki; taustalle piilotettu selain voi keskeyttää laskennan tilapäisesti.
+Studion valoille suunta ja voimakkuus, ympäristövalon voimakkuus ja lattian näkyvyys.

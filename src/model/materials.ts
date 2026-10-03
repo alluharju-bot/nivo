@@ -14,6 +14,16 @@ export const appearanceSchema = z.object({
   metalness: z.number().min(0).max(1).optional(),
   transmission: z.number().min(0).max(1).optional(),
   clearcoat: z.number().min(0).max(1).optional(),
+  emission: z
+    .object({
+      enabled: z.boolean(),
+      type: z.enum(['surface', 'spot']),
+      color: z.string().regex(/^#[0-9a-f]{6}$/i),
+      intensity: z.number().min(0).max(100),
+      angle: z.number().min(5).max(160),
+      direction: z.enum(['x', '-x', 'y', '-y', 'z', '-z']),
+    })
+    .optional(),
   texture: texturePlacementSchema,
 });
 export const assetSchema = z.object({
@@ -55,6 +65,7 @@ export type MaterialPreset = {
   pattern?:
     'oak' | 'walnut' | 'birch' | 'pine' | 'brushed' | 'granite' | 'marble' | 'slate' | 'travertine';
   seed?: number;
+  emission?: number;
 };
 const wood = (
   id: string,
@@ -265,6 +276,33 @@ export const materialPresets: MaterialPreset[] = [
     metalness: 0,
     clearcoat: 0.35,
   },
+  {
+    id: 'led-warm',
+    name: 'LED · lämmin valkoinen',
+    category: 'Valot',
+    color: '#ffce8d',
+    roughness: 0.4,
+    metalness: 0,
+    emission: 8,
+  },
+  {
+    id: 'led-neutral',
+    name: 'LED · neutraali valkoinen',
+    category: 'Valot',
+    color: '#fff2df',
+    roughness: 0.4,
+    metalness: 0,
+    emission: 8,
+  },
+  {
+    id: 'led-cool',
+    name: 'LED · viileä valkoinen',
+    category: 'Valot',
+    color: '#d4e7ff',
+    roughness: 0.4,
+    metalness: 0,
+    emission: 8,
+  },
 ];
 export const legacyPresets: MaterialPreset[] = [
   {
@@ -294,3 +332,16 @@ export const defaultAppearance = (preset = 'matte'): Appearance => ({
   preset,
   texture: { ...textureDefaults },
 });
+export function emissionSettings(appearance: Appearance, color: string) {
+  const preset = findPreset(appearance.preset);
+  return (
+    appearance.emission ?? {
+      enabled: !!preset.emission,
+      type: 'surface' as const,
+      color: preset.emission ? preset.color : color,
+      intensity: preset.emission ?? 8,
+      angle: 45,
+      direction: '-z' as const,
+    }
+  );
+}

@@ -47,6 +47,7 @@ test('type directly, Tab cycles dimensions, Enter and drag release commit exactl
   page,
 }) => {
   await ready(page);
+  await page.getByRole('button', { name: 'Muodot', exact: true }).click();
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).click();
   await page.keyboard.type('635');
   await expect(page.getByTestId('width-input')).toHaveValue('635');
@@ -58,6 +59,7 @@ test('type directly, Tab cycles dimensions, Enter and drag release commit exactl
   expect(model.bodies[0].feature.width).toBe(635);
   expect(model.bodies[0].feature.depth).toBe(417);
   const point = await top(page, model.bodies);
+  await page.getByRole('button', { name: 'Muodot', exact: true }).click();
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).click();
   const a = point(700, 400),
     b = point(800, 300);
@@ -232,6 +234,7 @@ test('tablet picks a reference without a keyboard and two-finger navigation neve
   await page.touchscreen.tap(center.x, center.y);
   await expect(page.getByTestId('reference-lock')).toContainText('Kappaleen keskipiste');
   await page.getByRole('button', { name: 'Peruuta', exact: true }).tap();
+  await page.getByRole('button', { name: 'Muodot', exact: true }).tap();
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).tap();
   const cdp = await context.newCDPSession(page),
     a = point(50, 50),

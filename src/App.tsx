@@ -1,15 +1,11 @@
 import { isPointDimension, type PointDimension } from './model/project';
+import { CabinetBuilder } from './ui/CabinetBuilder';
+import { insertCabinet } from './model/cabinet';
+import { useRenderJob } from './render/useRenderJob';
+import { RenderJobCard } from './ui/RenderJobCard';
 import { dimensionBodyIds } from './model/dimensions';
 import { flushSync } from 'react-dom';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowDownToLine,
   Eraser,
@@ -69,8 +65,9 @@ import { GroupActions } from './ui/GroupActions';
 import { Viewport, type CameraCommand, type Tool } from './viewport/Viewport';
 import { RenderStage } from './render/RenderStage';
 import { renderDefaults } from './render/scene';
-import { DrawingPanel } from './drawing/DrawingPanel';
-import { recommendedScale, type Sheet } from './drawing/svg';
+import { DrawingWorkspace } from './drawing/DrawingWorkspace';
+import { ToolRail } from './ui/ToolRail';
+import { PartsWorkspace } from './ui/PartsWorkspace';
 import { useEditor } from './useEditor';
 import {
   cabinetProject,
@@ -95,7 +92,7 @@ import {
 import { formatLength, parseLength } from './model/units';
 import { addBodyDimensions } from './model/dimensions';
 import { downloadFile, safeFilename } from './storage/projects';
-import type { DrawingView, FaceTarget, FaceSpan } from './cad/protocol';
+import type { FaceTarget, FaceSpan } from './cad/protocol';
 import {
   extrusionDistance,
   distanceToSize,
@@ -174,11 +171,27 @@ const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = 
   },
   { id: 'move', label: 'Siirrä', icon: <Move3D />, shortcut: 'M' },
   { id: 'pen', label: 'Kynä', icon: <Pencil />, shortcut: 'K' },
-  { id: 'erase', label: 'Poista rajaus', icon: <Eraser />, shortcut: 'U' },
+  { id: 'erase', label: 'Kumita', icon: <Eraser />, shortcut: 'U' },
   { id: 'boolean', label: 'Muotoile', icon: <Scissors />, shortcut: 'B' },
   { id: 'measure', label: 'Mittatyökalu', icon: <Ruler />, shortcut: 'T' },
   { id: 'navigate', label: 'Navigoi', icon: <Hand />, shortcut: 'H' },
 ];
+const toolOrder: Tool[] = [
+  'select',
+  'extrude',
+  'pen',
+  'erase',
+  'move',
+  'rotate',
+  'offset',
+  'detail',
+  'boolean',
+  'measure',
+  'navigate',
+  'rectangle',
+  'circle',
+];
+tools.sort((a, b) => toolOrder.indexOf(a.id) - toolOrder.indexOf(b.id));
 const instructions: Record<Tool, string> = {
   detail:
     'F · Napsauta reunat tai vedä reunasta säätääksesi kokoa. Kirjoita tarkka mitta. Vapautus tai Enter hyväksyy, Esc peruu.',
@@ -189,7 +202,7 @@ const instructions: Record<Tool, string> = {
   offset:
     'O · Osoita pintaa ja liikuta hiirtä tai vedä pinnasta. Kirjoita tarkka mitta. Klikkaus, vapautus tai Enter hyväksyy. Esc peruu.',
   select:
-    'Klikkaus valitsee osan. Shift+klikkaus lisää tai poistaa valinnasta; M siirtää valitut. Tuplaklikkaus avaa osan muokattavaksi. E/O muokkaa osoitettua pintaa.',
+    'Klikkaus valitsee osan. Vedä laatikko valitaksesi sen sisällä olevat osat. Shift lisää valintaan; M siirtää valitut. Tuplaklikkaus avaa osan muokattavaksi. E/O muokkaa osoitettua pintaa.',
   rectangle:
     'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. Myös veto tai numerosarja X → Tab → Y toimii. Enter hyväksyy.',
   circle:
@@ -332,6 +345,9 @@ export default function App() {
   const [selectedFace, setSelectedFace] = useState<FaceRef>();
   const [tool, setTool] = useState<Tool>('select');
   const [renderOpen, setRenderOpen] = useState(false);
+  const [partsOpen, setPartsOpen] = useState(false);
+  const [cabinetOpen, setCabinetOpen] = useState(false);
+  const renderJob = useRenderJob();
   const [mode, setMode] = useState<'model' | 'drawing'>('model');
   const [fields, setFields] = useState<Fields>(defaults);
   const fieldsRef = useRef(fields);
@@ -354,10 +370,6 @@ export default function App() {
   const [projection, setProjection] = useState<'perspective' | 'orthographic'>('perspective');
   const [view, setView] = useState<View>('iso');
   const [cameraCommand, setCameraCommand] = useState<CameraCommand>();
-  const [drawingView, setDrawingView] = useState<DrawingView>('front');
-  const [scale, setScale] = useState(5);
-  const [hidden, setHidden] = useState(false);
-  const [sheet, setSheet] = useState<Sheet>();
   const [panelOpen, setPanelOpen] = useState(true);
   const [help, setHelp] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -542,6 +554,9 @@ export default function App() {
   };
   const field = (key: string, value: string) => {
     gestureActive.current = true;
+    // An intentional dimension edit is a numeric start; merely choosing the tool is not.
+    if (awaitingStart && ['rectangle', 'circle'].includes(tool) && ['width', 'depth'].includes(key))
+      setAwaitingStart(false);
     if (tool === 'detail' && key === 'offset') editor.setError('');
     if (tool === 'extrude' && (key === 'height' || key === 'remaining')) {
       if (key === 'height' && /^[+-]/.test(value.trim())) {
@@ -774,6 +789,7 @@ export default function App() {
   };
   const begin = (next: Tool) => {
     if (busy) return;
+    setPartsOpen(false);
     if (editingBodyId && next === 'boolean') {
       editor.setMessage('Päätä osan muokkaus ennen usean kappaleen Cut/Join-toimintoa.');
       return;
@@ -783,7 +799,7 @@ export default function App() {
       return;
     }
     resetGesture();
-    setAwaitingStart(false);
+    setAwaitingStart(['rectangle', 'circle'].includes(next));
     setTool(next);
     if (!['select', 'move', 'rotate'].includes(next)) setSelectedGroupId(undefined);
     setMode('model');
@@ -1921,6 +1937,7 @@ export default function App() {
       setSurfaceMode('new');
       finishOperation();
       setMode('model');
+      setPartsOpen(false);
       setRenderOpen(false);
     }
   };
@@ -1935,6 +1952,7 @@ export default function App() {
       setSurfaceMode('new');
       finishOperation();
       setMode('model');
+      setPartsOpen(false);
       setRenderOpen(false);
       changeView('iso');
     }
@@ -1953,6 +1971,7 @@ export default function App() {
         setSurfaceMode('new');
         finishOperation();
         setMode('model');
+        setPartsOpen(false);
         setRenderOpen(false);
         changeView('iso');
       }
@@ -1963,14 +1982,15 @@ export default function App() {
   const importProject = async (file?: File) => {
     if (!file) return;
     try {
-      if (file.size > 10_000_000)
-        throw new Error('Projektitiedosto on liian suuri (enintään 10 Mt).');
+      if (file.size > 64 * 1024 * 1024)
+        throw new Error('Projektitiedosto on liian suuri (enintään 64 MiB).');
       const loaded = parseProject(await file.text());
       if (await editor.transact(loaded, 'Projekti avattu.')) {
         setEditingBodyId(undefined);
         setSurfaceMode('new');
         finishOperation();
         setMode('model');
+        setPartsOpen(false);
         setRenderOpen(false);
         changeView('iso');
       }
@@ -1980,6 +2000,7 @@ export default function App() {
     if (fileInput.current) fileInput.current.value = '';
   };
   const openRender = () => {
+    setPartsOpen(false);
     resetGesture();
     setEditingBodyId(undefined);
     setSurfaceMode('new');
@@ -1987,12 +2008,14 @@ export default function App() {
     setRenderOpen(true);
   };
   const closeRender = () => {
+    setPartsOpen(false);
     resetGesture();
     setRenderOpen(false);
     setMode('model');
     setTool('select');
   };
   const openDrawing = () => {
+    setPartsOpen(false);
     setRenderOpen(false);
     resetGesture();
     setEditingBodyId(undefined);
@@ -2000,21 +2023,6 @@ export default function App() {
     setTool('select');
     setMode('drawing');
     setTab('dimensions');
-    setScale(recommendedScale(project, drawingView));
-  };
-  const addDimension = async (axis: Axis) => {
-    if (!body) return;
-    if (
-      project.dimensions.some(
-        (d) => !isPointDimension(d) && d.bodyId === body.id && d.axis === axis,
-      )
-    ) {
-      editor.setMessage('Tämä mitta on jo lisätty.');
-      return;
-    }
-    const next = addBodyDimensions(project, [body.id], [axis]);
-    if (await editor.transact(next, 'Malliin liittyvä mitta lisätty.'))
-      setScale((current) => Math.max(current, recommendedScale(next, drawingView)));
   };
   const dimensionSelection = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
@@ -2026,11 +2034,8 @@ export default function App() {
     }
     if (await editor.transact(next, 'Kokonaismitat lisätty 3D-näkymään ja mittakuvaan.')) {
       setTab('dimensions');
-      if (mode === 'drawing')
-        setScale((current) => Math.max(current, recommendedScale(next, drawingView)));
     }
   };
-  const onSheet = useCallback((sheet?: Sheet) => setSheet(sheet), []);
 
   useEffect(() => {
     if (!editNotice) return;
@@ -2065,9 +2070,9 @@ export default function App() {
   // a redo pressed immediately after undo renders the new object list.
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
+      if (event.defaultPrevented || cabinetOpen) return;
       if (event.key === 'Escape') {
-        if (renderOpen) {
+        if (renderOpen || partsOpen || mode === 'drawing') {
           closeRender();
           return;
         }
@@ -2095,7 +2100,7 @@ export default function App() {
         else void editor.undo();
         return;
       }
-      if (renderOpen) return;
+      if (renderOpen || partsOpen || mode === 'drawing') return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (
         awaitingStart &&
@@ -2279,18 +2284,21 @@ export default function App() {
           }}
           aria-label="Tietoa Nivosta"
         >
-          <img src="/nivo.svg" alt="" />
+          <img src={`${import.meta.env.BASE_URL}nivo.svg`} alt="" />
           <span>
             nivo<span className="brand-dot">.</span>
           </span>
         </a>
         <div className="mode-switch" aria-label="Työtila">
-          <button aria-pressed={!renderOpen && mode === 'model'} onClick={closeRender}>
+          <button
+            aria-pressed={!renderOpen && !partsOpen && mode === 'model'}
+            onClick={closeRender}
+          >
             <Box size={16} />
             Malli
           </button>
           <button
-            aria-pressed={!renderOpen && mode === 'drawing'}
+            aria-pressed={!renderOpen && !partsOpen && mode === 'drawing'}
             disabled={!project.bodies.length || busy}
             onClick={openDrawing}
           >
@@ -2300,6 +2308,21 @@ export default function App() {
           <button aria-pressed={renderOpen} disabled={!ready || busy} onClick={openRender}>
             <Camera size={16} />
             Renderöi
+          </button>
+          <button
+            aria-pressed={partsOpen}
+            disabled={!ready || busy || !project.bodies.length}
+            onClick={() => {
+              resetGesture();
+              setEditingBodyId(undefined);
+              setPartsOpen(false);
+              setRenderOpen(false);
+              setPartsOpen(true);
+              setTool('select');
+            }}
+          >
+            <Layers2 size={16} />
+            Osat
           </button>
         </div>
 
@@ -2390,136 +2413,143 @@ export default function App() {
               <Redo2 />
             </IconButton>
             <span className="vertical-rule" />
-            <details className="viewport-settings">
-              <summary aria-label="Asetukset" title="Asetukset">
-                <Settings2 />
-              </summary>
-              <div className="viewport-settings-panel">
-                <label>
-                  Akselien tyyli
-                  <select
-                    aria-label="Akselien tyyli"
-                    value={project.settings.axisStyle}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void editor.transact(
-                        {
-                          ...project,
-                          settings: {
-                            ...project.settings,
-                            axisStyle: e.target.value as 'subtle' | 'strong',
-                          },
-                        },
-                        'Akselien tyyli päivitetty.',
-                      )
-                    }
-                  >
-                    <option value="subtle">Hillitty</option>
-                    <option value="strong">Korostettu</option>
-                  </select>
-                </label>
-                <label>
-                  <CommitCheckbox
-                    label="Näytä akselien nimet ja origon teksti"
-                    disabled={busy}
-                    checked={project.settings.axisLabels}
-                    onChange={(axisLabels) =>
-                      editor.transact(
-                        {
-                          ...project,
-                          settings: { ...project.settings, axisLabels },
-                        },
-                        'Akselitekstien näkyvyys päivitetty.',
-                      )
-                    }
-                  />
-                  Akselien nimet ja origo
-                </label>
-                <label>
-                  Ruudukon askel (mm)
-                  <input
-                    aria-label="Ruudukon askel"
-                    type="number"
-                    min="0.1"
-                    max="10000"
-                    step="any"
-                    key={project.settings.gridStep ?? 10}
-                    defaultValue={project.settings.gridStep ?? 10}
-                    disabled={busy}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const gridStep = Number(e.target.value);
-                      if (!Number.isFinite(gridStep) || gridStep < 0.1 || gridStep > 10000) {
-                        e.currentTarget.value = String(project.settings.gridStep ?? 10);
-                        editor.setError('Anna ruudukon askel väliltä 0,1–10 000 mm.');
-                        return;
-                      }
-                      if (gridStep !== (project.settings.gridStep ?? 10))
+            {!renderOpen && !partsOpen && mode === 'model' && (
+              <details className="viewport-settings">
+                <summary aria-label="Asetukset" title="Asetukset">
+                  <Settings2 />
+                </summary>
+                <div className="viewport-settings-panel">
+                  <label>
+                    Akselien tyyli
+                    <select
+                      aria-label="Akselien tyyli"
+                      value={project.settings.axisStyle}
+                      disabled={busy}
+                      onChange={(e) =>
                         void editor.transact(
                           {
                             ...project,
-                            settings: { ...project.settings, gridStep },
+                            settings: {
+                              ...project.settings,
+                              axisStyle: e.target.value as 'subtle' | 'strong',
+                            },
                           },
-                          'Ruudukon askel tallennettu.',
-                        );
-                    }}
-                  />
-                </label>
-                <label>
-                  Mitat 3D-näkymässä
-                  <select
-                    aria-label="Mitat 3D-näkymässä"
-                    disabled={busy}
-                    value={project.settings.dimensionDisplay}
-                    onChange={(e) =>
-                      void editor.transact(
-                        {
-                          ...project,
-                          settings: {
-                            ...project.settings,
-                            dimensionDisplay: e.target.value as 'all' | 'selected' | 'hidden',
+                          'Akselien tyyli päivitetty.',
+                        )
+                      }
+                    >
+                      <option value="subtle">Hillitty</option>
+                      <option value="strong">Korostettu</option>
+                    </select>
+                  </label>
+                  <label>
+                    <CommitCheckbox
+                      label="Näytä akselien nimet ja origon teksti"
+                      disabled={busy}
+                      checked={project.settings.axisLabels}
+                      onChange={(axisLabels) =>
+                        editor.transact(
+                          {
+                            ...project,
+                            settings: { ...project.settings, axisLabels },
                           },
-                        },
-                        'Mittojen näkyvyys päivitetty.',
-                      )
-                    }
-                  >
-                    <option value="all">Kaikki lisätyt mitat</option>
-                    <option value="selected">Vain valinnan mitat</option>
-                    <option value="hidden">Piilota 3D-mitat</option>
-                  </select>
-                </label>
-                <label>
-                  <CommitCheckbox
-                    label="Kaikki apuviivat x-ray"
-                    disabled={busy}
-                    checked={project.settings.guideXray}
-                    onChange={(checked) =>
-                      editor.transact(
-                        {
-                          ...project,
-                          settings: { ...project.settings, guideXray: checked },
-                        },
-                        'Apuviivojen näkyvyys muutettu.',
-                      )
-                    }
-                  />
-                  Kaikki apuviivat x-ray
-                </label>
-              </div>
-            </details>
-            <IconButton
-              label={panelOpen ? 'Piilota ominaisuudet' : 'Näytä ominaisuudet'}
-              aria-pressed={panelOpen}
-              onClick={() => setPanelOpen(!panelOpen)}
-            >
-              {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
-            </IconButton>
+                          'Akselitekstien näkyvyys päivitetty.',
+                        )
+                      }
+                    />
+                    Akselien nimet ja origo
+                  </label>
+                  <label>
+                    Ruudukon askel (mm)
+                    <input
+                      aria-label="Ruudukon askel"
+                      type="number"
+                      min="0.1"
+                      max="10000"
+                      step="any"
+                      key={project.settings.gridStep ?? 10}
+                      defaultValue={project.settings.gridStep ?? 10}
+                      disabled={busy}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const gridStep = Number(e.target.value);
+                        if (!Number.isFinite(gridStep) || gridStep < 0.1 || gridStep > 10000) {
+                          e.currentTarget.value = String(project.settings.gridStep ?? 10);
+                          editor.setError('Anna ruudukon askel väliltä 0,1–10 000 mm.');
+                          return;
+                        }
+                        if (gridStep !== (project.settings.gridStep ?? 10))
+                          void editor.transact(
+                            {
+                              ...project,
+                              settings: { ...project.settings, gridStep },
+                            },
+                            'Ruudukon askel tallennettu.',
+                          );
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Mitat 3D-näkymässä
+                    <select
+                      aria-label="Mitat 3D-näkymässä"
+                      disabled={busy}
+                      value={project.settings.dimensionDisplay}
+                      onChange={(e) =>
+                        void editor.transact(
+                          {
+                            ...project,
+                            settings: {
+                              ...project.settings,
+                              dimensionDisplay: e.target.value as 'all' | 'selected' | 'hidden',
+                            },
+                          },
+                          'Mittojen näkyvyys päivitetty.',
+                        )
+                      }
+                    >
+                      <option value="all">Kaikki lisätyt mitat</option>
+                      <option value="selected">Vain valinnan mitat</option>
+                      <option value="hidden">Piilota 3D-mitat</option>
+                    </select>
+                  </label>
+                  <label>
+                    <CommitCheckbox
+                      label="Kaikki apuviivat x-ray"
+                      disabled={busy}
+                      checked={project.settings.guideXray}
+                      onChange={(checked) =>
+                        editor.transact(
+                          {
+                            ...project,
+                            settings: { ...project.settings, guideXray: checked },
+                          },
+                          'Apuviivojen näkyvyys muutettu.',
+                        )
+                      }
+                    />
+                    Kaikki apuviivat x-ray
+                  </label>
+                </div>
+              </details>
+            )}
+            {!renderOpen && !partsOpen && mode === 'model' && (
+              <>
+                {' '}
+                <IconButton
+                  label={panelOpen ? 'Piilota ominaisuudet' : 'Näytä ominaisuudet'}
+                  aria-pressed={panelOpen}
+                  onClick={() => setPanelOpen(!panelOpen)}
+                >
+                  {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
+                </IconButton>
+              </>
+            )}
             <IconButton
               label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
               disabled={!document.fullscreenEnabled}
@@ -2543,116 +2573,70 @@ export default function App() {
         />
       </header>
 
-      <div className={`workspace ${panelOpen ? 'panel-open' : ''}`} hidden={renderOpen}>
-        <aside className="tool-rail" aria-label="Mallinnustyökalut">
-          {tools.map((t) => (
-            <button
-              key={t.id}
-              className={`tool-button ${mode === 'model' && tool === t.id ? 'active' : ''}`}
-              aria-label={t.label}
-              aria-pressed={mode === 'model' && tool === t.id}
-              disabled={busy}
-              onClick={() => begin(t.id)}
-              title={`${t.label} (${t.shortcut})`}
-            >
-              {t.icon}
-              <span>{t.label}</span>
-            </button>
-          ))}
-          <div className="rail-divider" />
-          <button
-            className={`tool-button ${mode === 'drawing' ? 'active' : ''}`}
-            aria-label="Luo mittakuva"
-            disabled={!project.bodies.length || busy}
-            onClick={openDrawing}
-          >
-            <Ruler />
-            <span>Mitoita</span>
-          </button>
-          <div className="rail-spacer" />
-          <span className="rail-unit">mm</span>
-        </aside>
+      <div
+        className={`workspace ${panelOpen ? 'panel-open' : ''} ${mode === 'drawing' ? 'drawing-workspace' : ''}`}
+        hidden={renderOpen || partsOpen}
+      >
+        {mode === 'model' && (
+          <ToolRail
+            tools={tools}
+            tool={tool}
+            busy={busy}
+            onTool={begin}
+            onCabinet={() => {
+              resetGesture();
+              setTool('select');
+              setCabinetOpen(true);
+            }}
+            onShape={(shape) => {
+              if (shape !== 'rectangle') setShapeKind(shape);
+              begin(shape === 'rectangle' ? 'rectangle' : 'circle');
+            }}
+          />
+        )}
 
         <main className={`canvas-area ${editingBody && mode === 'model' ? 'is-editing' : ''}`}>
-          <div className="canvas-topbar">
+          <div className="canvas-topbar" hidden={mode !== 'model'}>
             <div className="view-tabs" aria-label="Näkymät">
-              {mode === 'model'
-                ? (
-                    [
-                      ['iso', '3D'],
-                      ['front', 'Edestä'],
-                      ['right', 'Sivulta'],
-                      ['top', 'Ylhäältä'],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button key={id} aria-pressed={view === id} onClick={() => changeView(id)}>
-                      {label}
-                    </button>
-                  ))
-                : (
-                    [
-                      ['front', 'Etukuva'],
-                      ['right', 'Sivukuva'],
-                      ['top', 'Yläkuva'],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button
-                      key={id}
-                      aria-pressed={drawingView === id}
-                      onClick={() => {
-                        setDrawingView(id);
-                        setScale(recommendedScale(project, id));
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-            </div>
-            {mode === 'model' ? (
-              <div className="view-actions">
-                <button
-                  className="projection-button"
-                  onClick={() => {
-                    const next = projection === 'perspective' ? 'orthographic' : 'perspective';
-                    setProjection(next);
-                    setCameraCommand({
-                      id: performance.now(),
-                      type: 'projection',
-                      projection: next,
-                    });
-                  }}
-                >
-                  {projection === 'perspective' ? 'Perspektiivi' : 'Rinnakkaisprojektio'}
-                  <ArrowLeftRight size={14} />
+              {(
+                [
+                  ['iso', '3D'],
+                  ['front', 'Edestä'],
+                  ['right', 'Sivulta'],
+                  ['top', 'Ylhäältä'],
+                ] as const
+              ).map(([id, label]) => (
+                <button key={id} aria-pressed={view === id} onClick={() => changeView(id)}>
+                  {label}
                 </button>
-                <IconButton
-                  label="Näytä origo"
-                  onClick={() => setCameraCommand({ id: performance.now(), type: 'origin' })}
-                >
-                  <Crosshair />
-                </IconButton>
-                <IconButton label="Sovita näkymään" onClick={fit}>
-                  <Maximize />
-                </IconButton>
-              </div>
-            ) : (
-              <div className="view-actions">
-                <label className="scale-select">
-                  Mittakaava
-                  <select
-                    aria-label="Mittakaava"
-                    value={scale}
-                    onChange={(e) => setScale(Number(e.target.value))}
-                  >
-                    {[1, 2, 5, 10, 20, 50, 100, 500, 1000].map((s) => (
-                      <option key={s} value={s}>
-                        1:{s}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            )}
+              ))}
+            </div>
+            <div className="view-actions">
+              <button
+                className="projection-button"
+                onClick={() => {
+                  const next = projection === 'perspective' ? 'orthographic' : 'perspective';
+                  setProjection(next);
+                  setCameraCommand({
+                    id: performance.now(),
+                    type: 'projection',
+                    projection: next,
+                  });
+                }}
+              >
+                {projection === 'perspective' ? 'Perspektiivi' : 'Rinnakkaisprojektio'}
+                <ArrowLeftRight size={14} />
+              </button>
+              <IconButton
+                label="Näytä origo"
+                onClick={() => setCameraCommand({ id: performance.now(), type: 'origin' })}
+              >
+                <Crosshair />
+              </IconButton>
+              <IconButton label="Sovita näkymään" onClick={fit}>
+                <Maximize />
+              </IconButton>
+            </div>
           </div>
 
           <div className="model-stage" hidden={mode !== 'model'}>
@@ -2790,6 +2774,23 @@ export default function App() {
               pickReference={pickReference}
               epoch={epoch}
               onSelect={select}
+              onSelectMany={(ids, additive) => {
+                const allowed = ids.filter(
+                  (id) =>
+                    visibleBodies.some((b) => b.id === id) &&
+                    (!editingBodyId || id === editingBodyId),
+                );
+                const next = additive ? [...new Set([...selectedIds, ...allowed])] : allowed;
+                setSelectedIds(next);
+                setSelected(next[0]);
+                setSelectedFace(undefined);
+                setSelectedGuideId(undefined);
+                setSelectedGroupId(undefined);
+                setAwaitingStart(true);
+                setMeasureMenu(false);
+                resetGesture();
+                editor.setMessage(`${next.length} osaa valittu. M siirtää valinnan.`);
+              }}
               radialShape={shapeKind}
               sketchFrame={shapeFrame}
               sketchTarget={sketchTarget}
@@ -3037,7 +3038,7 @@ export default function App() {
                   )}
                 </div>
               )}
-            {!project.bodies.length && !editing && (
+            {!project.bodies.length && tool === 'select' && !editing && (
               <div className="welcome">
                 <span className="eyebrow">TILAA AJATUKSILLE</span>
                 <h1>
@@ -3095,13 +3096,14 @@ export default function App() {
             </div>
           </div>
           {mode === 'drawing' && (
-            <DrawingPanel
+            <DrawingWorkspace
               project={project}
               cad={editor.cad}
-              view={drawingView}
-              scale={scale}
-              hidden={hidden}
-              onSheet={onSheet}
+              meshes={editor.meshes}
+              selectedIds={selectedIds}
+              selectedGroupId={selectedGroupId}
+              busy={busy}
+              onCommit={(next, message) => editor.transact(next, message)}
             />
           )}
 
@@ -3123,7 +3125,7 @@ export default function App() {
           )}
         </main>
 
-        {panelOpen && (
+        {panelOpen && mode === 'model' && (
           <aside className="inspector" aria-label="Ominaisuudet">
             <div className="object-panel">
               <div className="panel-tabs">
@@ -3242,18 +3244,8 @@ export default function App() {
                   ) : (
                     <div className="empty-list">
                       <Ruler size={26} />
-                      <p>
-                        Lisää ensimmäinen mitta
-                        <br />
-                        Mittakuva-työtilassa.
-                      </p>
+                      <p>Lisää mitta Mittatyökalulla tai avaa Mittakuva.</p>
                     </div>
-                  )}
-                  {mode === 'drawing' && (
-                    <button className="button subtle full" onClick={() => setTab('objects')}>
-                      <Box size={16} />
-                      Valitse kappale
-                    </button>
                   )}
                 </div>
               )}
@@ -3404,7 +3396,7 @@ export default function App() {
                   }}
                   busy={busy}
                 />
-              ) : editing ? (
+              ) : editing || (!body && ['rectangle', 'circle'].includes(tool)) ? (
                 <>
                   <div className="panel-title">
                     <div>
@@ -3437,7 +3429,9 @@ export default function App() {
                     {tool === 'offset'
                       ? 'Liikuta hiirtä sisennyksen säätämiseksi tai kirjoita tarkka mitta. Klikkaus, vedon päättäminen tai Enter hyväksyy. E tekee syvennyksen tai läpireiän.'
                       : tool === 'rectangle'
-                        ? 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
+                        ? awaitingStart
+                          ? 'Valitse alkukulma näkymästä. Siirrä osoitinta ja napsauta vastakulmaa.'
+                          : 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
                         : tool === 'circle'
                           ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
                           : tool === 'extrude'
@@ -3830,66 +3824,6 @@ export default function App() {
                     )
                   )}
 
-                  {mode === 'drawing' && (
-                    <div className="drawing-options">
-                      <h3>Lisää mitta</h3>
-                      <p className="muted">
-                        {body ? `Valittu: ${body.name}` : 'Valitse ensin kappale listasta.'}
-                      </p>
-                      <div className="dimension-buttons">
-                        <button
-                          className="button outlined"
-                          disabled={!body || busy || body.purpose === 'construction'}
-                          onClick={() => void addDimension(drawingView === 'right' ? 'y' : 'x')}
-                        >
-                          <ArrowLeftRight size={16} />
-                          {drawingView === 'right' ? 'Syvyys' : 'Leveys'}
-                        </button>
-                        <button
-                          className="button outlined"
-                          disabled={
-                            !body ||
-                            busy ||
-                            body.purpose === 'construction' ||
-                            (drawingView !== 'top' && !body?.feature.height)
-                          }
-                          onClick={() => void addDimension(drawingView === 'top' ? 'y' : 'z')}
-                        >
-                          <Ruler size={16} />
-                          {drawingView === 'top' ? 'Syvyys' : 'Korkeus'}
-                        </button>
-                      </div>
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={hidden}
-                          onChange={(e) => setHidden(e.target.checked)}
-                        />
-                        Näytä piiloviivat
-                      </label>
-                      <button
-                        className="button dark full"
-                        disabled={!sheet?.fits || !!sheet.orphanCount || busy}
-                        onClick={() =>
-                          sheet &&
-                          downloadFile(
-                            sheet.svg,
-                            `${safeFilename(project.name)}-${drawingView}.svg`,
-                            'image/svg+xml',
-                          )
-                        }
-                      >
-                        <ArrowDownToLine size={17} />
-                        Vie SVG-mittakuva
-                      </button>
-                      <p className="export-note">
-                        A4 vaaka · vektorigrafiikka
-                        <br />
-                        Tulosta 100 % koossa.
-                      </p>
-                    </div>
-                  )}
-
                   {selectedGroup && mode === 'model' && (
                     <GroupActions
                       group={selectedGroup}
@@ -3917,7 +3851,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.9.0</span>
+                    <span>v0.10.0</span>
                   </div>
                 </>
               )}
@@ -3926,8 +3860,48 @@ export default function App() {
         )}
       </div>
 
+      {cabinetOpen && (
+        <CabinetBuilder
+          project={project}
+          source={selectedIds.length === 1 && !selectedGroupId ? body : undefined}
+          busy={busy}
+          onClose={() => setCabinetOpen(false)}
+          onCreate={async (options, replaceId) => {
+            const next = insertCabinet(project, options, replaceId);
+            if (
+              !(await editor.transact(
+                next.project,
+                `${options.name}: ${next.bodies.length} erillistä levyä luotu.`,
+              ))
+            )
+              return false;
+            setEditingBodyId(undefined);
+            setSurfaceMode('new');
+            finishOperation();
+            setSelectedGroupId(next.group.id);
+            setSelectedIds(next.bodies.map((b) => b.id));
+            setSelected(next.bodies[0].id);
+            setTool('select');
+            setPanelOpen(true);
+            setTab('objects');
+            changeView('iso');
+            return true;
+          }}
+        />
+      )}
+
+      {partsOpen && (
+        <PartsWorkspace
+          project={project}
+          meshes={editor.meshes}
+          selectedGroupId={selectedGroupId}
+        />
+      )}
+
       {renderOpen && (
         <RenderStage
+          onStartRender={renderJob.start}
+          renderJobActive={renderJob.job?.state === 'working'}
           bodies={renderBodies}
           meshes={visibleMeshes}
           selectedIds={selectedIds}
@@ -3988,20 +3962,35 @@ export default function App() {
         />
       )}
       <footer className="status-bar">
+        {renderJob.job && (
+          <RenderJobCard
+            job={renderJob.job}
+            onCancel={renderJob.cancel}
+            onDismiss={renderJob.dismiss}
+          />
+        )}
         <div>
           <span className="status-icon">
             {busy ? <LoaderCircle className="spin" size={14} /> : <CheckCircle2 size={14} />}
           </span>
           <span role="status">
-            {renderOpen
-              ? 'Renderöinti · materiaalit ja valo · Esc palaa malliin'
-              : editing || tool === 'navigate' || tool === 'boolean'
-                ? instructions[tool]
-                : editor.message}
+            {partsOpen
+              ? 'Osaluettelo · räjäytyskuva · Esc palaa malliin'
+              : renderOpen
+                ? 'Renderöinti · materiaalit ja valo · Esc palaa malliin'
+                : editing || tool === 'navigate' || tool === 'boolean'
+                  ? instructions[tool]
+                  : editor.message}
           </span>
         </div>
         <span className="status-right">
-          {renderOpen ? 'Esityskuva' : mode === 'model' ? 'Z ylöspäin' : 'A4 · Ortografinen'}
+          {partsOpen
+            ? 'Osaluettelo / räjäytyskuva'
+            : renderOpen
+              ? 'Esityskuva'
+              : mode === 'model'
+                ? 'Z ylöspäin'
+                : 'A4 · Ortografinen'}
           <span className="status-divider" />1 yksikkö = 1 mm
         </span>
       </footer>
@@ -4189,15 +4178,15 @@ export default function App() {
             </p>
             <p className="muted">
               Piirtäminen tukee myös vinoja tasopintoja. Suljettavan kynämuodon tulee olla
-              tasomainen. Push/pull ja Offset tukevat tasopintoja. Linkitetyt komponentit ja
-              materiaalit tulevat myöhemmin.
+              tasomainen. Push/pull ja Offset tukevat tasopintoja. Linkitetyt komponentit tulevat
+              myöhemmin.
             </p>
             <a href="https://github.com/alluharju-bot/nivo" target="_blank" rel="noreferrer">
               Avoin lähdekoodi ↗
             </a>
             <a
               className="license-link"
-              href="/licenses/NOTICE.txt"
+              href={`${import.meta.env.BASE_URL}licenses/NOTICE.txt`}
               target="_blank"
               rel="noreferrer"
             >

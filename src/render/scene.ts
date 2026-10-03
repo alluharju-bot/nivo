@@ -1,6 +1,9 @@
+import { progressiveRenderer, type TraceStatus } from './progressive';
+import { captureRenderScene } from './snapshot';
 import { createMaterialLibrary, texturePlacement, textureFrameMatrix } from './materials';
 import {
   defaultAppearance,
+  emissionSettings,
   type Appearance,
   type TexturePlacement,
   type TextureAsset,
@@ -30,6 +33,8 @@ type Props = {
   selectedIds?: string[];
   editingTexture?: { id: string; appearance: Appearance };
   onTexture: (texture: TexturePlacement) => void;
+  onTraceStatus?: (status: TraceStatus) => void;
+  partNumbers?: Record<string, number>;
 };
 
 export function createRenderScene(host: HTMLDivElement, current: () => Props) {
@@ -78,6 +83,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     initialized = false;
   const draw = () => {
     renderer.render(scene, camera);
+    progressive.invalidate();
     canvas.dataset.camera = JSON.stringify({
       position: camera.position.toArray(),
       quaternion: camera.quaternion.toArray(),
@@ -86,7 +92,17 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     });
     updateHandles();
   };
-  const library = createMaterialLibrary(draw);
+  const progressive = progressiveRenderer(renderer, scene, camera, (status) =>
+    current().onTraceStatus?.(status),
+  );
+  const library = createMaterialLibrary(() => {
+    progressive.invalidate(true);
+    draw();
+  });
+  const lights = new THREE.Group();
+  scene.add(lights);
+  const labels = new THREE.Group();
+  scene.add(labels);
   const navigation = installCameraNavigation(controls, canvas, () => model.children);
   controls.addEventListener('change', draw);
   const resize = () => {
@@ -128,6 +144,17 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         (object.material as THREE.Material).dispose();
       }
     model.clear();
+    lights.traverse((o) => {
+      if (o instanceof THREE.SpotLight) o.shadow.dispose();
+    });
+    lights.clear();
+    labels.traverse((o) => {
+      if (o instanceof THREE.Sprite) {
+        o.material.map?.dispose();
+        o.material.dispose();
+      }
+    });
+    labels.clear();
   };
   const sync = () => {
     clearModel();
@@ -139,13 +166,16 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
-      const uv: number[] = [];
+      const uv: number[] = [],
+        inverse = textureFrameMatrix(body).invert();
       for (let i = 0; i < data.vertices.length; i += 3) {
-        const n = data.normals.slice(i, i + 3).map(Math.abs),
-          axis = n.indexOf(Math.max(...n));
-        const u = axis === 0 ? 1 : 0,
-          v = axis === 2 ? 1 : 2;
-        uv.push(data.vertices[i + u] / 300, data.vertices[i + v] / 600);
+        const normal = new THREE.Vector3(...data.normals.slice(i, i + 3))
+            .transformDirection(inverse)
+            .toArray()
+            .map(Math.abs),
+          axis = normal.indexOf(Math.max(...normal)),
+          point = new THREE.Vector3(...data.vertices.slice(i, i + 3)).applyMatrix4(inverse);
+        uv.push(point.getComponent(axis === 0 ? 1 : 0), point.getComponent(axis === 2 ? 1 : 2));
       }
       geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
       const surface = library.create(body, current().assets);
@@ -154,6 +184,43 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       mesh.castShadow = surface.transmission < 0.5;
       mesh.receiveShadow = true;
       model.add(mesh);
+      const emission = emissionSettings(
+        body.appearance ?? defaultAppearance(body.material),
+        body.color,
+      );
+      if (emission.enabled && emission.type === 'spot') {
+        const index = { x: 0, y: 1, z: 2 }[emission.direction.slice(-1)]!,
+          direction = new THREE.Vector3();
+        direction.setComponent(index, emission.direction.startsWith('-') ? -1 : 1);
+        direction.applyQuaternion(
+          new THREE.Quaternion(...(body.textureFrame?.rotation ?? [0, 0, 0, 1])),
+        );
+        geometry.computeBoundingBox();
+        const box = geometry.boundingBox!,
+          center = box.getCenter(new THREE.Vector3()),
+          size = box.getSize(new THREE.Vector3());
+        const distance =
+          (Math.abs(direction.x) * size.x) / 2 +
+          (Math.abs(direction.y) * size.y) / 2 +
+          (Math.abs(direction.z) * size.z) / 2 +
+          1;
+        const spot = new THREE.SpotLight(
+          emission.color,
+          emission.intensity * 1_000_000,
+          0,
+          THREE.MathUtils.degToRad(emission.angle / 2),
+          0.35,
+          2,
+        );
+        spot.position.copy(center).addScaledVector(direction, distance);
+        spot.target.position.copy(spot.position).add(direction);
+        spot.castShadow = lights.children.length < 8;
+        spot.shadow.mapSize.set(512, 512);
+        spot.shadow.bias = -0.0001;
+        spot.shadow.camera.near = 0.1;
+        spot.shadow.camera.far = 100000;
+        lights.add(spot, spot.target);
+      }
     }
     navigation.sync(bodies, current().selectedIds ?? []);
     const box = bounds(bodies),
@@ -173,6 +240,43 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     shadow.far = extent * 6;
     shadow.updateProjectionMatrix();
     key.shadow.normalBias = extent * 0.001;
+    if (current().partNumbers) {
+      for (const body of bodies) {
+        const number = current().partNumbers?.[body.id];
+        if (!number) continue;
+        const image = document.createElement('canvas');
+        image.width = image.height = 96;
+        const ctx = image.getContext('2d')!;
+        ctx.fillStyle = '#203f32';
+        ctx.beginPath();
+        ctx.arc(48, 48, 37, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.font = 'bold 38px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'white';
+        ctx.fillText(String(number), 48, 50);
+        const texture = new THREE.CanvasTexture(image),
+          material = new THREE.SpriteMaterial({
+            map: texture,
+            depthTest: false,
+            toneMapped: false,
+          });
+        const sprite = new THREE.Sprite(material);
+        sprite.renderOrder = 100;
+        sprite.position.set(
+          body.origin[0] + body.feature.width / 2,
+          body.origin[1] + body.feature.depth / 2,
+          body.origin[2] + body.feature.height / 2,
+        );
+        sprite.scale.setScalar(extent * 0.045);
+        labels.add(sprite);
+      }
+    }
+    progressive.invalidate(true);
     settingsOnly();
     resize();
     if (!initialized) {
@@ -187,7 +291,25 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     scene.background = new THREE.Color(color);
     floor.material.color.set(color);
     key.color.set(settings.environment === 'warm' ? '#ffe3b7' : '#fff6e9');
-    scene.environmentIntensity = settings.environment === 'dark' ? 0.9 : 0.7;
+    scene.environmentIntensity =
+      (settings.environment === 'dark' ? 0.025 : 0.7) * (settings.environmentPower ?? 1);
+    ambient.intensity =
+      (settings.environment === 'dark' ? 0.03 : 1.1) * (settings.environmentPower ?? 1);
+    key.intensity = (settings.environment === 'dark' ? 0.03 : 3) * (settings.lightPower ?? 1);
+    fill.intensity = (settings.environment === 'dark' ? 0.02 : 1.3) * (settings.lightPower ?? 1);
+    const center = key.target.position;
+    const rotation = THREE.MathUtils.degToRad(settings.lightRotation ?? 0),
+      axis = new THREE.Vector3(0, 0, 1);
+    key.position.copy(
+      new THREE.Vector3(-extent, -extent * 0.8, extent * 1.8)
+        .applyAxisAngle(axis, rotation)
+        .add(center),
+    );
+    fill.position.copy(
+      new THREE.Vector3(extent, extent, extent).applyAxisAngle(axis, rotation).add(center),
+    );
+    floor.visible = settings.ground ?? true;
+    progressive.invalidate(true);
     renderer.toneMappingExposure = settings.exposure;
     renderer.shadowMap.enabled = settings.shadows;
     draw();
@@ -365,6 +487,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     sync,
     fit,
     settings: settingsOnly,
+    trace: progressive,
+    capture: () => captureRenderScene(scene, camera, camera.aspect, renderer.toneMappingExposure),
     appearance(ids: string[], appearance: Appearance) {
       for (const object of model.children)
         if (object instanceof THREE.Mesh && ids.includes(object.userData.bodyId)) {
@@ -402,6 +526,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       }
     },
     dispose() {
+      progressive.dispose();
       observer.disconnect();
       controls.removeEventListener('change', draw);
       navigation.dispose();
@@ -424,6 +549,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       env.dispose();
       library.dispose();
       renderer.dispose();
+      renderer.forceContextLoss();
       canvas.remove();
     },
   };

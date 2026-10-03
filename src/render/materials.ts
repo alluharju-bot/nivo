@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   findPreset,
   defaultAppearance,
+  emissionSettings,
   type MaterialPreset,
   type TexturePlacement,
   type TextureAsset,
@@ -191,6 +192,9 @@ export function createMaterialLibrary(draw: () => void) {
         ior: 1.5,
         map,
       });
+      const emission = emissionSettings(appearance, body.color);
+      material.emissive.set(emission.color);
+      material.emissiveIntensity = emission.enabled ? emission.intensity : 0;
       const frame = textureFrameMatrix(body).invert();
       material.onBeforeCompile = (shader) => {
         shader.uniforms.nivoTextureFrame = { value: frame };

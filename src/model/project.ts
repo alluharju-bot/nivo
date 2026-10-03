@@ -259,6 +259,10 @@ export const projectSchema = z
             environment: z.enum(['studio', 'warm', 'dark']),
             exposure: z.number().min(0.3).max(2.5),
             shadows: z.boolean(),
+            lightRotation: z.number().finite().min(0).max(360).optional(),
+            lightPower: z.number().finite().min(0).max(4).optional(),
+            environmentPower: z.number().finite().min(0).max(4).optional(),
+            ground: z.boolean().optional(),
           })
           .optional(),
       })

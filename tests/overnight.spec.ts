@@ -328,6 +328,7 @@ test('finished cabinet opens with editable rounds, dimensions, materials and an 
   await page.screenshot({
     path: info.outputPath('finished-cabinet-render.png'),
   });
+  await page.getByRole('button', { name: 'Kuva', exact: true }).click();
   await page.getByRole('combobox', { name: 'Kuvan leveys', exact: true }).selectOption('1600');
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Tallenna PNG', exact: true }).click();

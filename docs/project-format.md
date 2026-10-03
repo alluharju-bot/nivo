@@ -201,3 +201,18 @@ vielä tallentaa aktiivinen malli ilman historiaa.
 
 Layerit, linkitetyt komponentit, tallennetut kamerat, useat piirustusarkit
 ja yleinen operaatiohistoria jäävät myöhempiin formaattiversioihin.
+
+V0.10 extends optional V6 `appearance` with `emission`: `enabled`, `type`
+(`surface`/`spot`), `color` (#rrggbb), `intensity` (0–100, relative), `angle`
+(full cone, 5–160 degrees), and local `direction` (±x/±y/±z). LED presets have
+emission defaults even without an explicit override. Existing V6 files remain
+valid. Viewer-only explosion and path-tracer sample buffers are not persisted.
+
+V0.10 also extends optional `settings.render` with `lightRotation` (0–360°),
+`lightPower` and `environmentPower` (0–4 multipliers), and `ground` (boolean).
+Missing values retain the original studio defaults. Cabinet generation writes
+ordinary rectangular component bodies and a group; no special geometry format
+is needed. Background render snapshots, progress and completed PNGs are session-only.
+
+Projektitiedoston tuontiraja on 64 MiB, jotta V6:n sallitut yhteensä 32 Mt
+kuva-aineistot ja geometria mahtuvat samaan avattavaan tiedostoon.

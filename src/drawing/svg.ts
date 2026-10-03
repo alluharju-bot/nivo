@@ -146,6 +146,7 @@ export interface Sheet {
   svg: string;
   fits: boolean;
   orphanCount: number;
+  transform: { x: number; y: number; scale: number };
 }
 export function createSheet(
   project: Project,
@@ -212,5 +213,5 @@ export function createSheet(
   <g fill="none" stroke="#475a51" stroke-width="0.18">${lines.join('').replaceAll('<text ', '<text fill="#243630" stroke="none" font-family="Arial, sans-serif" font-size="3.2" text-anchor="middle" ')}</g>
   <g font-family="Arial, sans-serif" fill="#243630"><text x="15" y="183" font-size="2.2" fill="#6d7872">PROJEKTI</text><text x="15" y="190" font-size="4.2">${escapeXml(project.name)}</text><text x="15" y="196" font-size="2.5">Tulosta 100 % koossa. Älä sovita sivulle.</text><text x="210" y="183" font-size="2.2" fill="#6d7872">MITTAKAAVA / ARKKI</text><text x="210" y="190" font-size="4">1:${scale}</text><text x="210" y="196" font-size="2.5">A4 · 297 × 210 mm</text><text x="255" y="183" font-size="2.2" fill="#6d7872">PÄIVÄYS</text><text x="255" y="190" font-size="3">${escapeXml(project.updatedAt.slice(0, 10))}</text><text x="255" y="196" font-size="2.5">${viewLabels[view]}</text></g>
   </svg>`;
-  return { svg, fits, orphanCount };
+  return { svg, fits, orphanCount, transform: { x: tx, y: ty, scale } };
 }

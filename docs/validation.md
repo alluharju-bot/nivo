@@ -4,7 +4,54 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
-## Automaattiset tarkistukset
+## V0.10.0 — laaja käytettävyys- ja esityskuvapassi
+
+**123 yksikkö-/CAD-testiä hyväksytty (21 tiedostoa).** Uudet laskentakokeet
+varmentavat levyrungon levyjaon, taustan ja ovien rajat, osien erillisyyden,
+ryhmään lisäämisen ja Hold-suojan; osaluettelon CSV-viennin ja esityssiirtymät;
+laatikkovalinnan kamerarajat; mittaviivan sijoituksen sekä renderöintityön
+itsenäiset geometria-, materiaali- ja tekstuurikopiot. Vanha CAD-kattavuus
+säilyy mukana.
+
+Tuotantotarkistus tehdään samalla `/nivo/`-pohjapolulla kuin GitHub Pages:
+`npm run build -- --base=/nivo/` ja
+`NIVO_BASE_PATH=/nivo/ NIVO_PREVIEW=1 npx playwright test`.
+
+**240 erillistä selaintapausta varmennettu** työpöydän ja tabletin
+Chromium-profiileissa. Koko 248 tapauksen tuotantoajo: 236 hyväksytty,
+8 rajattu pois ja 4 testiohjauksen epäonnistumista (55,5 min). Kuusi pois
+rajattua tapausta vaatii kosketusprofiilin ja kaksi kehitystilan worker-kokeen.
+
+Neljä epäonnistumista olivat kaksi samaa vanhaa koetta kummassakin profiilissa:
+PNG-koe ei avannut uutta Kuva-välilehteä, ja pikanäppäinkoe kirjoitti C:n yhä
+aktiiviseen mittakenttään. Testit päivitettiin uuteen käyttöön. Lopullisella
+paketilla ajettu **8/8 hyväksytty uusinta (1,9 min)** varmisti nämä sekä
+levyrungon luomisen, perumisen, uudelleenavauksen ja ryhmävalinnan suojauksen.
+Ryhmän ensimmäistä jäsentä ei tarjota yksittäisenä korvattavana lähtöosana.
+TypeScript, tuotantopaketointi, muotoilutarkistus ja diff-tarkistus hyväksytty.
+
+Uudet työnkulut kattavat työkalupalkin tiiviyden ja muotovalikon,
+suorakulmion alkupisteen odottamisen, laatikkovalinnan ja Shift-lisäyksen,
+mittakuvan CAD-poiminnat, mitan vedon ja kosketussijoituksen sekä oikean
+vektori-PDF:n. Osaluettelo, numeroitu räjäytyskuva ja CSV eivät muuta mallia.
+Levyrunko luo nimetyt oikeat osat yhtenä peruttavana muutoksena. Lähtöosan
+korvaaminen palautuu myös uudelleenavauksen jälkeen.
+
+Renderöintikokeissa valmis PNG luetaan ja sen mitat sekä kuvasisällön vaihtelu
+tarkistetaan. Taustatyö jatkuu Malli-työtilassa, vaikka nykyinen projekti
+vaihdetaan tyhjäksi; valmis kuva käyttää alkuperäistä tilannekuvaa.
+Keskeytys vapauttaa työn. Esikatselu saavuttaa näytetavoitteen ja käynnistyy
+uudelleen kameran muuttuessa. Emissio, spotit ja studion asetukset tallentuvat.
+
+Kuvantarkistus: `nivo-cabinet-builder.png`, `nivo-drawing-workspace.png` ja
+`nivo-parts.png` kansiossa `docs/images`.
+
+Rajat: tabletin kokeet ovat Chromium-kosketusemulointia. Fyysistä iPadia ja
+Safaria ei ole varmennettu. Path tracing käyttää WebGL2:ta ilman kohinanpoistoa;
+kuvatyö tarvitsee avoimen välilehden. Osaluettelon X/Y/Z ovat maailman ulkomittoja,
+eivät automaattisesti valmistuksen sahausmittoja.
+
+## Aiemmat varmennukset
 
 V0.9.0: **108 yksikkö-/CAD-testiä hyväksytty**. Tarkka CAD varmentaa
 kolmen kohtaavan reunan pyöristämisen 18 mm ovilevyllä, pitkällä sivulevyllä

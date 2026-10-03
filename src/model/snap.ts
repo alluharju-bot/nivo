@@ -65,6 +65,7 @@ export function snapOnSketchPlane(
   start?: Vec3,
   extra: ReferencePoint[] = [],
   gridStep = 10,
+  directionGrid: 'length' | 'coordinates' = 'length',
 ): Snap {
   const onPlane = (p: Vec3) => Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5;
   const candidates: (Snap & { priority: number })[] = [...modelSnapPoints(bodies, meshes), ...extra]
@@ -118,10 +119,18 @@ export function snapOnSketchPlane(
     if (near.key === 'direction' && grid && start) {
       const delta = sub(near.point, start),
         length = Math.hypot(...delta);
-      if (length > 1e-8)
+      if (length > 1e-8) {
+        const uvDelta = toUV(near.point, { ...frame, origin: start });
+        // A rectangle snaps its side dimensions; a pen segment snaps its length.
+        const step =
+          directionGrid === 'coordinates'
+            ? (gridStep * length) / Math.max(...uvDelta.map(Math.abs))
+            : gridStep;
         near.point = start.map(
-          (n, i) => n + (delta[i] / length) * Math.round(length / gridStep) * gridStep,
+          (n, i) => n + (delta[i] / length) * Math.round(length / step) * step,
         ) as Vec3;
+        near.line = [start, near.point];
+      }
     }
     return near;
   }

@@ -111,6 +111,7 @@ test('rectangle and pen draw directly on a vertical face and create recessed reg
   await ready(page, [wall]);
   const point = await view(page, [wall], 'front');
   await editBody(page, wall.id);
+  await page.getByRole('button', { name: 'Muodot', exact: true }).click();
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).click();
   await page.getByRole('textbox', { name: 'Muodon paksuus', exact: true }).fill('-10');
   await drag(page, point(40, 0, 40), point(140, 0, 140));

@@ -176,7 +176,7 @@ test('eraser repairs saved geometry without history, highlights both faces, and 
   expect(mesh(repaired).boundaries).toHaveLength(1);
   expect(mesh(repaired).faces).toHaveLength(mesh(original).faces.length - 1);
   expect(mesh(repaired).volume).toBeCloseTo(mesh(original).volume, 4);
-  await expect(page.getByRole('button', { name: 'Poista rajaus', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Kumita', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );

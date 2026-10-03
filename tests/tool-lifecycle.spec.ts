@@ -151,7 +151,7 @@ test('move, rectangle and push/pull stay active across commits; Escape clears ev
   await page.keyboard.press('s');
   // Keep both strokes inside the tablet canvas after the compact header enlarges it.
   await drag(page, point(-100, 0), point(-40, 90));
-  await expect(page.getByRole('button', { name: 'Suorakulmio', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Muodot', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -192,6 +192,7 @@ test('numeric window is outside the canvas, draggable, stays put across gestures
 }, info) => {
   await ready(page);
   await page.keyboard.press('s');
+  await page.keyboard.type('600');
   const input = page.getByTestId('dynamic-input');
   const canvas = (await page.getByTestId('viewport').boundingBox())!;
   const initial = (await input.boundingBox())!;
@@ -206,11 +207,13 @@ test('numeric window is outside the canvas, draggable, stays put across gestures
   const moved = (await input.boundingBox())!;
   expect(moved.x).toBeCloseTo(140 - (handle.x + 30 - initial.x), 0);
   expect(moved.y).toBeLessThan(260);
+  // Typing dimensions focuses the field; tool shortcuts belong to the canvas.
+  await page.getByTestId('width-input').blur();
   await page.keyboard.press('c');
+  await page.keyboard.type('70');
   const next = (await input.boundingBox())!;
   expect(next.x).toBe(moved.x);
   expect(next.y).toBe(moved.y);
-  await page.keyboard.type('70');
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
   // Typing starts the next shape without selecting the tool again.

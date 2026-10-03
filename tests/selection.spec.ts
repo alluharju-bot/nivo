@@ -83,3 +83,44 @@ for (const side of ['front', 'right'] as const) {
     await expect(page.getByTestId('edit-context-hint')).toBeVisible();
   });
 }
+
+test('drag rectangle selects whole objects from any start; Shift adds without toggling and Escape cancels', async ({
+  page,
+}, info) => {
+  const parts = [0, 200, 400].map((x) => makeBody(100, 100, 100, [x, 0, 0]));
+  await ready(page, parts);
+  const point = await view(page, parts);
+  const box = async (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 8 });
+    await expect(page.getByTestId('selection-box')).toBeVisible();
+    await page.mouse.up();
+  };
+  await box(point(-10, 110, 100), point(310, -10, 100));
+  await expect(page.locator('.object-select[aria-pressed="true"]')).toHaveCount(2);
+  await page.keyboard.down('Shift');
+  await box(point(190, 110, 100), point(510, -10, 100));
+  await page.keyboard.up('Shift');
+  await expect(page.locator('.object-select[aria-pressed="true"]')).toHaveCount(3);
+  // Starting on the first part's face still starts a rectangle and selects the second part.
+  await box(point(50, 100, 100), point(310, -10, 100));
+  await expect(page.locator('.object-select[aria-pressed="true"]')).toHaveCount(1);
+  await expect(page.getByTestId(`body-${parts[1].id}`)).toHaveAttribute('aria-pressed', 'true');
+  const a = point(-10, 110, 100),
+    b = point(510, -10, 100);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 8 });
+  await page.screenshot({ path: info.outputPath('rectangle-selection.png') });
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect(page.getByTestId('selection-box')).toBeHidden();
+  expect((await save(page)).bodies).toEqual(parts);
+  // Right-button navigation never opens a selection rectangle.
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(b.x, b.y, { steps: 4 });
+  await expect(page.getByTestId('selection-box')).toBeHidden();
+  await page.mouse.up({ button: 'right' });
+});

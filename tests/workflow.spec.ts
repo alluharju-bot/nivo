@@ -6,7 +6,9 @@ async function ready(page: Page) {
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
 }
 async function rectangle(page: Page) {
+  await page.getByRole('button', { name: 'Muodot', exact: true }).click();
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).click();
+  await page.keyboard.type('600');
   await page.getByTestId('width-input').fill('600');
   await page.getByTestId('depth-input').fill('400');
   await page.getByRole('button', { name: 'Hyväksy', exact: true }).click();
@@ -110,6 +112,7 @@ test('complete precise modelling, history, drawing, export and recovery workflow
   await page.mouse.click(canvas!.x + canvas!.width / 2, canvas!.y + canvas!.height / 2);
   await expect(page.locator('.selection-tag')).toHaveText('CAD-kappale');
   await page.getByRole('button', { name: 'Mittakuva', exact: true }).click();
+  await page.getByText('Yksittäinen kokonaismitta', { exact: true }).click();
   await page.getByRole('button', { name: 'Leveys', exact: true }).click();
   await expect(page.locator('.dimension-list')).toContainText('600');
   await page.getByRole('button', { name: 'Korkeus', exact: true }).click();
@@ -162,6 +165,7 @@ test('tablet drawing release accepts once, orientation change and recovery', asy
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'tablet');
   await ready(page);
+  await page.getByRole('button', { name: 'Muodot', exact: true }).tap();
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).tap();
   await page.getByRole('button', { name: 'Ylhäältä', exact: true }).tap();
   const viewport = await page.getByTestId('viewport').boundingBox();
@@ -198,6 +202,7 @@ test('example cabinet and visible invalid dimension reference after deletion', a
   await page.screenshot({ path: testInfo.outputPath('cabinet.png') });
   await page.locator('.object-list .object-select').filter({ hasText: 'Kansi' }).click();
   await page.getByRole('button', { name: 'Mittakuva', exact: true }).click();
+  await page.getByText('Yksittäinen kokonaismitta', { exact: true }).click();
   await page.getByRole('button', { name: 'Leveys', exact: true }).click();
   await expect(page.locator('.dimension-list')).toContainText('564');
   await page.getByRole('button', { name: 'Malli', exact: true }).click();

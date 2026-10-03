@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.9.0
+# Arkkitehtuuri — v0.10.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -464,3 +464,49 @@ Kuvat ovat projektin `assets`-taulussa, omat materiaalit `materials`-taulussa.
 Tuonti rajaa kuvan 2048 pikseliin ja tunnistaa sisällön SHA-256:lla.
 Historia V2 kerää eri askelissa käytetyt kuvat kerran yhteiseen tauluun.
 Tiedostovienti sisältää kaikki projektin aineistot eikä käytä väliaikaisia blob-URL:eja.
+
+## Documentation and presentation workspaces (v0.10)
+
+`DrawingWorkspace` owns projection scope, scale, picking and export. CAD HLR is
+recomputed only when geometry/scope/view changes, not when annotation text or scale
+changes. Picks resolve CAD vertices and linear edges in screen space. Model-space
+anchors are persisted using the existing point-dimension schema. PDF uses the same
+physical A4 SVG through dynamically imported jsPDF/svg2pdf.js. The accepting pointer
+position determines placement even on touch devices without hover. Point dimensions
+can be dragged in the drawing plane; their anchors stay unchanged and a release
+commits one offset edit. Automatic extent annotations retain automatic lane layout.
+
+`parts.ts` derives actual physical parts, presentation offsets and spreadsheet-safe
+CSV. `PartsWorkspace` renders shifted copies only. Original BReps, origins and history
+are not mutated. Dimensions are world extents; manufacturing stock dimensions and
+joinery inference are deliberately a separate future domain model.
+
+The render workspace lazily imports `three-gpu-pathtracer` 0.0.26 only when requested.
+The pinned WebGLPathTracer API supports the existing WebGL2 scene and an equirectangular
+environment; upstream has deprecated this API in favour of WebGPU. A future upgrade
+must migrate the adapter explicitly rather than blindly upgrading the dependency.
+The modeling viewport keeps its independent raster renderer. The path tracer uses
+local-frame dominant-face UVs; raster materials retain triplanar blending, so curved
+texture seams may differ. Emissive surfaces contribute indirect light; spotlights
+are also available in raster preview. Geometry/material/camera changes reset sampling.
+Closing the presentation workspace releases the tracer, accumulation targets and
+GPU resources. Hidden browser documents pause sampling. Preview quality and a finite
+sample target are local view settings; camera edits reset and resume completed previews.
+The preview export is the current canvas size.
+
+`useRenderJob` lives above workspace navigation. `captureRenderScene` owns copies
+of geometry, materials, textures and camera, so later edits/disposal of the visible
+scene cannot affect the job. `traceJob` runs a tiled, finite full-resolution render
+on a separate WebGL canvas, yielding between tiles, with cancellation and explicit
+GPU cleanup. The completed PNG remains in memory until dismissed or replaced.
+Closing/reloading the tab loses the job; this is not a durable queue or a denoiser.
+
+`cabinetPlan` lays out independent rectangular boards with explicit joints, back,
+shelves and doors. The modal preview uses temporary box meshes without CAD jobs
+per keystroke. Accepting creates real CAD solids and one named group in one
+transaction. Source replacement is explicit and respects inherited Hold. The
+result is ordinary editable parts, not a live parametric cabinet dependency graph.
+
+The Pages build uses `--base=/nivo/` (local production tests use
+`NIVO_BASE_PATH=/nivo/` for both build and preview); worker, WASM, icons and example paths resolve
+under that base. No user project is uploaded: IndexedDB remains origin-local.
