@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.11.0
+# Arkkitehtuuri — v0.12.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -523,3 +523,21 @@ Siirron akseli valitaan alkueleen ruutuprojektiosta ja pidetään samana vedon a
 `render/materials.ts` tuottaa normal-/karheuskartat paikallisista kuvioista ja lukee tuodut PBR-kanavat lineaarisina. Värikuva on sRGB. Bump muunnetaan tangenttiavaruuden normal-kartaksi, koska GPU-tracer ei tue suoraa bumpMap-kanavaa. Sijoittelu tallennetaan Texture.repeat/offset/rotation-kenttiin: tracerin atlaslataus voi palauttaa matriisin ja kutsua updateMatrixa ilman muunnoksen menetystä. Esikatselu ja tilannekuvan luonti odottavat kuvien decode-vaiheen sekä bump-muunnoksen valmistumista. Virheellinen kuva keskeyttää tarkennuksen näkyvään virheeseen.
 
 Progressiivinen esikatselu käyttää 1×1-laatoitusta: jokainen näyte päivittää koko kuvaa. Erillinen kuvatyö säilyttää oman renderöijän, resurssikopiot ja piilotetun laskennan laatoituksen. Tarkennus odottaa uusia karttoja myös materiaalin vaihtuessa.
+
+## Leikkauslista ja kokoonpanon esitys
+
+`model/parts.ts` muodostaa kokoonpanon ja tekee vain esityskopioihin keskipisteiden
+säteittäisen siirtymän. `model/cutting.ts` tunnistaa suorakulmaiset osat tarkkojen
+CAD-pisteiden, kolmen keskenään kohtisuoran tasopintasuunnan ja tilavuuden avulla.
+Reseptilaatikko voidaan lukea suoraan. Maailman rajalaatikkoa tai kaarevien pintojen
+tesselloitua äärimittaa ei käytetä sahausmitaksi. Käsin annettu aihio sidotaan
+geometrian tunnisteeseen ja vaatii uuden vahvistuksen geometrian muuttuessa.
+
+Leikkausasetukset ovat valinnaiset projektissa. Laskettu sijoittelu on johdannainen:
+materiaalien ja paksuuksien erottelu, kolme lajittelua ja kaksi guillotine-jakosääntöä,
+lyhyen sivun sovitus, levyjen määrän minimointi kokeiden välillä ja jäännöspalojen
+pinta-alan neliösumman maksimointi tasatilanteessa. Vapaat suorakulmiot eivät ole
+päällekkäisiä ja sahausura vähennetään niiden väliltä. Tämä on deterministinen
+heuristiikka, ei globaalin optimin todistus. Muistissa ei muuteta mallia.
+`drawing/cutting.ts` tekee samasta tuloksesta SVG-arkit, vektori-PDF:n ja CSV:n;
+print-CSS näyttää vain levykuvat ja osaluettelot fyysisillä A4-vaakasivuilla.

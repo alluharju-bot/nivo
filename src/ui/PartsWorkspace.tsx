@@ -6,17 +6,84 @@ import { assemblyParts, explodeParts, partRows, partsCSV } from '../model/parts'
 import { createRenderScene, renderDefaults } from '../render/scene';
 import { downloadFile, safeFilename } from '../storage/projects';
 import { formatLength } from '../model/units';
+import { groupPath } from '../model/groups';
+import type { CutSettings } from '../model/cutSettings';
+import { CutWorkspace } from './CutWorkspace';
 
 export function PartsWorkspace({
   project,
   meshes,
   selectedGroupId,
+  onCutSettings,
 }: {
   project: Project;
   meshes: BodyMesh[];
   selectedGroupId?: string;
+  onCutSettings: (settings: CutSettings) => Promise<boolean>;
 }) {
   const [target, setTarget] = useState(selectedGroupId ?? 'all');
+  const [tab, setTab] = useState<'exploded' | 'cutting'>('exploded');
+  const bodies = useMemo(() => assemblyParts(project, target), [project, target]);
+  useEffect(() => {
+    if (target !== 'all' && !project.groups.some((g) => g.id === target)) setTarget('all');
+  }, [target, project.groups]);
+  const title =
+    target === 'all' ? project.name : `${project.name} / ${groupPath(project.groups, target)}`;
+  return (
+    <section
+      className="parts-workspace"
+      aria-label="Osaluettelo, räjäytyskuva ja leikkauslista"
+      data-cutting={tab === 'cutting'}
+    >
+      <div className="parts-workspace-toolbar">
+        <div className="parts-tabs" aria-label="Osien esitystapa">
+          <button aria-pressed={tab === 'exploded'} onClick={() => setTab('exploded')}>
+            Räjäytyskuva
+          </button>
+          <button aria-pressed={tab === 'cutting'} onClick={() => setTab('cutting')}>
+            Leikkauslista
+          </button>
+        </div>
+        <label>
+          Kokoonpano
+          <select
+            aria-label="Osaluettelon kohde"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+          >
+            <option value="all">Koko malli</option>
+            {project.groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {groupPath(project.groups, g.id)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {tab === 'exploded' ? (
+        <ExplodedParts project={project} meshes={meshes} target={target} />
+      ) : (
+        <CutWorkspace
+          project={project}
+          bodies={bodies}
+          meshes={meshes}
+          title={title}
+          onSettings={onCutSettings}
+        />
+      )}
+    </section>
+  );
+}
+
+function ExplodedParts({
+  project,
+  meshes,
+  target,
+}: {
+  project: Project;
+  meshes: BodyMesh[];
+  target: string;
+}) {
   const [amount, setAmount] = useState(0.8);
   const [selected, setSelected] = useState<string>();
   const [error, setError] = useState('');
@@ -59,9 +126,6 @@ export function PartsWorkspace({
   useEffect(() => {
     api.current?.fit();
   }, [target]);
-  useEffect(() => {
-    if (target !== 'all' && !project.groups.some((g) => g.id === target)) setTarget('all');
-  }, [target, project.groups]);
   const exportImage = async () => {
     setExporting(true);
     setError('');
@@ -75,7 +139,7 @@ export function PartsWorkspace({
     }
   };
   return (
-    <section className="parts-workspace" aria-label="Osaluettelo ja räjäytyskuva">
+    <div className="parts-layout">
       <div className="parts-preview">
         <div ref={host} className="parts-canvas" />
         <div className="parts-view-controls">
@@ -107,24 +171,6 @@ export function PartsWorkspace({
         <h2>
           Osaluettelo <small>{rows.length} osaa</small>
         </h2>
-        <label>
-          Kokoonpano
-          <select
-            aria-label="Osaluettelon kohde"
-            value={target}
-            onChange={(e) => {
-              setTarget(e.target.value);
-              setSelected(undefined);
-            }}
-          >
-            <option value="all">Koko malli</option>
-            {project.groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </label>
         <p className="muted">
           Jokainen erillinen malliosa on yksi osa. Myös piilotetut osat sisältyvät luetteloon.
         </p>
@@ -159,8 +205,9 @@ export function PartsWorkspace({
           {!rows.length && <p>Ei erillisiä kiinteitä malliosia.</p>}
         </div>
         <p className="parts-note">
-          Ulkomitat eivät ole sahauslista. Yhtenäiseksi mallinnettu kaappirunko näkyy yhtenä osana;
-          levyjaon ja liitosten valinta tarvitaan ennen sen pilkkomista.
+          Leikkauslista-välilehti sijoittelee erilliset levyosat sahauslevyille. Yhtenäiseksi
+          mallinnettu kaappirunko on yhä yksi osa; tarvittaessa luo erilliset levyt
+          Levyrunko-työkalulla.
         </p>
         <button
           className="button dark full"
@@ -185,6 +232,6 @@ export function PartsWorkspace({
         </button>
         {error && <p role="alert">{error}</p>}
       </aside>
-    </section>
+    </div>
   );
 }

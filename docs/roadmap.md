@@ -459,7 +459,7 @@ toimiva soveltuvuusalue kirjataan ennen käyttöliittymän lupausten laajentamis
 - GitHub Pages -työnkulku testaa ja paketoi `/nivo/`-polkuun. Selainkohtainen
   paikallistallennus ja `.nivo`-tiedostot säilyvät; ei pilvisynkronointia.
 
-### Toteutettu: levyrunko. Seuraavaksi valmistuslista
+### Toteutettu: levyrunko ja leikkauslistan ensimmäinen versio
 
 Automaattinen luettelo on luotettava vain, jos valmistettavat osat ovat erillisiä.
 Yksi ontoksi työstetty BRep on yksi osa. Sen pintoja ei lasketa erillisiksi levyiksi.
@@ -475,10 +475,12 @@ Yksi ontoksi työstetty BRep on yksi osa. Sen pintoja ei lasketa erillisiksi lev
 
 Valitusta osasta voi ottaa mitat ja sijainnin. Lähtöosa säilyy oletuksena;
 Korvaa lähtöosa -valinta korvaa sen hyväksynnässä. Korvaus ja alkuperäiset
-mittaviitteet palautuvat yhdellä Perulla. Työkalu ei päättele liitoksia BRepin pinnoista. Tulevaa valmistuslistaa varten sahattavat mitat tulee johtaa osan paikallisesta
-valmistuskehyksestä; kiertyneen kappaleen maailman X/Y/Z-rajat eivät ole sahausmittoja.
-Materiaali, syysuunta, reunalistat, koneistukset ja toistuvien osien luotettava
-ryhmittely kuuluvat valmistuslistaan. Nykyinen CSV ilmoittaa ulkomitat, ei sahausmittoja.
+mittaviitteet palautuvat yhdellä Perulla. Työkalu ei päättele liitoksia BRepin pinnoista.
+V0.12:n leikkauslista tunnistaa suorakulmaiset erillisosat niiden paikallisista
+CAD-mitoista, myös kiertyneet osat. Muut muodot tarvitsevat vahvistetun aihion.
+Reunalistat, automaattiset koneistusvähennykset ja linkitettyjen identtisten
+komponenttien valmistusmäärät ovat jatkotyötä. Räjäytyskuvan vanha osaluettelon
+CSV säilyttää maailman X/Y/Z-ulkomitat; Leikkauslistan oma CSV sisältää aihiomitat.
 
 Muut seuraavat käytettävyyskohteet: ensimmäisen testaajan havainnot, yhtenäinen
 hyväksymis-/peruutuslogiikka kaikissa työkaluissa, useat mittakuvan näkymät ja
@@ -502,3 +504,31 @@ Push/pullin Shift-haku ja kosketuksen Poimi tavoitemitta käyttävät kulma-, ke
 Materiaali ja valaistus löytyvät jo mallin osan tiedoista. Renderin erillinen Valo-välilehti yhdistyy Materiaaliin. Melamiinit ja kalustelevyt nostavat presetit 40:een. PBR-kanavat ja paikallisesti tuotetut kohokuviot, kuvien latauksen odotus ja tracerin palautusta kestävät tekstuurimuunnokset. Tarkentuva esikatselu päivittyy koko kuvan alueelta kerralla.
 
 Seuraavat renderöintiaskeleet: lisensoidut valokuvapohjaiset materiaalipaketit, pinnan UV-sauman hallinta kaarevilla pinnoilla, kohinanpoisto ja fyysisen iPadin GPU-varmennus. Muun käyttöönoton tarkkuushavainnot pysyvät lisäominaisuuksia tärkeämpinä.
+
+## V0.12: säteittäinen räjäytys ja leikkauslista
+
+- Räjäytyksen siirtymä on osan keskipisteen ja kokoonpanon keskipisteen erotus
+  kerrottuna räjäytysmäärällä. Kaikki suuntakomponentit säilyvät: takaosan
+  sidelistat liikkuvat taakse sekä ylös/alas. Keskitetty osa pysyy paikallaan,
+  järjestys ei vaikuta tulokseen, ja Koottu palauttaa täsmälleen lähtöesityksen.
+- Osat-näkymän kaksi välilehteä käyttävät yhteistä kokoonpanovalintaa ja numerointia.
+  Leikkauslista sisältää erilliset kiinteät osat myös alaryhmistä ja piilotettuina.
+- Vakiot/oma levykoko, sahausura ja reunavara. Kuuden deterministisen suorien
+  sahausten asettelun vertailu vähentää levyjen tarvetta ja säilyttää jäännöspaloja.
+  Materiaali/pintaväri/kuva sekä levypaksuus erottavat levyt. Osakohtainen
+  levymateriaalin nimi mahdollistaa tarkoituksellisen yhdistämisen.
+- Syysuunta: vapaa 90° kääntö tai osan pituuden/leveyden lukitus levyn pituuteen.
+  Suorakulmaisten osien todelliset mitat, käsin annettavat aihiot muille muodoille,
+  osakohtainen poisjättö ja liian suuren osan näkyvä ilmoitus.
+- A4-vaakasuuntainen vektori-PDF, suora tulostus, numeroidut levykuvat ja osalista,
+  sekä CSV levynumeroineen. Keskeneräisyys näkyy myös viennissä. Asetukset ja
+  aihiot tallentuvat .nivo-projektiin sekä Peru-historiaan; malli ei muutu.
+
+### Backlog: CNC-ohjeistus
+
+Toteutetaan myöhemmin käyttäjän pyynnöstä. Ei mukana V0.12:ssa.
+Työstöradat, työkalujen/terien määritys, kiinnitys- ja läpileikkausvarat,
+poraus- ja taskutoiminnot, konekohtaiset postprosessorit ja G-code-vienti.
+Nykyinen leikkauslista on suorakulmaisten aihioiden sahaussuunnitelma,
+ei koneen ohjausohjelma. Myöhempi nesting: vapaamuotoiset ääriviivat,
+olemassa olevat jäännöslevyt sekä eri varastolevykoot samassa materiaalissa.

@@ -163,6 +163,23 @@ export function translateSelection(
       groups: [...project.groups, ...groups],
       guides: [...project.guides, ...guides],
       dimensions: [...project.dimensions, ...dimensions],
+      settings: project.settings.cutting?.parts
+        ? {
+            ...project.settings,
+            cutting: {
+              ...project.settings.cutting,
+              parts: {
+                ...project.settings.cutting.parts,
+                ...Object.fromEntries(
+                  [...bodyIds].flatMap(([source, copy]) => {
+                    const override = project.settings.cutting?.parts?.[source];
+                    return override ? [[copy, structuredClone(override)]] : [];
+                  }),
+                ),
+              },
+            },
+          }
+        : project.settings,
     },
     ids: bodies.map((b) => b.id),
     groupId: rootGroupId ? groupIds.get(rootGroupId) : undefined,

@@ -3940,7 +3940,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.11.0</span>
+                    <span>v0.12.0</span>
                   </div>
                 </>
               )}
@@ -3984,6 +3984,12 @@ export default function App() {
           project={project}
           meshes={editor.meshes}
           selectedGroupId={selectedGroupId}
+          onCutSettings={(cutting) =>
+            editor.transact(
+              { ...project, settings: { ...project.settings, cutting } },
+              'Leikkauslista päivitetty.',
+            )
+          }
         />
       )}
 
@@ -4053,7 +4059,7 @@ export default function App() {
           </span>
           <span role="status">
             {partsOpen
-              ? 'Osaluettelo · räjäytyskuva · Esc palaa malliin'
+              ? 'Osat · räjäytyskuva ja leikkauslista · Esc palaa malliin'
               : renderOpen
                 ? 'Renderöinti · materiaalit ja valo · Esc palaa malliin'
                 : editing || tool === 'navigate' || tool === 'boolean'
@@ -4063,7 +4069,7 @@ export default function App() {
         </div>
         <span className="status-right">
           {partsOpen
-            ? 'Osaluettelo / räjäytyskuva'
+            ? 'Osat / leikkauslista'
             : renderOpen
               ? 'Esityskuva'
               : mode === 'model'

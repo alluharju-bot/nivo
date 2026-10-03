@@ -59,21 +59,15 @@ export function partsCSV(project: Project, bodies: Body[]) {
 export function explodeParts(bodies: Body[], meshes: BodyMesh[], amount: number) {
   const box = bounds(bodies),
     center = box.min.map((v, i) => (v + box.max[i]) / 2);
-  const extent = box.max.map((v, i) => Math.max(v - box.min[i], 1));
   const offsets = new Map<string, Vec3>();
-  bodies.forEach((body, index) => {
+  bodies.forEach((body) => {
     const size = [body.feature.width, body.feature.depth, body.feature.height];
-    const radial = body.origin.map((v, i) => (v + size[i] / 2 - center[i]) / extent[i]);
-    // Dominant axis makes panel assemblies read as an assembly diagram.
-    let axis = radial.map(Math.abs).indexOf(Math.max(...radial.map(Math.abs)));
-    let sign = Math.sign(radial[axis]);
-    if (!sign) {
-      axis = size.indexOf(Math.min(...size));
-      sign = index % 2 ? 1 : -1;
-    }
-    const offset: Vec3 = [0, 0, 0];
-    offset[axis] =
-      amount * (Math.max(...extent) * 0.25 + Math.abs(radial[axis]) * extent[axis]) * sign;
+    // Homothetic expansion of part centres. Preserve every radial component:
+    // rear upper/lower rails must move backwards AND up/down. A centred part
+    // stays at the centre while its neighbours separate, independent of list order.
+    const offset = body.origin.map(
+      (v, i) => (v + size[i] / 2 - center[i]) * Math.max(0, amount),
+    ) as Vec3;
     offsets.set(body.id, offset);
   });
   return {

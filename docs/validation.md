@@ -4,6 +4,43 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.12.0 — räjäytyskuva ja leikkauslista
+
+**139 yksikkö-/CAD-testiä hyväksytty (23 tiedostoa).** Kuuden osan kaapin
+sivut/kansi/pohja ja kaksi takaosan sidelistaa liikkuvat radiaalisesti oikeisiin
+suuntiin; keskitetty hylly pysyy paikallaan, osajärjestys ei vaikuta ja nolla
+palauttaa tarkan lähtöesityksen muuttamatta mallia.
+
+Leikkauskokeet kattavat sahausuran ja reunavarat, tarkan reunaan sopimisen,
+syysuunnan molemmat lukitukset, materiaalien/paksuuksien erottelun, 80 osan
+sijoittelun päällekkäisyydet ja osien säilymisen, toistettavuuden, alaryhmät,
+aihiomittojen vanhenemisen sekä asetusten kopioitumisen ryhmän mukana.
+Todellinen OpenCascade varmistaa 18 × 563,125 × 2400,375 mm osan mitat kahden
+mielivaltaisen kierron jälkeen ja hylkää onton kaapin sekä pyöristetyn osan
+automaattisen suorakulmion tunnistuksesta. SVG/CSV-merkistön suojaus ja
+monisivuinen osalista testataan erikseen.
+
+Tuotantopaketin selainkokeissa kuuden osan kaappi rajataan alaryhmineen,
+numerot vastaavat räjäytyskuvaa, 2440 × 1220 mm levy tallentuu päivityksen yli,
+malli säilyy samana ja PDF-/CSV-vienti onnistuvat. Tulostus-CSS piilottaa
+sovelluksen työkalut; Chromiumin tulostama PDF sisältää saman määrän
+A4-vaakasivuja kuin erillinen vektori-PDF. PDF:n ensimmäinen sivu on tarkistettu
+myös kuvana. Käsin annettu ympyräosan aihio, syysuunnan vuoksi liian suuri osa,
+virheellinen reunavara, poisjättö ja Peru varmennetaan molemmilla profiileilla.
+
+Laajempi kohdennettu ajo: 8 hyväksyttyä ja kaksi korjattavaa poisjätön
+valintaruudun vastekoetta. Valintaruutu ja syysuunta päivittävät nyt välittömästi
+paikallisen esityksensä ja palautuvat tallennusvirheessä. Lopullisen paketin
+**4/4 leikkauslistan työnkulkua hyväksytty (48 s)** työpöytä- ja tablettiprofiilissa.
+Aiemmat kuusi levyrungon, Perun, CSV:n ja räjäytyksen regressiokoetta läpäisivät
+laajemman ajon. Tyypitys, tuotantopaketti, lisenssit ja muotoilu tarkistettu.
+
+Rajaus: suorakulmaiset aihiot, kuuden deterministisen guillotine-asettelun vertailu;
+ei globaalia optimointitakuuta, automaattisia reunalistoja/koneistusvähennyksiä,
+vapaamuotoista nestingiä tai CNC-ratoja. Syysuunta valitaan leikkauslistassa;
+tekstuurin UV-asennosta ei päätellä valmistuksen syitä. Tablettikoe on Chromiumin
+kosketusemulointi; fyysinen iPad, Safari ja fyysinen tulostin eivät sisälly kokeeseen.
+
 ## V0.11.0 — tartuntojen tarkkuus, ruudukko ja materiaalit
 
 **128 yksikkö-/CAD-testiä hyväksytty (21 tiedostoa).** Uudet kokeet kattavat

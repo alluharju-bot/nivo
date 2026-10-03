@@ -3,7 +3,7 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.11.0** tarkentaa pinnan ja tartuntapisteen valintaa. Push/pullin Shift poimii tavoitemitan kulmasta, keskipisteestä, reunasta, apuviivasta tai pinnasta. Siirto käyttää oletuksena yhtä akselia, Ctrl vaihtaa kopioinnin päälle ja pois, ja vapaat mitat noudattavat ruudukkoa. Mallin osan tiedoista löytyvät materiaalit ja valaisevat pinnat. 40 materiaalipresettiä sisältää melamiinit ja kalustelevyt; PBR-kuvien tuonti tukee normal-, bump-, karheus- ja metallisuuskarttoja. Tarkentuva esikatselu päivittää koko kuvaa kerralla.
+Versio **0.12.0** lisää **Osat → Leikkauslista** -näkymän: levykoko, sahausura, reunavarat, syysuunta, numeroidut sijoittelukuvat ja tulostettava PDF/CSV-osalista. Räjäytyskuvan osat irtoavat nyt kokoonpanon keskipisteestä suoraan ulospäin, myös takana olevat sidelistat.
 
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
@@ -536,7 +536,25 @@ ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testatt
   ympäristövoimakkuus sekä lattian näkyvyys.
 - **Osat**: automaattinen osaluettelo ja numeroitu räjäytyskuva. Valitse kokoonpano,
   säädä räjäytystä, vie CSV/PNG. Yksi mallinnettu kiinteä kappale on yksi osa.
-  Ulkomitat ovat maailman X/Y/Z-mittoja. Sahauslista valmistusvaroineen on jatkotyötä.
+  Räjäytys siirtää osien keskipisteitä suoraan kokoonpanon keskipisteestä ulospäin.
+  Keskellä oleva osa pysyy paikallaan, kun ympäröivät osat erkanevat. Malli ei muutu.
+- **Osat → Leikkauslista**: valitse kokoonpano, levykoko tai omat mitat, sahausura
+  ja reunavara. Päivitä asettelu kokeilee kuutta suorien sahausten sijoittelua:
+  ensisijaisesti vähemmän levyjä, sitten suurempia yhtenäisiä jäännöspaloja.
+  Eri materiaalit, värit ja paksuudet saavat omat levynsä. Numerot vastaavat
+  saman kokoonpanon räjäytyskuvaa. Klikkaa osaa kuvassa tai listassa säätääksesi
+  syysuuntaa, aihiomittoja, levymateriaalin nimeä tai mukanaoloa.
+  Syyt kulkevat levyn pituussuuntaan; osan pituus tai leveys voidaan lukita siihen.
+  Puu- ja harjatut presetit sekä omat kuvat käyttävät oletuksena pituussuuntaa;
+  suunta on tarkistettava eikä sitä päätellä tekstuurin sijoittelusta.
+  Suorakulmaiset osat tunnistetaan tarkoista CAD-pisteistä myös kierrettyinä.
+  Kaarevat, reiälliset ja ontot osat tarvitsevat käsin vahvistetun suorakulmaisen
+  aihion. Muuttunut geometria mitätöi käsin annetun aihion vahvistuksen.
+  Liian suuret ja puuttuvamittaiset osat näkyvät tarkistettavina myös viennissä.
+  **Tulosta leikkauslista / Tallenna PDF** sisältävät levykuvat ja numeroidun
+  osalistan; CSV sisältää myös levynumerot. Asetukset tallentuvat projektiin ja
+  ovat peruttavissa. Reunalistoja ja koneistusvaroja ei päätellä automaattisesti.
+  Asettelu on ehdotus, ei takuu matemaattisesti pienimmästä hukasta. CNC on backlogissa.
 - **Muodot → Levyrunko**: anna leveys, syvyys, korkeus ja levypaksuus. Valitse
   kannen/pohjan liitos sivuihin, taustan sijainti ja paksuus sekä hyllyjen määrä.
   Voit lisätä yksi- tai parioven rakoineen. Esikatselu näyttää tuloksen ennen hyväksyntää.
@@ -545,6 +563,8 @@ ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testatt
   Korvaa lähtöosa -valinta korvaa sen levyillä. Hold suojaa korvaamiselta.
   Ovet tulevat rungon eteen ja lisäävät kokonaissyvyyttä levypaksuuden verran.
   Liitoksia, helaporauksia, sahausvaroja ja materiaalisuuntaa ei päätellä.
+
+![Numeroitu leikkauslista ja levyille sijoittelu](docs/images/nivo-cutting-list.png)
 
 ## Rajaus ja jatko
 

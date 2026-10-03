@@ -1,4 +1,5 @@
 import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
+import { cutSettingsSchema } from './cutSettings';
 import { z } from 'zod';
 import { resolveAnchor } from './guides';
 import { polygonError } from './polygon';
@@ -252,6 +253,7 @@ export const projectSchema = z
         guideXray: z.boolean(),
         moveMode: z.enum(['axis', 'free']).optional(),
         gridStep: z.number().min(0.1).max(10000).optional(),
+        cutting: cutSettingsSchema.optional(),
         axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
         axisLabels: z.boolean().default(false),
         dimensionDisplay: z.enum(['all', 'selected', 'hidden']).default('all'),

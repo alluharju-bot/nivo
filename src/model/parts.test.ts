@@ -32,6 +32,30 @@ describe('assembly documentation', () => {
     expect(explodeParts(bodies, [], 0).bodies).toEqual(original);
     expect(bodies).toEqual(original);
   });
+  it('separates cabinet caps, sides and rear rails radially, independent of list order', () => {
+    const bodies = [
+      makeBody(18, 600, 720, [0, 0, 0], 'Vasen'),
+      makeBody(18, 600, 720, [582, 0, 0], 'Oikea'),
+      makeBody(564, 600, 18, [18, 0, 0], 'Pohja'),
+      makeBody(564, 600, 18, [18, 0, 702], 'Katto'),
+      makeBody(564, 18, 80, [18, 582, 622], 'Yläsidelista'),
+      makeBody(564, 18, 80, [18, 582, 18], 'Alasidelista'),
+      makeBody(564, 600, 18, [18, 0, 351], 'Keskihylly'),
+    ];
+    const original = structuredClone(bodies);
+    const expanded = explodeParts(bodies, [], 1).bodies;
+    const d = expanded.map((b, i) => b.origin.map((n, j) => n - bodies[i].origin[j]));
+    expect(d[0]).toEqual([-291, 0, 0]);
+    expect(d[1]).toEqual([291, 0, 0]);
+    expect(d[2]).toEqual([0, 0, -351]);
+    expect(d[3]).toEqual([0, 0, 351]);
+    expect(d[4]).toEqual([0, 291, 302]);
+    expect(d[5]).toEqual([0, 291, -302]);
+    expect(d[6]).toEqual([0, 0, 0]);
+    expect(explodeParts([...bodies].reverse(), [], 1).bodies.reverse()).toEqual(expanded);
+    expect(explodeParts(bodies, [], 0).bodies).toEqual(original);
+    expect(bodies).toEqual(original);
+  });
   it('exports millimetres and escapes spreadsheet formulas, delimiters and quotes', () => {
     const project = freshProject();
     project.bodies = [makeBody(600, 18, 2400, [0, 0, 0], '=1+1;"ovi"')];

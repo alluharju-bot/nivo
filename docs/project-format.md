@@ -220,3 +220,21 @@ kuva-aineistot ja geometria mahtuvat samaan avattavaan tiedostoon.
 ## V0.11: tarkka siirto ja pintakartat
 
 Valinnainen `settings.moveMode` on `axis` tai `free`; puuttuva arvo käyttää yhtä akselia. `appearance.maps` sisältää valinnaiset `normal`, `bump`, `roughness`, `metalness`-asset-tunnisteet. `normalStrength` on 0–5 ja `surfaceDetail` ottaa normal-/karheuskartan käyttöön tai pois. Vanhat projektit toimivat ilman näitä kenttiä. Kaikkien kanavien sekä omien materiaalireseptien asset-viitteet validoidaan. Datakartan tuonti käyttää häviötöntä PNG:tä enintään 1024 pikseliin, värikuva enintään 2048 pikselin WebP:tä. Molemmat ovat mukana samassa assets-taulussa ja pysyvässä historiassa.
+
+## V0.12:n leikkausasetukset (projektiversio edelleen 6)
+
+`settings.cutting` on valinnainen: `length`, `width` ovat levyn millimetrimitat,
+`kerf` sahausura (0–20 mm), `margin` jokaisen reunan vara (0–1 000 mm).
+Leikkausnäkymä tarkistaa, että reunavarojen sisälle jää leikattavaa pinta-alaa.
+Puuttuva asetus käyttää 2800 × 2070 mm levyä, 3,2 mm uraa ja 10 mm reunavaraa.
+`parts` on osan UUID:llä indeksoitu valinnaisten ohitusten kartta:
+`included`, `grain` (`free`, `length`, `width`), `stock` (oma levymateriaalin nimi)
+ja `blank: {dimensions:[pituus,leveys,paksuus],geometryKey}`.
+Syysuunta kohdistaa valitun osan mitan levyn pituuteen, eikä seuraa automaattisesti
+renderöintitekstuurin UV-asentoa. `geometryKey` on BRepin topologiatunniste tai
+reseptin kompakti allekirjoitus; muuttunut geometria vaatii aihion vahvistuksen.
+Ohitukset eivät muuta kappaleen mittoja tai BRepiä. Sijoittelua, välilehteä,
+räjäytysmäärää ja tulostearkkeja ei tallenneta: ne johdetaan nykyisestä mallista.
+
+Osan tai ryhmän kopiointi kopioi myös osakohtaiset leikkausvalinnat uusille UUID:ille.
+Siirtäminen ei mitätöi aihiota, koska geometriaresepti säilyy.

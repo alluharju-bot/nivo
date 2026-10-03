@@ -3446,7 +3446,7 @@ p {
     font-size: 10px;
   }
 }
-.parts-workspace {
+.parts-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 350px;
   flex: 1;
@@ -3566,7 +3566,7 @@ p {
   color: #697866;
 }
 @media (max-width: 900px) {
-  .parts-workspace {
+  .parts-layout {
     grid-template-columns: minmax(0, 1fr) 280px;
   }
   .parts-list-panel {
@@ -3574,7 +3574,7 @@ p {
   }
 }
 @media (max-width: 700px) {
-  .parts-workspace {
+  .parts-layout {
     grid-template-columns: 1fr;
     overflow: auto;
   }
@@ -4027,4 +4027,302 @@ p {
 }
 .model-materials .checkbox-label {
   align-items: center;
+}
+
+/* Assembly documentation shares one scope and keeps manufacturing separate. */
+.parts-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.parts-workspace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 18px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.parts-tabs {
+  display: flex;
+  gap: 4px;
+}
+.parts-tabs button {
+  padding: 9px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.parts-tabs button[aria-pressed='true'] {
+  background: #e2eadb;
+  color: #304d27;
+  font-weight: 600;
+}
+.parts-workspace-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.parts-workspace-toolbar select {
+  max-width: 280px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+}
+.cut-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  min-height: 0;
+  flex: 1;
+}
+.cut-preview {
+  overflow: auto;
+  padding: 24px;
+  background: #e8ece7;
+  min-width: 0;
+}
+.cut-summary {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.cut-summary h2 {
+  font-size: 23px;
+  margin-bottom: 6px;
+}
+.cut-summary p {
+  font-size: 12px;
+  color: #65745e;
+  overflow-wrap: anywhere;
+}
+.cut-statistics {
+  display: flex;
+  gap: 24px;
+}
+.cut-statistics strong {
+  font-size: 23px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.cut-statistics small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 4px;
+  color: #65745e;
+}
+.cut-paper {
+  background: white;
+  box-shadow: 0 2px 12px #23321d12;
+  margin-bottom: 22px;
+}
+.cut-paper svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.cut-paper [data-cut-part] {
+  cursor: pointer;
+  outline: none;
+}
+.cut-paper [data-cut-part]:hover rect,
+.cut-paper [data-cut-part]:focus rect {
+  stroke: #203f17;
+  stroke-width: 0.75;
+}
+.cut-settings form,
+.cut-settings fieldset {
+  display: grid;
+  gap: 12px;
+}
+.cut-settings fieldset {
+  padding: 0;
+  border: 0;
+  margin: 0;
+  min-width: 0;
+}
+.cut-settings legend {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 0 0 15px;
+  overflow-wrap: anywhere;
+}
+.cut-settings input:not([type='checkbox']) {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+.cut-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.cut-warning {
+  color: #86451e;
+  background: #fcf1db;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.cut-warning button {
+  display: block;
+  text-align: left;
+  margin-top: 8px;
+  text-decoration: underline;
+  line-height: 1.5;
+}
+.cut-settings .cut-part-editor {
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 12px;
+}
+.cut-part-editor details summary {
+  font-size: 12px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.cut-part-editor details form {
+  margin: 12px 0;
+}
+.cut-settings .cut-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cut-checkbox input {
+  width: 16px;
+  height: 16px;
+}
+.cut-export {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 10px;
+}
+.cut-hint,
+.cut-empty {
+  padding: 20px;
+  line-height: 1.7;
+  color: #64725e;
+  font-size: 13px;
+}
+.cut-part-list {
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 18px;
+}
+.cut-part-list h3 {
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+.cut-part-list p {
+  font-size: 12px;
+  color: #64725e;
+  margin-bottom: 12px;
+}
+.cut-table-scroll {
+  overflow-x: auto;
+}
+.cut-table small {
+  display: block;
+  margin-top: 5px;
+}
+.cut-print-lists {
+  display: none;
+}
+@media (max-width: 1050px) {
+  .cut-workspace {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+  .cut-preview {
+    padding: 16px;
+  }
+}
+@media (max-width: 700px) {
+  .parts-workspace {
+    overflow: auto;
+  }
+  .parts-workspace-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .parts-workspace-toolbar label {
+    justify-content: space-between;
+  }
+  .cut-workspace {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+  .cut-preview {
+    overflow: visible;
+  }
+  .cut-settings {
+    order: -1;
+    overflow: visible;
+  }
+}
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  body:has(.cut-workspace),
+  body:has(.cut-workspace) .app-shell {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    background: white;
+  }
+  body:has(.cut-workspace) .app-shell > :not(.parts-workspace) {
+    display: none !important;
+  }
+  body:has(.cut-workspace) .parts-workspace-toolbar,
+  .cut-settings,
+  .cut-summary,
+  .cut-warning,
+  .cut-part-list,
+  .cut-empty {
+    display: none !important;
+  }
+  .parts-workspace[data-cutting='true'],
+  .cut-workspace,
+  .cut-preview,
+  .cut-sheets,
+  .cut-print-lists {
+    display: block;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
+  }
+  .cut-paper {
+    width: 297mm;
+    height: 210mm;
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+  .cut-paper svg {
+    width: 297mm;
+    height: 210mm;
+  }
+  .cut-print-lists .cut-paper:last-child {
+    break-after: auto;
+  }
 }
