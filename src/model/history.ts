@@ -16,6 +16,23 @@ export class History {
     const next = this.peekRedo();
     return next && this.actions.get(next);
   }
+  /** The journal keeps only an ID; geometry stays in the bounded undo history. */
+  beforeAction(actionId: string) {
+    const timeline = [...this.past, this.current, ...this.future.slice().reverse()];
+    const index = timeline.findIndex((p) => this.actions.get(p)?.actionId === actionId);
+    if (index < 1) return;
+    return { project: timeline[index - 1], info: this.actions.get(timeline[index])! };
+  }
+  restoreBeforeAction(actionId: string) {
+    const before = this.beforeAction(actionId);
+    if (!before) return;
+    const timeline = [...this.past, this.current, ...this.future.slice().reverse()];
+    const index = timeline.indexOf(before.project);
+    this.past = timeline.slice(0, index);
+    this.current = before.project;
+    this.future = timeline.slice(index + 1).reverse();
+    return this.current;
+  }
   adopt(next: Project) {
     const info = this.actions.get(this.current);
     if (info) this.actions.set(next, info);

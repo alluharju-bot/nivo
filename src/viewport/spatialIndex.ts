@@ -100,6 +100,27 @@ export function intersectModel(ray: THREE.Raycaster, group: THREE.Group) {
       false,
     )
     .filter((hit) => !group.userData.acceptPoint || group.userData.acceptPoint(hit.point));
+  // GPU vertices are Float32; oblique circles/polygons and their support may
+  // therefore produce slightly different ray distances on the SAME CAD plane.
+  // Compare exact planar intersections instead of increasing the tie tolerance
+  // (which would make sketches win over genuinely nearer foreground parts).
+  for (const hit of hits) {
+    if (!(hit.object instanceof THREE.Mesh) || hit.faceIndex == null) continue;
+    const face = (
+      hit.object.userData.faces as import('../cad/protocol').BodyMesh['faces'] | undefined
+    )?.find((f) => hit.faceIndex! * 3 >= f.start && hit.faceIndex! * 3 < f.start + f.count);
+    if (!face?.planar) continue;
+    const normal = new THREE.Vector3(...face.normal);
+    const exact = ray.ray.intersectPlane(
+      new THREE.Plane(normal, -normal.dot(new THREE.Vector3(...face.center))),
+      new THREE.Vector3(),
+    );
+    if (exact) {
+      hit.point.copy(exact);
+      hit.distance = ray.ray.origin.distanceTo(exact);
+    }
+  }
+  hits.sort((a, b) => a.distance - b.distance);
   // Ray hits ignore polygon offset. Match the displayed sketch at coincident
   // surfaces, without allowing it to win over physically nearer geometry.
   // Cluster from the nearest hit to avoid a non-transitive epsilon comparator.

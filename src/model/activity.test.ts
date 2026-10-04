@@ -59,3 +59,44 @@ test('undo action context survives snapshot adoption, redo, reload and branch re
   expect(restored.redoInfo).toBeUndefined();
   expect(restored.undoInfo?.label).toBe('Nimetty');
 });
+
+test('opening checkpoints restore the cutter and targets without duplicating CAD data in the journal', () => {
+  const part = makeBody(),
+    profile = makeBody(20, 20, 0),
+    before = { ...freshProject(), bodies: [part, profile] },
+    cut = { ...before, bodies: [part] },
+    later = { ...cut, name: 'Later edit' },
+    info = {
+      label: 'Aukko leikattu',
+      actionId: 'cut',
+      context: { ids: [profile.id, part.id], primary: profile.id },
+      operation: {
+        kind: 'opening' as const,
+        profileId: profile.id,
+        targetIds: [part.id],
+        keep: false,
+      },
+    };
+  const history = new History(before);
+  history.commit(cut, info);
+  history.commit(later, { label: 'Nimetty', actionId: 'name' });
+  const restored = new History(later);
+  expect(restored.restore(history.serialize())).toBe(true);
+  expect(restored.beforeAction('cut')?.info).toEqual(info);
+  expect(restored.restoreBeforeAction('cut')?.bodies).toEqual([part, profile]);
+  expect(restored.redoInfo).toEqual(info);
+  expect(restored.redo().bodies).toEqual([part]);
+  expect(restored.redo().name).toBe('Later edit');
+  restored.restoreBeforeAction('cut');
+  restored.commit({ ...before, name: 'New cut' }, { label: 'Uusi leikkaus', actionId: 'new' });
+  expect(restored.beforeAction('cut')).toBeUndefined();
+  expect(restored.canRedo).toBe(false);
+  const journal = new ActivityJournal(before.id);
+  journal.record(info, 'edit');
+  const loaded = new ActivityJournal(before.id, journal.serialize());
+  expect(loaded.entries[0]).toMatchObject(info);
+  expect(journal.serialize()).not.toContain('feature');
+  const bounded = new History(before, 1);
+  bounded.commit(cut, info);
+  expect(bounded.beforeAction('cut')).toBeUndefined();
+});

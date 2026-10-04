@@ -4,9 +4,11 @@ import {
   cast,
   getOC,
   measureVolume,
+  measureArea,
   basicFaceExtrusion,
   Vector,
   type AnyShape,
+  type Shape3D,
 } from 'replicad';
 import { bodyFromShape, createShape, meshBody, shapeIsValid } from './kernel';
 import {
@@ -20,6 +22,7 @@ import {
 import { dot, sub, scale } from '../model/geometry';
 import { sketchFrame, frameV } from '../model/sketch';
 import type { SplitResult } from './protocol';
+import { splitFace } from './operations';
 
 /** An open pen path is exact wire geometry, never an implicitly closed face. */
 export function penPath(points: Vec3[], name: string): Body {
@@ -117,6 +120,97 @@ export function splitWithPath(body: Body, ref: FaceRef, path: Body): SplitResult
 export interface OpeningResult {
   bodies: Body[];
   affected: string[];
+}
+
+/** Explicitly apply a separate sketch to coplanar supporting faces. No automatic joining. */
+export function divideSurfaces(profile: Body, targets: Body[]): SplitResult[] {
+  if (featureIsSolid(profile.feature))
+    throw new Error('Pinnan jakamiseen tarvitaan viiva tai tasomuoto.');
+  const sketch = createShape(profile);
+  const results: SplitResult[] = [];
+  try {
+    const drawing = meshBody(profile, sketch);
+    if (drawing.faces.length > 1 || drawing.faces.some((f) => !f.planar))
+      throw new Error('Valitse tasomainen piirros.');
+    for (const body of targets) {
+      if (body.id === profile.id || !featureIsSolid(body.feature)) continue;
+      if (body.locked) throw new Error('Vapauta kappaleen Hold ennen pinnan jakamista.');
+      // Reject distant parts before building exact CAD geometry.
+      if (
+        body.origin.some((n, i) => {
+          const key = (['width', 'depth', 'height'] as const)[i];
+          return (
+            n > profile.origin[i] + profile.feature[key] + 1e-5 ||
+            n + body.feature[key] < profile.origin[i] - 1e-5
+          );
+        })
+      )
+        continue;
+      const shape = createShape(body),
+        faces = shape.faces;
+      try {
+        const candidates = meshBody(body, shape).faces.filter(
+          (face) =>
+            face.planar &&
+            (drawing.faces.length
+              ? Math.abs(dot(face.normal, drawing.faces[0].normal)) > 0.99999 &&
+                Math.abs(dot(sub(drawing.faces[0].center, face.center), face.normal)) < 1e-5
+              : drawing.verticesCAD.every(
+                  (v) => Math.abs(dot(sub(v.point, face.center), face.normal)) < 1e-5,
+                )),
+        );
+        // Refresh topology after each split: a drawing can cross several already divided faces.
+        let next = body,
+          selected: FaceRef | undefined;
+        for (const candidate of candidates) {
+          const currentShape = createShape(next),
+            currentFaces = currentShape.faces;
+          try {
+            const currentFace = meshBody(next, currentShape).faces.find(
+              (f) =>
+                f.planar &&
+                Math.hypot(...sub(f.center, candidate.center)) < 1e-5 &&
+                dot(f.normal, candidate.normal) > 0.99999,
+            );
+            if (!currentFace) continue;
+            if (drawing.faces.length) {
+              const common = new (getOC().BRepAlgoAPI_Common)(
+                currentFaces[currentFace.index].wrapped,
+                sketch.wrapped,
+              );
+              let overlap: AnyShape | undefined;
+              try {
+                overlap = cast(common.Shape());
+                const area = measureArea(overlap as Shape3D),
+                  own = measureArea(currentFaces[currentFace.index]);
+                if (area < 1e-6 || own - area < Math.max(1e-5, own * 1e-8)) continue;
+              } finally {
+                overlap?.delete();
+                common.delete();
+              }
+            }
+            const result = drawing.faces.length
+              ? splitFace(next, currentFace.ref, profile)
+              : splitWithPath(next, currentFace.ref, profile);
+            if (!result.unchanged) {
+              next = result.body;
+              selected = result.face;
+            }
+          } finally {
+            currentFaces.forEach((f) => f.delete());
+            currentShape.delete();
+          }
+        }
+        if (selected) results.push({ body: next, face: selected });
+      } finally {
+        faces.forEach((f) => f.delete());
+        shape.delete();
+      }
+    }
+    return results;
+  } finally {
+    sketch.delete();
+  }
 }
 
 /** Extrude a planar sketch both ways through all supplied parts, preserving each part's identity. */

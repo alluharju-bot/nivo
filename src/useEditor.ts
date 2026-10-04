@@ -13,7 +13,7 @@ import {
 import { History } from './model/history';
 import { loadLocalSession, saveLocal } from './storage/projects';
 import { synchronizeComponents } from './model/components';
-import type { Activity, SelectionContext } from './model/activity';
+import type { ActionInfo, Activity, SelectionContext } from './model/activity';
 import { uid } from './model/project';
 
 export function useEditor() {
@@ -96,12 +96,14 @@ export function useEditor() {
     async (
       candidate: Project | (() => Promise<Project>),
       label: string,
-      mode: 'commit' | 'replace' | 'undo' | 'redo' = 'commit',
+      mode: 'commit' | 'replace' | 'undo' | 'redo' | 'restore' = 'commit',
+      details?: Omit<ActionInfo, 'label'>,
     ) => {
       const current = ++revision.current;
       const info =
         mode === 'undo' ? history.undoInfo : mode === 'redo' ? history.redoInfo : undefined;
       const context = mode === 'replace' ? { ids: [] } : (info?.context ?? actionContext.current);
+      const action: ActionInfo = { label, context, actionId: uid(), ...info, ...details };
       setBusy(true);
       setError('');
       setMessage('Lasketaan tarkkaa geometriaa…');
@@ -136,17 +138,20 @@ export function useEditor() {
         if (current !== revision.current) return false;
         if (mode === 'undo') history.undo();
         else if (mode === 'redo') history.redo();
-        else history.commit(next, { label, context });
+        else if (mode === 'restore') {
+          if (!details?.actionId || !history.restoreBeforeAction(details.actionId))
+            throw new Error('Toiminto ei ole enää kumoamishistoriassa.');
+        } else history.commit(next, action);
         history.adopt(next);
         setProject(next);
         setMeshes(built);
         setMessage(label);
         setActivity({
+          ...action,
           id: uid(),
           projectId: next.id,
           at: Date.now(),
-          context,
-          kind: mode === 'undo' ? 'undo' : mode === 'redo' ? 'redo' : 'edit',
+          kind: mode === 'undo' || mode === 'restore' ? 'undo' : mode === 'redo' ? 'redo' : 'edit',
           label: info ? `${mode === 'undo' ? 'Peruttu' : 'Palautettu'}: ${info.label}` : label,
         });
         persist(next);
@@ -197,6 +202,23 @@ export function useEditor() {
     transact,
     undo,
     redo,
+    canRestoreAction: (actionId: string) => !!history.beforeAction(actionId),
+    restoreAction: async (actionId: string) => {
+      const checkpoint = history.beforeAction(actionId);
+      if (!checkpoint) {
+        setError('Toiminto ei ole enää kumoamishistoriassa. Malli säilyi ennallaan.');
+        return;
+      }
+      if (
+        await transact(
+          checkpoint.project,
+          'Palattu leikkausta edeltävään malliin.',
+          'restore',
+          checkpoint.info,
+        )
+      )
+        return history.current;
+    },
     cancel,
     canUndo: history.canUndo,
     canRedo: history.canRedo,

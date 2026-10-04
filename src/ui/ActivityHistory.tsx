@@ -6,11 +6,15 @@ export function ActivityHistory({
   current,
   busy,
   onRestore,
+  canRestoreOperation,
+  onRestoreOperation,
 }: {
   entries: Activity[];
   current: SelectionContext;
   busy: boolean;
   onRestore: (context: SelectionContext) => void;
+  canRestoreOperation: (entry: Activity) => boolean;
+  onRestoreOperation: (entry: Activity) => void;
 }) {
   const [open, setOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
@@ -67,7 +71,11 @@ export function ActivityHistory({
               <X size={16} />
             </button>
           </header>
-          <p>Palauta valinta poimii osat uudelleen. Peru kumoaa mallin muutoksen.</p>
+          <p>
+            Palauta valinta poimii osat. Palaa leikkaukseen palauttaa mallin ennen leikkausta ja
+            avaa muodon sekä kohteet. Yläpalkin Palauta tekee myöhemmät muutokset uudelleen, kunnes
+            teet uuden muutoksen.
+          </p>
           {!entries.length ? (
             <p>Toiminnot ilmestyvät tähän työn edetessä.</p>
           ) : (
@@ -97,6 +105,17 @@ export function ActivityHistory({
                         Palauta valinta
                       </button>
                     </div>
+                  )}
+                  {entry.operation && canRestoreOperation(entry) && (
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        onRestoreOperation(entry);
+                        setOpen(false);
+                      }}
+                    >
+                      {entry.actionId ? 'Palaa leikkaukseen' : 'Jatka leikkausta'}
+                    </button>
                   )}
                 </li>
               ))}

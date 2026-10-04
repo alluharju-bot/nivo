@@ -423,17 +423,7 @@ export function installInteractions({
       }));
     if (event) {
       const accepts = (p: Vec3) => Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5;
-      const exact = nearest(event, false, accepts, true);
-      const edge = exact ? undefined : edgeAt(event, accepts);
-      const guide = !exact && !edge ? guideAt(event, [], accepts) : undefined;
-      const picked =
-        exact ??
-        (edge
-          ? { point: edge.point, key: 'edge', label: 'Reuna' }
-          : guide && accepts(guide.point)
-            ? guide
-            : undefined);
-      highlightEdge(edge?.edge);
+      const picked = referenceAt(event, accepts, true);
       if (picked) {
         show(picked);
         return picked.point;
@@ -1164,6 +1154,31 @@ export function installInteractions({
       };
     if (guide && accepts(guide.point)) return guide;
   };
+  // Drawing and reference picking share the same visible, screen-space targets.
+  // A guide intersection wins over an arbitrary point on a nearby edge.
+  const referenceAt = (
+    event: PointerEvent,
+    accepts: (point: Vec3) => boolean = () => true,
+    surfaceOnly = false,
+  ): Snap | undefined => {
+    const point = nearest(event, false, accepts, surfaceOnly);
+    const guide = point ? undefined : guideAt(event, [], accepts);
+    const edge = point || guide?.intersection ? undefined : edgeAt(event, accepts);
+    highlightEdge(edge?.edge);
+    return (
+      point ??
+      (guide?.intersection
+        ? guide
+        : edge
+          ? {
+              point: edge.point,
+              key: 'edge-target',
+              label: 'Reuna',
+              line: [edge.edge.start, edge.edge.end],
+            }
+          : guide)
+    );
+  };
   let dimensionSession:
     { dimension: PointDimension; stage: 'end' | 'place'; editing?: boolean } | undefined;
   let dimensionPress:
@@ -1761,10 +1776,9 @@ export function installInteractions({
       lastPenPoint = picked.point;
       return picked.point;
     }
-    const found = nearest(event),
-      edge = edgeAt(event);
+    const found = referenceAt(event);
     if (start && direction) {
-      const picked = found?.point ?? edge?.point;
+      const picked = found?.point;
       let point = picked
         ? projectOnLine(picked, start, direction)
         : linePoint(event, start, direction);
@@ -1779,7 +1793,7 @@ export function installInteractions({
       show({
         point,
         key: 'constraint',
-        label: `${props.axis ? props.axis.toUpperCase() : 'Shift'} · ${picked ? 'Pituus poimittu' : 'Suunta lukittu'}`,
+        label: `${props.axis ? props.axis.toUpperCase() : 'Suunta lukittu'} · ${picked ? `${found!.label} · Pituus poimittu` : 'Poimi pituus pisteestä tai reunasta'}`,
         line: [start, point],
       });
       if (picked) {
@@ -2181,11 +2195,18 @@ export function installInteractions({
       return;
     }
     if (props.pickReference) {
-      const p = nearest(event);
+      const p = referenceAt(event);
       if (p) {
         props.onReference(p);
         props.onReferencePicked();
-        show({ ...p });
+        if (props.tool === 'pen' && props.penPoints.length && lastPenPoint) {
+          const delta = sub(lastPenPoint, props.penPoints.at(-1)!);
+          if (!props.axis && Math.hypot(...delta) > 0.01) {
+            shiftDirection = unit(delta);
+            props.onConstraint(shiftDirection);
+          }
+          updatePen(event);
+        } else show({ ...p });
       }
       return;
     }
@@ -2678,7 +2699,7 @@ export function installInteractions({
     if (['rectangle', 'circle'].includes(props.tool) && !drag) {
       // A reference may be inside a body; the drawing anchor must still stay on its surface.
       // Preserve Shift acquisition without turning that reference into the actual start point.
-      hoveredReference = nearest(event);
+      hoveredReference = referenceAt(event);
       if (hoveredReference) {
         acquired = hoveredReference;
         acquiredAt = performance.now();
@@ -2732,7 +2753,7 @@ export function installInteractions({
       else show();
       return;
     }
-    const hovered = nearest(event);
+    const hovered = referenceAt(event);
     hoveredReference = hovered;
     if (hovered) {
       acquired = hovered;

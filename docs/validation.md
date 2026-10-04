@@ -4,6 +4,36 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## Yöpassi 5.10 — pintapiirrosten korjaukset
+
+**192 yksikkö-/CAD-testiä hyväksytty (38 tiedostoa), TypeScript ja tuotantobuild hyväksytty.**
+Uudet kokeet kattavat erillisen viivan pinnanjaon, kierretyn tukipinnan,
+puoliksi reunan ylittävän ympyrän taskun ja läpileikkauksen, historian
+muodon/kohteiden palautuksen sekä CAD-tason valintaprioriteetin.
+
+Kohdennettu lopullinen selainajo: **17 hyväksytty**, yksi pelkälle kosketukselle
+tarkoitettu tapaus jätetty desktopilla väliin. Mukana desktop ja Chromiumin
+tablettiprofiili; erillinen kosketustesti käyttää tap-eleitä ja näkyviä
+viite-/akselipainikkeita ilman näppäimistöä. Varmennettu myös Enterillä
+hyväksytty muoto, leikkauksen peruutetun esikatselun jatkaminen, poistetun
+leikkurimuodon palautus sivun päivityksen jälkeen, kohderajaus ja Peru/Palauta.
+
+Perspektiivin kuvista paljastui lisäksi logaritmisen syvyyspuskurin ohittama
+polygonOffset. Korjaus varmennettiin uudella **2/2 hyväksytyllä pikselikokeella**:
+ympyrä, ellipsi, polygoni ja kynäpinta näkyvät kokonaan vinolla tasolla
+rakennuksen koordinaateissa; 0,25 mm pinnan edessä oleva ohut osa peittää
+luonnoksen edelleen. CAD-koordinaatit säilyvät muuttumattomina.
+Lisäksi **2/2 linkityksen selainkoetta hyväksytty**: paikallisen pinnanjaon
+vaikutus näytetään ennen linkin irrotusta, peruutus säilyttää mallin ja muutos
+jättää muut kopiot ennalleen sekä palautuu yhdellä Peru-askeleella.
+
+Aiemman laajemman ajon 18 muuta tapausta hyväksyttiin. Kaksi testiä sai
+tulostiedostojen törmäysvirheen kahden rinnakkaisen Playwright-ajon käyttäessä
+samaa tuloshakemistoa; molemmat läpäisivät erilliseen hakemistoon tehdyn
+lopullisen ajon. Uuden historiatestin Palauta-painikkeen nimi korjattiin
+käyttöliittymää vastaavaksi. Selainajoja ei jatkossa ajeta samaan tuloshakemistoon
+samanaikaisesti. Fyysistä iPadia/Safaria ei ole varmennettu.
+
 ## V0.16 — tartunta, toisto, kynäviiva ja aukko
 
 **188 yksikkö-/CAD-testiä hyväksytty (38 tiedostoa).** Uudet kokeet kattavat

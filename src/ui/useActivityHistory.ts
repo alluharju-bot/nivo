@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityJournal, type Activity, type SelectionContext } from '../model/activity';
+import {
+  ActivityJournal,
+  type ActionInfo,
+  type Activity,
+  type SelectionContext,
+} from '../model/activity';
 export function useActivityHistory(
   projectId: string,
   ready: boolean,
@@ -36,6 +41,12 @@ export function useActivityHistory(
   }, [activity, ready, projectId]);
   return {
     entries: journal.current.projectId === projectId ? journal.current.entries : [],
+    record: (info: ActionInfo, kind: Activity['kind']) => {
+      if (ready && loaded.current === projectId) {
+        journal.current.record(info, kind);
+        persist();
+      }
+    },
     prepare: (context: SelectionContext) => {
       if (ready && loaded.current === projectId) {
         journal.current.record(

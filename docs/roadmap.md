@@ -2,6 +2,42 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## Yöpassi 5.10.2026 — mallista luotettavaksi työkuvaksi
+
+Käyttäjä pyysi backlogista yhtenäistä yöpassia: nopeus, selkeys ja yksinkertaisuus.
+Ryhmän organisatorinen ja kokoonpanon toiminnallinen merkitys säilytetään.
+Auditin ehdotus tavallisen kopion oletuslinkityksen vaihtamisesta ei ohita
+käyttäjän aiemmin sopimaa komponenttikopioiden linkitystä.
+
+1. **Pintapiirroksen tarkoitus näkyviin — toteutettu.** Erillinen avoin kynäviiva
+   tai tasomuoto voidaan liittää alla olevaan pintaan Jaa pinta -toiminnolla
+   avaamatta osaa. Usean kohteen ja linkitettyjen osien vaikutus näytetään ennen
+   hyväksyntää; paikallinen jako tekee kohteista uniikkeja. Suljetun muodon
+   Leikkaa aukko säilyy käytettävissä hyväksymisen, uudelleenvalinnan ja
+   tiedoston avaamisen jälkeen. Kynän suuntalukitus ja kosketuksen viitepoiminta
+   käyttävät myös reunoja ja apuviivojen risteyksiä. Leikkaushistoria tallentaa
+   muodon, kohteet ja säilytysvalinnan kevyinä tunnisteina. Palaa leikkaukseen
+   palauttaa käytettävissä olevan kumoamistilan ja avaa toiminnon; Palauta valinta
+   ei muuta geometriaa. Piirron syvyyskorjaus toimii myös perspektiivin
+   logaritmisessa syvyyspuskurissa, ja valinta käyttää tarkkaa CAD-tasoa.
+2. **Luotettavat kokonaismitat — työn alla.** Oma semanttinen mitta osajoukolle
+   tai ryhmälle. Ryhmä seuraa jäsenmuutoksia; osajoukko säilyttää kohteensa.
+   Ääripisteen vaihtuminen, siirto, kierto ja Undo/Redo eivät muuta mitan
+   merkitystä pisteiden väliseksi etäisyydeksi. Vanhoja pistemittoja ei arvata
+   kokonaismitoiksi. Puuttuva kohde näytetään ja estää virheellisen työkuvan viennin.
+3. **Luo mittakuvat yhdelle arkille — suunniteltu.** Selkeä oletusasettelu
+   usealle suunnalle ja tallennetuille leikkauksille, yhteinen mittakaava,
+   mahtumisen tarkistus sekä PDF/SVG. Sama tarkka malli ja semanttiset mitat
+   palvelevat yksittäistä kuvaa ja kokonaisarkkia.
+4. **Muokkauskontekstin viimeistely — suunniteltu.** Uusi levyrunko syntyy
+   kokoonpanoksi; ryhmä säilyy kansiona. Muokkaa osia, hierarkiapolku ja
+   poistuminen näkyvät johdonmukaisesti. Linkitettyjen osien muokkauksen
+   vaikutusalue kerrotaan muuttamatta olemassa olevia linkkejä tai kopioinnin oletusta.
+
+Varmennus: CAD- ja mallikokeet, selain- ja kosketuskokeet, tiedoston avaus,
+Peru/Palauta sekä todelliset mitta-arvot ja näkymän pikselit. Tulokset ja
+rajaukset kirjataan [validointiin](validation.md).
+
 ## V0.16 — tartunta, toisto, kynäviivat ja nopeat aukot
 
 Toteutettu: pitkän reunan tartunta läheisessä perspektiivissä myös silloin,

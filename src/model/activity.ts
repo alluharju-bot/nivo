@@ -10,15 +10,24 @@ export const selectionContextSchema = z.object({
   openedAssembly: id.optional(),
 });
 export type SelectionContext = z.infer<typeof selectionContextSchema>;
+export const operationContextSchema = z.object({
+  kind: z.literal('opening'),
+  profileId: id,
+  targetIds: z.array(id).max(10000),
+  keep: z.boolean(),
+});
+export type OperationContext = z.infer<typeof operationContextSchema>;
 export const actionInfoSchema = z.object({
   label: z.string().min(1).max(500),
   context: selectionContextSchema.optional(),
+  actionId: id.optional(),
+  operation: operationContextSchema.optional(),
 });
 export type ActionInfo = z.infer<typeof actionInfoSchema>;
 const activitySchema = actionInfoSchema.extend({
   id,
   at: z.number().finite(),
-  kind: z.enum(['selection', 'edit', 'undo', 'redo']),
+  kind: z.enum(['selection', 'edit', 'undo', 'redo', 'cancel']),
 });
 export type Activity = z.infer<typeof activitySchema>;
 export function sameSelection(a?: SelectionContext, b?: SelectionContext) {
@@ -66,6 +75,7 @@ export class ActivityJournal {
     )
       this.entries.shift();
     this.entries.unshift({
+      ...info,
       label: info.label.slice(0, 500),
       context: info.context && { ...info.context, ids: [...info.context.ids] },
       id: uid(),

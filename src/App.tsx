@@ -2,7 +2,7 @@ import { SelectionDialog } from './ui/SelectionDialog';
 import { SectionDrawing } from './drawing/SectionDrawing';
 import { ActivityHistory } from './ui/ActivityHistory';
 import { useActivityHistory } from './ui/useActivityHistory';
-import type { SelectionContext } from './model/activity';
+import type { Activity, OperationContext, SelectionContext } from './model/activity';
 import { useWorkspaceViews } from './ui/WorkspaceViews';
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, type PointDimension } from './model/project';
@@ -83,7 +83,7 @@ import {
 } from './model/groups';
 import { useEdgeDetailPreview } from './ui/useEdgeDetailPreview';
 import { EdgeDetailPanel } from './ui/EdgeDetailPanel';
-import type { EdgeDetailTarget } from './cad/protocol';
+import type { EdgeDetailTarget, SplitResult } from './cad/protocol';
 import { GroupActions } from './ui/GroupActions';
 import { Viewport, type CameraCommand, type Tool } from './viewport/Viewport';
 import { RenderStage } from './render/RenderStage';
@@ -405,6 +405,12 @@ export default function App() {
     keep: boolean;
   }>();
   const [openingBusy, setOpeningBusy] = useState(false);
+  const [surfaceSplitDraft, setSurfaceSplitDraft] = useState<{
+    profile: Body;
+    results: SplitResult[];
+    included: string[];
+    revision: number;
+  }>();
   const openingRequest = useRef(0);
   const [actionMenu, setActionMenu] = useState<{
     x: number;
@@ -759,6 +765,7 @@ export default function App() {
     openingRequest.current++;
     setOpeningBusy(false);
     setOpeningDraft(undefined);
+    setSurfaceSplitDraft(undefined);
     setGroupMove(undefined);
     setPickOthers(false);
     setPickList(undefined);
@@ -2479,14 +2486,20 @@ export default function App() {
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || cabinetOpen || actionMenu) return;
-      if (commandOpen || pickList || groupMove || openingDraft || openingBusy) {
+      if (
+        commandOpen ||
+        pickList ||
+        groupMove ||
+        openingDraft ||
+        openingBusy ||
+        surfaceSplitDraft
+      ) {
         if (event.key === 'Escape') {
           event.preventDefault();
           setCommandOpen(false);
           setGroupMove(undefined);
-          openingRequest.current++;
-          setOpeningBusy(false);
-          setOpeningDraft(undefined);
+          cancelOpening();
+          setSurfaceSplitDraft(undefined);
           setPickList(undefined);
           setPickHovered(undefined);
         }
@@ -2748,40 +2761,162 @@ export default function App() {
       committing.current = false;
     }
   };
-  const canCutOpening =
+  const canDivideSurface =
     !!body &&
+    selectedIds.length === 1 &&
     !featureIsSolid(body.feature) &&
     !bodyLocked(body, project.groups) &&
-    editor.meshes.find((m) => m.id === body.id)?.faces.length === 1 &&
     !editingBodyId;
-  const prepareOpening = async () => {
-    if (!body || !canCutOpening || busy || openingBusy) return;
+  const canCutOpening =
+    canDivideSurface && editor.meshes.find((m) => m.id === body?.id)?.faces.length === 1;
+  const acceptSurfaceSplit = async (draft: NonNullable<typeof surfaceSplitDraft>) => {
+    if (busy || !draft.included.length || draft.revision !== editor.revision()) return;
+    const results = draft.results.filter((r) => draft.included.includes(r.body.id));
+    const cleaned = removeSelection(project, [draft.profile.id]);
+    const byId = new Map(results.map((r) => [r.body.id, r.body]));
+    const next = uniqueComponents(
+      {
+        ...cleaned,
+        bodies: cleaned.bodies.map((b) => byId.get(b.id) ?? b),
+      },
+      draft.included,
+    );
+    if (
+      await editor.transact(
+        next,
+        `Pinta jaettu · ${results.length} osaa. E muokkaa rajattua aluetta.`,
+        'commit',
+        {
+          context: {
+            ids: [draft.profile.id, ...draft.included],
+            primary: results[0].body.id,
+            openedAssembly,
+          },
+        },
+      )
+    ) {
+      setTool('select');
+      finishOperation(results[0].body.id, results[0].face);
+    }
+  };
+  const prepareSurfaceSplit = async () => {
+    if (!body || !canDivideSurface || busy || openingBusy) return;
     const revision = editor.revision(),
       request = ++openingRequest.current;
     setOpeningBusy(true);
     editor.setError('');
     try {
-      const targets = visibleBodies.filter(
-        (b) => b.id !== body.id && featureIsSolid(b.feature) && !bodyLocked(b, project.groups),
+      const results = await editor.cad.divideSurfaces(
+        body,
+        visibleBodies.filter(
+          (b) => b.id !== body.id && featureIsSolid(b.feature) && !bodyLocked(b, project.groups),
+        ),
       );
-      const result = await editor.cad.cutOpening(body, targets);
+      if (revision !== editor.revision() || request !== openingRequest.current) return;
+      if (!results.length) {
+        editor.setMessage(
+          'Piirros ei jaa pintaa. Viivan pitää kulkea pinnan reunasta reunaan; suljetun muodon reunan pitää osua pinnan sisälle.',
+        );
+        return;
+      }
+      const draft = { profile: body, results, included: results.map((r) => r.body.id), revision };
+      if (results.length === 1 && !results[0].body.component) await acceptSurfaceSplit(draft);
+      else setSurfaceSplitDraft(draft);
+    } catch (e) {
+      editor.setError((e as Error).message);
+    } finally {
+      if (request === openingRequest.current) setOpeningBusy(false);
+    }
+  };
+  const openingOperation = (draft: NonNullable<typeof openingDraft>): OperationContext => ({
+    kind: 'opening',
+    profileId: draft.profile.id,
+    targetIds: [...draft.included],
+    keep: draft.keep,
+  });
+  const openingContext = (draft: NonNullable<typeof openingDraft>): SelectionContext => ({
+    ids: [draft.profile.id, ...draft.included],
+    primary: draft.profile.id,
+    openedAssembly,
+  });
+  const lastOpening = useRef<OperationContext | undefined>(undefined);
+  const cancelOpening = () => {
+    if (openingDraft) {
+      lastOpening.current = openingOperation(openingDraft);
+      activityHistory.record(
+        {
+          label: 'Aukon leikkauksen esikatselu peruttu.',
+          context: openingContext(openingDraft),
+          operation: lastOpening.current,
+        },
+        'cancel',
+      );
+    }
+    openingRequest.current++;
+    setOpeningBusy(false);
+    setOpeningDraft(undefined);
+  };
+  const prepareOpening = async (
+    profile = body,
+    model = project,
+    settings = lastOpening.current?.profileId === profile?.id ? lastOpening.current : undefined,
+  ) => {
+    if (!profile || featureIsSolid(profile.feature) || busy || openingBusy) return;
+    const revision = editor.revision(),
+      request = ++openingRequest.current;
+    setOpeningBusy(true);
+    editor.setError('');
+    try {
+      const targets = model.bodies.filter(
+        (b) =>
+          b.id !== profile.id &&
+          featureIsSolid(b.feature) &&
+          bodyVisible(b, model.groups) &&
+          !bodyLocked(b, model.groups) &&
+          (model !== project || visibleBodies.some((visible) => visible.id === b.id)),
+      );
+      const result = await editor.cad.cutOpening(profile, targets);
       if (revision !== editor.revision() || request !== openingRequest.current) return;
       if (!result.affected.length) {
         editor.setMessage('Muodon kohdalla ei ole leikattavia näkyviä, vapaita osia.');
         return;
       }
       setOpeningDraft({
-        profile: body,
+        profile,
         ...result,
-        included: result.affected,
+        included: settings
+          ? result.affected.filter((id) => settings.targetIds.includes(id))
+          : result.affected,
         revision,
-        keep: false,
+        keep: settings?.keep ?? false,
       });
     } catch (e) {
       editor.setError((e as Error).message);
     } finally {
       if (request === openingRequest.current) setOpeningBusy(false);
     }
+  };
+  const restoreOpening = async (entry: Activity) => {
+    if (!entry.operation || busy || openingBusy) return;
+    resetGesture();
+    const model = entry.actionId ? await editor.restoreAction(entry.actionId) : project;
+    if (!model) return;
+    const profile = model.bodies.find((b) => b.id === entry.operation!.profileId);
+    if (!profile) return;
+    setIsolated(undefined);
+    setEditingBodyId(undefined);
+    setSurfaceMode('new');
+    setOpenedAssembly(entry.context?.openedAssembly);
+    setTool('select');
+    setSelected(profile.id);
+    setSelectedIds([
+      profile.id,
+      ...entry.operation.targetIds.filter((id) => model.bodies.some((b) => b.id === id)),
+    ]);
+    setSelectedGroupId(undefined);
+    setSelectedFace(undefined);
+    setAwaitingStart(true);
+    await prepareOpening(profile, model, entry.operation);
   };
   const acceptOpening = async () => {
     const draft = openingDraft;
@@ -2806,7 +2941,18 @@ export default function App() {
       },
       draft.included,
     );
-    if (await editor.transact(next, `Aukko leikattu läpi ${draft.included.length} osasta.`)) {
+    if (
+      await editor.transact(
+        next,
+        `Aukko leikattu läpi ${draft.included.length} osasta.`,
+        'commit',
+        {
+          context: openingContext(draft),
+          operation: openingOperation(draft),
+        },
+      )
+    ) {
+      lastOpening.current = openingOperation(draft);
       setOpeningDraft(undefined);
       finishOperation(draft.included.find((id) => results.has(id)));
     }
@@ -2841,6 +2987,9 @@ export default function App() {
           reason: movementBlocked,
           disabled: busy || !body,
         },
+        ...(canDivideSurface
+          ? [{ label: 'Jaa pinta', run: () => void prepareSurfaceSplit() }]
+          : []),
         ...(canCutOpening
           ? [
               {
@@ -3163,6 +3312,29 @@ export default function App() {
                 : tool === 'measure' && measureMode === 'dimension'
                   ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
                   : instructions[tool];
+  const surfaceActions = (
+    <div className="shape-properties" aria-label="Piirroksen käyttö">
+      <p className="muted">Erillinen piirros. Jaa alla oleva pinta tai leikkaa osien läpi.</p>
+      <div className="object-quick-actions">
+        <button
+          className="button outlined"
+          disabled={busy || openingBusy}
+          onClick={() => void prepareSurfaceSplit()}
+        >
+          Jaa pinta
+        </button>
+        {canCutOpening && (
+          <button
+            className="button outlined"
+            disabled={busy || openingBusy}
+            onClick={() => void prepareOpening()}
+          >
+            Leikkaa aukko…
+          </button>
+        )}
+      </div>
+    </div>
+  );
   const objectActions = body && !selectedGroup && mode === 'model' && (
     <ObjectActions
       body={{ ...body, locked: bodyLocked(body, project.groups) }}
@@ -3954,7 +4126,14 @@ export default function App() {
               editingBodyId={editingBodyId}
               scopeIds={scopeIds}
               onPaint={paintBody}
-              modalOpen={commandOpen || !!pickList || !!groupMove || !!openingDraft || openingBusy}
+              modalOpen={
+                commandOpen ||
+                !!pickList ||
+                !!groupMove ||
+                !!openingDraft ||
+                openingBusy ||
+                !!surfaceSplitDraft
+              }
               pickOthers={pickOthers}
               pickHoveredIds={pickPreviewIds}
               onPickCandidates={(list) => {
@@ -4713,15 +4892,7 @@ export default function App() {
                         }}
                       />
                     )}
-                    {canCutOpening && awaitingStart && (
-                      <button
-                        className="button outlined"
-                        disabled={busy || openingBusy}
-                        onClick={() => void prepareOpening()}
-                      >
-                        {openingBusy ? 'Etsitään leikattavia osia…' : 'Leikkaa aukko…'}
-                      </button>
-                    )}
+                    {canDivideSurface && awaitingStart && surfaceActions}
                     {tool === 'extrude' && faceTarget && (
                       <div className="shape-properties">
                         <div className="extrusion-readout" data-testid="extrusion-readout">
@@ -4832,9 +5003,12 @@ export default function App() {
                     {tool === 'pen' && (
                       <>
                         <p className="muted">
-                          {penPoints.length} pistettä. Enter päättää viivan. Palaa alkupisteeseen
-                          sulkeaksesi muodon. Muokkaustilassa reunasta reunaan piirretty viiva jakaa
-                          pinnan.
+                          {penPoints.length} pistettä.{' '}
+                          {locked.size
+                            ? 'Enter lisää numeroilla määritetyn pisteen.'
+                            : 'Enter päättää viivan.'}{' '}
+                          Palaa alkupisteeseen sulkeaksesi muodon. Erillinen viiva jakaa pinnan Jaa
+                          pinta -toiminnolla; osan muokkaustilassa jako tapahtuu heti.
                         </p>
                         <button
                           className="button outlined"
@@ -4954,6 +5128,7 @@ export default function App() {
                       {selectedGroup?.kind === 'assembly' ? ' · Kokoonpano' : ''}
                     </p>
                   )}
+                  {canDivideSurface && surfaceActions}
                   {selectedIds.length > 1 && !selectedGroup && (
                     <div className="selection-collection-actions">
                       <button
@@ -5230,12 +5405,47 @@ export default function App() {
         )}
       </div>
 
-      {openingDraft && (
+      {surfaceSplitDraft && (
         <SelectionDialog
           side
-          title="Leikkaa aukko"
-          onClose={() => !busy && setOpeningDraft(undefined)}
+          title="Jaa pinta"
+          onClose={() => !busy && setSurfaceSplitDraft(undefined)}
         >
+          <p>
+            Piirros jakaa valittujen osien pinnat muokattaviksi alueiksi. Osia ei tarvitse avata.
+            Linkitetyt kohdeosat tehdään uniikeiksi.
+          </p>
+          <div className="opening-targets">
+            {surfaceSplitDraft.results.map(({ body }) => (
+              <label key={body.id}>
+                <input
+                  type="checkbox"
+                  checked={surfaceSplitDraft.included.includes(body.id)}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setSurfaceSplitDraft({
+                      ...surfaceSplitDraft,
+                      included: e.target.checked
+                        ? [...surfaceSplitDraft.included, body.id]
+                        : surfaceSplitDraft.included.filter((id) => id !== body.id),
+                    })
+                  }
+                />
+                {body.name}
+              </label>
+            ))}
+          </div>
+          <button
+            className="button primary"
+            disabled={busy || !surfaceSplitDraft.included.length}
+            onClick={() => void acceptSurfaceSplit(surfaceSplitDraft)}
+          >
+            Jaa valitut pinnat
+          </button>
+        </SelectionDialog>
+      )}
+      {openingDraft && (
+        <SelectionDialog side title="Leikkaa aukko" onClose={() => !busy && cancelOpening()}>
           <p>
             Muoto leikkaa kohtisuoraan molempiin suuntiin kaikkien valittujen osien läpi. Korostetut
             osat muuttuvat. Piilotetut ja Hold-osat säilyvät.
@@ -5280,11 +5490,7 @@ export default function App() {
             >
               Leikkaa läpi · {openingDraft.included.length} osaa
             </button>
-            <button
-              className="button subtle"
-              disabled={busy}
-              onClick={() => setOpeningDraft(undefined)}
-            >
+            <button className="button subtle" disabled={busy} onClick={cancelOpening}>
               Peruuta
             </button>
           </div>
@@ -5498,6 +5704,13 @@ export default function App() {
           entries={activityHistory.entries}
           current={actionContext}
           busy={busy}
+          canRestoreOperation={(entry) =>
+            !!entry.operation &&
+            (entry.actionId
+              ? editor.canRestoreAction(entry.actionId)
+              : project.bodies.some((b) => b.id === entry.operation!.profileId))
+          }
+          onRestoreOperation={(entry) => void restoreOpening(entry)}
           onRestore={(context) => {
             const existing = new Set(
               project.bodies.filter((b) => bodyVisible(b, project.groups)).map((b) => b.id),

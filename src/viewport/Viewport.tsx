@@ -1,4 +1,5 @@
 import { createWorkspaceViews } from './workspaceViews';
+import { prioritizeSurface } from './surfaceDepth';
 import { createMaterialLibrary, materialUV, disposeMaterial } from '../render/materials';
 import { createPointDimensions } from './pointDimensions';
 import { useEffect, useRef, useState } from 'react';
@@ -305,6 +306,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       ) {
         old.mesh.userData.surfacePriority = surfacePriority;
         old.mesh.renderOrder = surfaceRenderOrder;
+        old.outline.renderOrder = surfacePriority ? surfaceRenderOrder + 0.1 : 0;
+        old.outline.userData.surfacePriority = surfacePriority;
         nextNodes.set(body.id, old);
         continue;
       }
@@ -355,8 +358,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                           : body.color,
           side: THREE.DoubleSide,
           polygonOffset: true,
-          polygonOffsetFactor: surfacePriority ? 0 : 1,
-          polygonOffsetUnits: surfacePriority ? 0 : 1,
+          polygonOffsetFactor: surfacePriority ? -1 : 1,
+          polygonOffsetUnits: surfacePriority ? -1 : 1,
           transparent: auxiliary || cutter,
           opacity: constructionLine ? 0 : cutter ? 0.22 : auxiliary ? 0.035 : 1,
           depthWrite: !auxiliary && !cutter,
@@ -364,6 +367,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         });
         material.userData.baseEmissive = material.emissive.getHex();
         material.userData.baseEmissiveIntensity = material.emissiveIntensity;
+        if (surfacePriority) prioritizeSurface(material);
         return material;
       });
       baseMaterial.dispose();
@@ -420,7 +424,14 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         });
         outline.computeLineDistances();
       }
-      outline.userData = { id: body.id, constructionLine, wireOnly: !data.faces.length };
+      outline.userData = {
+        id: body.id,
+        constructionLine,
+        wireOnly: !data.faces.length,
+        surfacePriority,
+      };
+      outline.renderOrder = surfacePriority ? surfaceRenderOrder + 0.1 : 0;
+      if (surfacePriority) prioritizeSurface(outline.material, true);
       bodies.add(outline);
       let boundary: THREE.Box3Helper | undefined;
       if (context) {

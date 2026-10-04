@@ -14,6 +14,13 @@ säilyttää osat, ja **Siirrä ryhmään** löytyy Toiminnot-valikosta.
 Kierto tarttuu 5° välein; Shift vapauttaa kierron.
 [Mitattu suorituskyky ja rajat](docs/performance.md).
 
+Pintaan piirretyn erillisen viivan tai muodon **Jaa pinta** rajaa muokattavan
+alueen ilman osan avaamista. Sen jälkeen **E** tekee taskun tai läpireiän,
+myös osittain reunan ylittävästä ympyrästä. **Leikkaa aukko** on käytettävissä
+myös jo hyväksytylle suljetulle muodolle. Historiassa **Palaa leikkaukseen**
+palauttaa mallin leikkausta edeltävään tilaan ja avaa muodon sekä kohteet,
+kun kyseinen kumoamistila on yhä tallessa. **Palauta valinta** vaihtaa vain valinnan.
+
 - Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
 - Napsauta valitun osan tai ryhmän otsikkonimeä nimetäksesi sen. Ryhmäpolku näkyy heti alla.
 - **Luo kokoonpano** yhdistää valinnan käsiteltäväksi kokonaisuudeksi. Tuplaklikkaa avataksesi yksittäiset osat; Esc tai Sulje kokoonpano päättää. **Ryhmä** järjestää vain listaa.

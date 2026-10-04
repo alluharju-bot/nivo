@@ -112,6 +112,9 @@ export class CadClient {
   splitPath(body: Body, face: FaceRef, path: Body) {
     return this.request<SplitResult>({ type: 'split-path', body, face, path });
   }
+  divideSurfaces(profile: Body, targets: Body[]) {
+    return this.request<SplitResult[]>({ type: 'divide-surfaces', profile, targets });
+  }
   cutOpening(profile: Body, targets: Body[]) {
     return this.request<import('./paths').OpeningResult>({ type: 'cut-opening', profile, targets });
   }

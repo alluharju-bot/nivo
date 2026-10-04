@@ -51,6 +51,52 @@ it('reduces a 10000-part scene to nearby candidates without changing the exact r
   ).toEqual([]);
 });
 
+it.each(['circle', 'pen'])(
+  'uses the exact support plane when Float32 %s triangles differ in depth',
+  (kind) => {
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const solid = new THREE.Mesh(new THREE.PlaneGeometry(600, 400), material);
+    const sketch = new THREE.Mesh(
+      kind === 'circle'
+        ? new THREE.CircleGeometry(80, 48)
+        : new THREE.BufferGeometry().setAttribute(
+            'position',
+            new THREE.Float32BufferAttribute([-80, -70, 0, 90, -60, 0, 0, 100, 0], 3),
+          ),
+      material,
+    );
+    // These model Float32 rounding differences at building-scale coordinates.
+    solid.position.set(12000, 23000, 8000.0002);
+    sketch.position.set(12000, 23000, 7999.9998);
+    for (const mesh of [solid, sketch])
+      mesh.userData.faces = [
+        {
+          planar: true,
+          normal: [0, 0, 1],
+          center: [12000, 23000, 8000],
+          start: 0,
+          count: 10000,
+        },
+      ];
+    sketch.userData.surfacePriority = 2;
+    const group = new THREE.Group();
+    group.add(solid, sketch);
+    group.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(
+      new THREE.Vector3(12001, 23001, 9000),
+      new THREE.Vector3(0, 0, -1),
+    );
+    expect(intersectModel(ray, group)[0].object).toBe(sketch);
+    const foreground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), material);
+    foreground.position.set(12000, 23000, 8000.001);
+    group.add(foreground);
+    group.updateMatrixWorld(true);
+    expect(intersectModel(ray, group)[0].object).toBe(foreground);
+    group.children.forEach((m) => (m as THREE.Mesh).geometry.dispose());
+    material.dispose();
+  },
+);
+
 it.each(['perspective', 'orthographic'])(
   'screen broad phase includes near-edge anchors in %s',
   (kind) => {
