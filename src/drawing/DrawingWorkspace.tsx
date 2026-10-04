@@ -26,6 +26,7 @@ import { drawingDimension, shiftDrawingDimension, type DimensionDirection } from
 
 export function DrawingWorkspace({
   project,
+  onSection,
   cad,
   meshes,
   selectedIds,
@@ -34,6 +35,7 @@ export function DrawingWorkspace({
   onCommit,
 }: {
   project: Project;
+  onSection?: (id: string) => void;
   cad: CadClient;
   meshes: BodyMesh[];
   selectedIds: string[];
@@ -257,6 +259,11 @@ export function DrawingWorkspace({
     <section className="drawing-studio" aria-label="Mittakuvan työtila">
       <div className="drawing-sheet-column">
         <div className="drawing-view-tabs" aria-label="Mittakuvan näkymä">
+          {project.sections?.map((s) => (
+            <button key={s.id} onClick={() => onSection?.(s.id)}>
+              Leikkaus {s.name}
+            </button>
+          ))}
           {(Object.entries(viewLabels) as [DrawingView, string][]).map(([id, name]) => (
             <button
               key={id}

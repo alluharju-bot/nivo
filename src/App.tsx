@@ -1,3 +1,5 @@
+import { SectionDrawing } from './drawing/SectionDrawing';
+import { useWorkspaceViews } from './ui/WorkspaceViews';
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, type PointDimension } from './model/project';
 import { PaintPanel } from './ui/PaintPanel';
@@ -11,6 +13,9 @@ import { dimensionBodyIds } from './model/dimensions';
 import { flushSync } from 'react-dom';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  ScanLine,
+  ImagePlus,
+  Focus,
   ArrowDownToLine,
   Eraser,
   Paintbrush,
@@ -283,6 +288,9 @@ export default function App() {
   liveProject.current = { project, busy };
   const [selected, setSelected] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const [isolated, setIsolated] = useState<{ projectId: string; excluded: Set<string> }>();
+  const [drawingSectionId, setDrawingSectionId] = useState<string>();
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>();
   const [measureMode, setMeasureMode] = useState<'guide' | 'free' | 'dimension'>('guide');
@@ -439,7 +447,7 @@ export default function App() {
   const selectedGroup = project.groups.find((g) => g.id === selectedGroupId);
   const editingBody = project.bodies.find((b) => b.id === editingBodyId);
   const selectionBox = useMemo(
-    () => bounds(project.bodies.filter((b) => selectedIds.includes(b.id))),
+    () => bounds(project.bodies.filter((b) => selectedIdSet.has(b.id))),
     [project.bodies, selectedIds],
   );
   const scopeIds = useMemo(
@@ -452,31 +460,56 @@ export default function App() {
   const visibleBodies = useMemo(
     () =>
       project.bodies
-        .filter((b) => bodyVisible(b, project.groups))
+        .filter(
+          (b) =>
+            bodyVisible(b, project.groups) &&
+            (isolated?.projectId !== project.id || !isolated.excluded.has(b.id)),
+        )
         .map((b) => ({
           ...b,
           locked: bodyLocked(b, project.groups) || !inAssembly(project, b.id, openedAssembly),
         })),
-    [project.bodies, project.groups, openedAssembly],
+    [project.bodies, project.groups, openedAssembly, isolated, project.id],
   );
-  const visibleDimensions = useMemo(
-    () =>
-      project.dimensions.filter(
-        (d) =>
-          !dimensionBodyIds(d).some((id) =>
-            project.bodies.some((b) => b.id === id && !bodyVisible(b, project.groups)),
-          ),
-      ),
-    [project.dimensions, project.bodies, project.groups],
-  );
+  const visibleDimensions = useMemo(() => {
+    const ids = new Set(visibleBodies.map((body) => body.id));
+    return project.dimensions.filter((d) => dimensionBodyIds(d).every((id) => ids.has(id)));
+  }, [project.dimensions, visibleBodies]);
   const renderBodies = useMemo(
     () => visibleBodies.filter((b) => b.purpose === 'model' || b.purpose === 'component'),
     [visibleBodies],
   );
-  const visibleMeshes = useMemo(
-    () => editor.meshes.filter((m) => visibleBodies.some((b) => b.id === m.id)),
-    [editor.meshes, visibleBodies],
+  const visibleMeshes = useMemo(() => {
+    const ids = new Set(visibleBodies.map((body) => body.id));
+    return editor.meshes.filter((mesh) => ids.has(mesh.id));
+  }, [editor.meshes, visibleBodies]);
+  const workspace = useWorkspaceViews(
+    project,
+    visibleBodies,
+    editor.cad,
+    busy,
+    editor.transact,
+    editor.setError,
+    (command) => {
+      setCameraCommand(command);
+      if (command.type === 'frame') {
+        setProjection('orthographic');
+        const n = command.frame!.normal;
+        setView(Math.abs(n[2]) > 0.9 ? 'top' : Math.abs(n[0]) > 0.9 ? 'right' : 'front');
+      }
+    },
+    (id) => {
+      setDrawingSectionId(id);
+      setMode('drawing');
+    },
   );
+  const isolateSelection = () => {
+    const ids = new Set(selectedIds);
+    setIsolated({
+      projectId: project.id,
+      excluded: new Set(project.bodies.filter((b) => !ids.has(b.id)).map((b) => b.id)),
+    });
+  };
   const editing =
     !awaitingStart &&
     [
@@ -746,7 +779,7 @@ export default function App() {
         : { ids: id ? [id] : [], groupId: undefined };
     const ids = id
       ? extend
-        ? unit.ids.every((key) => selectedIds.includes(key))
+        ? unit.ids.every((key) => selectedIdSet.has(key))
           ? selectedIds.filter((key) => !unit.ids.includes(key))
           : [...new Set([...selectedIds, ...unit.ids])]
         : unit.ids
@@ -1059,7 +1092,9 @@ export default function App() {
     }
     if (!body) return;
     requireMovable(
-      project.bodies.filter((b) => (selectedIds.length ? selectedIds : [body.id]).includes(b.id)),
+      project.bodies.filter((b) =>
+        selectedIds.length ? selectedIdSet.has(b.id) : b.id === body.id,
+      ),
       project.groups,
     );
     if (bodyLocked(body, project.groups))
@@ -1690,12 +1725,12 @@ export default function App() {
   };
   const mergeSelected = async () => {
     try {
-      const candidate = mergeBodies(project.bodies.filter((b) => selectedIds.includes(b.id)));
+      const candidate = mergeBodies(project.bodies.filter((b) => selectedIdSet.has(b.id)));
       if (
         await editor.transact(
           {
             ...project,
-            bodies: [...project.bodies.filter((b) => !selectedIds.includes(b.id)), candidate],
+            bodies: [...project.bodies.filter((b) => !selectedIdSet.has(b.id)), candidate],
           },
           'Valitut osat yhdistetty yhdeksi objektiksi. Peru palauttaa erilliset osat.',
         )
@@ -2054,7 +2089,7 @@ export default function App() {
       (g) =>
         !groupContains(project.groups, g.id, parentId) &&
         groupBodies(project, g.id).length &&
-        groupBodies(project, g.id).every((b) => selectedIds.includes(b.id)),
+        groupBodies(project, g.id).every((b) => selectedIdSet.has(b.id)),
     );
     const roots = fullGroups.filter(
       (g) =>
@@ -2072,7 +2107,7 @@ export default function App() {
           group,
         ],
         bodies: project.bodies.map((b) =>
-          selectedIds.includes(b.id) &&
+          selectedIdSet.has(b.id) &&
           !roots.some((r) => groupContains(project.groups, r.id, b.groupId))
             ? { ...b, groupId: group.id }
             : b,
@@ -2388,7 +2423,7 @@ export default function App() {
     if (!body || busy) return;
     const source = asComponent(body);
     const targets = project.bodies
-      .filter((b) => selectedIds.includes(b.id) && b.id !== body.id)
+      .filter((b) => selectedIdSet.has(b.id) && b.id !== body.id)
       .map((b) => asComponent(b, source.component!.id));
     if ([source, ...targets].some((b) => bodyLocked(b, project.groups))) {
       editor.setError('Vapauta Hold ennen komponenttien linkittämistä.');
@@ -2425,7 +2460,7 @@ export default function App() {
   const paintBody = (id: string) => {
     if (busy || !inAssembly(project, id, openedAssembly) || (editingBodyId && id !== editingBodyId))
       return;
-    const ids = paintAll && selectedIds.includes(id) ? selectedIds : [id];
+    const ids = paintAll && selectedIdSet.has(id) ? selectedIds : [id];
     void editor.transact(
       {
         ...project,
@@ -2447,6 +2482,7 @@ export default function App() {
           run: () => body && openBodyEdit(body.id),
           disabled: busy || !body,
         },
+        { label: 'Eristä valinta', run: isolateSelection, disabled: busy || !selectedIds.length },
         { label: 'Siirrä · M', run: () => begin('move'), disabled: busy || !body },
         { label: 'Kopioi ja siirrä', run: copyBody, disabled: busy || !body },
         { label: 'Kierrä · R', run: () => begin('rotate'), disabled: busy || !body },
@@ -2482,7 +2518,7 @@ export default function App() {
       groups={project.groups}
       count={selectedIds.length}
       mixedColor={project.bodies.some(
-        (b) => selectedIds.includes(b.id) && b.color.toLowerCase() !== body.color.toLowerCase(),
+        (b) => selectedIdSet.has(b.id) && b.color.toLowerCase() !== body.color.toLowerCase(),
       )}
       busy={busy}
       onChange={(patch) => void patchBodies([body.id], patch)}
@@ -2894,6 +2930,41 @@ export default function App() {
               ))}
             </div>
             <div className="view-actions">
+              <IconButton
+                label="Leikkaus"
+                aria-pressed={!!workspace.section || workspace.panel === 'section'}
+                onClick={() => {
+                  begin('select');
+                  workspace.open('section');
+                }}
+              >
+                <ScanLine />
+              </IconButton>
+              <IconButton
+                label="Pohjakuva"
+                aria-pressed={workspace.panel === 'image'}
+                onClick={() => {
+                  begin('select');
+                  workspace.open('image');
+                }}
+              >
+                <ImagePlus />
+              </IconButton>
+              {isolated?.projectId === project.id ? (
+                <IconButton
+                  label="Näytä koko malli"
+                  aria-pressed
+                  onClick={() => setIsolated(undefined)}
+                >
+                  <Focus />
+                </IconButton>
+              ) : (
+                selectedIds.length > 0 && (
+                  <IconButton label="Eristä valinta" onClick={isolateSelection}>
+                    <Focus />
+                  </IconButton>
+                )
+              )}
               <button
                 className="projection-button"
                 onClick={() => {
@@ -2922,6 +2993,19 @@ export default function App() {
           </div>
 
           <div className="model-stage" hidden={mode !== 'model'}>
+            {workspace.ui}
+            {workspace.section && workspace.panel !== 'section' && (
+              <div className="section-notice" role="status">
+                Leikkaus {workspace.section.name}{' '}
+                <button onClick={workspace.disableSection}>Poista leikkaus käytöstä</button>
+              </div>
+            )}
+            {isolated?.projectId === project.id && (
+              <div className="isolation-notice" role="status">
+                Eristetty näkymä · {visibleBodies.length} osaa{' '}
+                <button onClick={() => setIsolated(undefined)}>Palauta näkymä</button>
+              </div>
+            )}
             <ModelBrowser>
               <div className="object-panel">
                 <div className="panel-tabs">
@@ -3114,6 +3198,17 @@ export default function App() {
               </div>
             )}
             <Viewport
+              section={workspace.section}
+              sectionResult={workspace.sectionResult}
+              sectionControls={workspace.sectionControls}
+              sectionExtent={workspace.sectionExtent}
+              sectionPick={workspace.sectionPick}
+              onWorkspaceCancel={workspace.onWorkspaceCancel}
+              onSectionPick={workspace.onSectionPick}
+              onSectionMove={workspace.onSectionMove}
+              referenceImages={workspace.referenceImages}
+              calibration={workspace.calibration}
+              onCalibrationPoint={workspace.onCalibrationPoint}
               detailTarget={detailTarget}
               detailPreview={tool === 'detail' ? detailPreview.result : undefined}
               detailSize={offsetDistance}
@@ -3193,7 +3288,7 @@ export default function App() {
                   setSelectedGuideId(guideId);
                 } else {
                   setSelectedGuideId(undefined);
-                  if (bodyId && !selectedIds.includes(bodyId)) select(bodyId);
+                  if (bodyId && !selectedIdSet.has(bodyId)) select(bodyId);
                 }
                 if (bodyId || guideId || selectedIds.length) {
                   setActionMenu({ x, y });
@@ -3344,7 +3439,7 @@ export default function App() {
               }}
               onMoveTarget={(id) => {
                 setSelected(id);
-                if (!selectedIds.includes(id)) {
+                if (!selectedIdSet.has(id)) {
                   const unit = selectionUnit(project, id, openedAssembly);
                   setSelectedIds(unit.ids);
                   setSelectedGroupId(unit.groupId);
@@ -3502,40 +3597,51 @@ export default function App() {
                   )}
                 </div>
               )}
-            {!project.bodies.length && tool === 'select' && !editing && (
-              <div className="welcome">
-                <span className="eyebrow">TILAA AJATUKSILLE</span>
-                <h1>
-                  Ideasta
-                  <br />
-                  <em>muotoon.</em>
-                </h1>
-                <p>
-                  Piirrä ensimmäinen levy.
-                  <br />
-                  Tarkat mitat, selkeä kokonaisuus.
-                </p>
-                <button className="button dark" disabled={busy} onClick={() => begin('rectangle')}>
-                  <Plus size={18} />
-                  Piirrä suorakulmio
-                </button>
-                <button className="welcome-example" disabled={busy} onClick={() => void example()}>
-                  Tai avaa esimerkkikaappi <span>↗</span>
-                </button>
-                <button
-                  className="welcome-example"
-                  disabled={busy}
-                  onClick={() => void finishedExample()}
-                >
-                  Viimeistelty kaappi · mitat ja materiaalit <span>↗</span>
-                </button>
-                <div className="welcome-meta">
-                  <span>01 — Piirrä</span>
-                  <span>02 — Muotoile</span>
-                  <span>03 — Mitoita</span>
+            {!project.bodies.length &&
+              !project.referenceImages?.length &&
+              tool === 'select' &&
+              !editing && (
+                <div className="welcome">
+                  <span className="eyebrow">TILAA AJATUKSILLE</span>
+                  <h1>
+                    Ideasta
+                    <br />
+                    <em>muotoon.</em>
+                  </h1>
+                  <p>
+                    Piirrä ensimmäinen levy.
+                    <br />
+                    Tarkat mitat, selkeä kokonaisuus.
+                  </p>
+                  <button
+                    className="button dark"
+                    disabled={busy}
+                    onClick={() => begin('rectangle')}
+                  >
+                    <Plus size={18} />
+                    Piirrä suorakulmio
+                  </button>
+                  <button
+                    className="welcome-example"
+                    disabled={busy}
+                    onClick={() => void example()}
+                  >
+                    Tai avaa esimerkkikaappi <span>↗</span>
+                  </button>
+                  <button
+                    className="welcome-example"
+                    disabled={busy}
+                    onClick={() => void finishedExample()}
+                  >
+                    Viimeistelty kaappi · mitat ja materiaalit <span>↗</span>
+                  </button>
+                  <div className="welcome-meta">
+                    <span>01 — Piirrä</span>
+                    <span>02 — Muotoile</span>
+                    <span>03 — Mitoita</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
             <div className="canvas-corner">
               <span className="axis-chip x">X</span>
               <span className="axis-chip y">Y</span>
@@ -3559,17 +3665,30 @@ export default function App() {
               </button>
             </div>
           </div>
-          {mode === 'drawing' && (
-            <DrawingWorkspace
-              project={project}
-              cad={editor.cad}
-              meshes={editor.meshes}
-              selectedIds={selectedIds}
-              selectedGroupId={selectedGroupId}
-              busy={busy}
-              onCommit={(next, message) => editor.transact(next, message)}
-            />
-          )}
+          {mode === 'drawing' &&
+            (project.sections?.some((s) => s.id === drawingSectionId) ? (
+              <SectionDrawing
+                project={project}
+                selectedIds={selectedIds}
+                section={project.sections.find((s) => s.id === drawingSectionId)!}
+                cad={editor.cad}
+                busy={busy}
+                onCommit={editor.transact}
+                onSection={setDrawingSectionId}
+                onBack={() => setDrawingSectionId(undefined)}
+              />
+            ) : (
+              <DrawingWorkspace
+                onSection={setDrawingSectionId}
+                project={project}
+                cad={editor.cad}
+                meshes={editor.meshes}
+                selectedIds={selectedIds}
+                selectedGroupId={selectedGroupId}
+                busy={busy}
+                onCommit={(next, message) => editor.transact(next, message)}
+              />
+            ))}
 
           {busy && (
             <div className="busy-badge" role="status">
@@ -4169,7 +4288,7 @@ export default function App() {
                           </button>
                         )
                       )}
-                      {project.bodies.some((b) => selectedIds.includes(b.id) && b.component) && (
+                      {project.bodies.some((b) => selectedIdSet.has(b.id) && b.component) && (
                         <button className="button subtle" disabled={busy} onClick={makeUnique}>
                           Tee uniikiksi
                         </button>
@@ -4271,7 +4390,7 @@ export default function App() {
                       )}
                       <ModelMaterials
                         bodies={project.bodies.filter((b) =>
-                          selectedIds.length ? selectedIds.includes(b.id) : b.id === body.id,
+                          selectedIds.length ? selectedIdSet.has(b.id) : b.id === body.id,
                         )}
                         assets={project.assets}
                         materials={project.materials}
@@ -4300,7 +4419,7 @@ export default function App() {
                               !project.bodies.some(
                                 (b) =>
                                   (selectedIds.length
-                                    ? selectedIds.includes(b.id)
+                                    ? selectedIdSet.has(b.id)
                                     : b.id === body.id) && b.purpose !== 'construction',
                               )
                             }
@@ -4333,7 +4452,7 @@ export default function App() {
                                   busy ||
                                   selectedIds.length < 2 ||
                                   project.bodies
-                                    .filter((b) => selectedIds.includes(b.id))
+                                    .filter((b) => selectedIdSet.has(b.id))
                                     .some((b) => !featureIsSolid(b.feature))
                                 }
                                 onClick={() => void mergeSelected()}
@@ -4373,7 +4492,7 @@ export default function App() {
                       canMerge={
                         selectedIds.length > 1 &&
                         project.bodies
-                          .filter((b) => selectedIds.includes(b.id))
+                          .filter((b) => selectedIdSet.has(b.id))
                           .every((b) => featureIsSolid(b.feature))
                       }
                     />
@@ -4383,7 +4502,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.13.0</span>
+                    <span>v0.14.0</span>
                   </div>
                 </>
               )}
@@ -4570,6 +4689,19 @@ export default function App() {
                 ja vie SVG.
               </li>
             </ol>
+            <p>
+              <strong>Poikkileikkaus:</strong> avaa Leikkaus ja lisää nimetty leikkaus. Valitse
+              X/Y/Z tai poimi tasopinta. Vedä nuolesta tai kirjoita sijainti; Esc peruu vedon. Avaa
+              leikkaus mittakuvaan, valitse kaksi leikkauspistettä ja sijoita mittaviiva. PDF ja SVG
+              säilyttävät valitun mittakaavan. Leikkaus ei muuta osien geometriaa.
+            </p>
+            <p>
+              <strong>Pohja- ja julkisivukuva:</strong> tuo kuva Pohjakuva-painikkeesta, osoita
+              tunnetun mitan kaksi päätä ja anna todellinen mitta. Kuva lukittuu mittakaavaan. Voit
+              piirtää sen tasolle ja säätää läpinäkyvyyttä; rasteriviivat eivät ole
+              tartuntapisteitä. Eristä valinta näyttää vain työalueen, ja Palauta näkymä palauttaa
+              aiemmat piilotukset.
+            </p>
             <p>
               <strong>Monivalinta:</strong> Valitse-tilassa (V) Shift + klikkaus lisää osan
               valintaan tai poistaa sen valinnasta. M siirtää kaikki valitut yhdessä ilman ryhmän

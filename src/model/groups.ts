@@ -4,12 +4,18 @@ import { uid, type Anchor, type Body, type BodyGroup, type Project, type Vec3 } 
 import { add } from './geometry';
 import { asComponent } from './components';
 
+const groupMaps = new WeakMap<BodyGroup[], Map<string, BodyGroup>>();
 export function groupAncestors(groups: BodyGroup[], id?: string): BodyGroup[] {
+  let byId = groupMaps.get(groups);
+  if (!byId) {
+    byId = new Map(groups.map((group) => [group.id, group]));
+    groupMaps.set(groups, byId);
+  }
   const found: BodyGroup[] = [],
     seen = new Set<string>();
   while (id && !seen.has(id)) {
     seen.add(id);
-    const group = groups.find((g) => g.id === id);
+    const group = byId.get(id);
     if (!group) break;
     found.push(group);
     id = group.parentId;

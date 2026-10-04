@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import * as THREE from 'three';
 import { makeBody, type Vec3 } from '../src/model/project';
-import { ready, view, editBody } from './helpers';
+import { ready, view, editBody, revealBrowser } from './helpers';
 
 async function camera(page: Page) {
   return JSON.parse((await page.getByTestId('viewport').getAttribute('data-camera'))!) as {
@@ -60,6 +60,7 @@ test('selection, editing and groups set the working center without moving the vi
   await ready(page, [a, b], [], [group]);
   await view(page, [a, b]);
   const before = await camera(page);
+  await revealBrowser(page);
   await page.getByTestId(`body-${a.id}`).click();
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-camera-focus', '[100,100,50]');
   let after = await camera(page);
@@ -72,6 +73,7 @@ test('selection, editing and groups set the working center without moving the vi
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-camera-focus', '[100,100,50]');
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-editing-body', a.id);
   await page.getByRole('button', { name: 'Lopeta muokkaus', exact: true }).click();
+  await revealBrowser(page);
   await page.getByRole('button', { name: 'Valitse ryhmä: Runko', exact: true }).click();
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-camera-focus', '[400,100,100]');
   after = await camera(page);
@@ -85,6 +87,7 @@ test('empty-space orbit stays on the selected part after cursor zoom and still a
   const a = makeBody(200, 200, 100, [0, 0, 0], 'Vasen');
   const b = makeBody(300, 200, 100, [600, 0, 0], 'Oikea');
   await ready(page, [a, b]);
+  await revealBrowser(page);
   await page.getByTestId(`body-${a.id}`).click();
   const pivot: Vec3 = [100, 100, 50];
   const cursor = await screenPoint(page, [150, 100, 100]);
@@ -170,6 +173,7 @@ test('orbit picks the visible fillet preview while the original surface is hidde
   const part = makeBody(400, 300, 100);
   await ready(page, [part]);
   await view(page, [part]);
+  await revealBrowser(page);
   await page.getByTestId(`body-${part.id}`).click();
   await page.keyboard.press('f');
   await page.getByRole('button', { name: 'Kaikki reunat', exact: true }).click();

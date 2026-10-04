@@ -1,12 +1,12 @@
-# .nivo-projektiformaatti v6
+# .nivo-projektiformaatti v7
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 6`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 7`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
 ```json
 {
   "format": "nivo",
-  "version": 6,
+  "version": 7,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",
@@ -69,8 +69,8 @@ Kappaleen valinnainen `groupId` viittaa olemassa olevaan ryhmään. Valinnainen 
 
 Kappaleen `purpose` on `model`, `construction`, `drawing` tai `component`.
 Construction tarjoaa tartunnat mutta jää pois HLR-mittakuvasta; drawing
-projisoidaan pelkkinä reunoina. Component tarkoittaa tässä versiossa nimettyä
-itsenäistä osaa. Se ei sisällä komponenttimäärittelyä tai linkitettyjä instansseja.
+projisoidaan pelkkinä reunoina. Component avaa osalle muokkauskontekstin. Valinnainen `component`-tieto linkittää
+kopioiden geometrian yhteiseen määrittelyyn (kuvaus jäljempänä).
 
 `profile-extrusion` sisältää `profile`-, `frame`- ja `distance`-kentät sekä
 maailman akselien suuntaisen rajalaatikon mitat. `profile.kind` on `rectangle`
@@ -215,8 +215,9 @@ Missing values retain the original studio defaults. Cabinet generation writes
 ordinary rectangular component bodies and a group; no special geometry format
 is needed. Background render snapshots, progress and completed PNGs are session-only.
 
-Projektitiedoston tuontiraja on 64 MiB, jotta V6:n sallitut yhteensä 32 Mt
-kuva-aineistot ja geometria mahtuvat samaan avattavaan tiedostoon.
+Projektitiedoston tuontiraja on 64 miljoonaa JSON-tekstin merkkiä, jotta
+sallitut kuva-aineistot ja geometria mahtuvat samaan avattavaan tiedostoon.
+Assetien data-URL-merkkijonojen yhteisraja on 32 miljoonaa merkkiä.
 
 ## V0.11: tarkka siirto ja pintakartat
 
@@ -259,3 +260,35 @@ projektin atomista hyväksyntää. Undo/redo palauttaa koko tallennetun tilan.
 Tiedoston avaaminen ei aja uutta linkkien synkronointia. Vanhojen tiedostojen
 komponentti-merkintä saa uuden perhetunnuksen vasta ensimmäisessä kopioinnissa.
 Vanha sovellusversio ei säilytä näitä uusia valinnaisia kenttiä uudelleen tallentaessa.
+
+## V7: näkymäleikkaukset ja pohjakuvat
+
+V6 → V7 säilyttää kaikki olemassa olevat osat, linkitykset, ryhmät ja tunnisteet.
+Uudet kentät ovat valinnaisia. V1–V6 avautuvat vaiheittaisen migraation kautta.
+Vanha V6-lukija hylkää V7-tiedoston, jotta leikkauksia ja pohjakuvia ei hävitetä
+hiljaisesti vanhemmassa ohjelmassa.
+
+`sections` sisältää enintään 100 leikkausta: `id`, `name`, `frame` (maailman
+`origin`, kohtisuorat yksikkövektorit `normal` ja `u`), `flipped` ja `dimensions`.
+`settings.activeSectionId` viittaa yhteen olemassa olevaan leikkaukseen tai
+puuttuu, kun koko malli näytetään. Normaalin puoleinen aine poistuu näkymästä;
+`flipped` kääntää tämän. Leikkaus ei muuta `bodies`-tietoja.
+
+Leikkausmitalla on `id`, `start`, `end`, `axis` (`horizontal`, `vertical`,
+`distance`) ja `offset` millimetreinä. Ankkuri sisältää `bodyId`:n, tarkan
+maailmapisteen ja geometrian/sijainnin tarkistussignatuurin. Muuttunut geometria,
+poistunut leikkauspiste tai siirtynyt taso tekee viitteestä rikkoutuneen.
+Mittalukuja ei siirretä hiljaisesti uuteen reunaan. Leikkauskohtainen raja on
+500 mittaa. Cap-kolmioita tai PDF/SVG-piirustuksia ei tallenneta lähdegeometriana.
+
+`referenceImages` sisältää enintään 50 kuvaa: `id`, `name`, `assetId`, `frame`,
+`width`, `height`, `opacity`, `hidden`, `locked` ja `calibrated`. Kuva viittaa
+samaan sisäiseen `assets`-varastoon kuin tekstuurit. Kehyksen origo on kuvan
+alavasen kulma, u kulkee oikealle ja v = normal × u ylöspäin. Kalibrointi käyttää
+kuvan normalisoituja pisteitä vasemmasta yläkulmasta ja säilyttää ensimmäisen
+pisteen maailmasijainnin. Leveys ja korkeus ovat 0,1–100 000 mm.
+
+Tuonti käyttää nykyistä kuvarajaa: PNG/JPEG/WebP, tiedosto enintään 20 MiB,
+pisin tallennettu sivu 2 048 pikseliä ja projektin kaikkien kuvien yhteisbudjetti
+32 miljoonaa data-URL-merkkiä. PDF-pohjapiirroksen tuonti ja automaattinen
+viivojen tunnistus ovat jatkotyötä. Eristä valinta ei tallennu projektiformaattiin.

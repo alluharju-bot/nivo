@@ -1,3 +1,5 @@
+import type { Section } from '../model/sections';
+import type { SectionResult } from './protocol';
 import type {
   CadReply,
   CadRequest,
@@ -10,8 +12,13 @@ import type {
   EdgeDetailResult,
 } from './protocol';
 import type { Body, FaceRef, Vec3 } from '../model/project';
+import { bodyMeshKey } from './meshKey';
 
 export class CadClient {
+  private buildQueue: Promise<unknown> = Promise.resolve();
+  private generation = 0;
+  private meshKeys = new Map<string, string>();
+  private meshes = new Map<string, BodyMesh>();
   private worker?: Worker;
   private counter = 0;
   private pending = new Map<
@@ -31,7 +38,7 @@ export class CadClient {
         clearTimeout(job.timer);
         this.pending.delete(event.data.id);
         if (event.data.error) job.reject(new Error(event.data.error));
-        else job.resolve(event.data.result);
+        else job.resolve(event.data.meshDelta ?? event.data.result);
       };
       this.worker.onerror = () =>
         this.cancel('CAD-ydin ei käynnistynyt. Yritä toimintoa uudelleen.');
@@ -50,7 +57,28 @@ export class CadClient {
     });
   }
   build(bodies: Body[]) {
-    return this.request<BodyMesh[]>({ type: 'build', bodies });
+    const generation = this.generation;
+    const next = this.buildQueue
+      .catch(() => {})
+      .then(() => {
+        if (generation !== this.generation) throw new Error('Laskenta peruttiin.');
+        return this.syncBuild(bodies);
+      });
+    this.buildQueue = next;
+    return next;
+  }
+  private async syncBuild(bodies: Body[]) {
+    const keys = new Map(bodies.map((body) => [body.id, bodyMeshKey(body)]));
+    const updates = bodies.filter((body) => this.meshKeys.get(body.id) !== keys.get(body.id));
+    const order = bodies.map((body) => body.id);
+    const removed = [...this.meshKeys.keys()].some((id) => !keys.has(id));
+    if (updates.length || removed) {
+      const delta = await this.request<BodyMesh[]>({ type: 'sync', updates, order });
+      for (const mesh of delta) this.meshes.set(mesh.id, mesh);
+      for (const id of this.meshes.keys()) if (!keys.has(id)) this.meshes.delete(id);
+      this.meshKeys = keys;
+    }
+    return order.map((id) => this.meshes.get(id)!);
   }
   instances(source: Body, targets: Body[]) {
     return targets.length
@@ -59,6 +87,9 @@ export class CadClient {
   }
   project(bodies: Body[], view: DrawingView) {
     return this.request<Projection>({ type: 'project', bodies, view });
+  }
+  section(bodies: Body[], section: Section, drawing = false) {
+    return this.request<SectionResult>({ type: 'section', bodies, section, drawing });
   }
   probe() {
     return this.request<ProbeResult>({ type: 'probe' });
@@ -107,8 +138,11 @@ export class CadClient {
     return this.request<Body>({ type: 'remove-detail', body });
   }
   cancel(message = 'Laskenta peruttiin.') {
+    this.generation++;
     this.worker?.terminate();
     this.worker = undefined;
+    this.meshKeys.clear();
+    this.meshes.clear();
     for (const job of this.pending.values()) {
       clearTimeout(job.timer);
       job.reject(new Error(message));

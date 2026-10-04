@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { makeBody, freshProject, type Guide, type PointDimension } from '../src/model/project';
 import { defaultAppearance } from '../src/model/materials';
-import { ready, view, click, save } from './helpers';
+import { ready, view, click, save, revealBrowser } from './helpers';
 
 test('move ignores guides attached to the moving part but still snaps to fixed guides', async ({
   page,
@@ -29,6 +29,7 @@ test('move ignores guides attached to the moving part but still snaps to fixed g
   };
   await ready(page, [a, b], [attached, fixed]);
   const p = await view(page, [a, b]);
+  await revealBrowser(page);
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
@@ -151,6 +152,7 @@ test('an imported texture resets its aspect, accepts negative typing and stays i
   expect(saved.materials).toHaveLength(1);
   expect(saved.bodies[0].appearance?.texture.offsetX).toBe(-25.5);
   await page.getByRole('button', { name: 'Takaisin malliin', exact: true }).click();
+  await revealBrowser(page);
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
   await page.getByRole('checkbox', { name: 'Siirrä kopio', exact: true }).check();

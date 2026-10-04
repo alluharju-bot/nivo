@@ -1,3 +1,5 @@
+import { sectionSchema } from './sections';
+import { referenceImageSchema } from './referenceImages';
 import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
 import { cutSettingsSchema } from './cutSettings';
 import { z } from 'zod';
@@ -254,11 +256,13 @@ export type BodyGroup = z.infer<typeof groupSchema>;
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(6),
+    version: z.literal(7),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
     assets: z.record(z.string().max(100), assetSchema).optional(),
+    sections: z.array(sectionSchema).max(100).optional(),
+    referenceImages: z.array(referenceImageSchema).max(50).optional(),
     materials: z.array(customMaterialSchema).max(200).optional(),
     bodies: z.array(bodySchema).max(MAX_PROJECT_BODIES),
     groups: z.array(groupSchema).max(1000).default([]),
@@ -266,6 +270,7 @@ export const projectSchema = z
     guides: z.array(guideSchema).max(1000),
     settings: z
       .object({
+        activeSectionId: z.string().max(100).optional(),
         guideXray: z.boolean(),
         moveMode: z.enum(['axis', 'free']).optional(),
         gridStep: z.number().min(0.1).max(10000).optional(),
@@ -294,12 +299,23 @@ export const projectSchema = z
     updatedAt: z.string().datetime(),
   })
   .superRefine((p, ctx) => {
-    for (const list of [p.bodies, p.dimensions, p.guides, p.groups]) {
+    for (const list of [
+      p.bodies,
+      p.dimensions,
+      p.guides,
+      p.groups,
+      p.sections ?? [],
+      p.referenceImages ?? [],
+    ]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });
     }
     if (p.bodies.some((body) => body.groupId && !p.groups.some((g) => g.id === body.groupId)))
       ctx.addIssue({ code: 'custom', message: 'Kappale viittaa puuttuvaan ryhmään.' });
+    if (p.settings.activeSectionId && !p.sections?.some((s) => s.id === p.settings.activeSectionId))
+      ctx.addIssue({ code: 'custom', message: 'Aktiivinen poikkileikkaus puuttuu.' });
+    if (p.referenceImages?.some((image) => !p.assets?.[image.assetId]))
+      ctx.addIssue({ code: 'custom', message: 'Pohjakuvan kuva puuttuu projektista.' });
     const assetSize = Object.values(p.assets ?? {}).reduce((sum, a) => sum + a.dataUrl.length, 0);
     if (assetSize > 32_000_000)
       ctx.addIssue({
@@ -343,6 +359,8 @@ export function projectValidationMessage(error: z.ZodError): string {
     dimensions: 'mittaa',
     guides: 'apuviivaa',
     materials: 'omaa materiaalia',
+    sections: 'poikkileikkausta',
+    referenceImages: 'pohjakuvaa',
   };
   for (const issue of error.issues) {
     if (issue.code === 'too_big' && issue.origin === 'array' && issue.path.length === 1) {
@@ -373,7 +391,7 @@ export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 6,
+  version: 7,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
@@ -448,6 +466,8 @@ export function parseProject(text: string): Project {
     value = { ...value, version: 5, groups: [] };
   if (value && typeof value === 'object' && 'version' in value && value.version === 5)
     value = { ...value, version: 6 };
+  if (value && typeof value === 'object' && 'version' in value && value.version === 6)
+    value = { ...value, version: 7 };
   const result = projectSchema.safeParse(value);
   if (!result.success) throw new Error(projectValidationMessage(result.error));
   return result.data;

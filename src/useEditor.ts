@@ -1,3 +1,4 @@
+import { shareProjectData } from './model/sharing';
 import { isPointDimension, type Vec3 } from './model/project';
 import { resolveAnchor } from './model/guides';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -123,7 +124,7 @@ export function useEditor() {
           updatedAt: new Date().toISOString(),
         });
         if (!validated.success) throw new Error(projectValidationMessage(validated.error));
-        const next = validated.data;
+        const next = shareProjectData(history.current, validated.data);
         const built = await cad.build(next.bodies);
         if (current !== revision.current) return false;
         if (mode === 'undo') history.undo();

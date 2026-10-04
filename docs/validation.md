@@ -4,6 +4,48 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.14 — työmaamallit, poikkileikkaukset ja pohjakuvat
+
+**169 yksikkö-/CAD-testiä hyväksytty (33 tiedostoa).** Aidon OpenCascaden
+leikkauskokeet varmistavat 18 mm onton kaapin todellisen leikkausalan ja
+keskiaukon, pyöreän läpiviennin kaaret, käännetyn ja vinon tason, alkuperäiseen
+pintaan osuvan tason, rakennuksen oviaukon sekä pyöristetyn kalusteosan.
+SVG:n pinta-ala ja mitat tarkistetaan CAD-mittoja vasten. Rikkoutunut mittaviite
+estää viennin; geometrian tai leikkaustason muutosta ei piiloteta.
+
+Muut kokeet kattavat CAD-workerin delta-päivityksen ja nopean muutos/Peru-jonon,
+toistuvan pyöristetyn osan tarkan siirron ja ankkurien omistajuuden,
+10 000 osan avaruushaun, leikkauksen mukaisen laatikkovalinnan, kuvan
+kalibroinnin eri tasoilla, projektimuunnokset sekä jaetun historian ja
+muistibudjettien toiminnan. TypeScript, tuotantobuild ja lisenssitarkistus hyväksytty.
+
+Lopullisen tuotantopaketin **46/46 desktop- ja tablettiregressiota hyväksytty**
+(3,4 min). Aiempi kohdennettu kierros varmisti myös virtuaalilistan raahauksen,
+kameran ja tekstuurityönkulut molemmilla profiileilla. Kokeet varmistavat:
+
+- nimetyn leikkauksen tallennuksen, akselin/mittasyötön, aidon 600 mm
+  CAD-mitan, PDF-/SVG-latauksen, sivun päivityksen ja koko mallin palautuksen;
+- leikkaustason vedon sekä Esc-peruutuksen, pinnasta poiminnan, suunnan
+  vaihdon ja pois leikatun osan valintatartunnan poistumisen;
+- pohjakuvan kaksi pistettä + 2 000 mm -kalibroinnin, lukituksen,
+  julkisivutasolle sijoittamisen, 1 000 × 400 mm osan piirtämisen kuvan
+  Y = 123 mm tasolle sekä kuvan säilymisen päivityksessä;
+- eristämisen ja ennestään piilotetun osan näkyvyystilan säilymisen;
+- 1 000 osan virtuaalilistan, raahauksen ryhmään/päätasolle ja Peru-toiminnon;
+- 296 → 592 → 1 184 osan ryhmäkopiot, hierarkian, historian, tiedostoviennin
+  ja uudelleenavauksen sekä siirron vähäisen piirtokutsumäärän.
+
+Regressioissa mukana kameran kohdistinzoom/orbit, tarkat off-grid-ankkurit,
+Shift-push/pull, apuviivat, tekstuurit, linkitetyt kopiot, Hold ja kokoonpanot.
+[Suorituskykyraportti](performance.md) erottaa laitteistokiihdytetyt
+296 / 1 184 / 5 000 / 10 000 osan mittaukset, monimuotoisen kalustemallin ja
+leikkaustason käsittelyn. Testiympäristö käyttää omia malleja ja selainprofiileja.
+
+Rajat: yksi aktiivinen leikkaustaso, PNG/JPEG/WebP-pohjakuvat,
+rasteriviivoihin ei automaattista tartuntaa. Leikkaustäyttö ei ole muokattava
+CAD-face. Tablettiemulointi ei varmista fyysisen iPadin GPU-/muistikapasiteettia;
+Safari/WebKit ja käyttäjän oikea työmaamalli ovat seuraavan mittauskierroksen asioita.
+
 ## V0.13-korjaukset: työtilan viivat ja suuren valinnan kopiointi
 
 **154 yksikkö-/CAD-testiä hyväksytty (27 tiedostoa).** Uudet kokeet varmistavat

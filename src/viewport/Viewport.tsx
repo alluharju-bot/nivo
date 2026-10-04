@@ -1,3 +1,4 @@
+import { createWorkspaceViews } from './workspaceViews';
 import { createMaterialLibrary, materialUV, disposeMaterial } from '../render/materials';
 import { createPointDimensions } from './pointDimensions';
 import { useEffect, useRef, useState } from 'react';
@@ -8,6 +9,7 @@ import { guidePoints, guideMeasurement } from '../model/guides';
 import { formatLength } from '../model/units';
 import { installInteractions } from './interactions';
 import type { ViewportProps as Props, CameraCommand } from './types';
+import type { BodyMesh } from '../cad/protocol';
 import { profilePoints, frameV } from '../model/sketch';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
@@ -17,11 +19,14 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { rotationHandles } from '../model/rotationHandles';
 import { dot, unit } from '../model/geometry';
 import { createWorkspaceGrid } from './workspaceGrid';
+import { createBodyBatches } from './bodyBatches';
+import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { createModelDimensions } from './modelDimensions';
 import { installCameraNavigation } from './cameraNavigation';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   sync: () => void;
+  workspaceViews: () => void;
   preview: () => void;
   command: (command: CameraCommand) => void;
   annotations: () => void;
@@ -32,6 +37,8 @@ interface SceneApi {
 
 function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const scene = new THREE.Scene();
+  const bodyBatches = createBodyBatches(scene);
+  const moveBatches = createBodyBatches(scene, true);
   scene.background = new THREE.Color('#eaece6');
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -39,7 +46,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     logarithmicDepthBuffer: true,
   });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.localClippingEnabled = true;
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
@@ -104,7 +113,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().axisLabels,
       current().gridStep,
     );
+    bodyBatches.updateVisibility();
+    moveBatches.updateVisibility();
     renderer.render(scene, camera);
+    renderer.domElement.dataset.triangles = String(renderer.info.render.triangles);
     renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls);
     renderer.domElement.dataset.camera = JSON.stringify({
       position: camera.position.toArray(),
@@ -134,6 +146,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       label.element.style.top = `${((1 - p.y) * container.clientHeight) / 2}px`;
     }
   };
+  let workspaceViews: ReturnType<typeof createWorkspaceViews> | undefined;
   const materialLibrary = createMaterialLibrary(render);
   controls.addEventListener('change', render);
   controls.update();
@@ -187,23 +200,47 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   labelOccluded = (point) => {
     const projected = point.clone().project(camera);
     labelRay.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera);
-    const hit = labelRay
-      .intersectObjects(bodies.children)
-      .find((h) => h.object instanceof THREE.Mesh);
+    const hit = intersectModel(labelRay, bodies).find((h) => h.object instanceof THREE.Mesh);
     return !!hit && hit.distance < labelRay.ray.origin.distanceTo(point) - 0.05;
   };
   const disposeGroup = (group: THREE.Group) => {
     group.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
-        obj.geometry.dispose();
+        if (!obj.userData.sharedGeometry) obj.geometry.dispose();
         (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(disposeMaterial);
       }
     });
     group.clear();
   };
+  type BodyNode = {
+    data: BodyMesh;
+    style: string;
+    uv: string;
+    assets: Props['assets'];
+    mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial[]>;
+    outline: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+    boundary?: THREE.Box3Helper;
+  };
+  let bodyNodes = new Map<string, BodyNode>();
+  let geometryBuilds = 0;
+  const removeNode = (node: BodyNode, keepGeometry = false) => {
+    bodies.remove(node.mesh, node.outline);
+    if (!keepGeometry) {
+      node.mesh.geometry.dispose();
+      node.outline.geometry.dispose();
+    }
+    node.mesh.material.forEach(disposeMaterial);
+    node.outline.material.dispose();
+    if (node.boundary) {
+      bodies.remove(node.boundary);
+      node.boundary.geometry.dispose();
+      (node.boundary.material as THREE.Material).dispose();
+    }
+  };
   const sync = () => {
-    disposeGroup(bodies);
     const props = current();
+    renderer.shadowMap.needsUpdate = true;
+    renderer.domElement.dataset.meshCount = String(props.meshes.length);
     navigation.sync(props.bodies, props.selectedIds, props.editingBodyId);
     renderer.domElement.dataset.selectionKind = props.selectedFace
       ? 'face'
@@ -216,23 +253,60 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       max = new THREE.Vector3(...box.max);
     clippingSphere.center.copy(min).add(max).multiplyScalar(0.5);
     clippingSphere.radius = Math.max(100, min.distanceTo(max) / 2);
+    const bodyById = new Map(props.bodies.map((body) => [body.id, body]));
+    const selectedIds = new Set(props.selectedIds);
+    const scopeIds = props.scopeIds && new Set(props.scopeIds);
+    const nextNodes = new Map<string, BodyNode>();
     for (const data of props.meshes) {
-      const body = props.bodies.find((b) => b.id === data.id);
+      const body = bodyById.get(data.id);
       if (!body) continue;
-      const selected = props.selectedIds.includes(data.id);
+      const selected = selectedIds.has(data.id);
       const context = data.id === props.editingBodyId;
       const reference =
-        (!!props.editingBodyId && !context) ||
-        (!!props.scopeIds && !props.scopeIds.includes(data.id));
+        (!!props.editingBodyId && !context) || (!!scopeIds && !scopeIds.has(data.id));
       const target = props.tool === 'boolean' && props.booleanTargets.includes(data.id),
         cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
         auxiliary = body.purpose === 'construction' || body.purpose === 'drawing',
         constructionLine = body.purpose === 'construction' && !featureIsSolid(body.feature);
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
-      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
-      geometry.setIndex(data.triangles);
-      materialUV(geometry, body);
+      const old = bodyNodes.get(body.id);
+      const uv = JSON.stringify(body.textureFrame);
+      const style = JSON.stringify([
+        body.color,
+        body.material,
+        body.appearance,
+        body.locked,
+        body.purpose,
+        selected,
+        context,
+        reference,
+        target,
+        cutter,
+        selected ? props.selectedGroupId : undefined,
+        selected ? props.selectedFace : undefined,
+      ]);
+      if (
+        old &&
+        old.data === data &&
+        old.style === style &&
+        old.uv === uv &&
+        old.assets === props.assets
+      ) {
+        nextNodes.set(body.id, old);
+        continue;
+      }
+      const keepGeometry = old?.data === data && old.uv === uv;
+      const geometry = keepGeometry ? old.mesh.geometry : new THREE.BufferGeometry();
+      const edges = keepGeometry ? old.outline.geometry : new THREE.BufferGeometry();
+      if (old) removeNode(old, keepGeometry);
+      if (!keepGeometry) {
+        geometryBuilds++;
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
+        geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
+        geometry.setIndex(data.triangles);
+        materialUV(geometry, body);
+        edges.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
+      }
+      geometry.clearGroups();
       const baseMaterial = materialLibrary.create(body, props.assets);
       // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
       const materialFaces =
@@ -285,8 +359,6 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       mesh.userData = { id: body.id, faces: data.faces, purpose: body.purpose };
       if (constructionLine) mesh.raycast = () => {};
       bodies.add(mesh);
-      const edges = new THREE.BufferGeometry();
-      edges.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
       const outline = new THREE.LineSegments(
         edges,
         new THREE.LineBasicMaterial({
@@ -329,6 +401,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       }
       outline.userData = { id: body.id, constructionLine };
       bodies.add(outline);
+      let boundary: THREE.Box3Helper | undefined;
       if (context) {
         const editBounds = bounds([body]);
         const box = new THREE.Box3(
@@ -336,12 +409,40 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           new THREE.Vector3(...editBounds.max),
         );
         box.expandByScalar(2);
-        const boundary = new THREE.Box3Helper(box, '#267e65');
+        boundary = new THREE.Box3Helper(box, '#267e65');
         (boundary.material as THREE.LineBasicMaterial).transparent = true;
         (boundary.material as THREE.LineBasicMaterial).opacity = 0.45;
         bodies.add(boundary);
       }
+      nextNodes.set(body.id, { data, style, uv, assets: props.assets, mesh, outline, boundary });
     }
+    for (const [id, node] of bodyNodes) if (!nextNodes.has(id)) removeNode(node);
+    const geometryChanged =
+      nextNodes.size !== bodyNodes.size ||
+      [...nextNodes].some(([id, node]) => node.data !== bodyNodes.get(id)?.data);
+    bodyNodes = nextNodes;
+    if (geometryChanged || !bodies.userData.spatialIndex)
+      bodies.userData.spatialIndex = new BodySpatialIndex(props.bodies);
+    bodies.userData.pickNodes = new Map(
+      [...bodyNodes].map(([id, node]) => [id, [node.mesh, node.outline]]),
+    );
+    renderer.domElement.dataset.instanceBatches = String(
+      bodyBatches.sync(
+        [...bodyNodes].map(([id, node]) => {
+          const body = bodyById.get(id)!;
+          return {
+            id,
+            shape: JSON.stringify([body.feature, body.textureFrame]),
+            style: node.style,
+            origin: body.origin,
+            mesh: node.mesh,
+            outline: node.outline,
+          };
+        }),
+      ),
+    );
+    workspaceViews?.sync();
+    renderer.domElement.dataset.geometryBuilds = String(geometryBuilds);
     const editing = [
       'erase',
       'detail',
@@ -362,22 +463,41 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
     render();
   };
+  let movePreviewKey = '';
   const preview = () => {
-    disposeGroup(ghost);
     const rotation = current().rotation;
     const moving = current().tool === 'move' ? current().preview : undefined;
     const source = moving && current().bodies.find((b) => b.id === moving.id);
+    const selectedIds = new Set(current().selectedIds);
+    const nextMoveKey =
+      moving && source
+        ? current()
+            .selectedIds.map((id) => `${id}:${bodyNodes.get(id)?.mesh.geometry.uuid}`)
+            .join('|') +
+          ':' +
+          !!current().selectedGroupId
+        : '';
+    const reuseMove = !!nextMoveKey && movePreviewKey === nextMoveKey;
+    if (!reuseMove) {
+      moveBatches.sync([]);
+      disposeGroup(ghost);
+      ghost.position.set(0, 0, 0);
+    }
+    movePreviewKey = nextMoveKey;
     const moved =
       moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
-    for (const object of bodies.children)
+    for (const object of bodies.children) {
+      const wasVisible = object.visible;
       object.visible = !(
         (current().tool === 'detail' && current().detailPreview?.body.id === object.userData.id) ||
-        (moved && !current().copyMove && current().selectedIds.includes(object.userData.id)) ||
+        (moved && !current().copyMove && selectedIds.has(object.userData.id)) ||
         (rotation &&
           !rotation.picking &&
           Math.abs(rotation.angle % 360) > 1e-8 &&
           rotation.ids.includes(object.userData.id))
       );
+      if (wasVisible !== object.visible) renderer.shadowMap.needsUpdate = true;
+    }
     renderer.domElement.dataset.copyMove = String(current().copyMove);
     renderer.domElement.dataset.detailPreview = current().detailPreview?.body.id ?? '';
     renderer.domElement.dataset.detailPreviewSize = current().detailPreviewSize?.toString() ?? '';
@@ -611,38 +731,55 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       return;
     }
     if (moving && source) {
-      const delta = new THREE.Vector3(...moving.origin).sub(new THREE.Vector3(...source.origin));
-      for (const data of current().meshes.filter((m) => current().selectedIds.includes(m.id))) {
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
-        geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
-        geometry.setIndex(data.triangles);
-        geometry.translate(delta.x, delta.y, delta.z);
-        const mesh = new THREE.Mesh(
-          geometry,
-          new THREE.MeshBasicMaterial({
-            color: current().selectedGroupId ? '#447ead' : '#3b967a',
-            transparent: true,
-            opacity: 0.3,
-            side: THREE.DoubleSide,
-            depthWrite: false,
+      ghost.position.copy(
+        new THREE.Vector3(...moving.origin).sub(new THREE.Vector3(...source.origin)),
+      );
+      if (!reuseMove) {
+        const material = new THREE.MeshStandardMaterial({
+          forceSinglePass: true,
+          color: current().selectedGroupId ? '#447ead' : '#3b967a',
+          transparent: true,
+          opacity: 0.3,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        });
+        const edgeMaterial = new THREE.LineBasicMaterial({
+          color: current().selectedGroupId ? '#356eab' : '#17755d',
+          depthTest: false,
+        });
+        for (const id of selectedIds) {
+          const node = bodyNodes.get(id);
+          if (!node) continue;
+          const mesh = new THREE.Mesh(node.mesh.geometry, [material.clone()]);
+          mesh.userData = { orbitSurface: true, sharedGeometry: true };
+          const outline = new THREE.LineSegments(node.outline.geometry, edgeMaterial.clone());
+          outline.userData.sharedGeometry = true;
+          ghost.add(mesh, outline);
+        }
+        material.dispose();
+        edgeMaterial.dispose();
+        const bodyById = new Map(current().bodies.map((b) => [b.id, b]));
+        moveBatches.sync(
+          [...selectedIds].flatMap((id, index) => {
+            const body = bodyById.get(id),
+              mesh = ghost.children[index * 2],
+              outline = ghost.children[index * 2 + 1];
+            if (!body || !(mesh instanceof THREE.Mesh) || !(outline instanceof THREE.LineSegments))
+              return [];
+            return [
+              {
+                id,
+                shape: JSON.stringify([body.feature, body.textureFrame]),
+                style: 'move',
+                origin: body.origin,
+                mesh,
+                outline,
+              },
+            ];
           }),
         );
-        mesh.userData.orbitSurface = true;
-        ghost.add(mesh);
-        const outline = new THREE.BufferGeometry();
-        outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
-        outline.translate(delta.x, delta.y, delta.z);
-        ghost.add(
-          new THREE.LineSegments(
-            outline,
-            new THREE.LineBasicMaterial({
-              color: current().selectedGroupId ? '#356eab' : '#17755d',
-              depthTest: false,
-            }),
-          ),
-        );
       }
+      moveBatches.group.position.copy(ghost.position);
       render();
       return;
     }
@@ -850,6 +987,28 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     controls.update();
   };
   const command = (command: CameraCommand) => {
+    if (command.type === 'frame' && command.frame) {
+      setProjection('orthographic');
+      const frame = command.frame;
+      const center = new THREE.Vector3(...frame.origin)
+        .addScaledVector(new THREE.Vector3(...frame.u), (command.width ?? 0) / 2)
+        .addScaledVector(new THREE.Vector3(...frameV(frame)), (command.height ?? 0) / 2);
+      controls.target.copy(center);
+      camera.up.set(...frameV(frame));
+      halfHeight =
+        Math.max(
+          command.height ?? 600,
+          ((command.width ?? 600) * container.clientHeight) / container.clientWidth,
+        ) * 0.6;
+      orthographic.zoom = 1;
+      camera.position
+        .copy(center)
+        .addScaledVector(new THREE.Vector3(...frame.normal), Math.max(1000, halfHeight * 3));
+      resize();
+      controls.update();
+      render();
+      return;
+    }
     if (command.type === 'origin') {
       camera.position.sub(controls.target);
       controls.target.set(0, 0, 0);
@@ -892,6 +1051,18 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     }
     render();
   };
+  workspaceViews = createWorkspaceViews(
+    scene,
+    renderer.domElement,
+    current,
+    () => camera,
+    bodies,
+    [bodies, ghost, bodyBatches.group, moveBatches.group],
+    render,
+    () => {
+      renderer.shadowMap.needsUpdate = true;
+    },
+  );
   const interactions = installInteractions({
     container,
     canvas: renderer.domElement,
@@ -906,10 +1077,14 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   sync();
   return {
     sync,
+    workspaceViews: workspaceViews.sync,
     annotations,
     interactionSync: interactions.sync,
     dimensionDisplay: render,
-    preview,
+    preview: () => {
+      preview();
+      workspaceViews?.sync();
+    },
     command,
     dispose() {
       disposed = true;
@@ -923,6 +1098,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       extrusionLabels.forEach((l) => l.element.remove());
       disposeGroup(bodies);
       disposeGroup(ghost);
+      workspaceViews?.dispose();
+      moveBatches.dispose();
+      bodyBatches.dispose();
       workspaceGrid?.dispose();
       modelDimensions.dispose();
       pointDimensions.dispose();
@@ -977,6 +1155,18 @@ export function Viewport(props: Props) {
     props.gridStep,
     props.assets,
   ]);
+  useEffect(
+    () => api.current?.workspaceViews(),
+    [
+      props.section,
+      props.sectionResult,
+      props.sectionControls,
+      props.sectionExtent,
+      props.referenceImages,
+      props.calibration,
+      props.assets,
+    ],
+  );
   useEffect(() => api.current?.dimensionDisplay(), [props.dimensions, props.dimensionDisplay]);
   useEffect(
     () => api.current?.preview(),

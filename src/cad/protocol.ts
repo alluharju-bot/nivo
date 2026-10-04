@@ -1,3 +1,4 @@
+import type { Section, SectionAnchor } from '../model/sections';
 import type { Body, FaceRef, Vec3, VertexAnchor } from '../model/project';
 export interface CadFace {
   start: number;
@@ -68,9 +69,23 @@ export interface Projection {
   hidden: string[];
   viewBox: [number, number, number, number];
 }
+export interface SectionResult {
+  caps: {
+    bodyId: string;
+    vertices: number[];
+    normals: number[];
+    triangles: number[];
+    edges: number[];
+    paths: string[];
+  }[];
+  anchors: SectionAnchor[];
+  projection?: Projection;
+}
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
+  | { type: 'section'; bodies: Body[]; section: Section; drawing: boolean }
   | { type: 'instances'; source: Body; targets: Body[] }
+  | { type: 'sync'; updates: Body[]; order: string[] }
   | { type: 'build'; bodies: Body[] }
   | { type: 'project'; bodies: Body[]; view: DrawingView }
   | { type: 'probe' }
@@ -104,6 +119,7 @@ export interface ProbeResult {
 export interface CadReply {
   id: number;
   result?:
+    | SectionResult
     | BodyMesh[]
     | Projection
     | ProbeResult
@@ -113,5 +129,6 @@ export interface CadReply {
     | FaceSpan
     | number[]
     | EdgeDetailResult;
+  meshDelta?: BodyMesh[];
   error?: string;
 }

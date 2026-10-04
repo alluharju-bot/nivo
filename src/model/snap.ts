@@ -171,9 +171,18 @@ interface Options {
   projectGuides?: boolean;
 }
 const distance = (a: Vec3, b: Vec3) => Math.hypot(...a.map((v, i) => v - b[i]));
+const meshLookup = new WeakMap<BodyMesh[], Map<string, BodyMesh>>();
+const meshPoints = new WeakMap<BodyMesh, ReferencePoint[]>();
 export function modelSnapPoints(bodies: Body[], meshes?: BodyMesh[]): ReferencePoint[] {
+  let byId = meshes && meshLookup.get(meshes);
+  if (meshes && !byId) {
+    byId = new Map(meshes.map((mesh) => [mesh.id, mesh]));
+    meshLookup.set(meshes, byId);
+  }
   return bodies.flatMap((body) => {
-    const mesh = meshes?.find((m) => m.id === body.id);
+    const mesh = byId?.get(body.id);
+    const cached = mesh && meshPoints.get(mesh);
+    if (cached) return cached;
     const points: ReferencePoint[] = mesh
       ? mesh.verticesCAD.map((v) => ({
           point: v.point,
@@ -211,6 +220,7 @@ export function modelSnapPoints(bodies: Body[], meshes?: BodyMesh[]): ReferenceP
       label: 'Kappaleen keskipiste',
       key: `${body.id}:center`,
     });
+    if (mesh) meshPoints.set(mesh, points);
     return points;
   });
 }

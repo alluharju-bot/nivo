@@ -2,14 +2,21 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
-## Seuraava yöpassi: suuren työmaan sujuva mallinnus
+## V0.14 — suuren työmaan sujuva mallinnus
 
 Käyttäjän 296 osan kaappirivin kopiointi osoitti kaksi eri ongelmaa:
 projektissa oli 1 000 osan tarkistusraja ja 1 184 osaan kasvattaminen näytti
 harhaanjohtavan mittavirheen. Raja on korjattu 10 000 osaan ja virheet
 erottelevat määrän, mitat ja viitteet. Tämä ei vielä takaa 10 000 osan suorituskykyä.
 
-Yöpassin ehdotettu kokonaisuus on useiden huoneiden ja kalusteiden mallinnus.
+Yöpassi toteuttaa useiden huoneiden ja kalusteiden mallinnuksen perustan.
+Alla alkuperäinen hyväksyntäsuunnitelma; toteutuksen mittaukset ja tarkat rajat
+ovat [suorituskykyraportissa](performance.md) ja [validoinnissa](validation.md).
+
+Toteutettu: resurssien säilytys, CAD-deltat ja toistuvien osien välimuisti,
+instanssipiirto myös siirron aikana, avaruushaku, suuri virtuaalinen mallilista,
+historian muistibudjetti, poikkileikkaukset ja mittakuvat, pohjakuvat sekä eristys.
+
 Työjärjestys:
 
 1. Mittaa 296, 1 184, 5 000 ja 10 000 osan mallit. Osoitus, orbit, valinta,
@@ -36,20 +43,22 @@ Hyväksyntä: sama testi ennen ja jälkeen samalla laitteella, 296 → 592 → 1
 kopiointi sekä suurempien mallien valinta/siirto/Peru/tallennus/uudelleenavaus.
 Desktopin tavoite on 60 kuvaa/s tavallisessa mallinnuksessa ja vähintään
 30 kuvaa/s sovitussa suuressa testimallissa laitteistokiihdytetyllä selaimella.
-Nämä ovat mitattavia tavoitteita, eivät vielä saavutettuja kapasiteettilupauksia.
-Tabletin kuorma mitataan erikseen. Mallinnuksen tarkkuutta tai erillisiä osia
+Tavoitteet saavutettiin synteettisten mallien M1 Pro -mittauksessa: 5 000 osan
+siirto noin 60 kuvaa/s ja 10 000 osan siirto noin 32 kuvaa/s. Tämä ei ole
+kaikille malleille pätevä kapasiteettilupaus. Fyysisen tabletin kuorma mitataan
+erikseen. Mallinnuksen tarkkuutta tai erillisiä osia
 ei uhrata nopeudelle. [Nykyiset mittaukset ja rajat](performance.md).
 
-Samaan kokonaisuuteen ehdotetut käytettävyyslisät: aiemmin pyydetty
+Samaan kokonaisuuteen toteutetut käytettävyyslisät: aiemmin pyydetty
 kalibroitava pohja-/julkisivukuva (kaksi pistettä + tunnettu mitta, 1:1-skaala,
 läpinäkyvyys ja lukitus) sekä **Eristä valinta**. Eristäminen näyttää valitun
 huoneen tai kalusteen ja palauttaa lopuksi täsmälleen aiemmat piilotukset;
 se on tilapäinen työskentelytila, joka ei muuta ryhmiä tai osien mittoja.
 
-### Poikkileikkaus: yöpassin ydinkokonaisuus suorituskyvyn rinnalla
+### Poikkileikkaus: toteutettu ensimmäinen kokonaisuus
 
 Käyttäjä nosti leikkausnäkymät erityisen tärkeiksi rakennus-, remontointi- ja
-kalustetyöhön. Toteutussuunnitelma kattaa sekä mallin tutkimisen 3D:ssä että
+kalustetyöhön. Toteutus kattaa sekä mallin tutkimisen 3D:ssä että
 mitoitettavan leikkauspiirustuksen:
 
 - Yksi selkeä **Leikkaus**-toiminto. Leikkaustason lähtövalinta X/Y/Z tai
@@ -78,6 +87,18 @@ Tarkka CAD-leikkaus lasketaan workerissa; vanhentuneen laskennan tulos ei saa
 palauttaa tasoa aiempaan paikkaan. Useat samanaikaiset tasot ja rajauslaatikko
 ovat jatkoa yhden tason varmennetulle kokonaisuudelle.
 
+### Seuraavaksi v0.14:n jälkeen
+
+- Useita samanaikaisia leikkaustasoja ja rajauslaatikko.
+- Leikkausmitan katkenneen viitteen uudelleenkohdistus ilman poistamista;
+  leikkausmerkit tavalliselle pohjakuva-arkille ja monen leikkauskuvan arkkiasettelu.
+- PDF-pohjakuvien tuonti, suuremman kuvakoon porrastettu näyttö ja valinnainen
+  viivojen tunnistus. Kuvan rasteriviivoihin ei vielä synny geometriatartuntoja.
+- Tarkka käyttäjämalli, fyysinen tabletti ja Safari/WebKit suorituskykyvertailuun.
+- Muokattujen BRep-geometrioiden tiedostovarasto, osittainen projektin lataus ja
+  peru-historian muutostallennus, jos nämä muodostuvat seuraavaksi pullonkaulaksi.
+- CNC-ohjeistus pysyy backlogissa; PDF/SVG-leikkauskuva ei ole koneen työstörata.
+
 ## V0.13 — mallin hallinta ja ensimmäinen suorituskykypass
 
 Toteutettu: vasen läpikuultava mallilista (aktiivisena kevyt maitolasipinta,
@@ -100,9 +121,9 @@ siirtoakseli on toteutettu. Oikean napin veto säilyy orbitina.
 Suorituskyky: yhdenväriset CAD-pinnat käyttävät yhtä pintapiirtoa per osa;
 osoituskorostus on erillinen yhden pinnan verkko ja peräkkäiset piirtopyynnöt
 kootaan yhteen animaatioruutuun. [296 osan vertailu ja mittausskripti](performance.md).
-Seuraavan optimointipassin korkea prioriteetti: geometriaresurssien säilyttäminen
-valinnan vaihtuessa, Worker-siirtojen delta-päivitykset, tartuntapisteiden
-avaruusindeksi, listan virtualisointi ja oikean 296 osan käyttäjämallin profilointi.
+Geometriaresurssien säilytys, Worker-deltat, avaruusindeksi ja listan virtualisointi
+on toteutettu v0.14:ssä. Käyttäjän varsinaisen 296 osan mallin profilointi
+on edelleen hyödyllinen erillinen vertailu synteettisten mallien rinnalle.
 Tavoiterajat asetetaan laitteistokiihdytetyllä selaimella mitatusta aineistosta.
 
 Prioriteettia tarkennettu käyttäjän kanssa: helppokäyttöisyys, mittasyöttö ja

@@ -6,7 +6,31 @@ const MAX_SAVED_STEPS = 20;
 export class History {
   private past: Project[] = [];
   private future: Project[] = [];
-  constructor(public current: Project) {}
+  private weights = new WeakMap<Project, number>();
+  constructor(
+    public current: Project,
+    private memoryBudget = 64 * 1024 * 1024,
+  ) {}
+  private weight(project: Project) {
+    let weight = this.weights.get(project);
+    if (weight === undefined) {
+      // Conservative serialized UTF-16 estimate; shared CAD features reduce the
+      // actual retained object graph further. This bounds snapshots, not WebGL/WASM.
+      weight = JSON.stringify(project).length * 2;
+      this.weights.set(project, weight);
+    }
+    return weight;
+  }
+  private trimMemory() {
+    let total = [...this.past, ...this.future, this.current].reduce(
+      (n, p) => n + this.weight(p),
+      0,
+    );
+    while (total > this.memoryBudget && (this.past.length || this.future.length)) {
+      const list = this.past.length >= this.future.length ? this.past : this.future;
+      total -= this.weight(list.shift()!);
+    }
+  }
   get canUndo() {
     return this.past.length > 0;
   }
@@ -18,6 +42,7 @@ export class History {
     if (this.past.length > 100) this.past.shift();
     this.current = next;
     this.future = [];
+    this.trimMemory();
   }
   peekUndo() {
     return this.past.at(-1);
@@ -43,30 +68,59 @@ export class History {
   }
   /** Store the nearest undo/redo steps within a bounded browser-storage budget. */
   serialize(maxBytes = MAX_SAVED_BYTES, maxSteps = MAX_SAVED_STEPS): string | undefined {
-    const past = this.past.slice(-maxSteps),
-      future = this.future.slice(-maxSteps);
-    while (true) {
-      const pool = Object.assign(
-        {},
-        ...[...past, ...future, this.current].map((p) => p.assets ?? {}),
-      );
-      const pack = (p: Project) => ({ ...p, assets: p.assets ? Object.keys(p.assets) : undefined });
-      const data = JSON.stringify({
-        version: 2,
-        assets: pool,
-        current: pack(this.current),
-        past: past.map(pack),
-        future: future.map(pack),
-      });
-      if (
-        past.length + future.length <= maxSteps &&
-        new TextEncoder().encode(data).length <= maxBytes
-      )
-        return data;
-      if (!past.length && !future.length) return;
-      (past.length >= future.length ? past : future).shift();
+    // Encode each retained snapshot and asset once. Repeatedly stringifying the
+    // entire history while trimming it freezes large models on every edit.
+    const encoder = new TextEncoder();
+    const pack = (p: Project) =>
+      JSON.stringify({ ...p, assets: p.assets ? Object.keys(p.assets) : undefined });
+    const current = pack(this.current),
+      past: string[] = [],
+      future: string[] = [];
+    const assets = new Map<string, string>();
+    let bytes = encoder.encode(current).length + 70;
+    const extraAssets = (p: Project) =>
+      Object.entries(p.assets ?? {})
+        .filter(([id]) => !assets.has(id))
+        .map(([id, asset]) => [id, `${JSON.stringify(id)}:${JSON.stringify(asset)}`] as const);
+    const keepAssets = (entries: readonly (readonly [string, string])[]) =>
+      entries.forEach(([id, data]) => assets.set(id, data));
+    const initial = extraAssets(this.current);
+    bytes += initial.reduce((sum, [, data]) => sum + encoder.encode(data).length + 1, 0);
+    if (bytes > maxBytes) return;
+    keepAssets(initial);
+    const nextPast = this.past.slice(-maxSteps),
+      nextFuture = this.future.slice(-maxSteps);
+    let pastOpen = true,
+      futureOpen = true;
+    for (let step = 0; step < maxSteps; step++) {
+      const usePast =
+        pastOpen &&
+        nextPast.length > 0 &&
+        (!futureOpen || !nextFuture.length || past.length <= future.length);
+      const source = usePast ? nextPast : nextFuture,
+        destination = usePast ? past : future;
+      if ((usePast && !pastOpen) || (!usePast && !futureOpen) || !source.length) break;
+      const project = source.pop()!,
+        data = pack(project),
+        addedAssets = extraAssets(project);
+      const size =
+        encoder.encode(data).length +
+        1 +
+        addedAssets.reduce((sum, [, value]) => sum + encoder.encode(value).length + 1, 0);
+      if (bytes + size > maxBytes) {
+        if (usePast) pastOpen = false;
+        else futureOpen = false;
+        step--;
+        continue;
+      }
+      bytes += size;
+      keepAssets(addedAssets);
+      destination.unshift(data);
     }
+    const data = `{"version":2,"assets":{${[...assets.values()].join(',')}},"current":${current},"past":[${past.join(',')}],"future":[${future.join(',')}]}`;
+    return encoder.encode(data).length <= maxBytes ? data : undefined;
   }
+
   /** A missing, damaged or stale history must never prevent opening the active model. */
   restore(serialized?: string): boolean {
     this.past = [];
@@ -99,6 +153,7 @@ export class History {
       const future = data.future.map((project: unknown) => parseProject(JSON.stringify(project)));
       this.past = past;
       this.future = future;
+      this.trimMemory();
       return true;
     } catch {
       return false;

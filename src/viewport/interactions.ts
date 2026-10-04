@@ -1,3 +1,5 @@
+import { sectionDistance } from '../model/sections';
+import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { contextualFace, moveAxisFromScreen } from './picking';
 import { projectSelectionBounds, insideSelectionRect, type ScreenBounds } from './boxSelection';
 import { isPointDimension, uid, type PointDimension } from '../model/project';
@@ -145,6 +147,7 @@ export function installInteractions({
     moveAxisLabel.style.color = color;
     moveAxisLabel.textContent = `${axis.toUpperCase()} lukittu · ${distance > 0 ? '+' : ''}${formatLength(distance)} mm`;
   };
+  overlay.name = 'interaction-overlays';
   scene.add(overlay);
   const makeMarker = (color: string) => {
     const marker = new THREE.Mesh(
@@ -435,22 +438,32 @@ export function installInteractions({
   const occlusionTolerance = (point: Vec3) =>
     Math.max(0.01, ...point.map((n) => Math.abs(n) * 1e-7));
   const visiblePoint = (point: Vec3, ignoreBody?: string) => {
+    if (bodies.userData.acceptPoint && !bodies.userData.acceptPoint(new THREE.Vector3(...point)))
+      return false;
     const p = new THREE.Vector3(...point),
       q = p.clone().project(camera()),
       ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(q.x, q.y), camera());
-    const hit = ray
-      .intersectObjects(bodies.children)
-      .find((h) => h.object instanceof THREE.Mesh && h.object.userData.id !== ignoreBody);
+    const hit = intersectModel(ray, bodies).find(
+      (h) => h.object instanceof THREE.Mesh && h.object.userData.id !== ignoreBody,
+    );
     const distance = ray.ray.origin.distanceTo(p),
       tolerance = occlusionTolerance(point);
     if (hit && hit.distance < distance - tolerance) return false;
     // A triangle raycast may miss its exact silhouette by floating-point error.
     // CAD boundary segments still occlude a rear anchor at the same pixel.
     const onRay = new THREE.Vector3();
-    for (const mesh of current().meshes) {
+    refreshLookup();
+    const index = bodies.userData.spatialIndex as BodySpatialIndex | undefined;
+    const rayMeshes = index
+      ? index
+          .ray(ray.ray, tolerance)
+          .map((id) => meshById.get(id)!)
+          .filter(Boolean)
+      : current().meshes;
+    for (const mesh of rayMeshes) {
       if (mesh.id === ignoreBody) continue;
-      const body = current().bodies.find((b) => b.id === mesh.id);
+      const body = bodyById.get(mesh.id);
       if (body?.purpose === 'construction' && !featureIsSolid(body.feature)) continue;
       for (const edge of mesh.edgesCAD) {
         const separation = ray.ray.distanceSqToSegment(
@@ -459,6 +472,7 @@ export function installInteractions({
           onRay,
         );
         if (
+          (!bodies.userData.acceptPoint || bodies.userData.acceptPoint(onRay)) &&
           separation <= tolerance * tolerance &&
           ray.ray.origin.distanceTo(onRay) < distance - tolerance
         )
@@ -466,6 +480,35 @@ export function installInteractions({
       }
     }
     return true;
+  };
+  let indexedMeshes: ReturnType<typeof current>['meshes'] | undefined;
+  let meshById = new Map<string, ReturnType<typeof current>['meshes'][number]>();
+  let indexedBodies: ReturnType<typeof current>['bodies'];
+  let bodyById = new Map<string, ReturnType<typeof current>['bodies'][number]>();
+  const refreshLookup = () => {
+    if (indexedMeshes !== current().meshes) {
+      indexedMeshes = current().meshes;
+      meshById = new Map(indexedMeshes.map((mesh) => [mesh.id, mesh]));
+    }
+    if (indexedBodies !== current().bodies) {
+      indexedBodies = current().bodies;
+      bodyById = new Map(indexedBodies.map((body) => [body.id, body]));
+    }
+  };
+  const nearby = (event: PointerEvent) => {
+    refreshLookup();
+    const rect = canvas.getBoundingClientRect();
+    const index = bodies.userData.spatialIndex as BodySpatialIndex | undefined;
+    const ids = index?.screen(
+      camera(),
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      1 - ((event.clientY - rect.top) / rect.height) * 2,
+      30 / rect.width,
+      30 / rect.height,
+    );
+    return ids
+      ? ids.map((id) => meshById.get(id)).filter((m): m is NonNullable<typeof m> => !!m)
+      : current().meshes;
   };
   const nearest = (
     event: PointerEvent,
@@ -477,8 +520,10 @@ export function installInteractions({
       rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
+    const nearMeshes = nearby(event);
+    const nearBodies = nearMeshes.map((mesh) => bodyById.get(mesh.id)!).filter(Boolean);
     const points = verticesOnly
-      ? props.meshes.flatMap((m) =>
+      ? nearMeshes.flatMap((m) =>
           m.verticesCAD.map((v) => ({
             point: v.point,
             key: `${m.id}:${v.anchor.key}`,
@@ -488,7 +533,7 @@ export function installInteractions({
         )
       : [
           ...modelSnapPoints(
-            props.bodies.filter(
+            nearBodies.filter(
               (b) => props.tool !== 'move' || props.copyMove || !props.selectedIds.includes(b.id),
             ),
             props.meshes,
@@ -534,7 +579,7 @@ export function installInteractions({
   const faceAt = (event: PointerEvent) => {
     setRay(event);
     raycaster.params.Line.threshold = worldPerPixel(current().bodies[0]?.origin ?? [0, 0, 0]) * 6;
-    const hits = raycaster.intersectObjects(bodies.children);
+    const hits = intersectModel(raycaster, bodies);
     let hit = hits.find((h) => h.object instanceof THREE.Mesh);
     // A flat construction shape is selectable by its outline; its interior
     // remains transparent to face picking, including E/O and sketch planes.
@@ -619,14 +664,44 @@ export function installInteractions({
     }
     return hit?.face.planar ? hit.target : undefined;
   };
+  const referenceImageAt = (event: PointerEvent) => {
+    setRay(event);
+    const hits = (current().referenceImages ?? [])
+      .filter((image) => !image.hidden)
+      .flatMap((image) => {
+        const point = raycaster.ray.intersectPlane(
+          new THREE.Plane().setFromNormalAndCoplanarPoint(
+            new THREE.Vector3(...image.frame.normal),
+            new THREE.Vector3(...image.frame.origin),
+          ),
+          new THREE.Vector3(),
+        );
+        if (!point) return [];
+        const uv = toUV(point.toArray() as Vec3, image.frame);
+        if (uv[0] < 0 || uv[0] > image.width || uv[1] < 0 || uv[1] > image.height) return [];
+        return [
+          {
+            point: point.toArray() as Vec3,
+            normal: image.frame.normal,
+            distance: point.distanceTo(raycaster.ray.origin),
+          },
+        ];
+      });
+    return hits.sort((a, b) => a.distance - b.distance)[0];
+  };
   const sketchStartAt = (event: PointerEvent) => {
     const props = current(),
       target = sketchSurfaceAt(event);
+    const image = target ? undefined : referenceImageAt(event);
     const explicit = ['rectangle', 'circle'].includes(props.tool) ? props.axis : undefined;
     const normal = explicit
       ? axisVector(explicit)
-      : (target?.normal ?? axisVector((['x', 'y', 'z'] as const)[planeAxes[workPlane()][2]]));
-    const anchor = target?.point ?? nearest(event, false, () => true, true)?.point ?? [0, 0, 0];
+      : (target?.normal ??
+        image?.normal ??
+        axisVector((['x', 'y', 'z'] as const)[planeAxes[workPlane()][2]]));
+    const anchor = target?.point ??
+      nearest(event, false, () => true, true)?.point ??
+      image?.point ?? [0, 0, 0];
     const frame = sketchFrame(scale(normal, dot(normal, anchor)), normal);
     const raw = framePoint(event, frame);
     if (!raw) return;
@@ -726,7 +801,7 @@ export function installInteractions({
       distance: number;
       depth: number;
     }[] = [];
-    for (const mesh of props.meshes) {
+    for (const mesh of nearby(event)) {
       if (props.editingBodyId && props.editingBodyId !== mesh.id) continue;
       if (props.bodies.find((b) => b.id === mesh.id)?.locked) continue;
       for (const boundary of mesh.boundaries) {
@@ -757,10 +832,12 @@ export function installInteractions({
       Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
     );
     return candidates.find(({ point }) => {
+      if (bodies.userData.acceptPoint && !bodies.userData.acceptPoint(new THREE.Vector3(...point)))
+        return false;
       const projected = point.clone().project(camera()),
         ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const hit = ray.intersectObjects(bodies.children).find((h) => h.object instanceof THREE.Mesh);
+      const hit = intersectModel(ray, bodies).find((h) => h.object instanceof THREE.Mesh);
       return (
         !hit ||
         hit.distance >=
@@ -780,7 +857,7 @@ export function installInteractions({
       distance: number;
       depth: number;
     }[] = [];
-    for (const mesh of props.meshes) {
+    for (const mesh of nearby(event)) {
       if (
         (props.editingBodyId && props.editingBodyId !== mesh.id) ||
         props.bodies.find((b) => b.id === mesh.id)?.locked
@@ -818,7 +895,7 @@ export function installInteractions({
         projected = p.clone().project(camera());
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const hit = ray.intersectObjects(bodies.children).find((h) => h.object instanceof THREE.Mesh);
+      const hit = intersectModel(ray, bodies).find((h) => h.object instanceof THREE.Mesh);
       return !hit || hit.distance >= ray.ray.origin.distanceTo(p) - worldPerPixel(point) * 0.5;
     });
   };
@@ -873,8 +950,8 @@ export function installInteractions({
     const rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
-    const candidates = current()
-      .meshes.flatMap((m) =>
+    const candidates = nearby(event)
+      .flatMap((m) =>
         m.edgesCAD.map((edge) => {
           const a = screen(edge.start),
             b = screen(edge.end),
@@ -946,7 +1023,7 @@ export function installInteractions({
         projected = p.clone().project(camera());
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const hit = ray.intersectObjects(bodies.children).find((h) => h.object instanceof THREE.Mesh);
+      const hit = intersectModel(ray, bodies).find((h) => h.object instanceof THREE.Mesh);
       return !hit || hit.distance >= ray.ray.origin.distanceTo(p) - worldPerPixel(point) * 0.5;
     };
     const near = props.guides
@@ -1058,24 +1135,27 @@ export function installInteractions({
     const x = event.clientX - rect.left,
       y = event.clientY - rect.top;
     const excluded = source ? [] : (drag?.movingIds ?? props.selectedIds);
-    const eligible = props.bodies.filter(
-      (b) =>
-        !excluded.includes(b.id) &&
-        (!source || (!b.locked && (!props.editingBodyId || b.id === props.editingBodyId))),
-    );
+    const eligible = nearby(event)
+      .map((mesh) => bodyById.get(mesh.id)!)
+      .filter(Boolean)
+      .filter(
+        (b) =>
+          !excluded.includes(b.id) &&
+          (!source || (!b.locked && (!props.editingBodyId || b.id === props.editingBodyId))),
+      );
     const visible = (point: Vec3, center = false, bodyId?: string) => {
+      if (bodies.userData.acceptPoint && !bodies.userData.acceptPoint(new THREE.Vector3(...point)))
+        return false;
       const p = new THREE.Vector3(...point),
         projected = p.clone().project(camera()),
         ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const obstruction = ray
-        .intersectObjects(bodies.children)
-        .find(
-          (h) =>
-            h.object instanceof THREE.Mesh &&
-            !excluded.includes(h.object.userData.id) &&
-            !(center && h.object.userData.id === bodyId),
-        );
+      const obstruction = intersectModel(ray, bodies).find(
+        (h) =>
+          h.object instanceof THREE.Mesh &&
+          !excluded.includes(h.object.userData.id) &&
+          !(center && h.object.userData.id === bodyId),
+      );
       return (
         !obstruction ||
         obstruction.distance >= ray.ray.origin.distanceTo(p) - occlusionTolerance(point)
@@ -2265,6 +2345,7 @@ export function installInteractions({
         camera(),
         rect.width,
         rect.height,
+        props.section ? (point) => sectionDistance(props.section!, point) : undefined,
       );
     }
     if (props.tool === 'rectangle')

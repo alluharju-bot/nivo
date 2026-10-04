@@ -1,9 +1,12 @@
+import { translateMesh } from './translateMesh';
+import { sectionBodies } from './sections';
 import initOpenCascade from 'replicad-opencascadejs';
 import wasmUrl from 'replicad-opencascadejs/wasm?url';
 import { setOC, makeCompound, type AnyShape } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
 import type { BodyMesh, CadRequest, CadReply } from './protocol';
-import type { Body } from '../model/project';
+import type { Body, Vec3 } from '../model/project';
+import { bodyMeshKey } from './meshKey';
 import { booleanBodies, splitFace, offsetFace, offsetOutline, removeBoundary } from './operations';
 import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
@@ -13,20 +16,36 @@ import { instantiateComponents } from './components';
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 type Entry = { key: string; shape: AnyShape; mesh: BodyMesh };
 let cache = new Map<string, Entry>();
+let syncedBodies = new Map<string, Body>();
+let sentMeshes = new Map<string, BodyMesh>();
 
 function build(bodies: Body[]): Entry[] {
   const next = new Map<string, Entry>();
   const allocated: AnyShape[] = [];
+  const templates = new Map<string, { entry: Entry; origin: Vec3 }>();
   try {
     for (const body of bodies) {
-      const key = JSON.stringify([body.feature, body.origin, body.edgeTreatment]);
+      const key = bodyMeshKey(body);
       const previous = cache.get(body.id);
+      const templateKey = JSON.stringify([body.feature, body.edgeTreatment]);
       if (previous?.key === key) next.set(body.id, previous);
       else {
-        const shape = createShape(body);
+        const template = templates.get(templateKey);
+        const delta = template
+          ? (body.origin.map((n, i) => n - template.origin[i]) as Vec3)
+          : undefined;
+        const shape = template ? template.entry.shape.clone().translate(delta!) : createShape(body);
         allocated.push(shape);
-        next.set(body.id, { key, shape, mesh: meshBody(body, shape) });
+        next.set(body.id, {
+          key,
+          shape,
+          mesh: template
+            ? translateMesh(template.entry.mesh, body.id, delta!)
+            : meshBody(body, shape),
+        });
       }
+      if (!templates.has(templateKey))
+        templates.set(templateKey, { entry: next.get(body.id)!, origin: body.origin });
     }
   } catch (error) {
     allocated.forEach((shape) => shape.delete());
@@ -46,7 +65,25 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
-      else if (request.type === 'instances')
+      else if (request.type === 'section')
+        reply.result = sectionBodies(request.bodies, request.section, request.drawing, (body) => {
+          const entry = cache.get(body.id);
+          return entry?.key === bodyMeshKey(body) ? entry.shape : undefined;
+        });
+      else if (request.type === 'sync') {
+        const updates = new Map(request.updates.map((body) => [body.id, body]));
+        const ordered = request.order.map((id) => {
+          const body = updates.get(id) ?? syncedBodies.get(id);
+          if (!body) throw new Error('CAD-välimuistin osa puuttuu. Yritä toimintoa uudelleen.');
+          return body;
+        });
+        const entries = build(ordered);
+        reply.meshDelta = entries
+          .filter((entry) => sentMeshes.get(entry.mesh.id) !== entry.mesh)
+          .map((entry) => entry.mesh);
+        syncedBodies = new Map(ordered.map((body) => [body.id, body]));
+        sentMeshes = new Map(entries.map((entry) => [entry.mesh.id, entry.mesh]));
+      } else if (request.type === 'instances')
         reply.result = instantiateComponents(request.source, request.targets);
       else if (request.type === 'rotate')
         reply.result = rotateBodies(request.bodies, request.pivot, request.axis, request.angle);

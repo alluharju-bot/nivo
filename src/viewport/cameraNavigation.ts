@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { intersectModel } from './spatialIndex';
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { bounds, type Body } from '../model/project';
 
@@ -12,22 +13,30 @@ export function orbitSurfacePoint(
   objects: THREE.Object3D[],
 ) {
   const meshes: THREE.Object3D[] = [];
+  camera.updateMatrixWorld();
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(pointer, camera);
+  const indexedHits: THREE.Intersection[] = [];
   for (const object of objects) {
+    if (object instanceof THREE.Group && object.userData.spatialIndex) {
+      indexedHits.push(...intersectModel(ray, object));
+      continue;
+    }
     object.updateWorldMatrix(true, true);
     object.traverseVisible((child) => {
       if (child instanceof THREE.Mesh) meshes.push(child);
     });
   }
-  camera.updateMatrixWorld();
-  const ray = new THREE.Raycaster();
-  ray.setFromCamera(pointer, camera);
-  return ray.intersectObjects(meshes, false).find((hit) => {
-    const material = (hit.object as THREE.Mesh).material;
-    const faceMaterial = Array.isArray(material)
-      ? material[hit.face?.materialIndex ?? 0]
-      : material;
-    return faceMaterial?.visible && faceMaterial.opacity > 0;
-  })?.point;
+  return [...indexedHits, ...ray.intersectObjects(meshes, false)]
+    .sort((a, b) => a.distance - b.distance)
+    .filter((hit) => hit.object instanceof THREE.Mesh)
+    .find((hit) => {
+      const material = (hit.object as THREE.Mesh).material;
+      const faceMaterial = Array.isArray(material)
+        ? material[hit.face?.materialIndex ?? 0]
+        : material;
+      return (faceMaterial?.visible || hit.object.userData.batched) && faceMaterial.opacity > 0;
+    })?.point;
 }
 
 export function selectionCenter(bodies: Body[], selectedIds: string[], editingBodyId?: string) {

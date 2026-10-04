@@ -1,4 +1,4 @@
-# Arkkitehtuuri — v0.12.0
+# Arkkitehtuuri — v0.14.0
 
 Tarkistettu 30.9.2026 npm-rekisteristä, pakettien rajapinnoista ja ajettavilla kokeilla.
 
@@ -41,7 +41,7 @@ src/useEditor  atominen muutos, vanhojen vastausten hylkäys, historia, tallennu
 src/App        työkalutila, paneelit, käyttöohjeet
 ```
 
-V6:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
+V7:n auktoritatiivinen geometria on tarkka resepti ja sijainti, yhdistämisen
 litistetty lähdejoukko tai serialisoitu OCCT-BRep. Tasomainen kynämuoto voi
 sisältää paikallisia 3D-pisteitä. Worker rakentaa ja tarkistaa geometrian;
 näyttöverkko on sen johdannainen. Yleisen tasopinnan push/pull pursottaa
@@ -541,3 +541,38 @@ päällekkäisiä ja sahausura vähennetään niiden väliltä. Tämä on determ
 heuristiikka, ei globaalin optimin todistus. Muistissa ei muuteta mallia.
 `drawing/cutting.ts` tekee samasta tuloksesta SVG-arkit, vektori-PDF:n ja CSV:n;
 print-CSS näyttää vain levykuvat ja osaluettelot fyysisillä A4-vaakasivuilla.
+
+## Suuret mallit ja työmaanäkymät (v0.14)
+
+CAD-client sarjallistaa `sync`-pyynnöt ja siirtää vain geometriamuutokset ja
+osien järjestyksen. Worker palauttaa vain muuttuneet verkot. Nimi, väri, ryhmä,
+leikkaustaso ja kuvat eivät käynnistä osien uudelleentessellointia. Samankaltaiset
+siirretyt osat voivat käyttää yhden tarkan CAD-lähteen kloonia ja muunnettua
+näyttöverkkoa. Verkkoankkurin `bodyId` vaihtuu aina oikealle esiintymälle.
+
+Viewport säilyttää muuttumattomat geometriat ja kokoaa saman muodon/materiaalin
+instanssipiirroiksi. Tarkat osakohtaiset poimintaverkot säilyvät CPU:lla.
+Valinnan siirron haamut käyttävät samaa eräpiirtoa ja siirtyvät muunnoksella.
+Staattista varjokarttaa ei piirretä uudelleen kameran/osoittimen liikkuessa.
+AABB-puu rajaa sädehaun ja ruututilan tartuntahaun ehdokkaat; tarkka CAD-piste
+ja peittymistarkistus ratkaisevat edelleen lopullisen tartunnan. Yli 400 rivin
+mallipuusta pidetään DOM:ssa vain näkyvä osuus ja pieni ylimääräinen reuna.
+
+Validointi palauttaa muuttumattomille osille/featureille aiemmat olioviitteet.
+Historia säilyttää enintään 100 askelta, lisäksi konservatiivinen 64 MiB:n
+UTF-16-tilannekuva-arvio karsii vanhimpia askelia. Aktiivista mallia ei karsita.
+Tämä ei ole koko selaimen/WASM/GPU-muistin yläraja. Selaimeen tallentuva historia
+on edelleen enintään 20 askelta / 8 MiB, kuvat yhteisessä varastossa. Kukin
+säilytettävä tilannekuva serialisoidaan vain kerran tallennuskierroksella.
+
+Näkymäleikkaus käyttää GPU:n paikallista clipping-tasoa ja samaa ehtoa
+poiminnassa. Worker muodostaa täytöt tarkan BRepin ja tasofacen yhteisestä
+osasta. Reiät säilyvät CAD-topologiassa ja cap-kolmioissa. Toistuvien osien
+saman paikallisen leikkauksen tulos käytetään uudelleen; 3D-täytöt piirretään
+yhtenä yhdistettynä esitysverkkona. Vanhat worker-vastaukset eivät pääse uuteen
+tasoon. Piirustus käyttää rajattujen CAD-solidien HLR-projektiota; leikkausrajan
+käyrät saadaan facejen ulko- ja sisäkehistä ja muunnetaan yhteiseen tasokoordinaatistoon.
+
+Pohjakuvat ovat itsenäisiä teksturoituja näkymätasoja. Ne eivät muuta CAD-mittoja,
+raycast-geometriaa, osaluetteloa tai renderöintimateriaaleja. Piirtäminen voi
+käyttää kuvan tasoa lähtötasona, kun osoittimen alla ei ole CAD-pintaa.

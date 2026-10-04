@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
+import { bodyVisible } from '../src/model/transforms';
 import {
   bounds,
   freshProject,
@@ -26,7 +27,10 @@ export async function ready(
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies, guides, groups })),
     });
-    await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
+    await expect(page.getByTestId('viewport')).toHaveAttribute(
+      'data-mesh-count',
+      String(bodies.filter((b) => bodyVisible(b, groups)).length),
+    );
   }
 }
 export async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {

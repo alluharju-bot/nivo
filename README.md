@@ -3,7 +3,10 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.13.0** tuo läpikuultavan vetäytyvän mallilistan, reunoihin siirrettävän työkalupalkin, kokoonpanot, linkitetyt komponentit ja maalipensselin. 296 osan mallin piirtoja on vähennetty ja suorituskyvylle on toistettava [vertailumittaus](docs/performance.md).
+Versio **0.14.0** tuo tallennettavat poikkileikkaukset, mitoitetut leikkauskuvat,
+kalibroitavat pohja- ja julkisivukuvat sekä valinnan eristämisen. Suurten mallien
+CAD-laskenta, piirto, tartunnat ja mallilista käyttävät nyt välimuisteja ja
+instansseja. [Mitattu suorituskyky ja rajat](docs/performance.md).
 
 - Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
 - Napsauta valitun osan tai ryhmän otsikkonimeä nimetäksesi sen. Ryhmäpolku näkyy heti alla.
@@ -54,6 +57,29 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
 10 mm:n ruudukolla vapaa suorakulmion sivu, ympyrän halkaisija ja push/pullin toteutuva paksuus askeltavat 10 mm. Siirto askeltaa siirtymää lähtöpisteestä, joten se ei muuta muiden akselien sijaintia. Ruudukon askel on vaihdettavissa asetuksissa. Kirjoitettu tarkka mitta ja korostettu geometriatartunta ohittavat ruudukon: esimerkiksi 18 mm:n levyn pinnalle piirretty muoto pysyy levyn pinnalla.
 
 Piirtämisen alku valitsee näkyvän pinnan. Yhteisessä nurkassa suositaan kameraa kohti olevaa pintaa; etupuolella oleva geometria estää takakulmaan tarttumisen. Suorakulmion ja ympyrän X/Y/Z valitsee piirtotason normaalin: X = YZ, Y = XZ ja Z = XY. Tason voi vaihtaa myös ensimmäisen pisteen jälkeen. Kynän X/Y/Z lukitsee viivan suunnan.
+
+## Poikkileikkaus ja pohjakuva
+
+- Näkymän **Leikkaus**-painike lisää nimetyn tason. Valitse X/Y/Z tai **Pinnasta**,
+  vedä tason nuolesta tai kirjoita sijainti millimetreinä. **Vaihda katselusuunta**
+  vaihtaa näkyvää puolta. Kappaleet, tilavuudet ja leikkauslista pysyvät ennallaan.
+- **Avaa leikkaus mittakuvaan** näyttää CAD-leikkausreunat ja viivoittaa vain
+  umpinaisen aineen. Valitse näkyvä malli, valinta tai ryhmä. **Mitoita kahdesta
+  pisteestä** poimii leikkausreunan pisteet; kolmas napsautus sijoittaa mittaviivan.
+  Vie mittakaavallinen PDF tai SVG ja tulosta 100 % koossa. Muuttunut mittaviite
+  merkitään ja se pitää korjata ennen vientiä.
+- **Pohjakuva** tuo PNG-/JPEG-/WebP-kuvan XY-, XZ- tai YZ-tasolle. Poimi kaksi
+  pistettä ja syötä tunnettu etäisyys. Kalibrointi säilyttää ensimmäisen pisteen
+  paikallaan ja lukitsee kuvan. Lukituksen voi avata sijainnin tai tason vaihtamiseen.
+  Näkyvyysliuku säätää läpinäkyvyyttä. Kuva tallentuu projektin sisään.
+- **Eristä valinta** on näkymän painikkeessa ja valinnan toimintovalikossa.
+  **Palauta näkymä** palauttaa täsmälleen aiemmat osien ja ryhmien piilotukset.
+  Eristys on tilapäinen eikä muuta projektin näkyvyysasetuksia.
+
+Yksi leikkaustaso on aktiivinen kerrallaan. Tarkan täytön laskenta tapahtuu
+CAD-workerissa; tason liike näkyy heti ja täyttö valmistuu pysähdyksen jälkeen.
+Leikkauspinta on näkymän esitys, ei push/pullilla muokattava uusi CAD-pinta.
+Pohjakuvasta ei automaattisesti tunnisteta seinäviivoja tai tartuntapisteitä.
 
 ## Ensimmäinen työnkulku
 

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { VirtualTreeRows } from './VirtualTreeRows';
 import { createPortal } from 'react-dom';
 import {
   ChevronDown,
@@ -64,6 +65,43 @@ export function ObjectTree({
       onMove(move, parentId);
     },
   );
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const { byGroup, children, groupCounts } = useMemo(() => {
+    const byGroup = new Map<string | undefined, Body[]>();
+    const children = new Map<string | undefined, BodyGroup[]>();
+    const groupCounts = new Map<string, number>();
+    for (const body of bodies) {
+      const list = byGroup.get(body.groupId) ?? [];
+      list.push(body);
+      byGroup.set(body.groupId, list);
+      for (const group of groupAncestors(groups, body.groupId))
+        groupCounts.set(group.id, (groupCounts.get(group.id) ?? 0) + 1);
+    }
+    for (const group of groups) {
+      const list = children.get(group.parentId) ?? [];
+      list.push(group);
+      children.set(group.parentId, list);
+    }
+    return { byGroup, children, groupCounts };
+  }, [bodies, groups]);
+  type FlatRow =
+    | { kind: 'body'; body: Body; depth: number }
+    | { kind: 'group'; group: BodyGroup; depth: number };
+  const flatRows = useMemo(() => {
+    const rows: FlatRow[] = [];
+    const seen = new Set<string>();
+    const append = (id?: string, depth = 0) => {
+      for (const body of byGroup.get(id) ?? []) rows.push({ kind: 'body', body, depth });
+      for (const group of children.get(id) ?? []) {
+        if (seen.has(group.id)) continue;
+        seen.add(group.id);
+        rows.push({ kind: 'group', group, depth });
+        if (!collapsed.has(group.id)) append(group.id, depth + 1);
+      }
+    };
+    append();
+    return rows;
+  }, [byGroup, children, collapsed]);
   const dropClass = (id: string) =>
     drag?.drop?.id === id ? (drag.drop.allowed ? ' tree-drop-active' : ' tree-drop-invalid') : '';
   const rename = (item: Body | BodyGroup, kind: 'body' | 'group') => (
@@ -96,7 +134,7 @@ export function ObjectTree({
     const visible = bodyVisible(body, groups),
       held = bodyLocked(body, groups);
     const inheritedHold = groupAncestors(groups, body.groupId).some((g) => g.locked);
-    const ids = selected.includes(body.id) ? selected : [body.id];
+    const ids = selectedSet.has(body.id) ? selected : [body.id];
     return (
       <div
         key={body.id}
@@ -108,9 +146,9 @@ export function ObjectTree({
         ) : (
           <button
             data-testid={`body-${body.id}`}
-            className={`object-select ${selected.includes(body.id) ? 'selected' : ''}`}
+            className={`object-select ${selectedSet.has(body.id) ? 'selected' : ''}`}
             disabled={busy}
-            aria-pressed={selected.includes(body.id)}
+            aria-pressed={selectedSet.has(body.id)}
             onPointerDown={(e) =>
               start(
                 e,
@@ -163,84 +201,87 @@ export function ObjectTree({
       </div>
     );
   };
+  const groupHeading = (group: BodyGroup) => {
+    const ancestors = groupAncestors(groups, group.id);
+    return (
+      <div className={`object-group-heading${dropClass(group.id)}`} data-tree-drop={group.id}>
+        <button
+          className="group-collapse"
+          aria-label={`${collapsed.has(group.id) ? 'Avaa' : 'Sulje'} ryhmä: ${group.name}`}
+          aria-expanded={!collapsed.has(group.id)}
+          onClick={() =>
+            setCollapsed((old) => {
+              const next = new Set(old);
+              if (next.has(group.id)) next.delete(group.id);
+              else next.add(group.id);
+              return next;
+            })
+          }
+        >
+          {collapsed.has(group.id) ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
+        </button>
+        {renaming === group.id ? (
+          rename(group, 'group')
+        ) : (
+          <button
+            className="group-select"
+            aria-label={`Valitse ryhmä: ${group.name}`}
+            disabled={busy}
+            aria-pressed={selectedGroupId === group.id}
+            onPointerDown={(e) => start(e, { kind: 'group', id: group.id }, group.name)}
+            onClick={() => onSelectGroup(group.id)}
+            onDoubleClick={() => setRenaming(group.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'F2') {
+                e.preventDefault();
+                setRenaming(group.id);
+              }
+            }}
+            title={`${group.name} · vedä ryhmään · kaksoisnapsauta tai F2 nimeää`}
+          >
+            <span className="tree-drag-grip" aria-hidden="true">
+              <GripVertical size={14} />
+            </span>
+            <span>
+              {group.kind === 'assembly' && <Boxes size={13} aria-label="Kokoonpano" />}{' '}
+              {group.name}
+            </span>
+            <small>{groupCounts.get(group.id) ?? 0}</small>
+          </button>
+        )}
+        <button
+          className="object-action"
+          aria-label={`${group.locked ? 'Vapauta' : 'Kiinnitä'} ryhmä: ${group.name}`}
+          title="Ryhmän kiinnitys · G"
+          aria-pressed={ancestors.some((g) => g.locked)}
+          disabled={busy || ancestors.slice(1).some((g) => g.locked)}
+          onClick={() => onGroup(group.id, { locked: !group.locked })}
+        >
+          {ancestors.some((g) => g.locked) ? <LockKeyhole size={14} /> : <Unlock size={14} />}
+        </button>
+        <button
+          className="object-action"
+          aria-label={`${group.hidden ? 'Näytä' : 'Piilota'} ryhmä: ${group.name}`}
+          title={group.hidden ? 'Näytä ryhmä' : 'Piilota ryhmä'}
+          disabled={busy}
+          onClick={() => onGroup(group.id, { hidden: !group.hidden })}
+        >
+          {ancestors.some((g) => g.hidden) ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+      </div>
+    );
+  };
   const groupRows = (parentId?: string): React.ReactNode =>
     groups
       .filter((g) => g.parentId === parentId)
       .map((group) => {
-        const ancestors = groupAncestors(groups, group.id);
         return (
           <section
             key={group.id}
             className={`object-group ${selectedGroupId === group.id ? 'selected-group' : ''} ${drag?.move.kind === 'group' && drag.move.id === group.id ? 'tree-dragging' : ''}`}
             data-testid={`group-${group.id}`}
           >
-            <div className={`object-group-heading${dropClass(group.id)}`} data-tree-drop={group.id}>
-              <button
-                className="group-collapse"
-                aria-label={`${collapsed.has(group.id) ? 'Avaa' : 'Sulje'} ryhmä: ${group.name}`}
-                aria-expanded={!collapsed.has(group.id)}
-                onClick={() =>
-                  setCollapsed((old) => {
-                    const next = new Set(old);
-                    if (next.has(group.id)) next.delete(group.id);
-                    else next.add(group.id);
-                    return next;
-                  })
-                }
-              >
-                {collapsed.has(group.id) ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
-              </button>
-              {renaming === group.id ? (
-                rename(group, 'group')
-              ) : (
-                <button
-                  className="group-select"
-                  aria-label={`Valitse ryhmä: ${group.name}`}
-                  disabled={busy}
-                  aria-pressed={selectedGroupId === group.id}
-                  onPointerDown={(e) => start(e, { kind: 'group', id: group.id }, group.name)}
-                  onClick={() => onSelectGroup(group.id)}
-                  onDoubleClick={() => setRenaming(group.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'F2') {
-                      e.preventDefault();
-                      setRenaming(group.id);
-                    }
-                  }}
-                  title={`${group.name} · vedä ryhmään · kaksoisnapsauta tai F2 nimeää`}
-                >
-                  <span className="tree-drag-grip" aria-hidden="true">
-                    <GripVertical size={14} />
-                  </span>
-                  <span>
-                    {group.kind === 'assembly' && <Boxes size={13} aria-label="Kokoonpano" />}{' '}
-                    {group.name}
-                  </span>
-                  <small>
-                    {bodies.filter((b) => groupContains(groups, group.id, b.groupId)).length}
-                  </small>
-                </button>
-              )}
-              <button
-                className="object-action"
-                aria-label={`${group.locked ? 'Vapauta' : 'Kiinnitä'} ryhmä: ${group.name}`}
-                title="Ryhmän kiinnitys · G"
-                aria-pressed={ancestors.some((g) => g.locked)}
-                disabled={busy || ancestors.slice(1).some((g) => g.locked)}
-                onClick={() => onGroup(group.id, { locked: !group.locked })}
-              >
-                {ancestors.some((g) => g.locked) ? <LockKeyhole size={14} /> : <Unlock size={14} />}
-              </button>
-              <button
-                className="object-action"
-                aria-label={`${group.hidden ? 'Näytä' : 'Piilota'} ryhmä: ${group.name}`}
-                title={group.hidden ? 'Näytä ryhmä' : 'Piilota ryhmä'}
-                disabled={busy}
-                onClick={() => onGroup(group.id, { hidden: !group.hidden })}
-              >
-                {ancestors.some((g) => g.hidden) ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
+            {groupHeading(group)}
             {!collapsed.has(group.id) && (
               <div className="object-group-children">
                 {bodies.filter((b) => b.groupId === group.id).map(row)}
@@ -261,6 +302,7 @@ export function ObjectTree({
       ref={tree}
       className={`object-tree ${drag ? 'tree-arranging' : ''}`}
       aria-label="Kappaleet ja ryhmät"
+      data-body-count={bodies.length}
       onPointerDownCapture={() => {
         suppressClick.current = false;
       }}
@@ -296,11 +338,35 @@ export function ObjectTree({
         <Layers2 size={14} /> Päätaso{' '}
         <span>{drag ? 'Pudota tähän' : 'Vedä tähän pois ryhmästä'}</span>
       </div>
-      <div className="object-list">
-        {bodies.filter((b) => !b.groupId).map(row)}
-        {groupRows()}
-        {!bodies.length && !groups.length && <p className="empty-list">Ei vielä kappaleita.</p>}
-      </div>
+      {bodies.length + groups.length > 400 ? (
+        <VirtualTreeRows
+          items={flatRows}
+          itemKey={(item) => (item.kind === 'body' ? item.body.id : item.group.id)}
+          activeKey={
+            renaming ?? selectedGroupId ?? (selected.length === 1 ? selected[0] : undefined)
+          }
+          render={(item) => (
+            <div style={{ paddingLeft: Math.min(item.depth, 12) * 9 }}>
+              {item.kind === 'body' ? (
+                row(item.body)
+              ) : (
+                <section
+                  className={`object-group ${selectedGroupId === item.group.id ? 'selected-group' : ''}`}
+                  data-testid={`group-${item.group.id}`}
+                >
+                  {groupHeading(item.group)}
+                </section>
+              )}
+            </div>
+          )}
+        />
+      ) : (
+        <div className="object-list">
+          {bodies.filter((b) => !b.groupId).map(row)}
+          {groupRows()}
+          {!bodies.length && !groups.length && <p className="empty-list">Ei vielä kappaleita.</p>}
+        </div>
+      )}
       <span className="sr-only" role="status">
         {drag
           ? `${drag.label}: ${drag.drop ? (drag.drop.allowed ? `Siirrä: ${drag.drop.name}` : 'Ei sallittu') : 'Valitse kohderyhmä'}`

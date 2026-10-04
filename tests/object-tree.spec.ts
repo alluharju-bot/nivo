@@ -9,6 +9,33 @@ const groups: BodyGroup[] = [
 ];
 const groupButton = (page: Page, name: string) =>
   page.getByRole('button', { name: `Valitse ryhmä: ${name}`, exact: true });
+
+test('a thousand-part tree keeps a small DOM and supports regrouping an off-screen row', async ({
+  page,
+}) => {
+  const parts = Array.from({ length: 1000 }, (_, i) => ({
+    ...makeBody(20, 20, 40, [(i % 40) * 30, Math.floor(i / 40) * 30, 0], `Osa ${i + 1}`),
+    groupId: 'cabinet',
+  }));
+  await ready(page, parts, [], groups);
+  const list = page.locator('.virtual-object-list');
+  await expect(list).toBeVisible();
+  expect(await page.locator('.object-list .object-select').count()).toBeLessThan(50);
+  // Reveal row 500 by scrolling; no selector has to mount all preceding rows.
+  await list.evaluate((el) => {
+    el.scrollTop = 500 * (matchMedia('(pointer:coarse)').matches ? 46 : 40);
+  });
+  const source = page.getByTestId(`body-${parts[499].id}`);
+  await expect(source).toBeVisible();
+  await source.click();
+  await drag(page, source, page.getByTestId('tree-root-drop'));
+  const model = await save(page);
+  expect(model.bodies[499].groupId).toBeUndefined();
+  expect(model.bodies.filter((b) => b.groupId === 'cabinet')).toHaveLength(999);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies).toEqual(parts);
+  expect(await page.locator('.object-list .object-select').count()).toBeLessThan(50);
+});
 async function drag(page: Page, source: Locator, target: Locator, release = true) {
   const browser = page.getByRole('complementary', { name: 'Mallilista' });
   if ((await browser.getAttribute('data-expanded')) === 'false')
@@ -170,7 +197,7 @@ test('opening a tool brings its measurements into view after scrolling propertie
   );
   await ready(page, parts, [], [groups[2]]);
   await page.getByTestId(`body-${parts[0].id}`).click();
-  for (const name of ['Nimi ja ryhmä', 'Väri', 'Sijainti', 'Mitat ja mallinnus'])
+  for (const name of ['Ryhmä', 'Väri', 'Sijainti', 'Mitat ja mallinnus'])
     await page
       .locator('summary')
       .filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) })

@@ -1,3 +1,6 @@
+import type { Section } from '../model/sections';
+import type { ReferenceImage } from '../model/referenceImages';
+import type { SectionResult } from '../cad/protocol';
 import type { TextureAsset } from '../model/materials';
 import type { Rotation } from '../model/transforms';
 import type {
@@ -39,7 +42,10 @@ export type Tool =
   | 'pen';
 export interface CameraCommand {
   id: number;
-  type: 'fit' | 'view' | 'projection' | 'origin';
+  type: 'fit' | 'view' | 'projection' | 'origin' | 'frame';
+  frame?: SketchFrame;
+  width?: number;
+  height?: number;
   view?: View;
   projection?: 'perspective' | 'orthographic';
 }
@@ -63,6 +69,17 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  section?: Section;
+  sectionResult?: SectionResult;
+  sectionControls?: boolean;
+  sectionExtent?: number;
+  sectionPick?: boolean;
+  onWorkspaceCancel?: () => void;
+  onSectionPick?: (target: FaceTarget) => void;
+  onSectionMove?: (section: Section, commit: boolean) => void;
+  referenceImages?: ReferenceImage[];
+  calibration?: { id: string; points: [number, number][] };
+  onCalibrationPoint?: (point: [number, number]) => void;
   editingBodyId?: string;
   scopeIds?: string[];
   onPaint: (id: string) => void;

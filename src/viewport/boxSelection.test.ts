@@ -30,4 +30,21 @@ describe('rectangle selection', () => {
       ).map((b) => b.id),
     ).toEqual(['a', 'b']);
   });
+  it('selects only the displayed portion of a section and excludes fully clipped parts', () => {
+    const camera = new OrthographicCamera(-5, 5, 5, -5, 0.1, 100);
+    camera.position.z = 10;
+    camera.lookAt(0, 0, 0);
+    const cutMeshes = [
+      {
+        id: 'crossing',
+        vertices: [-2, -1, 0, 2, -1, 0, 2, 1, 0, -2, 1, 0],
+        triangles: [0, 1, 2, 0, 2, 3],
+      },
+      { id: 'removed', vertices: [2, 2, 0, 3, 3, 0], triangles: [] },
+    ] as unknown as BodyMesh[];
+    const projected = projectSelectionBounds(cutMeshes, camera, 100, 100, (p) => p[0]);
+    expect(projected).toHaveLength(1);
+    expect(projected[0].right).toBeCloseTo(50, 5);
+    expect(insideSelectionRect(projected, 29, 39, 51, 61)).toEqual(['crossing']);
+  });
 });

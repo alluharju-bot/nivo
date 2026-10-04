@@ -1,18 +1,29 @@
 // Run against a production build: node scripts/performance.mjs http://127.0.0.1:4173/nivo/ 1184
 // Compare versions with the same part count, camera and pointer events.
 import { chromium } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 const url = process.argv[2] ?? 'http://127.0.0.1:4173/nivo/';
 const count = Number(process.argv[3] ?? 296);
 if (!Number.isInteger(count) || count < 1 || count > 10000)
   throw new Error('Part count must be an integer between 1 and 10000.');
 const columns = Math.max(20, Math.ceil(Math.sqrt(count)));
-const browser = await chromium.launch();
+const browser = await chromium.launch(
+  process.env.NIVO_GPU === 'metal'
+    ? { args: ['--use-angle=metal', '--enable-gpu', '--enable-precise-memory-info'] }
+    : { args: ['--enable-precise-memory-info'] },
+);
 const page = await browser.newPage({
   viewport: { width: 1440, height: 960 },
   deviceScaleFactor: 1,
 });
 await page.addInitScript(() => {
   window.drawCalls = 0;
+  window.longTasks = [];
+  new PerformanceObserver((list) =>
+    window.longTasks.push(
+      ...list.getEntries().map((e) => ({ start: e.startTime, duration: e.duration })),
+    ),
+  ).observe({ type: 'longtask', buffered: true });
   for (const method of [
     'drawElements',
     'drawArrays',
@@ -37,7 +48,7 @@ try {
     origin: [(i % columns) * 600, Math.floor(i / columns) * 500, (i % 4) * 100],
     color: '#c3a57e',
   }));
-  const project = {
+  let project = {
     format: 'nivo',
     version: 6,
     id: `performance-${count}`,
@@ -55,6 +66,8 @@ try {
     },
     updatedAt: new Date().toISOString(),
   };
+  if (process.env.NIVO_PERF_FIXTURE)
+    project = JSON.parse(await readFile(process.env.NIVO_PERF_FIXTURE, 'utf8'));
   const loadingStarted = performance.now();
   await page.getByTestId('project-file').setInputFiles({
     name: 'performance.nivo',
@@ -62,7 +75,11 @@ try {
     buffer: Buffer.from(JSON.stringify(project)),
   });
   await page.waitForFunction(
-    (count) => document.querySelectorAll('.object-list .object-select').length === count,
+    (count) =>
+      Number(
+        document.querySelector('[data-mesh-count]')?.dataset.meshCount ??
+          document.querySelectorAll('.object-list .object-select').length,
+      ) === count,
     count,
     { timeout: 60_000 },
   );
@@ -122,6 +139,13 @@ try {
       };
     };
     return {
+      triangles: Number(canvas.dataset.triangles ?? 0),
+      heapMiB: performance.memory
+        ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1)
+        : undefined,
+      loadLongTasks: window.longTasks
+        .filter((t) => t.duration > 50)
+        .map((t) => +t.duration.toFixed(1)),
       renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown',
       viewport: [r.width, r.height],
       hover: await sample(false),

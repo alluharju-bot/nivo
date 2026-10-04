@@ -1,0 +1,332 @@
+{
+  "date": "2026-10-04",
+  "baselineCommit": "39f12b2",
+  "optimizedVersion": "0.14.0",
+  "environment": "Apple M1 Pro / 16 GiB / macOS 26.2 / Chromium 153.0.8010.12 / ANGLE Metal",
+  "synthetic": {
+    "296": {
+      "baseline": {
+        "url": "http://127.0.0.1:4183/nivo/",
+        "parts": 296,
+        "loadMs": 1064,
+        "chromium": "153.0.8010.12",
+        "triangles": 0,
+        "heapMiB": 23.1,
+        "loadLongTasks": [70, 202],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 16.6,
+          "p95FrameMs": 18.4,
+          "medianDrawCallsPerFrame": 627
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 16.7,
+          "p95FrameMs": 18.4,
+          "medianDrawCallsPerFrame": 626
+        }
+      },
+      "optimized": {
+        "url": "http://127.0.0.1:4173/nivo/",
+        "parts": 296,
+        "loadMs": 280,
+        "chromium": "153.0.8010.12",
+        "triangles": 7700,
+        "heapMiB": 25.6,
+        "loadLongTasks": [62],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 16.6,
+          "p95FrameMs": 20.5,
+          "medianDrawCallsPerFrame": 14
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 16.6,
+          "p95FrameMs": 20.4,
+          "medianDrawCallsPerFrame": 13
+        }
+      }
+    },
+    "1184": {
+      "baseline": {
+        "url": "http://127.0.0.1:4183/nivo/",
+        "parts": 1184,
+        "loadMs": 3458,
+        "chromium": "153.0.8010.12",
+        "triangles": 0,
+        "heapMiB": 103.3,
+        "loadLongTasks": [62, 78, 68, 90, 55, 77, 74, 72],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 16.7,
+          "p95FrameMs": 18.3,
+          "medianDrawCallsPerFrame": 2403
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 16.7,
+          "p95FrameMs": 18.1,
+          "medianDrawCallsPerFrame": 2402
+        }
+      },
+      "optimized": {
+        "url": "http://127.0.0.1:4173/nivo/",
+        "parts": 1184,
+        "loadMs": 396,
+        "chromium": "153.0.8010.12",
+        "triangles": 29012,
+        "heapMiB": 38.8,
+        "loadLongTasks": [61, 58],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 16.7,
+          "p95FrameMs": 18.3,
+          "medianDrawCallsPerFrame": 14
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 16.7,
+          "p95FrameMs": 18.2,
+          "medianDrawCallsPerFrame": 13
+        }
+      }
+    },
+    "5000": {
+      "baseline": {
+        "url": "http://127.0.0.1:4183/nivo/",
+        "parts": 5000,
+        "loadMs": 13702,
+        "chromium": "153.0.8010.12",
+        "triangles": 0,
+        "heapMiB": 520.5,
+        "loadLongTasks": [65, 127, 381, 286, 198, 325, 95, 278, 246, 86, 80, 63, 515, 264],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 42.2,
+          "p95FrameMs": 43.8,
+          "medianDrawCallsPerFrame": 10035
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 43.2,
+          "p95FrameMs": 45.7,
+          "medianDrawCallsPerFrame": 10034
+        }
+      },
+      "optimized": {
+        "url": "http://127.0.0.1:4173/nivo/",
+        "parts": 5000,
+        "loadMs": 980,
+        "chromium": "153.0.8010.12",
+        "triangles": 120596,
+        "heapMiB": 114.5,
+        "loadLongTasks": [62, 130, 172, 88],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 16.7,
+          "p95FrameMs": 18.2,
+          "medianDrawCallsPerFrame": 14
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 16.7,
+          "p95FrameMs": 18.4,
+          "medianDrawCallsPerFrame": 13
+        }
+      }
+    },
+    "10000": {
+      "baseline": {
+        "url": "http://127.0.0.1:4183/nivo/",
+        "parts": 10000,
+        "loadMs": 27653,
+        "chromium": "153.0.8010.12",
+        "triangles": 0,
+        "heapMiB": 777.4,
+        "loadLongTasks": [60, 98, 248, 988, 622, 448, 601, 162, 710, 488, 269, 167, 103, 1447, 491],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 86.5,
+          "p95FrameMs": 89.2,
+          "medianDrawCallsPerFrame": 20035
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 90.6,
+          "p95FrameMs": 94.7,
+          "medianDrawCallsPerFrame": 20034
+        }
+      },
+      "optimized": {
+        "url": "http://127.0.0.1:4173/nivo/",
+        "parts": 10000,
+        "loadMs": 1824,
+        "chromium": "153.0.8010.12",
+        "triangles": 240596,
+        "heapMiB": 204.5,
+        "loadLongTasks": [64, 92, 343, 313, 165, 67],
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "viewport": [1072, 863],
+        "hover": {
+          "frames": 120,
+          "medianFrameMs": 19.3,
+          "p95FrameMs": 19.8,
+          "medianDrawCallsPerFrame": 14
+        },
+        "orbit": {
+          "frames": 120,
+          "medianFrameMs": 19.1,
+          "p95FrameMs": 19.7,
+          "medianDrawCallsPerFrame": 13
+        }
+      }
+    }
+  },
+  "mixed1184": {
+    "baseline": {
+      "url": "http://127.0.0.1:4183/nivo/",
+      "parts": 1184,
+      "loadMs": 12406,
+      "chromium": "153.0.8010.12",
+      "triangles": 0,
+      "heapMiB": 409.5,
+      "loadLongTasks": [62, 216, 281, 54, 77, 346, 101, 355, 85, 416, 86],
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "viewport": [1072, 863],
+      "hover": {
+        "frames": 120,
+        "medianFrameMs": 16.7,
+        "p95FrameMs": 18.1,
+        "medianDrawCallsPerFrame": 2463
+      },
+      "orbit": {
+        "frames": 120,
+        "medianFrameMs": 16.7,
+        "p95FrameMs": 21.6,
+        "medianDrawCallsPerFrame": 2466
+      }
+    },
+    "optimized": {
+      "url": "http://127.0.0.1:4173/nivo/",
+      "parts": 1184,
+      "loadMs": 1339,
+      "chromium": "153.0.8010.12",
+      "triangles": 3394140,
+      "heapMiB": 193.7,
+      "loadLongTasks": [64, 211, 162, 351, 52],
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "viewport": [1072, 863],
+      "hover": {
+        "frames": 120,
+        "medianFrameMs": 16.7,
+        "p95FrameMs": 18.1,
+        "medianDrawCallsPerFrame": 20
+      },
+      "orbit": {
+        "frames": 120,
+        "medianFrameMs": 16.6,
+        "p95FrameMs": 18.3,
+        "medianDrawCallsPerFrame": 23
+      }
+    }
+  },
+  "actions": {
+    "296": {
+      "parts": 296,
+      "resultParts": 592,
+      "loadMs": 327,
+      "selectionMs": 171,
+      "moveCommitMs": 176,
+      "undoMs": 229,
+      "copyCommitMs": 264,
+      "saveFileMs": 47,
+      "reloadMs": 330,
+      "preview": {
+        "medianMs": 16.7,
+        "p95Ms": 18.2,
+        "drawCalls": 16
+      },
+      "allocationAfterSelection": 0,
+      "heapMiBAfterReload": 30.5
+    },
+    "1184": {
+      "parts": 1184,
+      "resultParts": 2368,
+      "loadMs": 469,
+      "selectionMs": 124,
+      "moveCommitMs": 268,
+      "undoMs": 286,
+      "copyCommitMs": 389,
+      "saveFileMs": 40,
+      "reloadMs": 604,
+      "preview": {
+        "medianMs": 16.7,
+        "p95Ms": 18.1,
+        "drawCalls": 16
+      },
+      "allocationAfterSelection": 0,
+      "heapMiBAfterReload": 138.4
+    },
+    "5000": {
+      "parts": 5000,
+      "resultParts": 10000,
+      "loadMs": 1108,
+      "selectionMs": 506,
+      "moveCommitMs": 1303,
+      "undoMs": 1133,
+      "copyCommitMs": 1821,
+      "saveFileMs": 65,
+      "reloadMs": 1849,
+      "preview": {
+        "medianMs": 16.4,
+        "p95Ms": 17.7,
+        "drawCalls": 16
+      },
+      "allocationAfterSelection": 0,
+      "heapMiBAfterReload": 741.6
+    },
+    "10000": {
+      "parts": 10000,
+      "resultParts": 10000,
+      "loadMs": 2059,
+      "selectionMs": 1339,
+      "moveCommitMs": 2874,
+      "undoMs": 2483,
+      "saveFileMs": 79,
+      "reloadMs": 1896,
+      "preview": {
+        "medianMs": 31.6,
+        "p95Ms": 32.9,
+        "drawCalls": 16
+      },
+      "allocationAfterSelection": 0,
+      "heapMiBAfterReload": 981.6
+    }
+  },
+  "section1184": {
+    "parts": 1184,
+    "loadWithCapsMs": 1858,
+    "drag": {
+      "medianMs": 16.7,
+      "p95Ms": 18.9
+    },
+    "releaseToCapsMs": 240,
+    "caps": 65,
+    "position": 400
+  }
+}
