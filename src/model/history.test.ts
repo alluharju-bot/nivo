@@ -83,5 +83,5 @@ it('migrates version 5 project history together with the active project', () => 
   expect(
     history.restore(JSON.stringify({ version: 1, current: old, past: [start], future: [] })),
   ).toBe(true);
-  expect(history.undo().version).toBe(7);
+  expect(history.undo().version).toBe(8);
 });

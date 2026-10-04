@@ -20,16 +20,17 @@ käyttäjän aiemmin sopimaa komponenttikopioiden linkitystä.
    palauttaa käytettävissä olevan kumoamistilan ja avaa toiminnon; Palauta valinta
    ei muuta geometriaa. Piirron syvyyskorjaus toimii myös perspektiivin
    logaritmisessa syvyyspuskurissa, ja valinta käyttää tarkkaa CAD-tasoa.
-2. **Luotettavat kokonaismitat — työn alla.** Oma semanttinen mitta osajoukolle
+2. **Luotettavat kokonaismitat — toteutettu.** Oma semanttinen mitta osajoukolle
    tai ryhmälle. Ryhmä seuraa jäsenmuutoksia; osajoukko säilyttää kohteensa.
    Ääripisteen vaihtuminen, siirto, kierto ja Undo/Redo eivät muuta mitan
    merkitystä pisteiden väliseksi etäisyydeksi. Vanhoja pistemittoja ei arvata
    kokonaismitoiksi. Puuttuva kohde näytetään ja estää virheellisen työkuvan viennin.
-3. **Luo mittakuvat yhdelle arkille — suunniteltu.** Selkeä oletusasettelu
+3. **Luo mittakuvat yhdelle arkille — toteutettu.** 1–6 näkymää, enintään 50
+   nimettyä arkkia projektissa. Selkeä oletusasettelu
    usealle suunnalle ja tallennetuille leikkauksille, yhteinen mittakaava,
    mahtumisen tarkistus sekä PDF/SVG. Sama tarkka malli ja semanttiset mitat
    palvelevat yksittäistä kuvaa ja kokonaisarkkia.
-4. **Muokkauskontekstin viimeistely — suunniteltu.** Uusi levyrunko syntyy
+4. **Muokkauskontekstin viimeistely — toteutettu.** Uusi levyrunko syntyy
    kokoonpanoksi; ryhmä säilyy kansiona. Muokkaa osia, hierarkiapolku ja
    poistuminen näkyvät johdonmukaisesti. Linkitettyjen osien muokkauksen
    vaikutusalue kerrotaan muuttamatta olemassa olevia linkkejä tai kopioinnin oletusta.
@@ -37,6 +38,13 @@ käyttäjän aiemmin sopimaa komponenttikopioiden linkitystä.
 Varmennus: CAD- ja mallikokeet, selain- ja kosketuskokeet, tiedoston avaus,
 Peru/Palauta sekä todelliset mitta-arvot ja näkymän pikselit. Tulokset ja
 rajaukset kirjataan [validointiin](validation.md).
+
+Tämän passin jälkeen backlogiin jäävät: vapaa arkkitaitto, A3/monisivuiset
+piirustuspaketit, automaattinen osakohtainen mittakuvasarja, semanttisten
+ryhmämittojen vanhojen pisteviitteiden tietoinen uudelleenluonti, tallennetun
+levyrungon parametrinen uudelleenmitoitus ja oma tuotekirjasto. Kokoonpano
+itsessään ei lisää tolppajakojen tai levypaksuuksien rakennesääntöjä.
+Kosketuksen vapaakierto ilman Shift-näppäintä on yhä oma pieni jatkokorjaus.
 
 ## V0.16 — tartunta, toisto, kynäviivat ja nopeat aukot
 
@@ -86,8 +94,8 @@ olevan osan ja huomioi kokoonpanot, piilotukset sekä muokkausrajauksen.
 Kosketuksella esikorostus vahvistetaan erikseen. Mallilistan piilotettu pinta
 ei enää peitä työkalupalkin napsautuksia.
 
-Seuraava erillinen kokonaisuus: **Luo mittakuvat** — useita näkymiä ja
-leikkauksia yhdelle arkille selkeällä oletusasettelulla. Ei osa V0.15-passia.
+V0.15:n jatkoksi suunniteltu **Luo mittakuvat** toteutettiin 5.10. yöpassissa:
+useita näkymiä ja leikkauksia samalle arkille selkeällä oletusasettelulla.
 
 ## V0.14.1 — valinnan varmuus ja pinnalle piirtäminen
 

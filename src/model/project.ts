@@ -1,3 +1,4 @@
+import { drawingSheetSchema } from './drawingSheets';
 import { sectionSchema } from './sections';
 import { referenceImageSchema } from './referenceImages';
 import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
@@ -240,10 +241,35 @@ export const pointDimensionSchema = z.object({
   offset: pointSchema,
   normal: pointSchema,
 });
-export const dimensionSchema = z.union([extentDimensionSchema, pointDimensionSchema]);
+export const dimensionTargetSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('parts'),
+    ids: z
+      .array(id)
+      .min(1)
+      .max(MAX_PROJECT_BODIES)
+      .refine((ids) => new Set(ids).size === ids.length),
+  }),
+  z.object({ kind: z.literal('group'), groupId: id }),
+]);
+export const overallDimensionSchema = z.object({
+  id,
+  kind: z.literal('overall'),
+  target: dimensionTargetSchema,
+  axis: z.enum(['x', 'y', 'z']),
+});
+export type DimensionTarget = z.infer<typeof dimensionTargetSchema>;
+export type OverallDimension = z.infer<typeof overallDimensionSchema>;
+export const dimensionSchema = z.union([
+  extentDimensionSchema,
+  pointDimensionSchema,
+  overallDimensionSchema,
+]);
 export type PointDimension = z.infer<typeof pointDimensionSchema>;
 export const isPointDimension = (d: Dimension): d is PointDimension =>
   'kind' in d && d.kind === 'points';
+export const isOverallDimension = (d: Dimension): d is OverallDimension =>
+  'kind' in d && d.kind === 'overall';
 export const groupSchema = z.object({
   id,
   name: z.string().trim().min(1).max(120),
@@ -256,12 +282,13 @@ export type BodyGroup = z.infer<typeof groupSchema>;
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(7),
+    version: z.literal(8),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
     assets: z.record(z.string().max(100), assetSchema).optional(),
     sections: z.array(sectionSchema).max(100).optional(),
+    drawingSheets: z.array(drawingSheetSchema).max(50).optional(),
     referenceImages: z.array(referenceImageSchema).max(50).optional(),
     materials: z.array(customMaterialSchema).max(200).optional(),
     bodies: z.array(bodySchema).max(MAX_PROJECT_BODIES),
@@ -305,6 +332,7 @@ export const projectSchema = z
       p.guides,
       p.groups,
       p.sections ?? [],
+      p.drawingSheets ?? [],
       p.referenceImages ?? [],
     ]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
@@ -391,7 +419,7 @@ export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 7,
+  version: 8,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
@@ -427,11 +455,64 @@ export function dimensionValue(project: Project, dimension: Dimension): number |
       ? Math.hypot(...a.map((v, i) => b[i] - v))
       : Math.abs(b[axisIndex[dimension.axis]] - a[axisIndex[dimension.axis]]);
   }
-  const body = project.bodies.find((b) => b.id === dimension.bodyId);
+  const body = dimensionEnvelope(project, dimension);
   if (!body) return null; // Never silently attach a missing reference to another body.
   return [body.feature.width, body.feature.depth, body.feature.height][axisIndex[dimension.axis]];
 }
-export function corners(body: Body): Vec3[] {
+/** Resolve a semantic set, never the vertices which happened to be extreme at creation. */
+export function dimensionTargetBodies(
+  project: Pick<Project, 'bodies' | 'groups'>,
+  target: DimensionTarget,
+): Body[] | undefined {
+  if (target.kind === 'parts') {
+    const byId = new Map(project.bodies.map((b) => [b.id, b]));
+    if (target.ids.some((id) => !byId.has(id))) return;
+    return target.ids.map((id) => byId.get(id)!);
+  }
+  if (!project.groups.some((g) => g.id === target.groupId)) return;
+  const groups = new Map(project.groups.map((g) => [g.id, g]));
+  const members = project.bodies.filter((body) => {
+    if (body.purpose === 'construction') return false;
+    let id = body.groupId;
+    const seen = new Set<string>();
+    while (id && !seen.has(id)) {
+      if (id === target.groupId) return true;
+      seen.add(id);
+      id = groups.get(id)?.parentId;
+    }
+    return false;
+  });
+  return members.length ? members : undefined;
+}
+/** Bounds proxy for dimension layout only; it is never inserted as CAD geometry. */
+export function dimensionEnvelope(
+  project: Pick<Project, 'bodies' | 'groups'>,
+  dimension: Exclude<Dimension, PointDimension>,
+) {
+  if (!isOverallDimension(dimension)) return project.bodies.find((b) => b.id === dimension.bodyId);
+  const parts = dimensionTargetBodies(project, dimension.target);
+  if (!parts?.length) return;
+  const box = bounds(parts);
+  const target = dimension.target;
+  return {
+    id: dimension.id,
+    name:
+      target.kind === 'group'
+        ? project.groups.find((g) => g.id === target.groupId)!.name
+        : `Kokonaismitta · ${parts.length} osaa`,
+    purpose: 'model' as const,
+    origin: box.min,
+    feature: {
+      width: box.max[0] - box.min[0],
+      depth: box.max[1] - box.min[1],
+      height: box.max[2] - box.min[2],
+    },
+  };
+}
+export function corners(body: {
+  origin: Vec3;
+  feature: { width: number; depth: number; height: number };
+}): Vec3[] {
   const [x, y, z] = body.origin;
   const { width: w, depth: d, height: h } = body.feature;
   return [0, w].flatMap((dx) =>
@@ -468,6 +549,8 @@ export function parseProject(text: string): Project {
     value = { ...value, version: 6 };
   if (value && typeof value === 'object' && 'version' in value && value.version === 6)
     value = { ...value, version: 7 };
+  if (value && typeof value === 'object' && 'version' in value && value.version === 7)
+    value = { ...value, version: 8 };
   const result = projectSchema.safeParse(value);
   if (!result.success) throw new Error(projectValidationMessage(result.error));
   return result.data;

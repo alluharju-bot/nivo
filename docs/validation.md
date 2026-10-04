@@ -1,8 +1,66 @@
-# Validointi — 4.10.2026
+# Validointi — 5.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.17 — kokonaismitat, mitta-arkit ja muokkauskonteksti
+
+**199 yksikkö-/CAD-testiä hyväksytty (40 tiedostoa).** TypeScript,
+tuotantobuild, muotoilu ja lisenssitarkistus hyväksytty. Uusi projektiformaatti
+v8 säilyttää vanhojen projektien ja tallennetun historian migraatiot.
+
+Uudet mallikokeet kattavat ryhmän ja osajoukon kokonaismitat osien vaihtaessa
+järjestystä, jäsenmuutokset, alaryhmät, ryhmäkopion viitteet, 90° kierron sekä
+puuttuvat viitteet. Arkkikokeet tarkistavat yhteisen mittakaavan, todelliset
+mittaluvut, mahtumisen, kohderajauksen ja tallennettujen määritelmien rajat.
+
+Tuotantokoosteen laaja selainajo: **95 hyväksytty, 2 tarkoituksellista
+desktop-ohitusta, 3 epäonnistunutta**. Mukana mittakuvat, poikkileikkaukset,
+ryhmät, 1 000 osan virtuaalilista, pintapiirrokset, leikkaushistoria sekä
+perspektiivin pikselitarkistus. Kaksi epäonnistumista johtui uuden testin
+jäämisestä mallilistan Mitat-välilehdelle; testi korjattiin avaamaan Kappaleet.
+Molemmat ryhmäarkin tapaukset hyväksyttiin korjauksen jälkeen tuotantokoosteella.
+
+Kolmas epäonnistuminen paljasti todellisen kosketusvirheen: liukuva listarivi
+vaihtoi painalluksen kohteen paneeliksi sormen painamisen ja nostamisen välillä.
+Avauskahva erotettiin liukuvasta paneelista, kosketuksen nosto ei käynnistä
+hiiren poistumisajastinta ja kosketusnäytöllä lista avautuu ilman liukuanimaatiota.
+Korjauksen lopullinen tuotantoajo: **11 hyväksytty, 1 tarkoituksellinen
+desktop-ohitus**. Mukana listan toistuva avaaminen, kokoonpanon ja osan
+muokkauspolku, linkitys/uniikki/Peru, listan siirrot ja kosketuskahva sekä
+työkalupalkin sijoittaminen. Alkuperäinen kosketustapaus hyväksyttiin lisäksi
+kolmella peräkkäisellä toistolla. Laajaa 100 tapauksen ajoa ei ajettu kokonaan
+uudelleen tämän viimeisen listakorjauksen jälkeen.
+
+Uudet työnkulut varmennettu desktopilla ja tabletilla:
+
+- Ryhmän 500 mm kokonaismitta säilyy oikeana äärimmäisten osien vaihtaessa
+  paikkoja. Sama arvo näkyy 3D:ssä, SVG:ssä, Peru/Palauta-toiminnossa ja avauksessa.
+- Kolme suuntakuvaa ja viivoitettu poikkileikkaus samalla tallennetulla arkilla;
+  yhteinen 1:20 mittakaava SVG:ssä ja 297 × 210 mm PDF-sivu.
+- Nimeäminen, tallennus, uudelleenavaus, arkin poisto ja Peru. Ryhmäarkki
+  seuraa osien siirtoa ja poistoa, mutta nimetyn osavalinnan puuttuva osa estää viennin.
+- Levyrunko syntyy kokoonpanoksi. Mallissa valitaan koko kokoonpano, Valitse-tilan
+  listariviltä yksittäinen osa ja muokkaustilan hierarkiapolku säilyy näkyvissä.
+- Linkityksen vaikutus näkyy ennen pintamuokkausta; tee uniikki ja Peru
+  säilyttävät muiden kopioiden geometrian. Tavallinen linkitetty E-muokkaus
+  päivittyy molempiin kopioihin.
+
+Arkin ja muokkaustilan asettelut tarkistettiin myös kuvista. Suuren mallin
+erilliset ajot mittojen kanssa ja ilman ovat [suorituskykyraportissa](performance.md).
+
+Keskeiset toistokomennot (selainajot peräkkäin):
+
+```sh
+npm test
+npm run build
+NIVO_PREVIEW=1 npx playwright test tests/drawing-sheets.spec.ts tests/overall-dimensions.spec.ts tests/assembly-context.spec.ts tests/cabinet.spec.ts tests/drawing-edit.spec.ts tests/dimensions-color.spec.ts tests/workspace-views.spec.ts tests/object-tree.spec.ts tests/groups.spec.ts tests/edit-context.spec.ts tests/sketch-surface-history.spec.ts tests/surface-overlays.spec.ts tests/paths-groups-opening.spec.ts --output=/private/tmp/nivo-v017-production
+NIVO_PREVIEW=1 npx playwright test tests/assembly-context.spec.ts tests/qol-v013.spec.ts tests/object-tree.spec.ts --grep 'browser opener|part rows|linked editing|browser retracts|drag selected parts|touch grip' --output=/private/tmp/nivo-v017-touch-fixed
+NIVO_PREVIEW=1 npx playwright test tests/assembly-context.spec.ts --project=tablet --grep 'part rows' --repeat-each=3 --output=/private/tmp/nivo-v017-touch-repeat
+```
+
+Fyysistä iPadia, Safaria tai käyttäjän omaa suurta mallia ei testattu.
 
 ## Yöpassi 5.10 — pintapiirrosten korjaukset
 

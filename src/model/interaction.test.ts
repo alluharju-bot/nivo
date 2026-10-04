@@ -28,7 +28,7 @@ describe('editable objects and migration', () => {
     const current = { ...freshProject(), bodies: [makeBody()] };
     const { guides, ...legacy } = current;
     const result = parseProject(JSON.stringify({ ...legacy, version: 1 }));
-    expect(result.version).toBe(7);
+    expect(result.version).toBe(8);
     expect(result.bodies).toEqual(current.bodies);
     expect(result.guides).toEqual([]);
   });

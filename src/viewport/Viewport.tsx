@@ -139,6 +139,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().selectedIds,
       current().dimensionDisplay,
       camera,
+      current().groups,
     );
     for (const label of [...labels, ...extrusionLabels]) {
       const p = label.point.clone().project(camera);

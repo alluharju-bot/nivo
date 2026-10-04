@@ -3343,13 +3343,49 @@ p {
   gap: 7px;
   font-size: 12px;
 }
-.drawing-controls select {
+.drawing-controls select,
+.drawing-controls input:not([type='checkbox']) {
   width: 100%;
   min-height: 36px;
   padding: 7px;
   background: white;
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+.sheet-view-options {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sheet-view-options legend {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 9px;
+}
+.component-link-notice {
+  padding: 10px 12px;
+  margin: 10px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #edf2eb;
+  font-size: 12px;
+}
+.component-link-notice > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.component-link-notice p {
+  margin: 7px 0;
+  line-height: 1.5;
+}
+.edit-breadcrumb {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
 }
 .drawing-controls .checkbox-label {
   flex-direction: row;
@@ -4387,8 +4423,9 @@ p {
 .browser-handle {
   pointer-events: auto;
   position: absolute;
-  right: -22px;
-  top: 10px;
+  z-index: 10;
+  left: 30px;
+  top: 74px;
   width: 24px;
   height: 44px;
   display: grid;
@@ -4396,9 +4433,9 @@ p {
   background: #f7f8f066;
   border-radius: 0 8px 8px 0;
 }
-.model-browser[data-expanded='true'] .browser-handle {
-  pointer-events: auto;
-  display: none;
+.browser-handle[data-expanded='true']:not(:hover):not(:focus-visible) {
+  pointer-events: none;
+  opacity: 0;
 }
 .model-browser .object-panel {
   flex: 1 1 auto;
@@ -4675,11 +4712,12 @@ p {
   }
   .model-browser {
     width: 245px;
+    /* A moving row can retarget a touch click to the panel between down and up. */
+    transition: none;
   }
   .browser-handle {
     pointer-events: auto;
     width: 36px;
-    right: -34px;
     height: 52px;
   }
   .context-actions button {
@@ -5292,6 +5330,9 @@ p {
 .canvas-area.is-editing .model-browser {
   top: 128px;
   max-height: calc(100% - 206px);
+}
+.canvas-area.is-editing .browser-handle {
+  top: 138px;
 }
 
 .repeat-action {

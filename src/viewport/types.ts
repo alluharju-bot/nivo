@@ -9,6 +9,7 @@ import type {
   PointDimension,
   Axis,
   Body,
+  BodyGroup,
   Dimension,
   FaceRef,
   Guide,
@@ -115,6 +116,7 @@ export interface ViewportProps {
   onRotationAxis: (axis: Vec3) => void;
   assets?: Record<string, TextureAsset>;
   bodies: Body[];
+  groups: BodyGroup[];
   dimensions: Dimension[];
   dimensionDisplay: 'all' | 'selected' | 'hidden';
   meshes: BodyMesh[];

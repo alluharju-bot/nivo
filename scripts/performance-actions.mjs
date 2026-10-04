@@ -4,6 +4,7 @@ import { Matrix4, Vector3, Quaternion } from 'three';
 import { readFile, writeFile } from 'node:fs/promises';
 const url = process.argv[2] ?? 'http://127.0.0.1:4173/nivo/',
   count = Number(process.argv[3] ?? 1184);
+const withOverallDimensions = process.env.NIVO_BENCH_DIMENSIONS === '1';
 if (!Number.isInteger(count) || count < 1 || count > 10000)
   throw new Error('Count must be 1–10000.');
 const browser = await chromium.launch({
@@ -60,13 +61,20 @@ try {
   }));
   const project = {
     format: 'nivo',
-    version: 6,
+    version: withOverallDimensions ? 8 : 6,
     id: `actions-${count}`,
     name: `Työmaa ${count}`,
     units: 'mm',
     bodies,
     groups: [{ id: 'site', name: 'Työmaa', hidden: false }],
-    dimensions: [],
+    dimensions: withOverallDimensions
+      ? ['x', 'y', 'z'].map((axis) => ({
+          id: `overall-${axis}`,
+          kind: 'overall',
+          axis,
+          target: { kind: 'group', groupId: 'site' },
+        }))
+      : [],
     guides: [],
     updatedAt: new Date().toISOString(),
   };
@@ -218,6 +226,7 @@ try {
       {
         parts: count,
         resultParts: expected,
+        withOverallDimensions,
         ...timings,
         preview,
         allocationAfterSelection: allocationAfterSelection - allocations,

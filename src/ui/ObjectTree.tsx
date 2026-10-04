@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   FolderPlus,
+  Folder,
   GripVertical,
   LockKeyhole,
   Unlock,
@@ -243,7 +244,11 @@ export function ObjectTree({
               <GripVertical size={14} />
             </span>
             <span>
-              {group.kind === 'assembly' && <Boxes size={13} aria-label="Kokoonpano" />}{' '}
+              {group.kind === 'assembly' ? (
+                <Boxes size={13} aria-label="Kokoonpano" />
+              ) : (
+                <Folder size={13} aria-label="Ryhmä" />
+              )}{' '}
               {group.name}
             </span>
             <small>{groupCounts.get(group.id) ?? 0}</small>

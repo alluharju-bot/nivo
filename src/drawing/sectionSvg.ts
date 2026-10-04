@@ -7,7 +7,7 @@ import {
   type SectionAnchor,
 } from '../model/sections';
 import { toUV } from '../model/sketch';
-import { escapeXml, type Sheet } from './svg';
+import { escapeXml, type Sheet, type DrawingArea } from './svg';
 import { formatLength } from '../model/units';
 
 export function sectionPoint(section: Section, anchor: SectionAnchor): [number, number] {
@@ -83,6 +83,7 @@ export function sectionSheet(
   scale: number,
   hidden = false,
   fixed?: { x: number; y: number },
+  area: DrawingArea = { x: 16, y: 20.5, width: 265, height: 155 },
 ): Sheet {
   const projection = result.projection ?? { visible: [], hidden: [], viewBox: [0, 0, 1, 1] };
   const valid = validSectionDimensions(project, section, result),
@@ -99,9 +100,9 @@ export function sectionSheet(
       maxY = Math.max(maxY, p[1] + 5 * scale);
     }
   }
-  const x = fixed?.x ?? 148.5 - (minX + maxX) / 2 / scale,
-    y = fixed?.y ?? 98 - (minY + maxY) / 2 / scale;
-  const fits = (maxX - minX) / scale <= 265 && (maxY - minY) / scale <= 155;
+  const x = fixed?.x ?? area.x + area.width / 2 - (minX + maxX) / 2 / scale,
+    y = fixed?.y ?? area.y + area.height / 2 - (minY + maxY) / 2 / scale;
+  const fits = (maxX - minX) / scale <= area.width && (maxY - minY) / scale <= area.height;
   const n = (v: number) => Number(v.toFixed(5));
   const paths = (list: string[]) => list.map((d) => `<path d="${escapeXml(d)}"/>`).join('');
   const annotations = section.dimensions
@@ -116,10 +117,12 @@ export function sectionSheet(
       return `<g data-section-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}" fill="none" stroke="${broken ? '#ac382c' : '#344333'}" stroke-width="0.2"><path d="M${s}L${a}L${b}L${e}"/><path d="M${a[0] - 1} ${a[1] + 1}l2 -2 M${b[0] - 1} ${b[1] + 1}l2 -2"/><text x="${n((a[0] + b[0]) / 2)}" y="${n((a[1] + b[1]) / 2 - 1.5)}" text-anchor="middle" stroke="none" fill="${broken ? '#ac382c' : '#253222'}" font-size="3">${escapeXml(label)}</text></g>`;
     })
     .join('');
+  const content = `<defs><pattern id="section-hatch-${escapeXml(section.id)}" patternUnits="userSpaceOnUse" width="${2.5 * scale}" height="${2.5 * scale}"><path d="M0 ${2.5 * scale}L${2.5 * scale} 0" stroke="#786950" stroke-width="${0.15 * scale}"/></pattern></defs><g font-family="Arial, sans-serif"><g transform="translate(${n(x)} ${n(y)}) scale(${1 / scale})" fill="none" stroke="#354130" stroke-width="${0.22 * scale}" stroke-linejoin="round">${hidden ? `<g stroke="#929b8b" stroke-dasharray="${1.5 * scale} ${scale}">${paths(projection.hidden)}</g>` : ''}${paths(projection.visible)}${result.caps.map((c) => `<path data-section-body="${escapeXml(c.bodyId)}" d="${escapeXml(c.paths.join(' '))}" fill="url(#section-hatch-${escapeXml(section.id)})" fill-rule="evenodd" stroke-width="${0.45 * scale}"/>`).join('')}</g>${annotations}</g>`;
   return {
+    content,
     fits,
     orphanCount,
     transform: { x, y, scale },
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210"><defs><pattern id="section-hatch" patternUnits="userSpaceOnUse" width="${2.5 * scale}" height="${2.5 * scale}"><path d="M0 ${2.5 * scale}L${2.5 * scale} 0" stroke="#786950" stroke-width="${0.15 * scale}"/></pattern></defs><rect width="297" height="210" fill="white"/><g font-family="Arial, sans-serif"><g transform="translate(${n(x)} ${n(y)}) scale(${1 / scale})" fill="none" stroke="#354130" stroke-width="${0.22 * scale}" stroke-linejoin="round">${hidden ? `<g stroke="#929b8b" stroke-dasharray="${1.5 * scale} ${scale}">${paths(projection.hidden)}</g>` : ''}${paths(projection.visible)}${result.caps.map((c) => `<path data-section-body="${escapeXml(c.bodyId)}" d="${escapeXml(c.paths.join(' '))}" fill="url(#section-hatch)" fill-rule="evenodd" stroke-width="${0.45 * scale}"/>`).join('')}</g>${annotations}<path d="M12 184H285" stroke="#8e9787" stroke-width=".2"/><text x="12" y="192" font-size="4" fill="#253222">${escapeXml(project.name)} · Leikkaus ${escapeXml(section.name)}</text><text x="285" y="192" text-anchor="end" font-size="3.5" fill="#253222">1:${scale} · mm</text><text x="12" y="201" font-size="2.5" fill="#747d6f">Tulosta todellisessa koossa · 100 % · Nivo</text></g></svg>`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210"><rect width="297" height="210" fill="white"/>${content}<g font-family="Arial, sans-serif"><path d="M12 184H285" stroke="#8e9787" stroke-width=".2"/><text x="12" y="192" font-size="4" fill="#253222">${escapeXml(project.name)} · Leikkaus ${escapeXml(section.name)}</text><text x="285" y="192" text-anchor="end" font-size="3.5" fill="#253222">1:${scale} · mm</text><text x="12" y="201" font-size="2.5" fill="#747d6f">Tulosta todellisessa koossa · 100 % · Nivo</text></g></svg>`,
   };
 }

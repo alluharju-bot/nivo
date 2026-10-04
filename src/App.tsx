@@ -1,3 +1,4 @@
+import { SheetWorkspace } from './drawing/SheetWorkspace';
 import { SelectionDialog } from './ui/SelectionDialog';
 import { SectionDrawing } from './drawing/SectionDrawing';
 import { ActivityHistory } from './ui/ActivityHistory';
@@ -5,7 +6,7 @@ import { useActivityHistory } from './ui/useActivityHistory';
 import type { Activity, OperationContext, SelectionContext } from './model/activity';
 import { useWorkspaceViews } from './ui/WorkspaceViews';
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
-import { isPointDimension, type PointDimension } from './model/project';
+import { isPointDimension, dimensionEnvelope, type PointDimension } from './model/project';
 import { PaintPanel } from './ui/PaintPanel';
 import { ContextActions, type QuickAction } from './ui/ContextActions';
 import { CommandSearch } from './ui/CommandSearch';
@@ -44,6 +45,7 @@ import {
   Grid2X2,
   Hand,
   Layers2,
+  Link2,
   Maximize,
   Minimize,
   MoreHorizontal,
@@ -302,6 +304,7 @@ export default function App() {
   const [moveHovered, setMoveHovered] = useState<string>();
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [isolated, setIsolated] = useState<{ projectId: string; excluded: Set<string> }>();
+  const [drawingSheetOpen, setDrawingSheetOpen] = useState(false);
   const [drawingSectionId, setDrawingSectionId] = useState<string>();
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>();
@@ -530,7 +533,9 @@ export default function App() {
   );
   const visibleDimensions = useMemo(() => {
     const ids = new Set(visibleBodies.map((body) => body.id));
-    return project.dimensions.filter((d) => dimensionBodyIds(d).every((id) => ids.has(id)));
+    return project.dimensions.filter((d) =>
+      dimensionBodyIds(d, project).every((id) => ids.has(id)),
+    );
   }, [project.dimensions, visibleBodies]);
   const renderBodies = useMemo(
     () => visibleBodies.filter((b) => b.purpose === 'model' || b.purpose === 'component'),
@@ -566,6 +571,7 @@ export default function App() {
       }
     },
     (id) => {
+      setDrawingSheetOpen(false);
       setDrawingSectionId(id);
       setMode('drawing');
     },
@@ -898,6 +904,25 @@ export default function App() {
       setBooleanActive('targets');
     }
   };
+  const openAssembly = (id: string) => {
+    const group = project.groups.find((g) => g.id === id);
+    if (
+      busy ||
+      editingBodyId ||
+      !group ||
+      groupAncestors(project.groups, id).some((g) => g.locked || g.hidden)
+    )
+      return;
+    resetGesture();
+    setTool('select');
+    setOpenedAssembly(id);
+    setSelectedGroupId(undefined);
+    setSelectedIds([]);
+    setSelected(undefined);
+    setMultiSelect(false);
+    setEditNotice(undefined);
+    editor.setMessage(`Muokkaa osia: ${group.name}. Voit valita kokoonpanon osat erikseen.`);
+  };
   const openBodyEdit = (id: string) => {
     if (busy) return;
     const target = project.bodies.find((b) => b.id === id);
@@ -907,13 +932,7 @@ export default function App() {
       return;
     }
     if (unit.groupId && !editingBodyId) {
-      resetGesture();
-      setTool('select');
-      setOpenedAssembly(unit.groupId);
-      setSelectedGroupId(undefined);
-      setSelectedIds([]);
-      setSelected(undefined);
-      setMultiSelect(false);
+      openAssembly(unit.groupId);
       return;
     }
     if (editingBodyId && editingBodyId !== id) {
@@ -2624,7 +2643,23 @@ export default function App() {
       groups={project.groups}
       selected={selectedIds}
       busy={busy}
-      onSelect={(id, additive) => select(id, undefined, additive)}
+      onSelect={(id, additive) => {
+        // An explicit part row names the intended part. Open its assembly visibly;
+        // viewport clicks still select a closed assembly as a single unit.
+        if (tool === 'select' && !editingBodyId && !editing && !additive && !multiSelect) {
+          const part = project.bodies.find((b) => b.id === id);
+          const assembly = groupAncestors(project.groups, part?.groupId).find(
+            (g) => g.kind === 'assembly',
+          );
+          setOpenedAssembly(
+            assembly &&
+              !groupAncestors(project.groups, assembly.id).some((g) => g.locked || g.hidden)
+              ? assembly.id
+              : undefined,
+          );
+          select(id, undefined, false, true);
+        } else select(id, undefined, additive);
+      }}
       onSelectGroup={(id) => {
         if (editingBodyId) {
           editor.setMessage('Päätä osan muokkaus ennen ryhmän valintaa.');
@@ -2964,8 +2999,11 @@ export default function App() {
       ]
     : [
         {
-          label: selectedGroup?.kind === 'assembly' ? 'Avaa kokoonpano' : 'Muokkaa osaa',
-          run: () => body && openBodyEdit(body.id),
+          label: selectedGroup?.kind === 'assembly' ? 'Muokkaa osia' : 'Muokkaa osaa',
+          run: () =>
+            selectedGroup?.kind === 'assembly'
+              ? openAssembly(selectedGroup.id)
+              : body && openBodyEdit(body.id),
           disabled: busy || !body,
         },
         { label: 'Eristä valinta', run: isolateSelection, disabled: busy || !selectedIds.length },
@@ -3312,6 +3350,39 @@ export default function App() {
                 : tool === 'measure' && measureMode === 'dimension'
                   ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
                   : instructions[tool];
+  const linkTarget =
+    editingBody ??
+    (tool === 'detail'
+      ? detailSource
+      : ['extrude', 'offset'].includes(tool)
+        ? project.bodies.find((b) => b.id === faceTarget?.bodyId)
+        : !activeTool && selectedIds.length === 1
+          ? body
+          : undefined);
+  const linkedCount = linkTarget?.component
+    ? project.bodies.filter((b) => b.component?.id === linkTarget.component!.id).length
+    : 0;
+  const linkNotice = linkTarget && linkedCount > 1 && (
+    <div className="component-link-notice" data-testid="component-link-notice">
+      <div>
+        <Link2 size={15} />
+        <strong>{linkedCount} linkitettyä osaa</strong>
+      </div>
+      <p>Muodon muokkaus päivittyy kaikkiin. Sijainti ja kierto koskevat tätä osaa.</p>
+      <button
+        className="button subtle full"
+        disabled={busy || bodyLocked(linkTarget, project.groups)}
+        onClick={() =>
+          void editor.transact(
+            uniqueComponents(project, [linkTarget.id]),
+            `Osasta ${linkTarget.name} tehtiin uniikki. Muut kopiot säilyivät.`,
+          )
+        }
+      >
+        Muokkaa vain tätä · tee uniikki
+      </button>
+    </div>
+  );
   const surfaceActions = (
     <div className="shape-properties" aria-label="Piirroksen käyttö">
       <p className="muted">Erillinen piirros. Jaa alla oleva pinta tai leikkaa osien läpi.</p>
@@ -3943,7 +4014,7 @@ export default function App() {
                         const value = dimensionValue(project, d);
                         return (
                           <div key={d.id} className={value === null ? 'broken' : ''}>
-                            <button onClick={() => select(dimensionBodyIds(d)[0])}>
+                            <button onClick={() => select(dimensionBodyIds(d, project)[0])}>
                               <Ruler size={15} />
                               <span>
                                 {value === null
@@ -3952,8 +4023,7 @@ export default function App() {
                                 <small>
                                   {(isPointDimension(d)
                                     ? 'Kahden pisteen dimensio · vedä mittaa mallissa'
-                                    : project.bodies.find((b) => b.id === d.bodyId)?.name) ??
-                                    'Poistettu kappale'}
+                                    : dimensionEnvelope(project, d)?.name) ?? 'Poistettu kappale'}
                                 </small>
                               </span>
                             </button>
@@ -3990,7 +4060,7 @@ export default function App() {
                 <Box size={18} />
                 <div>
                   <strong>Kokoonpano avoinna</strong>
-                  <span>{groupPath(project.groups, openedAssembly)}</span>
+                  <span>{groupPath(project.groups, openedAssembly).replaceAll(' / ', ' › ')}</span>
                 </div>
                 <button
                   onClick={() => {
@@ -4013,6 +4083,11 @@ export default function App() {
                   <div className="edit-context-title">
                     <span>Muokkaustila</span>
                     <strong title={editingBody.name}>{editingBody.name}</strong>
+                    {editingBody.groupId && (
+                      <small className="edit-breadcrumb">
+                        {groupPath(project.groups, editingBody.groupId).replaceAll(' / ', ' › ')}
+                      </small>
+                    )}
                   </div>
                   <p>
                     {editNotice
@@ -4177,6 +4252,7 @@ export default function App() {
               onRemoveGuide={(id) => void removeGuide(id)}
               assets={project.assets}
               bodies={visibleBodies}
+              groups={project.groups}
               meshes={visibleMeshes}
               selected={selected}
               selectedIds={selectedIds}
@@ -4577,8 +4653,20 @@ export default function App() {
             </div>
           </div>
           {mode === 'drawing' &&
-            (project.sections?.some((s) => s.id === drawingSectionId) ? (
+            (drawingSheetOpen ? (
+              <SheetWorkspace
+                key={project.id}
+                project={project}
+                cad={editor.cad}
+                busy={busy}
+                selectedIds={selectedIds}
+                selectedGroupId={selectedGroupId}
+                onCommit={editor.transact}
+                onBack={() => setDrawingSheetOpen(false)}
+              />
+            ) : project.sections?.some((s) => s.id === drawingSectionId) ? (
               <SectionDrawing
+                onSheets={() => setDrawingSheetOpen(true)}
                 project={project}
                 selectedIds={selectedIds}
                 section={project.sections.find((s) => s.id === drawingSectionId)!}
@@ -4590,6 +4678,7 @@ export default function App() {
               />
             ) : (
               <DrawingWorkspace
+                onSheets={() => setDrawingSheetOpen(true)}
                 onSection={setDrawingSectionId}
                 project={project}
                 cad={editor.cad}
@@ -4638,6 +4727,7 @@ export default function App() {
                   onFinish={() => cancel(true)}
                 />
               )}
+              {activeTool && linkNotice}
               {tool === 'paint' && (
                 <PaintPanel
                   {...brush}
@@ -5128,6 +5218,7 @@ export default function App() {
                       {selectedGroup?.kind === 'assembly' ? ' · Kokoonpano' : ''}
                     </p>
                   )}
+                  {linkNotice}
                   {canDivideSurface && surfaceActions}
                   {selectedIds.length > 1 && !selectedGroup && (
                     <div className="selection-collection-actions">
@@ -5383,6 +5474,7 @@ export default function App() {
                       onSubgroup={() => void createGroup(selectedGroup.id)}
                       onRemove={() => void removeGroup(selectedGroup.id)}
                       onMerge={() => void mergeSelected()}
+                      onEdit={() => openAssembly(selectedGroup.id)}
                       canMerge={
                         selectedIds.length > 1 &&
                         project.bodies
@@ -5396,7 +5488,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.16.0</span>
+                    <span>v0.17.0</span>
                   </div>
                 </>
               )}

@@ -1,5 +1,43 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.17 — kokonaismittojen regressio, 5.10.2026
+
+Sama 1 184 levyn tuotantotesti M1 Pro / ANGLE Metal -kokoonpanolla,
+ensin ilman mittoja ja sitten kolmella ryhmän kokonaismitalla (X/Y/Z).
+Ajot tehtiin peräkkäin ilman rinnakkaista selain-testisarjaa.
+
+| Mittari                |  Ilman mittoja | Kolme kokonaismittaa |
+| ---------------------- | -------------: | -------------------: |
+| Siirron mediaani / p95 | 16,7 / 18,3 ms |       16,7 / 18,3 ms |
+| Piirtokutsut           |             16 |                   16 |
+| Valinta                |         121 ms |               137 ms |
+| Siirron hyväksyntä     |         256 ms |               248 ms |
+| Peru                   |         280 ms |               283 ms |
+| Kopiointi 2 368 osaan  |         390 ms |               419 ms |
+| Tiedostolataus         |          41 ms |                52 ms |
+| Uudelleenavaus         |         610 ms |               612 ms |
+
+Valinta ei kummassakaan ajossa rakentanut uutta GPU-geometriaa. Tarkka 100 mm
+X-siirto, muiden akselien säilyminen ja tallennettu osamäärä tarkistettiin.
+Siirto säilyi noin 60 kuvassa/s. V0.16:n p95 oli 17,5 ms; yhden ajon pieni
+vaihtelu ei osoita pysyvää muutosta. Uudet kokonaismitat eivät tässä kokeessa
+aiheuttaneet havaittavaa ruudunpäivityksen hidastumista.
+
+JS-keko uudelleenavauksen jälkeen oli 70,1 / 136,4 MiB. Roskienkeruuta ei
+pakotettu: arvot eivät ole vakaan tilan muistibudjetteja tai osoitus vuodon
+puuttumisesta. Mittaus ei kata tuhansia mittoja, pitkää käyttöistuntoa,
+monimutkaisten uniikkien CAD-osien mitta-arkkien muodostusta tai iPadin kapasiteettia.
+
+Raakadata: [ilman mittoja](benchmarks/v017-actions-1184-metal.json) ja
+[kokonaismitoilla](benchmarks/v017-actions-dimensions-1184-metal.json).
+
+```sh
+npm run build
+npm run preview -- --port 4173
+NIVO_GPU=metal node scripts/performance-actions.mjs http://127.0.0.1:4173/ 1184
+NIVO_GPU=metal NIVO_BENCH_DIMENSIONS=1 node scripts/performance-actions.mjs http://127.0.0.1:4173/ 1184
+```
+
 ## V0.16 — tartunnan ja valinnan regressio, 4.10.2026
 
 Sama M1 Pro / ANGLE Metal -sarja 1 184 levyllä: siirron mediaani **16,7 ms**,

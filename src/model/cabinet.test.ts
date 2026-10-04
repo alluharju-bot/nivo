@@ -60,6 +60,7 @@ describe('cabinet panels', () => {
     initial.bodies = [source];
     const history = new History(initial);
     const added = insertCabinet(initial, cabinetDefaults);
+    expect(added.group.kind).toBe('assembly');
     expect(projectSchema.safeParse(added.project).success).toBe(true);
     expect(added.project.bodies[0]).toEqual(source);
     expect(

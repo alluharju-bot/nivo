@@ -3,15 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.16.0** korjaa pitkien reunojen tartunnan perspektiivissä ja
-apuviivoista piirtämisen. Siirron mittasyöttö seuraa käytössä olevaa akselia
-ja suuntaa. **Toista** tekee saman siirron tai kopiosarjan annetulla määrällä.
-Sininen valintaruutu vasemmalta oikealle valitsee kokonaan sisällä olevat osat;
-oranssi ruutu oikealta vasemmalle myös osittain alueeseen osuvat osat.
-Kynä hyväksyy avoimet viivat ja jakaa muokkaustilan pinnan reunasta reunaan.
-**Leikkaa aukko** vie suljetun muodon valittujen osien läpi. Ryhmän poisto
-säilyttää osat, ja **Siirrä ryhmään** löytyy Toiminnot-valikosta.
-Kierto tarttuu 5° välein; Shift vapauttaa kierron.
+Versio **0.17.0** kokoaa mallista luotettavan työkuvan. **Mittakuva → Luo mitta-arkki**
+asettaa 1–6 näkymää, myös tallennetut poikkileikkaukset, samalle A4-arkille yhteisessä
+mittakaavassa. Tallenna arkin kohde ja näkymät projektiin; vie PDF tai SVG.
+Kokonaismitat seuraavat osajoukon tai ryhmän nykyisiä ulkorajoja myös osien
+järjestyksen vaihtuessa. Puuttuvat viitteet ja liian suuri kuva estävät viennin.
+Levyrunko syntyy kokoonpanoksi, **Muokkaa osia** avaa sen, ja linkitetyn osan
+muokkauksen vaikutus näkyy heti yhdessä **Tee uniikki** -toiminnon kanssa.
 [Mitattu suorituskyky ja rajat](docs/performance.md).
 
 Pintaan piirretyn erillisen viivan tai muodon **Jaa pinta** rajaa muokattavan
@@ -23,7 +21,7 @@ kun kyseinen kumoamistila on yhä tallessa. **Palauta valinta** vaihtaa vain val
 
 - Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
 - Napsauta valitun osan tai ryhmän otsikkonimeä nimetäksesi sen. Ryhmäpolku näkyy heti alla.
-- **Luo kokoonpano** yhdistää valinnan käsiteltäväksi kokonaisuudeksi. Tuplaklikkaa avataksesi yksittäiset osat; Esc tai Sulje kokoonpano päättää. **Ryhmä** järjestää vain listaa.
+- **Luo kokoonpano** yhdistää valinnan käsiteltäväksi kokonaisuudeksi. Tuplaklikkaa avataksesi yksittäiset osat; Esc tai Sulje kokoonpano päättää. **Ryhmä** järjestää mallia kansion tavoin; ryhmän voi myös valita listasta siirtoa, piilotusta tai Holdia varten. Valitse-tilassa osan nimirivi valitsee nimenomaisen osan ja avaa sen kokoonpanon näkyvästi.
 - **Tee komponentti**: seuraavat kopiot jakavat geometrian ja oletuksena materiaalin. **Tee uniikiksi** irrottaa linkin. Sijainti, kierto, nimi, näkyvyys ja Hold ovat esiintymäkohtaisia. Olemassa olevat osat voi linkittää valittuun lähtöosaan.
 - **P – Maalipensseli**: valitse materiaali ja napsauta osia. Paletti kertoo, koskeeko maalaus koko valintaa ja linkitettyjä kopioita.
 - Oikean napin napsautus tai **Toiminnot** avaa valinnan yhteisen valikon. Oikean napin veto kiertää kameraa. Delete/Backspace tai Valitse-tilassa X poistaa koko valinnan yhdellä peruttavalla toiminnolla.
@@ -32,7 +30,7 @@ kun kyseinen kumoamistila on yhä tallessa. **Palauta valinta** vaihtaa vain val
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-![Nivon yhteinen työkalupaneeli ja mittasyöttö](docs/images/nivo-v015-workspace.png)
+![Nivon mitta-arkki ja poikkileikkaus](docs/images/nivo-v017-sheet.png)
 
 ## Testaa selaimessa
 
@@ -726,7 +724,7 @@ nesting eivät sisälly nykyiseen suorakulmaisten aihioiden leikkauslistaan.
 
 - [Alkuperäinen määrittely](docs/requirements.fi.md)
 - [Arkkitehtuuri ja päätökset](docs/architecture.md)
-- [Projektiformaatti v7](docs/project-format.md)
+- [Projektiformaatti v8](docs/project-format.md)
 - [Toteutusvaiheet](docs/roadmap.md)
 
 ## Lisenssi

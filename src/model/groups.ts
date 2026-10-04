@@ -1,4 +1,4 @@
-import { isPointDimension } from './project';
+import { isOverallDimension, isPointDimension } from './project';
 import { dimensionBodyIds } from './dimensions';
 import { uid, type Anchor, type Body, type BodyGroup, type Project, type Vec3 } from './project';
 import { add } from './geometry';
@@ -159,7 +159,7 @@ export function translateSelection(
     }));
   const dimensions = project.dimensions
     .filter((d) => {
-      const ids = dimensionBodyIds(d);
+      const ids = dimensionBodyIds(d, project);
       return ids.length > 0 && ids.every((id) => bodyIds.has(id));
     })
     .map((d) =>
@@ -171,7 +171,19 @@ export function translateSelection(
             end: remap(d.end),
             fallback: d.fallback.map((p) => add(p, offset)) as [Vec3, Vec3],
           }
-        : { ...d, id: uid(), bodyId: bodyIds.get(d.bodyId)! },
+        : isOverallDimension(d)
+          ? {
+              ...d,
+              id: uid(),
+              target:
+                d.target.kind === 'group' && groupIds.has(d.target.groupId)
+                  ? { kind: 'group' as const, groupId: groupIds.get(d.target.groupId)! }
+                  : {
+                      kind: 'parts' as const,
+                      ids: dimensionBodyIds(d, project).map((id) => bodyIds.get(id)!),
+                    },
+            }
+          : { ...d, id: uid(), bodyId: bodyIds.get(d.bodyId)! },
     );
   return {
     project: {

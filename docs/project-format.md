@@ -1,12 +1,12 @@
-# .nivo-projektiformaatti v7
+# .nivo-projektiformaatti v8
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 7`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 8`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
 ```json
 {
   "format": "nivo",
-  "version": 7,
+  "version": 8,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",
@@ -301,3 +301,33 @@ tarkat tartunnat. Näyttöverkossa voi siksi olla reunoja ilman kolmioita ja
 pintoja. Oletuskäyttö on `drawing`, tai käyttäjän valitsema `construction`.
 Projektiversio pysyy seitsemässä; toistosiirto ja aukon esikatselun valinta
 eivät lisää pysyviä kenttiä. Hyväksytty aukko tallentuu tavallisina tulos-BRepeinä.
+
+## V8: semanttiset kokonaismitat ja tallennetut mitta-arkit
+
+V7 → V8 säilyttää vanhat mittatyypit sellaisinaan. Vanhan kahden pisteen mitan
+käyttötarkoitusta ei päätellä jälkikäteen. V1–V7 avautuvat vaiheittain;
+vanha V7-lukija hylkää V8:n, jotta uusia mittaviitteitä ei kadoteta.
+
+Uusi dimension `kind: "overall"` sisältää `id`, `axis` (`x`, `y`, `z`) ja
+`target`: joko `{kind:"parts", ids:[...]}` tai `{kind:"group", groupId:"..."}`.
+Mittaus käyttää kohteen nykyistä maailman akseleihin sidottua rajalaatikkoa.
+Ryhmä sisältää alaryhmiensä osat ja seuraa jäsenyyden muutoksia; rakentamiseen
+tarkoitetut osat eivät kuulu ryhmän kokonaismittaan. Osajoukko säilyttää
+nimetyt kohteensa. Puuttuva ryhmä, tyhjä ryhmä tai osajoukosta puuttuva osa
+merkitsee rikkoutunutta viitettä: tulosteen vienti estetään. Ryhmän tai osien
+kopiointi uudelleenkohdistaa kokonaismitat kopioon, kun koko kohde kopioidaan.
+
+Valinnainen `drawingSheets` sisältää enintään 50 arkin määrittelyä, ei CAD-
+projektioita eikä renderöintiverkkoja. Arkissa on `id`, `name` (1–80 merkkiä),
+`scope`, `views`, valinnainen `scale` ja `hidden` (piiloviivat).
+`scope` on `{kind:"visible"}`, `{kind:"parts", ids:[...]}` tai
+`{kind:"group", groupId:"..."}`. Osavalinta jää talteen tunnisteina eikä
+vaihdu mallin seuraavan valinnan mukana. Näkyvä malli seuraa näkyvyyttä;
+nimetty osajoukko tai ryhmä on tietoinen tulostuskohde myös osien ollessa piilotettuina.
+
+`views` sisältää 1–6 erillistä näkymää: `{kind:"standard", view:"front"|"right"|"top"}`
+tai `{kind:"section", sectionId:"..."}`. Puuttuva scale tarkoittaa yhteistä
+automaattista sovitusta A4-vaaka-arkille. Puuttuvat kohteet ja leikkaukset
+säilyvät arkissa korjattavina viitteinä, mutta vienti on estetty. Asettelu
+on automaattinen. Mallin muutokset laskevat projektiot uudelleen; mittojen,
+arkkinimen tai mittakaavan muutos ei käynnistä uutta CAD-projektiota.

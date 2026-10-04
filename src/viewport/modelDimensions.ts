@@ -1,5 +1,14 @@
 import * as THREE from 'three';
-import { isPointDimension, axisIndex, corners, type Body, type Dimension } from '../model/project';
+import {
+  isPointDimension,
+  dimensionEnvelope,
+  axisIndex,
+  corners,
+  type Body,
+  type BodyGroup,
+  type Dimension,
+} from '../model/project';
+import { dimensionBodyIds } from '../model/dimensions';
 import { formatLength } from '../model/units';
 const ns = 'http://www.w3.org/2000/svg';
 const svgNode = <K extends keyof SVGElementTagNameMap>(name: K) =>
@@ -29,6 +38,7 @@ export function createModelDimensions(container: HTMLElement) {
       selected: string[],
       display: 'all' | 'selected' | 'hidden',
       camera: THREE.Camera,
+      groups: BodyGroup[],
     ) {
       const width = container.clientWidth,
         height = container.clientHeight;
@@ -43,10 +53,11 @@ export function createModelDimensions(container: HTMLElement) {
         if (isPointDimension(dimension)) continue;
         if (
           display === 'hidden' ||
-          (display === 'selected' && !selected.includes(dimension.bodyId))
+          (display === 'selected' &&
+            !dimensionBodyIds(dimension, { bodies, groups }).some((id) => selected.includes(id)))
         )
           continue;
-        const body = bodies.find((b) => b.id === dimension.bodyId);
+        const body = dimensionEnvelope({ bodies, groups }, dimension);
         if (!body || body.purpose === 'construction') continue;
         const axis = axisIndex[dimension.axis],
           sizes = [body.feature.width, body.feature.depth, body.feature.height];

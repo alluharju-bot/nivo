@@ -2,6 +2,9 @@ import { resolveAnchor } from './guides';
 import { add, sub, unit, scale, dot, axisVector } from './geometry';
 import {
   isPointDimension,
+  isOverallDimension,
+  dimensionTargetBodies,
+  type DimensionTarget,
   type Anchor,
   type Body,
   type PointDimension,
@@ -27,7 +30,13 @@ export function addBodyDimensions(
     for (const axis of axes) {
       if (
         size[axisIndex[axis]] <= 0 ||
-        dimensions.some((d) => !isPointDimension(d) && d.bodyId === body.id && d.axis === axis)
+        dimensions.some(
+          (d) =>
+            !isPointDimension(d) &&
+            !isOverallDimension(d) &&
+            d.bodyId === body.id &&
+            d.axis === axis,
+        )
       )
         continue;
       dimensions.push({ id: uid(), bodyId: body.id, axis, from: 'min', to: 'max' });
@@ -43,7 +52,44 @@ export function anchorBodyId(anchor: Anchor) {
       ? anchor.edge.from.bodyId
       : undefined;
 }
-export function dimensionBodyIds(dimension: Dimension): string[] {
+export function addOverallDimensions(
+  project: Project,
+  target: DimensionTarget,
+  axes: Axis[],
+): Project {
+  const parts = dimensionTargetBodies(project, target);
+  if (!parts?.length) return project;
+  const dimensions = [...project.dimensions];
+  const matches = (other: DimensionTarget) =>
+    other.kind === 'group'
+      ? target.kind === 'group' && other.groupId === target.groupId
+      : target.kind === 'parts' &&
+        other.ids.length === target.ids.length &&
+        other.ids.every((id) => target.ids.includes(id));
+  for (const axis of axes) {
+    const i = axisIndex[axis],
+      key = (['width', 'depth', 'height'] as const)[i];
+    const value =
+      Math.max(...parts.map((b) => b.origin[i] + b.feature[key])) -
+      Math.min(...parts.map((b) => b.origin[i]));
+    if (
+      value > 1e-6 &&
+      !dimensions.some((d) => isOverallDimension(d) && d.axis === axis && matches(d.target))
+    )
+      dimensions.push({ id: uid(), kind: 'overall', axis, target });
+  }
+  return { ...project, dimensions };
+}
+export function dimensionBodyIds(
+  dimension: Dimension,
+  project?: Pick<Project, 'bodies' | 'groups'>,
+): string[] {
+  if (isOverallDimension(dimension))
+    return dimension.target.kind === 'parts'
+      ? dimension.target.ids
+      : project
+        ? (dimensionTargetBodies(project, dimension.target)?.map((b) => b.id) ?? [])
+        : [];
   return isPointDimension(dimension)
     ? [
         ...new Set(

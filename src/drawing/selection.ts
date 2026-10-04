@@ -24,7 +24,7 @@ export function drawingProject(project: Project, target: string, selectedIds: st
     ...project,
     bodies,
     dimensions: project.dimensions.filter((d) => {
-      const refs = dimensionBodyIds(d);
+      const refs = dimensionBodyIds(d, project);
       return refs.every(
         (id) => visible.has(id) || (target === 'all' && !project.bodies.some((b) => b.id === id)),
       );

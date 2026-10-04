@@ -1,4 +1,4 @@
-import type { Project } from './project';
+import { isOverallDimension, type Project } from './project';
 import { bodyLocked, groupAncestors, groupBodies, groupContains } from './groups';
 import { anchorBodyId, dimensionBodyIds } from './dimensions';
 
@@ -29,7 +29,9 @@ export function removeSelection(project: Project, ids: string[]) {
   return {
     ...project,
     bodies: project.bodies.filter((b) => !chosen.has(b.id)),
-    dimensions: project.dimensions.filter((d) => !dimensionBodyIds(d).some((id) => chosen.has(id))),
+    dimensions: project.dimensions.filter(
+      (d) => isOverallDimension(d) || !dimensionBodyIds(d, project).some((id) => chosen.has(id)),
+    ),
     guides: project.guides.filter(
       (g) => ![g.anchor, g.endAnchor].some((a) => a && chosen.has(anchorBodyId(a) ?? '')),
     ),

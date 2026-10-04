@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import init from 'replicad-opencascadejs';
 import { setOC, measureVolume } from 'replicad';
-import { makeBody, freshProject, parseProject, type Guide } from '../model/project';
+import { makeBody, freshProject, parseProject, dimensionValue, type Guide } from '../model/project';
+import { addOverallDimensions } from '../model/dimensions';
 import { rotateBodies } from './transforms';
 import { createShape, meshBody } from './kernel';
 import { resolveAnchor, guidePoints } from '../model/guides';
@@ -21,6 +22,29 @@ beforeAll(
   30000,
 );
 describe('rigid transforms and object organization', () => {
+  it('keeps overall dimensions bound to the current world bounds after a CAD rotation', () => {
+    const a = makeBody(200, 100, 20),
+      b = makeBody(200, 100, 20, [300, 0, 0]);
+    const p = addOverallDimensions(
+      { ...freshProject(), bodies: [a, b] },
+      { kind: 'parts', ids: [a.id, b.id] },
+      ['x', 'y'],
+    );
+    const rotation = {
+      ids: [a.id, b.id],
+      pivot: [0, 0, 0] as [number, number, number],
+      axis: [0, 0, 1] as [number, number, number],
+      angle: 90,
+    };
+    const rotated = applyRotation(
+      p,
+      rotateBodies(p.bodies, rotation.pivot, rotation.axis, rotation.angle),
+      rotation,
+    );
+    expect(rotated.dimensions).toEqual(p.dimensions);
+    expect(dimensionValue(rotated, rotated.dimensions[0])).toBeCloseTo(100, 6);
+    expect(dimensionValue(rotated, rotated.dimensions[1])).toBeCloseTo(500, 6);
+  });
   it('keeps the texture fixed to the same material point through arbitrary and repeated rotations', () => {
     const body = {
       ...makeBody(100, 60, 20, [50, 80, 10]),
@@ -139,7 +163,7 @@ describe('rigid transforms and object organization', () => {
       settings: { guideXray: false },
     };
     const migrated = parseProject(JSON.stringify(legacy));
-    expect(migrated.version).toBe(7);
+    expect(migrated.version).toBe(8);
     expect(migrated.groups).toEqual([]);
     expect(migrated.settings.axisStyle).toBe('subtle');
     expect(migrated.settings.axisLabels).toBe(false);

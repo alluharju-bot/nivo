@@ -10,7 +10,7 @@ describe('precision and model persistence', () => {
     const body = makeBody(600, 400, 18),
       { purpose, ...old } = body;
     const restored = parseProject(JSON.stringify({ ...freshProject(), version: 3, bodies: [old] }));
-    expect(restored.version).toBe(7);
+    expect(restored.version).toBe(8);
     expect(restored.bodies[0]).toEqual(body);
   });
   it('accepts Finnish decimal units and rejects ambiguous or unsafe measurements', () => {

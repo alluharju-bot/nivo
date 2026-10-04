@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ready, save } from './helpers';
+import { ready, save, revealBrowser } from './helpers';
 import { makeBody } from '../src/model/project';
 
 test('cabinet preview creates real panels, named group, parts and a single undo step', async ({
@@ -27,6 +27,7 @@ test('cabinet preview creates real panels, named group, parts and a single undo 
   const project = await save(page);
   expect(project.groups).toHaveLength(1);
   expect(project.groups[0].name).toBe('Työhuoneen kaappi');
+  expect(project.groups[0].kind).toBe('assembly');
   expect(project.bodies).toHaveLength(10);
   expect(
     project.bodies.every((b) => b.groupId === project.groups[0].id && b.purpose === 'component'),
@@ -56,6 +57,7 @@ test('cancel preserves the selected object and explicit replacement is reversibl
   const source = makeBody(700, 500, 2000, [800, 100, 0], 'Alkuperäinen kaappi');
   await ready(page, [source]);
   const open = async () => {
+    await revealBrowser(page);
     await page.getByTestId(`body-${source.id}`).click();
     await page.getByRole('button', { name: 'Muodot', exact: true }).click();
     await page.getByRole('button', { name: 'Levyrunko', exact: true }).click();

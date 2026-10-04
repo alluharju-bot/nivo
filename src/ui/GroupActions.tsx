@@ -16,6 +16,7 @@ export function GroupActions({
   onRemove,
   onMerge,
   canMerge,
+  onEdit,
 }: {
   group: BodyGroup;
   groups: BodyGroup[];
@@ -30,16 +31,26 @@ export function GroupActions({
   onRemove: () => void;
   onMerge: () => void;
   canMerge: boolean;
+  onEdit: () => void;
 }) {
   const locked = groupAncestors(groups, group.id).some((g) => g.locked);
   return (
     <section className="group-actions-panel" aria-label="Ryhmän toiminnot">
       <p>
         {group.kind === 'assembly'
-          ? `${total} osan kokoonpano. Tuplaklikkaa mallissa avataksesi osat muokattaviksi.`
-          : `${count} osaa valittu · ryhmässä ${total}. Napsauta osia lisätäksesi tai poistaaksesi niitä valinnasta.`}
+          ? `${total} osan kokoonpano. Mallissa osan napsautus valitsee koko kokoonpanon.`
+          : `Ryhmä järjestää mallia kansion tavoin. ${count} osaa valittu · ryhmässä ${total}. Mallissa voit valita osat erikseen.`}
       </p>
       <div className="object-quick-actions">
+        {group.kind === 'assembly' && (
+          <button
+            className="button outlined"
+            disabled={busy || locked || group.hidden || !total}
+            onClick={onEdit}
+          >
+            Muokkaa osia
+          </button>
+        )}
         <button
           disabled={busy}
           onClick={onRemove}

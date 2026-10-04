@@ -3,7 +3,6 @@ import { Download, Ruler, Trash2, X } from 'lucide-react';
 import type { CadClient } from '../cad/client';
 import type { BodyMesh, DrawingView, Projection } from '../cad/protocol';
 import {
-  axisIndex,
   isPointDimension,
   dimensionValue,
   uid,
@@ -14,6 +13,7 @@ import {
 } from '../model/project';
 import {
   addBodyDimensions,
+  addOverallDimensions,
   pointDimensionGeometry,
   pointDimensionInView,
 } from '../model/dimensions';
@@ -27,6 +27,7 @@ import { drawingDimension, shiftDrawingDimension, type DimensionDirection } from
 export function DrawingWorkspace({
   project,
   onSection,
+  onSheets,
   cad,
   meshes,
   selectedIds,
@@ -36,6 +37,7 @@ export function DrawingWorkspace({
 }: {
   project: Project;
   onSection?: (id: string) => void;
+  onSheets?: () => void;
   cad: CadClient;
   meshes: BodyMesh[];
   selectedIds: string[];
@@ -182,54 +184,16 @@ export function DrawingWorkspace({
   };
   const addOverall = async (axes: Axis[]) => {
     if (!scoped.bodies.length) return;
-    if (scoped.bodies.length === 1) {
+    const ids = scoped.bodies.map((b) => b.id);
+    const next = target.startsWith('group:')
+      ? addOverallDimensions(project, { kind: 'group', groupId: target.slice(6) }, axes)
+      : ids.length === 1
+        ? addBodyDimensions(project, ids, axes)
+        : addOverallDimensions(project, { kind: 'parts', ids }, axes);
+    if (next.dimensions.length !== project.dimensions.length)
       await onCommit(
-        addBodyDimensions(
-          project,
-          scoped.bodies.map((b) => b.id),
-          axes,
-        ),
-        'Kokonaismitta lisätty.',
-      );
-      return;
-    }
-    const vertices = shownMeshes.flatMap((m) => m.verticesCAD);
-    const dimensions: PointDimension[] = [];
-    for (const axis of axes) {
-      const i = axisIndex[axis],
-        sorted = [...vertices].sort((a, b) => a.point[i] - b.point[i]);
-      const start = sorted[0],
-        end = sorted.at(-1);
-      if (!start || !end || Math.abs(end.point[i] - start.point[i]) < 0.01) continue;
-      const offset: Vec3 = [0, 0, 0];
-      const other = axisIndex[axis === horizontal ? vertical : horizontal];
-      offset[other] =
-        Math.min(...vertices.map((v) => v.point[other])) - start.point[other] - 12 * scale;
-      const dimension: PointDimension = {
-        id: uid(),
-        kind: 'points',
-        axis,
-        start: start.anchor,
-        end: end.anchor,
-        fallback: [start.point, end.point],
-        offset,
-        normal: view === 'front' ? [0, -1, 0] : view === 'right' ? [1, 0, 0] : [0, 0, 1],
-      };
-      if (
-        !project.dimensions.some(
-          (d) =>
-            'kind' in d &&
-            d.axis === axis &&
-            JSON.stringify(d.start) === JSON.stringify(start.anchor) &&
-            JSON.stringify(d.end) === JSON.stringify(end.anchor),
-        )
-      )
-        dimensions.push(dimension);
-    }
-    if (dimensions.length)
-      await onCommit(
-        { ...project, dimensions: [...project.dimensions, ...dimensions] },
-        'Kohteen kokonaismitat lisätty.',
+        next,
+        'Kohteen kokonaismitat lisätty. Mitat seuraavat kohteen nykyisiä rajoja.',
       );
   };
   const removeDimension = async (id: string) => {
@@ -276,6 +240,7 @@ export function DrawingWorkspace({
               {name}
             </button>
           ))}
+          <button onClick={onSheets}>Luo mitta-arkki</button>
           <span>
             A4 · {manualScale ? '' : 'Sovitettu · '}1:{scale}
           </span>

@@ -24,6 +24,7 @@ export function SectionDrawing({
   onCommit,
   onSection,
   onBack,
+  onSheets,
   selectedIds,
 }: {
   project: Project;
@@ -34,6 +35,7 @@ export function SectionDrawing({
   onCommit: (project: Project, message: string) => Promise<boolean>;
   onSection: (id: string) => void;
   onBack: () => void;
+  onSheets?: () => void;
 }) {
   const [scope, setScope] = useState(selectedIds.length ? 'selection' : 'all');
   const [result, setResult] = useState<SectionResult>();
@@ -207,6 +209,7 @@ export function SectionDrawing({
       <div className="drawing-sheet-column">
         <div className="drawing-view-tabs">
           <button onClick={onBack}>Tavalliset mittakuvat</button>
+          <button onClick={onSheets}>Luo mitta-arkki</button>
           {project.sections?.map((s) => (
             <button key={s.id} aria-pressed={s.id === section.id} onClick={() => onSection(s.id)}>
               Leikkaus {s.name}

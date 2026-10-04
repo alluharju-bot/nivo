@@ -154,6 +154,7 @@ export function insertCabinet(project: Project, options: CabinetOptions, replace
   const group: BodyGroup = {
     id: uid(),
     name: options.name.trim(),
+    kind: 'assembly',
     hidden: false,
     locked: false,
     parentId: source?.groupId,
