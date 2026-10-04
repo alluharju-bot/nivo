@@ -106,6 +106,15 @@ export class CadClient {
   boolean(targets: Body[], tools: Body[], operation: 'cut' | 'join') {
     return this.request<Body[]>({ type: 'boolean', targets, tools, operation });
   }
+  penPath(points: Vec3[], name: string) {
+    return this.request<Body>({ type: 'pen-path', points, name });
+  }
+  splitPath(body: Body, face: FaceRef, path: Body) {
+    return this.request<SplitResult>({ type: 'split-path', body, face, path });
+  }
+  cutOpening(profile: Body, targets: Body[]) {
+    return this.request<import('./paths').OpeningResult>({ type: 'cut-opening', profile, targets });
+  }
   split(body: Body, face: FaceRef, profile: Body, allowUnsplit = false) {
     return this.request<SplitResult>({ type: 'split-face', body, face, profile, allowUnsplit });
   }

@@ -22,8 +22,8 @@ export function RotationPanel({
   return (
     <section className="rotation-panel" aria-label="Kierron asetukset">
       <p className="muted">
-        Vedä värillistä rengasta tai kirjoita kulma. Shift porrastaa vedon 15 asteeseen. Enter tai
-        vedon päättäminen hyväksyy.
+        Vedä värillistä rengasta tai kirjoita kulma. Veto tarttuu 5° välein, vahvemmin pääsuuntiin.
+        Shift vapauttaa tartunnan. Enter tai vedon päättäminen hyväksyy.
       </p>
       <div className="axis-switch" aria-label="Kiertoakseli">
         {(['x', 'y', 'z'] as const).map((axis, i) => (

@@ -110,15 +110,15 @@ test('origin, hold, hide, names and groups survive undo and reload', async ({ pa
   await expect(page.getByRole('alert')).toContainText('kiinnitetty');
   expect((await save(page)).bodies[0].origin).toEqual([0, 0, 0]);
   await page.keyboard.press('Escape');
+  await page.keyboard.press('v');
+  await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).focus();
+  await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).click();
   await page.getByTestId(`body-${body.id}`).click();
   await page.keyboard.press('g');
   await expect(
     page.getByRole('button', { name: 'Kiinnitä paikalleen', exact: true }),
   ).toHaveAttribute('aria-pressed', 'false');
-  await page
-    .locator('summary')
-    .filter({ hasText: /^Nimi ja ryhmä$/ })
-    .click();
+  await page.getByRole('button', { name: 'Nimeä: Ovi', exact: true }).click();
   await page.getByRole('textbox', { name: 'Kappaleen nimi', exact: true }).fill('Etuovi');
   await page.getByRole('textbox', { name: 'Kappaleen nimi', exact: true }).press('Enter');
   await expect(page.getByTestId(`body-${body.id}`)).toHaveText('Etuovi');
@@ -137,7 +137,9 @@ test('origin, hold, hide, names and groups survive undo and reload', async ({ pa
   ).toBeVisible();
   await page.getByRole('button', { name: 'Piilota: Etuovi', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Näytä: Etuovi', exact: true })).toBeVisible();
+  await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
   await page.reload();
+  await expect(page.locator('.busy-badge')).toHaveCount(0);
   model = await save(page);
   expect(model.bodies[0].hidden).toBe(true);
   expect(model.groups[0].name).toBe('Keittiö');
@@ -146,7 +148,7 @@ test('origin, hold, hide, names and groups survive undo and reload', async ({ pa
     .locator('summary')
     .filter({ hasText: /^Ryhmän asetukset$/ })
     .click();
-  await page.getByRole('button', { name: 'Pura ryhmä: Keittiö', exact: true }).click();
+  await page.getByRole('button', { name: 'Poista ryhmä', exact: true }).click();
   model = await save(page);
   expect(model.groups).toHaveLength(0);
   expect(model.bodies).toHaveLength(1);
@@ -185,7 +187,7 @@ test('R rotates about a picked edge with an exact angle and undo', async ({ page
   expect(model.bodies[0].feature).toEqual(body.feature);
 });
 
-test('rotation ring dragging commits once with Shift snapping', async ({ page }) => {
+test('rotation ring uses five-degree snapping and Shift allows a free angle', async ({ page }) => {
   const body = makeBody(120, 60, 20);
   await ready(page, [body]);
   const point = await top(page, [body]);
@@ -200,8 +202,19 @@ test('rotation ring dragging commits once with Shift snapping', async ({ page })
   await page.mouse.move(a.x, a.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-rotation-handle', 'Z');
   await page.mouse.down();
-  await page.keyboard.down('Shift');
   await page.mouse.move(b.x, b.y, { steps: 10 });
+  await expect(page.getByTestId('rotation-angle')).toHaveValue('85');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(b.x + 1, b.y, { steps: 2 });
+  const free = Number(await page.getByTestId('rotation-angle').inputValue());
+  expect(free).toBeGreaterThan(80);
+  expect(free).toBeLessThan(85);
+  await page.keyboard.up('Shift');
+  const c = point(
+    60 + radius * Math.cos((117 * Math.PI) / 180),
+    30 + radius * Math.sin((117 * Math.PI) / 180),
+  );
+  await page.mouse.move(c.x, c.y, { steps: 3 });
   await expect(page.getByTestId('rotation-angle')).toHaveValue('90');
   await page.mouse.up();
   await page.keyboard.up('Shift');

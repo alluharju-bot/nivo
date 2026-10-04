@@ -56,7 +56,7 @@ export type Gesture =
   | { type: 'extrude'; distance: number }
   | { type: 'offset'; distance: number }
   | { type: 'detail'; size: number }
-  | { type: 'move'; origin: Vec3; bodyId?: string }
+  | { type: 'move'; origin: Vec3; bodyId?: string; axis?: Axis }
   | {
       type: 'measure';
       anchor: Anchor;
@@ -107,6 +107,7 @@ export interface ViewportProps {
   onDetailEdge: (bodyId: string, index: number, dragging?: boolean) => void;
   onDetailDragCancel: () => void;
   onRemoveBoundary: (target: BoundaryTarget) => void;
+  onRemoveWire: (id: string) => void;
   onRemoveGuide: (id: string) => void;
   rotation?: Rotation;
   onRotationPick: (pivot: Vec3, axis?: Vec3, bodyId?: string) => void;

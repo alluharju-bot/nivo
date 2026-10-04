@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { makeBody, type BodyGroup } from '../src/model/project';
-import { ready, save, view } from './helpers';
+import { ready, save, view, revealBrowser } from './helpers';
 import { groupBodies } from '../src/model/groups';
 
 const groups: BodyGroup[] = [
@@ -65,6 +65,9 @@ test('nested group rename, reparent, inherited visibility and Hold survive file 
   const other = { id: 'other', name: 'Kaluste', hidden: false };
   await ready(page, [part], [], [...groups, other]);
   const p = await view(page, [part]);
+  await revealBrowser(page);
+  await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).focus();
+  await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).click();
   await page.getByRole('button', { name: 'Valitse ryhmä: Pystyt', exact: true }).dblclick();
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Pystyt', exact: true }).fill('Rimat');
   await page.getByRole('textbox', { name: 'Ryhmän nimi: Pystyt', exact: true }).press('Enter');
@@ -107,6 +110,9 @@ test('Ctrl-drag copies every selected group member from the grabbed point', asyn
   const parts = [0, 200].map((x) => ({ ...makeBody(60, 100, 20, [x, 0, 0]), groupId: 'root' }));
   await ready(page, parts, [], [groups[0]]);
   const p = await view(page, parts);
+  await revealBrowser(page);
+  await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).focus();
+  await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).click();
   await page.getByRole('button', { name: 'Valitse ryhmä: Runko', exact: true }).click();
   await page.keyboard.press('m');
   const start = p(30, 40, 20),

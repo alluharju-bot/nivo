@@ -1,5 +1,19 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.16 — tartunnan ja valinnan regressio, 4.10.2026
+
+Sama M1 Pro / ANGLE Metal -sarja 1 184 levyllä: siirron mediaani **16,7 ms**,
+p95 **17,5 ms** ja **16 piirtokutsua**. Valinta ei luonut uutta GPU-geometriaa.
+Siirron hyväksyntä 265 ms, Peru 286 ms, kopiointi **2 368 osaan 395 ms**,
+tiedostolataus 35 ms ja uudelleenavaus 620 ms. Tarkat siirtymät ja muiden
+akselien säilyminen tarkistettiin. Tulos on samalla tasolla v0.15:n kanssa;
+pieni p95-vaihtelu ei osoita pysyvää nopeutumista.
+[Mittauksen tulos](benchmarks/v016-actions-1184-metal.json).
+
+Valintaruudun tarkat näyttökolmiot projisoidaan kerran vasta laatikkovedon
+alkaessa. Tavallinen napsautus ei tee koko mallin projektiota. Mittaus ei
+kata erittäin tiheän kolmiomallin osumavalinnan pahinta tapausta.
+
 ## V0.15 — yhteisen työkalupaneelin regressio, 4.10.2026
 
 Sama M1 Pro / ANGLE Metal -kokoonpano ja 1 184 levyn toimintasarja:

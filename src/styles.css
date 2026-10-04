@@ -3651,11 +3651,20 @@ p {
 }
 .selection-box {
   position: absolute;
-  border: 1px solid #48795f;
-  background: #79a88924;
+  border: 1px solid #437faa;
+  background: #75a9cf24;
   z-index: 4;
   pointer-events: none;
   box-sizing: border-box;
+}
+.selection-box.crossing {
+  border-color: #c88530;
+  border-style: dashed;
+  background: #e9a64422;
+}
+.selection-box.crossing > span {
+  background: #fff3df;
+  color: #854d15;
 }
 .selection-box[hidden] {
   display: none;
@@ -3665,8 +3674,8 @@ p {
   left: 0;
   top: -26px;
   padding: 4px 7px;
-  background: #f8fbf6f2;
-  color: #31553e;
+  background: #edf5fcf2;
+  color: #315d80;
   border: 1px solid #9eb39e;
   border-radius: 5px;
   font-size: 11px;
@@ -5283,4 +5292,91 @@ p {
 .canvas-area.is-editing .model-browser {
   top: 128px;
   max-height: calc(100% - 206px);
+}
+
+.repeat-action {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #d7e1df;
+  border-radius: 10px;
+  background: #f5f8f7;
+}
+.repeat-action > strong {
+  font-size: 13px;
+}
+.repeat-action > small {
+  color: #465a55;
+}
+.repeat-action > div {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+.repeat-action label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: #465a55;
+}
+.repeat-action input {
+  width: 74px;
+  padding: 7px;
+  border: 1px solid #bfcfca;
+  border-radius: 6px;
+  background: white;
+}
+.repeat-action p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #57665f;
+}
+
+.selection-dialog {
+  width: min(420px, calc(100vw - 32px));
+  max-height: 80vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fafaf7;
+  box-shadow: 0 18px 65px #152d2830;
+}
+.selection-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+.selection-dialog p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.selection-dialog .object-quick-actions {
+  margin-top: 20px;
+}
+
+.opening-targets {
+  display: grid;
+  gap: 10px;
+  max-height: 180px;
+  overflow: auto;
+  margin: 16px 0;
+}
+.opening-targets label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.selection-backdrop.side {
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 80px 16px 16px;
+  background: transparent;
+  backdrop-filter: none;
+}
+.selection-backdrop.side .selection-dialog {
+  max-height: calc(100dvh - 100px);
 }

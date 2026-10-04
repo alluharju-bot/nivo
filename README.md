@@ -3,12 +3,15 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.15.0** yhtenäistää työkalujen käytön: oikea paneeli näyttää tehtävän,
-kohteen ja tärkeät mitat. Lisäasetukset avataan tarvittaessa. **Hae** (Ctrl/⌘ K)
-löytää työkalut ja toiminnot myös tutuilla sanoilla, kuten ”pyöristys” tai ”materiaali”.
-**Valitse toinen** näyttää osoitetun kohdan päällekkäiset osat ja esikorostaa
-myös peitossa olevan osan ennen valintaa. Aiemmat mallinnus-, piirustus-,
-renderöinti- ja suuren mallin työkalut ovat mukana.
+Versio **0.16.0** korjaa pitkien reunojen tartunnan perspektiivissä ja
+apuviivoista piirtämisen. Siirron mittasyöttö seuraa käytössä olevaa akselia
+ja suuntaa. **Toista** tekee saman siirron tai kopiosarjan annetulla määrällä.
+Sininen valintaruutu vasemmalta oikealle valitsee kokonaan sisällä olevat osat;
+oranssi ruutu oikealta vasemmalle myös osittain alueeseen osuvat osat.
+Kynä hyväksyy avoimet viivat ja jakaa muokkaustilan pinnan reunasta reunaan.
+**Leikkaa aukko** vie suljetun muodon valittujen osien läpi. Ryhmän poisto
+säilyttää osat, ja **Siirrä ryhmään** löytyy Toiminnot-valikosta.
+Kierto tarttuu 5° välein; Shift vapauttaa kierron.
 [Mitattu suorituskyky ja rajat](docs/performance.md).
 
 - Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
@@ -57,6 +60,23 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
 
 ## Yhteinen työskentelytapa
 
+- Valintaruutu toimii Valitse-tilassa ja tyhjästä alkavana vetona myös
+  siirtotyökalussa. **Vasemmalta oikealle: sininen, kokonaan sisällä**.
+  **Oikealta vasemmalle: oranssi katkoreuna, alueeseen osuvat**. Shift lisää
+  aiempaan valintaan. Osumat perustuvat mallin muotoon ja näkyvään leikkaukseen.
+- Siirrossa numeron kirjoittaminen aloittaa vetosuunnan akselin kentästä.
+  Esimerkiksi alaspäin aloitettu Z-siirto ja `150` antaa `−150 mm`.
+  Kirjoitettu `+150` tai `−150` valitsee etumerkin suoraan; kentän napsautus
+  ja Tab toimivat edelleen koordinaattikohtaisesti.
+- Siirron tai kopioinnin jälkeen **Toista** jatkaa samalla välillä ja suunnalla.
+  **Lisätoistoja 3** tekee kolme uutta toistoa viimeisen tuloksen jälkeen.
+  Kopiointi säilyttää ryhmät ja komponenttien linkityksen. Siirron toisto
+  siirtää samoja osia. Yksi Peru kumoaa koko toistosarjan. Uusi mallin muutos,
+  Peru tai projektin vaihto päättää vanhan toiston; sitä ei tallenneta projektiin.
+- Apuviiva toimii muodon aloituspisteenä myös tyhjässä tilassa ja säilyttää
+  oikean piirtotason. Lattiasta ylös nostetusta apuviivasta voi jatkaa uutta
+  rinnakkaista apuviivaa. Komponenttia osoitettaessa käytetään sen näkyvää pintaa;
+  reunassa ja kulmassa kameran suunta auttaa valitsemaan viereisistä pinnoista.
 - Paneelin yläosa kertoo työkalun, kohteen ja seuraavan vaiheen. **Uusi osa**
   ja **Muokkaa osaa** erottuvat toisistaan. Akseli ja kopiointitila näkyvät samassa yhteydessä.
 - Napsauta muodon aloituspistettä ja vastapistettä tai vedä. Numeron kirjoittaminen
@@ -211,8 +231,12 @@ siirtää itsensä tai oman alaryhmänsä sisään. **Luo alaryhmä** kokoaa val
 osat uuden alaryhmän alle.
 
 Ryhmän silmä ja lukko koskevat koko hierarkiaa. Ryhmän näyttäminen tai
-vapauttaminen säilyttää osien omat piilotukset ja lukot. **Ryhmän asetukset → Pura ryhmä** säilyttää
-osat ja nostaa sen suorat osat sekä alaryhmät ylemmälle tasolle.
+vapauttaminen säilyttää osien omat piilotukset ja lukot. **Poista ryhmä** säilyttää
+osat ja nostaa sen suorat osat sekä alaryhmät ylemmälle tasolle. Myös tyhjän
+ryhmän voi poistaa painikkeella tai Delete-näppäimellä. Valitun, osia sisältävän
+ryhmän Delete poistaa valitut osat; molemmat toiminnot ovat peruttavissa.
+**Toiminnot → Siirrä ryhmään** siirtää osan, monivalinnan tai ryhmän
+pudotusvalikosta valittuun ryhmään tai päätasolle muuttamatta sijaintia.
 
 Valitse ryhmä ja napsauta osia ilman lisänäppäintä poistaaksesi tai lisätäksesi
 niitä valintaan. Sininen korostus kertoo valitun joukon. **Sovita valinta** tuo
@@ -330,6 +354,26 @@ rakennusmuodot, apuviivat ja valintakahvat eivät tule esityskuvaan.
 Nopea esikatselu ja valinnainen tarkentuva path tracing käyttävät WebGL2:ta. Omat valaistusympäristöt ja erillinen
 UV-saarekkeiden editori ovat jatkotyötä. Kuviointi käyttää kappaleen omaan
 koordinaatistoon sidottua kolmen suunnan projektiota ja pehmeää saumasekoitusta.
+
+## Avoin kynäviiva ja nopea aukko
+
+**Kynä → kaksi tai useampia pisteitä → Enter / Valmis viiva** tekee avoimen
+viivan. Muokkaustilassa reunasta reunaan kulkeva viiva jakaa pinnan eri alueiksi,
+joita voi muokata E:llä. Pinnalle kesken päättyvä viiva säilyy erillisenä
+piirrosviivana. Normaalitilassa viiva ei muokkaa alla olevaa komponenttia.
+Viivan voi valita, siirtää, tallentaa ja poistaa; U kumittaa myös piirrosviivan.
+Suljettu muoto syntyy edelleen palaamalla alkupisteeseen tai **Sulje muoto** -painikkeella.
+
+**Leikkaa aukko** löytyy valmiin nollapaksuisen muodon yhteydestä sekä valitun
+muodon Toiminnot-valikosta. Suorakulmio, ympyrä, ellipsi, monikulmio tai suljettu
+kynämuoto leikkaa kohtisuoraan molempiin suuntiin näkyvien, vapaiden osien läpi.
+Oikean reunan paneeli listaa ja korostaa todelliset kohteet; yksittäisen osan voi
+jättää pois. Piilotetut ja Hold-osat säilyvät. Leikattavat komponentit tehdään
+uniikeiksi, jotta eri kohdassa olevaan linkitettyyn kopioon ei synny aukkoa.
+Piirretty muoto poistuu oletuksena; **Säilytä piirretty muoto** jättää sen malliin.
+Yksi Peru palauttaa koko leikkauksen. Cut/Join säilyy yleistä kappaletyöstöä varten.
+
+![Aukon kohteet korostuvat, oikean reunan paneeli sallii osan jättämisen pois](docs/images/nivo-opening-v016.png)
 
 ## Uusi osa, muokkaustila ja kumitus
 
@@ -562,7 +606,7 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
 - **Kierrä (R):** valitse yksi tai useampi kappale. Keskipiste ja origo ovat
   pikavalintoja; **Poimi kiertopiste** hyväksyy pisteen ja **Poimi kiertoakseli reunasta**
   suoran reunan. Vedä värirengasta tai kirjoita tarkka kulma. X/Y/Z valitsee akselin,
-  Shift porrastaa vedon 15 asteeseen. Enter tai hiiren vapautus hyväksyy.
+  Veto tarttuu 5° välein, vahvemmin pääsuuntiin. Shift vapauttaa tartunnan. Enter tai hiiren vapautus hyväksyy.
 - **Origoon:** kohdista valinnan yhteinen alakulma tai keskipiste origoon yhdellä
   painikkeella. Kappaleiden keskinäiset sijainnit säilyvät. Näkymän ristikkopainike
   keskittää kameran origoon liikuttamatta mallia.
@@ -656,27 +700,26 @@ ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testatt
 
 ## Rajaus ja jatko
 
-V0.4 tukee suorakulmioita, ympyröitä, ellipsejä, tasomaisia kynämuotoja,
-tasopintojen jakoa ja push/pullia sekä Cut/Join-operaatioita. Kaarevalle pinnalle
-piirtäminen ja kaarevan sivupinnan push/pull eivät ole mukana.
-Apuviivoihin tartunta edellyttää samaa piirtotasoa;
-haettu viitepiste projisoidaan piirtotasoon. Reunan tartunta tukee suoria CAD-reunoja.
-Yleinen pintamuokkaus tallentaa tarkan BRep-geometrian. Ennallaan säilyvät
-CAD-verteksit säilyttävät viitteensä; poistuneet kohteet näytetään rikkoutuneina.
-Join siirtää säilyvät lähdeviitteet tuloskappaleeseen. Siirtyvien tai muuttuvien
-topologiakohteiden yleinen nimeäminen on jatkotyötä.
-Mesh-tuonti, layerit, linkitetyt
-komponentit, referenssikuvan kalibrointi ja tallennetut kamerat
-sekä STEP-, STL- ja GLB-vienti ovat seuraavien vaiheiden töitä.
+Tasopintojen mallinnus, ryhmät, kokoonpanot, linkitetyt komponentit, pohjakuvan
+kalibrointi ja näkymäleikkaukset ovat käytössä. Kaarevalle pinnalle piirtäminen,
+kaarevan sivupinnan push/pull, yleinen parametrinen piirrehistoria ja
+luonnosten rajoiteratkaisin ovat jatkokehitystä.
 
-Piirustus sisältää yhden ortografisen näkymän, osien kokonaismittoja ja näkymään sopivat kahden pisteen mitat. Automaattisten kokonaismittojen vapaa
-sijoittelu, useat näkymät ja leikkaukset kuuluvat vaiheeseen 6.
-**Käytettävyys ja perustyökalut ovat seuraavien vaiheiden etusijalla.**
-Layerit ja linkitetyt komponentit seuraavat toimivaa mallinnuksen perustaa.
+Apuviivojen tavallinen tartunta käyttää piirtotasoa; haettu viitepiste voidaan
+projisoida lukitulle suunnalle. Reunan tartunta tukee suoria CAD-reunoja.
+Geometriamuutoksessa säilyvät CAD-verteksit säilyttävät viitteensä; poistuneet
+kohteet näytetään rikkoutuneina. Topologiakohteiden yleinen nimeäminen,
+mesh-tuonti, layerit, tallennetut kamerat sekä STEP-, STL- ja GLB-vienti
+ovat jatkotyötä.
+
+Mittakuvien seuraava kokonaisuus on useiden näkymien ja leikkausten
+asettelu samalle arkille. CNC-työstöradat, konekohtaiset ohjeet ja vapaamuotoinen
+nesting eivät sisälly nykyiseen suorakulmaisten aihioiden leikkauslistaan.
+**Käytettävyys ja perustyökalujen luotettavuus ohjaavat kehitysjärjestystä.**
 
 - [Alkuperäinen määrittely](docs/requirements.fi.md)
 - [Arkkitehtuuri ja päätökset](docs/architecture.md)
-- [Projektiformaatti v6](docs/project-format.md)
+- [Projektiformaatti v7](docs/project-format.md)
 - [Toteutusvaiheet](docs/roadmap.md)
 
 ## Lisenssi

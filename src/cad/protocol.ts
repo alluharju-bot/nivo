@@ -83,6 +83,9 @@ export interface SectionResult {
 }
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
+  | { type: 'pen-path'; points: Vec3[]; name: string }
+  | { type: 'split-path'; body: Body; face: FaceRef; path: Body }
+  | { type: 'cut-opening'; profile: Body; targets: Body[] }
   | { type: 'section'; bodies: Body[]; section: Section; drawing: boolean }
   | { type: 'instances'; source: Body; targets: Body[] }
   | { type: 'sync'; updates: Body[]; order: string[] }
@@ -128,7 +131,8 @@ export interface CadReply {
     | SplitResult
     | FaceSpan
     | number[]
-    | EdgeDetailResult;
+    | EdgeDetailResult
+    | import('./paths').OpeningResult;
   meshDelta?: BodyMesh[];
   error?: string;
 }

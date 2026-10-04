@@ -200,5 +200,6 @@ export function useEditor() {
     cancel,
     canUndo: history.canUndo,
     canRedo: history.canRedo,
+    revision: () => revision.current,
   };
 }

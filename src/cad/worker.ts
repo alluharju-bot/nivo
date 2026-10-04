@@ -1,3 +1,4 @@
+import { penPath, splitWithPath, cutOpening } from './paths';
 import { translateMesh } from './translateMesh';
 import { sectionBodies } from './sections';
 import initOpenCascade from 'replicad-opencascadejs';
@@ -83,7 +84,12 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
           .map((entry) => entry.mesh);
         syncedBodies = new Map(ordered.map((body) => [body.id, body]));
         sentMeshes = new Map(entries.map((entry) => [entry.mesh.id, entry.mesh]));
-      } else if (request.type === 'instances')
+      } else if (request.type === 'pen-path') reply.result = penPath(request.points, request.name);
+      else if (request.type === 'split-path')
+        reply.result = splitWithPath(request.body, request.face, request.path);
+      else if (request.type === 'cut-opening')
+        reply.result = cutOpening(request.profile, request.targets);
+      else if (request.type === 'instances')
         reply.result = instantiateComponents(request.source, request.targets);
       else if (request.type === 'rotate')
         reply.result = rotateBodies(request.bodies, request.pivot, request.axis, request.angle);

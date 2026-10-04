@@ -2,6 +2,39 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.16 — tartunta, toisto, kynäviivat ja nopeat aukot
+
+Toteutettu: pitkän reunan tartunta läheisessä perspektiivissä myös silloin,
+kun reunan pää jatkuu kameran taakse. Apuviiva määrää uuden muodon aloitustason
+myös ilman tukipintaa. Akselilla nostetun viivan suunta ja siirtymä määräävät
+sen todellisen tason, joten ketjutus 800 mm + 1 000 mm toimii vanhoillekin viivoille.
+Tason suuntainen katsesäde ei tuota äärettömän suuria mittalukemia.
+
+Siirron numerosyöttö seuraa vedon akselia ja etumerkkiä. Toista + lisätoistojen
+määrä toimii siirroille ja kopioille, myös ryhmille ja linkitetyille komponenteille.
+Sarja on yksi Peru-askel; projekti- ja Hold-rajat tarkistetaan ennen hyväksyntää.
+
+Vasemmalta oikealle vedetty sininen ruutu valitsee kokonaan sisällä olevat osat.
+Oikealta vasemmalle vedetty oranssi katkoreunainen ruutu valitsee muotoon osuvat
+osat. Shift lisää valintaan ja muokkaustilan rajaus säilyy. Osumavalinta
+huomioi tarkan näyttöverkon, ontelot sekä poikkileikkaus- ja kamerarajat.
+
+Kynän Enter päättää avoimen viivan. Osan muokkaustilassa reunasta reunaan
+kulkeva viiva jakaa pinnan muuttamatta tilavuutta; muut viivat ovat erillisiä
+CAD-piirrosviivoja, joihin voi tarttua ja joita voi siirtää tai kumittaa.
+Suljetun muodon Leikkaa aukko laskee todelliset kohteet ja leikkaa valittujen
+osien läpi molempiin suuntiin. Hold ja piilotus säilyvät, komponentit tehdään
+paikallisesti uniikeiksi ja koko leikkaus palautuu yhdellä Peru-askeleella.
+
+Poista ryhmä säilyttää osat ja alaryhmät ylemmällä tasolla. Ryhmän valinta
+toimii myös sen ollessa tyhjä, ja Toiminnot-valikon Siirrä ryhmään tarjoaa
+saman järjestelyn osalle, monivalinnalle ja ryhmälle. Kierto tarttuu 5° välein,
+vahvemmin neljänneskierroksiin; Shift vapauttaa kierron ja numerosyöttö säilyy tarkkana.
+
+Mahdollinen jatko toistolle: kiertosarjat ja erillinen jako kahden päätepisteen
+välille. Push/pullin tai Cut-operaation yleinen toisto tarvitsee oman kohde-
+ja pintaviitteiden logiikan; niitä ei toisteta tämän siirtotoiminnon kautta.
+
 ## V0.15 — yksi ymmärrettävä työskentelytapa
 
 Toteutettu: työkalun yhteinen konteksti oikean paneelin yläosassa, yksi

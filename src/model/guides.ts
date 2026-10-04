@@ -1,5 +1,6 @@
 import { corners, type Anchor, type Body, type Guide, type Vec3, type WorkPlane } from './project';
 import { add, dot, scale, sub, unit } from './geometry';
+import { cross } from './sketch';
 
 export const planeAxes: Record<WorkPlane, [number, number, number]> = {
   XY: [0, 1, 2],
@@ -97,6 +98,19 @@ export function guidePoints(bodies: Body[], guide: Guide): [Vec3, Vec3] | undefi
 }
 export function guideVector(guide: Guide): Vec3 {
   return guide.direction ? unit(guide.direction) : guideDirection(guide.plane, guide.angle);
+}
+/** An axis offset can move a guide out of its original work plane. */
+export function guidePlaneNormal(guide: Guide): Vec3 {
+  const direction = guideVector(guide);
+  if (guide.offset) {
+    const normal = cross(direction, guide.offset);
+    if (Math.hypot(...normal) > 1e-8) return unit(normal);
+  }
+  const normal: Vec3 = [0, 0, 0];
+  normal[planeAxes[guide.plane][2]] = 1;
+  const perpendicular = sub(normal, scale(direction, dot(normal, direction)));
+  if (Math.hypot(...perpendicular) > 1e-8) return unit(perpendicular);
+  return unit(cross(direction, Math.abs(direction[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]));
 }
 // Offset guides measure across the gap from their source, never along the edge.
 export function guideMeasurement(bodies: Body[], guide: Guide): [Vec3, Vec3] | undefined {

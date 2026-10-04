@@ -389,17 +389,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                   ? '#0066bf'
                   : cutter
                     ? '#cc3d28'
-                    : auxiliary
-                      ? body.purpose === 'construction'
-                        ? '#1289c6'
-                        : '#9865b4'
-                      : body.locked
-                        ? '#684294'
-                        : selected
-                          ? props.selectedGroupId
-                            ? '#356eab'
-                            : '#237b65'
-                          : '#766851',
+                    : selected && !data.faces.length
+                      ? '#237b65'
+                      : auxiliary
+                        ? body.purpose === 'construction'
+                          ? '#1289c6'
+                          : '#9865b4'
+                        : body.locked
+                          ? '#684294'
+                          : selected
+                            ? props.selectedGroupId
+                              ? '#356eab'
+                              : '#237b65'
+                            : '#766851',
           transparent: true,
           opacity: reference
             ? 0.65
@@ -418,7 +420,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         });
         outline.computeLineDistances();
       }
-      outline.userData = { id: body.id, constructionLine };
+      outline.userData = { id: body.id, constructionLine, wireOnly: !data.faces.length };
       bodies.add(outline);
       let boundary: THREE.Box3Helper | undefined;
       if (context) {

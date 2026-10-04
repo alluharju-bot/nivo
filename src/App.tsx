@@ -1,3 +1,4 @@
+import { SelectionDialog } from './ui/SelectionDialog';
 import { SectionDrawing } from './drawing/SectionDrawing';
 import { ActivityHistory } from './ui/ActivityHistory';
 import { useActivityHistory } from './ui/useActivityHistory';
@@ -10,6 +11,8 @@ import { ContextActions, type QuickAction } from './ui/ContextActions';
 import { CommandSearch } from './ui/CommandSearch';
 import type { Command } from './ui/commands';
 import { ToolContext } from './ui/ToolContext';
+import { RepeatAction } from './ui/RepeatAction';
+import { repeatTranslation } from './model/repeat';
 import { OverlapPicker, type PickCandidate } from './ui/OverlapPicker';
 import { defaultAppearance } from './model/materials';
 import { CabinetBuilder } from './ui/CabinetBuilder';
@@ -228,11 +231,11 @@ const instructions: Record<Tool, string> = {
   erase:
     'U · Osoita pintojen välistä jakoviivaa. Korostetut tasopinnat yhdistyvät klikkauksella. Kulmat ja aukot säilyvät.',
   rotate:
-    'R · Poimi kiertopiste tai reuna. Vedä rengasta tai anna kulma. X/Y/Z valitsee akselin; Shift porrastaa 15°. Esc peruu toiminnon; seuraava Esc päättää työkalun.',
+    'R · Poimi kiertopiste tai reuna. Vedä rengasta tai anna kulma. X/Y/Z valitsee akselin; veto tarttuu 5° välein. Shift kiertää vapaasti. Esc peruu toiminnon; seuraava Esc päättää työkalun.',
   offset:
     'O · Osoita pintaa ja liikuta hiirtä tai vedä pinnasta. Kirjoita tarkka mitta. Klikkaus, vapautus tai Enter hyväksyy. Esc peruu.',
   select:
-    'Klikkaus valitsee osan. Vedä laatikko valitaksesi sen sisällä olevat osat. Shift lisää valintaan; M siirtää valitut. Tuplaklikkaus avaa osan muokattavaksi. E/O muokkaa osoitettua pintaa.',
+    'Klikkaus valitsee osan. Veto vasemmalta oikealle valitsee kokonaan sisällä olevat osat, oikealta vasemmalle kaikki alueeseen osuvat. Shift lisää valintaan. M siirtää; tuplaklikkaus avaa osan.',
   rectangle:
     'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. X/Y/Z vaihtaa piirtotasoa. Myös veto tai numerosarja → Tab toimii. Enter hyväksyy.',
   circle:
@@ -360,6 +363,15 @@ export default function App() {
   const [keepTools, setKeepTools] = useState(true);
   const [pickDepth, setPickDepth] = useState(false);
   const [copyMove, setCopyMove] = useState(false);
+  const [moveInputAxis, setMoveInputAxis] = useState<Axis>();
+  const [repeatStep, setRepeatStep] = useState<{
+    revision: number;
+    ids: string[];
+    groupId?: string;
+    offset: Vec3;
+    copy: boolean;
+  }>();
+  const [repeatCount, setRepeatCount] = useState('1');
   const copyMoveRef = useRef(false);
   const pickedFaceRef = useRef<{ bodyId: string; face: FaceRef } | undefined>(undefined);
   const hoveredFaceRef = useRef<FaceTarget | undefined>(undefined);
@@ -382,6 +394,18 @@ export default function App() {
   const [tool, setTool] = useState<Tool>('select');
   const [renderOpen, setRenderOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
+  const [groupMove, setGroupMove] = useState<TreeMove>();
+  const [groupDestination, setGroupDestination] = useState('');
+  const [openingDraft, setOpeningDraft] = useState<{
+    profile: Body;
+    bodies: Body[];
+    affected: string[];
+    included: string[];
+    revision: number;
+    keep: boolean;
+  }>();
+  const [openingBusy, setOpeningBusy] = useState(false);
+  const openingRequest = useRef(0);
   const [actionMenu, setActionMenu] = useState<{
     x: number;
     y: number;
@@ -732,6 +756,10 @@ export default function App() {
     setLocked(new Set());
   };
   const resetGesture = () => {
+    openingRequest.current++;
+    setOpeningBusy(false);
+    setOpeningDraft(undefined);
+    setGroupMove(undefined);
     setPickOthers(false);
     setPickList(undefined);
     setPickHovered(undefined);
@@ -740,6 +768,7 @@ export default function App() {
     setDetailTarget(undefined);
     detailDragBefore.current = undefined;
     copyMoveRef.current = false;
+    setMoveInputAxis(undefined);
     setCopyMove(false);
     rotationRef.current = undefined;
     setRotationDraft(undefined);
@@ -1482,6 +1511,61 @@ export default function App() {
           editor.setError('');
           return;
         }
+        if (!forceClose) {
+          if (penRef.current.length < 2) {
+            editor.setMessage('Valitse vähintään kaksi pistettä.');
+            return;
+          }
+          committing.current = true;
+          const path = {
+            ...(await editor.cad.penPath(
+              penRef.current,
+              shapeName || `Kynäviiva ${project.bodies.length + 1}`,
+            )),
+            groupId: openedAssembly,
+          };
+          const target =
+            editingBodyId && surfaceMode === 'region' && shapePurpose === 'model'
+              ? sketchTargetRef.current
+              : undefined;
+          const source = project.bodies.find((b) => b.id === target?.bodyId);
+          let chosen = path.id,
+            region: FaceRef | undefined;
+          const success = await editor.transact(
+            async () => {
+              if (target && source && source.id === editingBodyId) {
+                requireMovable([source], project.groups);
+                const result = await editor.cad.splitPath(source, target.face, path);
+                if (!result.unchanged) {
+                  chosen = source.id;
+                  region = result.face;
+                  return {
+                    ...project,
+                    bodies: project.bodies.map((b) => (b.id === source.id ? result.body : b)),
+                  };
+                }
+              }
+              return {
+                ...project,
+                bodies: [
+                  ...project.bodies,
+                  {
+                    ...path,
+                    purpose:
+                      shapePurpose === 'construction'
+                        ? ('construction' as const)
+                        : ('drawing' as const),
+                  },
+                ],
+              };
+            },
+            target
+              ? 'Viiva valmis. Reunasta reunaan kulkeva viiva jakaa pinnan; E muokkaa aluetta.'
+              : 'Piirrosviiva valmis. Pisteisiin ja reunaan voi tarttua.',
+          );
+          if (success) finishOperation(chosen, region);
+          return;
+        }
         let candidate = {
           ...makePolygonBody(penRef.current, shapeName || `Kynämuoto ${project.bodies.length + 1}`),
           purpose: shapePurpose,
@@ -1547,6 +1631,8 @@ export default function App() {
           return;
         }
         const source = project.bodies.find((b) => b.id === candidate.id)!;
+        const offset = sub(candidate.origin, source.origin);
+        const copying = copyMoveRef.current;
         const result = translateSelection(
           project,
           selectedIds.length ? selectedIds : [source.id],
@@ -1571,6 +1657,18 @@ export default function App() {
           finishOperation(result.ids[0]);
           setSelectedIds(result.ids);
           setSelectedGroupId(result.groupId);
+          setRepeatStep(
+            Math.hypot(...offset) > 1e-8
+              ? {
+                  revision: editor.revision(),
+                  ids: result.ids,
+                  groupId: result.groupId,
+                  offset,
+                  copy: copying,
+                }
+              : undefined,
+          );
+          setRepeatCount('1');
         }
       }
     } catch (e) {
@@ -1749,6 +1847,7 @@ export default function App() {
     } else if (event.type === 'offset') {
       if (!lockRef.current.has('offset')) writeFields({ offset: inputNumber(event.distance) });
     } else if (event.type === 'move') {
+      setMoveInputAxis(event.axis);
       const source = project.bodies.find((b) => b.id === event.bodyId) ?? body;
       if (!source) return;
       for (const [i, key] of ['x', 'y', 'z'].entries())
@@ -2019,7 +2118,11 @@ export default function App() {
                       }));
   const removeBody = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
-    if (!ids.length || busy) return;
+    if (busy) return;
+    if (!ids.length) {
+      if (selectedGroup) await removeGroup(selectedGroup.id);
+      return;
+    }
     try {
       if (
         await editor.transact(
@@ -2208,7 +2311,7 @@ export default function App() {
     if (
       await editor.transact(
         dissolveGroup(project, id),
-        'Ryhmä purettu. Osat ja alaryhmät säilyivät.',
+        'Ryhmä poistettu. Osat ja alaryhmät säilyivät ylemmällä tasolla.',
       )
     )
       setSelectedGroupId(undefined);
@@ -2376,10 +2479,14 @@ export default function App() {
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || cabinetOpen || actionMenu) return;
-      if (commandOpen || pickList) {
+      if (commandOpen || pickList || groupMove || openingDraft || openingBusy) {
         if (event.key === 'Escape') {
           event.preventDefault();
           setCommandOpen(false);
+          setGroupMove(undefined);
+          openingRequest.current++;
+          setOpeningBusy(false);
+          setOpeningDraft(undefined);
           setPickList(undefined);
           setPickHovered(undefined);
         }
@@ -2435,7 +2542,15 @@ export default function App() {
         event.preventDefault();
         flushSync(() => {
           setAwaitingStart(false);
-          field(numericFields[0].key, event.key);
+          const key = tool === 'move' ? (axis ?? moveInputAxis ?? 'x') : numericFields[0].key;
+          field(
+            key,
+            tool === 'move' &&
+              /^[\d.,]$/.test(event.key) &&
+              Number(fieldsRef.current[key as 'x' | 'y' | 'z']) < 0
+              ? `-${event.key}`
+              : event.key,
+          );
         });
         const input = document.querySelector<HTMLInputElement>(
           `[data-testid="${numericFields[0].testId}"]`,
@@ -2515,7 +2630,10 @@ export default function App() {
         setSelectedIds(ids);
         setSelectedGroupId(id);
         setMultiSelect(project.groups.find((g) => g.id === id)?.kind !== 'assembly');
-        if (tool === 'rotate') startRotation(ids);
+        if (!ids.length) {
+          resetGesture();
+          setTool('select');
+        } else if (tool === 'rotate') startRotation(ids);
       }}
       onBody={(id, patch) => void patchBodies([id], patch)}
       onGroup={(id, patch) => void patchGroup(id, patch)}
@@ -2584,6 +2702,115 @@ export default function App() {
   )
     ? 'Vapauta valinnan Hold ennen muokkaamista.'
     : undefined;
+  const canRepeat =
+    repeatStep &&
+    repeatStep.revision === editor.revision() &&
+    repeatStep.ids.length === selectedIds.length &&
+    repeatStep.ids.every((id) => selectedIdSet.has(id)) &&
+    !gestureActive.current &&
+    !movementBlocked;
+  const repeatLabel =
+    repeatStep?.offset
+      .map((n, i) => (n ? `${'XYZ'[i]} ${n > 0 ? '+' : ''}${formatLength(n)} mm` : ''))
+      .filter(Boolean)
+      .join(' · ') ?? '';
+  const repeatLast = async () => {
+    if (!canRepeat || !repeatStep || busy || committing.current) return;
+    committing.current = true;
+    try {
+      const result = repeatTranslation(
+        project,
+        repeatStep.ids,
+        repeatStep.offset,
+        Number(repeatCount),
+        repeatStep.copy,
+        repeatStep.groupId,
+      );
+      if (
+        await editor.transact(
+          result.project,
+          `${repeatStep.copy ? 'Kopiointi' : 'Siirto'} toistettu ${repeatCount} kertaa · ${repeatStep.ids.length} osaa · ${repeatLabel}`,
+        )
+      ) {
+        finishOperation(result.ids[0]);
+        setSelectedIds(result.ids);
+        setSelectedGroupId(result.groupId);
+        setRepeatStep({
+          ...repeatStep,
+          revision: editor.revision(),
+          ids: result.ids,
+          groupId: result.groupId,
+        });
+      }
+    } catch (error) {
+      editor.setError((error as Error).message);
+    } finally {
+      committing.current = false;
+    }
+  };
+  const canCutOpening =
+    !!body &&
+    !featureIsSolid(body.feature) &&
+    !bodyLocked(body, project.groups) &&
+    editor.meshes.find((m) => m.id === body.id)?.faces.length === 1 &&
+    !editingBodyId;
+  const prepareOpening = async () => {
+    if (!body || !canCutOpening || busy || openingBusy) return;
+    const revision = editor.revision(),
+      request = ++openingRequest.current;
+    setOpeningBusy(true);
+    editor.setError('');
+    try {
+      const targets = visibleBodies.filter(
+        (b) => b.id !== body.id && featureIsSolid(b.feature) && !bodyLocked(b, project.groups),
+      );
+      const result = await editor.cad.cutOpening(body, targets);
+      if (revision !== editor.revision() || request !== openingRequest.current) return;
+      if (!result.affected.length) {
+        editor.setMessage('Muodon kohdalla ei ole leikattavia näkyviä, vapaita osia.');
+        return;
+      }
+      setOpeningDraft({
+        profile: body,
+        ...result,
+        included: result.affected,
+        revision,
+        keep: false,
+      });
+    } catch (e) {
+      editor.setError((e as Error).message);
+    } finally {
+      if (request === openingRequest.current) setOpeningBusy(false);
+    }
+  };
+  const acceptOpening = async () => {
+    const draft = openingDraft;
+    if (!draft || busy || !draft.included.length) return;
+    if (draft.revision !== editor.revision()) {
+      setOpeningDraft(undefined);
+      editor.setMessage('Malli muuttui. Valitse Leikkaa aukko uudelleen.');
+      return;
+    }
+    const results = new Map(draft.bodies.map((b) => [b.id, b]));
+    const removed = draft.included.filter((id) => !results.has(id));
+    if (!draft.keep) removed.push(draft.profile.id);
+    const cleaned = removeSelection(project, removed);
+    const next = uniqueComponents(
+      {
+        ...cleaned,
+        bodies: cleaned.bodies.flatMap((b) => {
+          if (!draft.included.includes(b.id)) return [b];
+          const result = results.get(b.id);
+          return result ? [result] : [];
+        }),
+      },
+      draft.included,
+    );
+    if (await editor.transact(next, `Aukko leikattu läpi ${draft.included.length} osasta.`)) {
+      setOpeningDraft(undefined);
+      finishOperation(draft.included.find((id) => results.has(id)));
+    }
+  };
   const quickActions: QuickAction[] = selectedGuide
     ? [
         { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
@@ -2614,6 +2841,15 @@ export default function App() {
           reason: movementBlocked,
           disabled: busy || !body,
         },
+        ...(canCutOpening
+          ? [
+              {
+                label: 'Leikkaa aukko…',
+                run: () => void prepareOpening(),
+                disabled: busy || openingBusy,
+              },
+            ]
+          : []),
         { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
         { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
         {
@@ -2629,6 +2865,32 @@ export default function App() {
               {
                 label: 'Luo kokoonpano',
                 run: () => void createGroup(openedAssembly, true),
+                disabled: busy,
+              },
+            ]
+          : []),
+        {
+          label: 'Siirrä ryhmään…',
+          run: () => {
+            setGroupDestination(selectedGroup?.parentId ?? body?.groupId ?? '');
+            setGroupMove(
+              selectedGroup
+                ? { kind: 'group', id: selectedGroup.id }
+                : { kind: 'bodies', ids: [...selectedIds] },
+            );
+          },
+          disabled:
+            busy ||
+            editing ||
+            !!editingBodyId ||
+            !!openedAssembly ||
+            (!selectedGroup && !selectedIds.length),
+        },
+        ...(selectedGroup
+          ? [
+              {
+                label: 'Poista ryhmä',
+                run: () => void removeGroup(selectedGroup.id),
                 disabled: busy,
               },
             ]
@@ -2947,7 +3209,17 @@ export default function App() {
         docked={panelOpen}
         locked={locked}
         onChange={field}
-        activeKey={tool === 'extrude' ? extrusionMode : undefined}
+        activeKey={
+          tool === 'extrude' ? extrusionMode : tool === 'move' ? (axis ?? moveInputAxis) : undefined
+        }
+        initialValue={
+          tool === 'move'
+            ? (key, character) =>
+                /^[\d.,]$/.test(character) && Number(fieldsRef.current[key as 'x' | 'y' | 'z']) < 0
+                  ? `-${character}`
+                  : character
+            : undefined
+        }
         onActivate={tool === 'extrude' ? activateExtrusion : undefined}
         onAccept={() => void apply()}
         onCancel={() => cancel()}
@@ -3682,7 +3954,7 @@ export default function App() {
               editingBodyId={editingBodyId}
               scopeIds={scopeIds}
               onPaint={paintBody}
-              modalOpen={commandOpen || !!pickList}
+              modalOpen={commandOpen || !!pickList || !!groupMove || !!openingDraft || openingBusy}
               pickOthers={pickOthers}
               pickHoveredIds={pickPreviewIds}
               onPickCandidates={(list) => {
@@ -3714,13 +3986,22 @@ export default function App() {
               onCloseBodyEdit={closeBodyEdit}
               onEditBlocked={explainEditContext}
               onRemoveBoundary={(target) => void eraseBoundary(target)}
+              onRemoveWire={(id) => {
+                if (!busy) {
+                  try {
+                    void editor.transact(removeSelection(project, [id]), 'Piirrosviiva poistettu.');
+                  } catch (e) {
+                    editor.setError((e as Error).message);
+                  }
+                }
+              }}
               onRemoveGuide={(id) => void removeGuide(id)}
               assets={project.assets}
               bodies={visibleBodies}
               meshes={visibleMeshes}
               selected={selected}
               selectedIds={selectedIds}
-              moveHoveredIds={moveHoveredIds}
+              moveHoveredIds={openingDraft?.included ?? moveHoveredIds}
               onMoveHover={(id) => {
                 setMoveHovered(id);
                 return id
@@ -4190,6 +4471,17 @@ export default function App() {
                 />
               )}
               {numericInput}
+              {canRepeat && ['select', 'move'].includes(tool) && (
+                <RepeatAction
+                  copy={repeatStep.copy}
+                  parts={repeatStep.ids.length}
+                  offset={repeatLabel}
+                  count={repeatCount}
+                  busy={busy}
+                  onCount={setRepeatCount}
+                  onRepeat={() => void repeatLast()}
+                />
+              )}
               {tool === 'paint' ? null : tool === 'measure' && measureMode === 'dimension' ? (
                 <section className="dimension-tool-panel" aria-label="Dimensio">
                   <h2>Kahden pisteen dimensio</h2>
@@ -4417,9 +4709,18 @@ export default function App() {
                             : 'Valitse piste työtasolta tai kappaleen pinnalta'
                         }
                         onAccept={() => {
-                          if (!awaitingStart) void apply(tool === 'pen');
+                          if (!awaitingStart) void apply();
                         }}
                       />
+                    )}
+                    {canCutOpening && awaitingStart && (
+                      <button
+                        className="button outlined"
+                        disabled={busy || openingBusy}
+                        onClick={() => void prepareOpening()}
+                      >
+                        {openingBusy ? 'Etsitään leikattavia osia…' : 'Leikkaa aukko…'}
+                      </button>
                     )}
                     {tool === 'extrude' && faceTarget && (
                       <div className="shape-properties">
@@ -4531,8 +4832,9 @@ export default function App() {
                     {tool === 'pen' && (
                       <>
                         <p className="muted">
-                          {penPoints.length} verteksiä. Palaa ensimmäiseen verteksiin sulkeaksesi
-                          muodon.
+                          {penPoints.length} pistettä. Enter päättää viivan. Palaa alkupisteeseen
+                          sulkeaksesi muodon. Muokkaustilassa reunasta reunaan piirretty viiva jakaa
+                          pinnan.
                         </p>
                         <button
                           className="button outlined"
@@ -4540,6 +4842,16 @@ export default function App() {
                           onClick={() => void apply(true)}
                         >
                           Sulje muoto
+                        </button>
+                        <button
+                          className="button outlined"
+                          disabled={penPoints.length < 2 || busy}
+                          onClick={() => {
+                            clearLocks();
+                            void apply();
+                          }}
+                        >
+                          Valmis viiva
                         </button>
                         <button
                           className="button subtle"
@@ -4909,7 +5221,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.15.0</span>
+                    <span>v0.16.0</span>
                   </div>
                 </>
               )}
@@ -4918,6 +5230,111 @@ export default function App() {
         )}
       </div>
 
+      {openingDraft && (
+        <SelectionDialog
+          side
+          title="Leikkaa aukko"
+          onClose={() => !busy && setOpeningDraft(undefined)}
+        >
+          <p>
+            Muoto leikkaa kohtisuoraan molempiin suuntiin kaikkien valittujen osien läpi. Korostetut
+            osat muuttuvat. Piilotetut ja Hold-osat säilyvät.
+          </p>
+          <div className="opening-targets">
+            {openingDraft.affected.map((id) => (
+              <label key={id}>
+                <input
+                  type="checkbox"
+                  checked={openingDraft.included.includes(id)}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setOpeningDraft({
+                      ...openingDraft,
+                      included: e.target.checked
+                        ? [...openingDraft.included, id]
+                        : openingDraft.included.filter((v) => v !== id),
+                    })
+                  }
+                />
+                {project.bodies.find((b) => b.id === id)?.name}
+              </label>
+            ))}
+          </div>
+          {project.bodies.some((b) => openingDraft.included.includes(b.id) && b.component) && (
+            <p>Leikattavat osat tehdään uniikeiksi. Muut linkitetyt kopiot säilyvät.</p>
+          )}
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={openingDraft.keep}
+              disabled={busy}
+              onChange={(e) => setOpeningDraft({ ...openingDraft, keep: e.target.checked })}
+            />
+            Säilytä piirretty muoto
+          </label>
+          <div className="object-quick-actions">
+            <button
+              className="button primary"
+              disabled={busy || !openingDraft.included.length}
+              onClick={() => void acceptOpening()}
+            >
+              Leikkaa läpi · {openingDraft.included.length} osaa
+            </button>
+            <button
+              className="button subtle"
+              disabled={busy}
+              onClick={() => setOpeningDraft(undefined)}
+            >
+              Peruuta
+            </button>
+          </div>
+        </SelectionDialog>
+      )}
+      {groupMove && (
+        <SelectionDialog title="Siirrä ryhmään" onClose={() => setGroupMove(undefined)}>
+          <p>
+            {groupMove.kind === 'group'
+              ? 'Ryhmä siirtyy sisältöineen.'
+              : `${groupMove.ids.length} valittua osaa. Sijainnit säilyvät.`}
+          </p>
+          <label className="modeling-field">
+            Kohderyhmä
+            <select
+              aria-label="Kohderyhmä"
+              value={groupDestination}
+              onChange={(e) => setGroupDestination(e.target.value)}
+            >
+              <option value="">Päätaso</option>
+              {project.groups
+                .filter(
+                  (g) =>
+                    groupMove.kind !== 'group' ||
+                    !groupContains(project.groups, groupMove.id, g.id),
+                )
+                .map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {groupPath(project.groups, g.id)}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <div className="object-quick-actions">
+            <button
+              className="button primary"
+              disabled={busy}
+              onClick={() => {
+                void arrangeTree(groupMove, groupDestination || undefined);
+                setGroupMove(undefined);
+              }}
+            >
+              Siirrä
+            </button>
+            <button className="button subtle" onClick={() => setGroupMove(undefined)}>
+              Peruuta
+            </button>
+          </div>
+        </SelectionDialog>
+      )}
       {actionMenu && (
         <ContextActions
           {...actionMenu}
@@ -5294,9 +5711,9 @@ export default function App() {
             </p>
             <p>
               <strong>Kierrä (R):</strong> valitse kappale ja poimi kiertopiste tai reuna. Vedä
-              rengasta tai kirjoita kulma. X/Y/Z vaihtaa akselin ja Shift porrastaa 15°.
-              Suorakulmion pikanäppäin on S. G kiinnittää tai vapauttaa kappaleen. Sivupaneelista
-              voit siirtää valinnan origoon, nimetä, piilottaa ja ryhmitellä osia.
+              rengasta tai kirjoita kulma. X/Y/Z vaihtaa akselin ja veto tarttuu 5° välein. Shift
+              kiertää vapaasti. Suorakulmion pikanäppäin on S. G kiinnittää tai vapauttaa kappaleen.
+              Sivupaneelista voit siirtää valinnan origoon, nimetä, piilottaa ja ryhmitellä osia.
             </p>
             <p>
               <strong>Apuviivat:</strong> mittatyökalun ensimmäinen painallus valitsee apuviivan,

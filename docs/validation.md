@@ -4,6 +4,61 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.16 — tartunta, toisto, kynäviiva ja aukko
+
+**188 yksikkö-/CAD-testiä hyväksytty (38 tiedostoa).** Uudet kokeet kattavat
+apuviivan todellisen tason, linkitetyn ryhmän toiston ja atomiset rajavirheet,
+osumavalinnan kolmio- ja kameraleikkaukset, avoimet viivat sekä 5°/Shift-kierron.
+CAD-kokeissa avoin viiva jakaa myös kierretyn pinnan, tilavuus säilyy,
+alue on pursotettavissa ja tallennettu jakoviiva kumitettavissa. Pika-aukko
+leikkaa useita kerroksia, vinoja ympyrämuotoja ja suljettuja polygoneja sekä voi poistaa
+kokonaan peitetyn osan.
+
+Laajassa 136 tapauksen selainajossa hyväksyttiin 131, yksi kosketustapaus
+jätettiin tarkoituksella desktopilla väliin ja neljä ryhmätestiä pysähtyi
+piilotetun mallilistan napsauttamiseen. Mallilistan avaus korjattiin testeihin;
+kaikki kuusi ryhmäkoetta hyväksyttiin jatkoajossa. Uudet kynä-, aukko-,
+ryhmävalikko- ja kiertotapaukset sekä aiemmat suljettujen pinta-alueiden kokeet
+varmennettiin desktopilla ja tabletilla. Historiaa ja uudelleenavausta
+koskevissa testeissä odotetaan nyt hyväksytyn mallin ja selaintallennuksen
+valmistumista ennen latausta.
+
+Viimeisessä 18 tapauksen kohdennetussa ajossa 16 hyväksyttiin; kaksi vanhaa
+työtilatestiä päivitti selaimen ennen tallennuksen valmistumista. Näiden
+odotuksen korjauksen jälkeinen erillinen ajo: **2/2 hyväksytty**. Version aikana
+varmennettiin yhteensä **159 erillistä suoritettua selainkoetta**; laajaa ajoa
+ei ajettu kokonaan uudelleen kaikkien myöhempien lisäysten jälkeen.
+
+Keskeiset uudet selainvarmennukset:
+
+- Z=0…−100 mm lattian reunat tavallisessa ja läheisessä perspektiivissä;
+  myös tapaus, jossa pitkä reuna jatkuu kameran taakse.
+- Apuviivalta alkava suorakulmio ilman tukipintaa sekä vanhan XY-merkityn
+  mutta nostetun apuviivan 800 mm + 1 000 mm ketjutus seinällä.
+- Numeroiden kohdistuminen vedon akseliin ja etumerkkiin, X/Y/Z-vaihto
+  sekä kirjoitetun plusmerkin tietoinen suunnanvaihto.
+- Ryhmän kopiosarja, linkitys, tarkka väli, jatkaminen viimeisestä kopiosta
+  ja sarjan palauttaminen yhdellä Peru-askeleella.
+- Sininen sisältävä ja oranssi osuva valintaruutu Valitse- ja Siirrä-työkaluissa,
+  Shift-lisäys ja muuttumaton geometria.
+- Kynäviivalla jaettu lattia, yhden alueen push/pull ja kumitus uudelleenavauksen
+  jälkeen; erillisen avoimen viivan valinta, siirto ja kumitus.
+- Poista ryhmä säilyttää sisällön; tyhjän ryhmän valinta Siirrä-työkalusta,
+  Delete ja palautus; monivalinnan Siirrä ryhmään ja paluu päätasolle.
+- Aukon todelliset kohteet ja korostus, seinäkerrokset, Hold, paikallisen
+  komponentin irrotus linkistä, kohteen poisjättö, piirretyn muodon säilytys
+  ja koko leikkauksen palautus.
+- Rotaation 5°-askel, vahvempi pääsuunta, Shiftin vapaa kulma ja tarkka numerokierto.
+
+Kolme alkuperäistä tartuntavirhettä toistettiin erillisessä testiselaimessa
+julkaistulla v0.15:llä: apuviivalta aloitus, ketjutettu taso ja kameran taakse
+jatkuva reuna. Korjattu paikallinen versio läpäisi vastaavat tapaukset.
+Suuren mallin muuttumaton siirtonopeus on [suorituskykyraportissa](performance.md).
+Aukon sivupaneeli, toisto ja valintaruudun värit tarkistettiin myös kuvina.
+Viimeisen Esc-peruutuksen suojauksen jälkeen aukon neljä desktop-/tablettikoetta
+hyväksyttiin vielä uudesta tuotantopaketista.
+Fyysinen tabletti, Safari ja käyttäjän omat suuret projektit eivät sisälly tähän varmennukseen.
+
 ## V0.15 — yhtenäinen työkalupaneeli, toimintohaku ja kohdevalitsin
 
 **176 yksikkö-/CAD-testiä hyväksytty (35 tiedostoa).** Uudet hakukokeet

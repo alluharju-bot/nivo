@@ -1,7 +1,35 @@
 import { Matrix4, Vector4, type Camera } from 'three';
 import type { Vec3 } from '../model/project';
 import type { BodyMesh } from '../cad/protocol';
-export type ScreenBounds = { id: string; left: number; right: number; top: number; bottom: number };
+type Point2 = [number, number];
+export type ScreenBounds = {
+  id: string;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  whole?: boolean;
+  polygons?: Point2[][];
+};
+
+function clip<T>(
+  polygon: T[],
+  distance: (p: T) => number,
+  interpolate: (a: T, b: T, t: number) => T,
+) {
+  const result: T[] = [];
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i],
+      b = polygon[(i + 1) % polygon.length];
+    const da = distance(a),
+      db = distance(b);
+    if (da <= 0) result.push(a);
+    if (da > 0 !== db > 0) result.push(interpolate(a, b, da / (da - db)));
+  }
+  return result;
+}
+
+/** Project once when a box gesture begins; pointer moves only query cached 2D polygons. */
 export function projectSelectionBounds(
   meshes: BodyMesh[],
   camera: Camera,
@@ -11,75 +39,132 @@ export function projectSelectionBounds(
 ): ScreenBounds[] {
   camera.updateMatrixWorld();
   const matrix = new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-  const point = new Vector4(),
-    result: ScreenBounds[] = [];
+  const result: ScreenBounds[] = [];
+  const toScreen = (p: Vector4): Point2 => [
+    ((p.x / p.w + 1) * width) / 2,
+    ((1 - p.y / p.w) * height) / 2,
+  ];
   for (const mesh of meshes) {
+    const vertices: Vec3[] = [],
+      projected: Vector4[] = [];
+    for (let i = 0; i < mesh.vertices.length; i += 3) {
+      const p = mesh.vertices.slice(i, i + 3) as Vec3;
+      vertices.push(p);
+      projected.push(new Vector4(...p, 1).applyMatrix4(matrix));
+    }
+    const polygons: Point2[][] = [];
+    let whole = true;
+    if (mesh.triangles?.length) {
+      for (let i = 0; i < mesh.triangles.length; i += 3) {
+        const indices = mesh.triangles.slice(i, i + 3);
+        let points = indices.map((index) => projected[index]);
+        if (sectionDistance) {
+          const world = clip(
+            indices.map((index) => vertices[index]),
+            sectionDistance,
+            (a, b, t) => a.map((n, k) => n + (b[k] - n) * t) as Vec3,
+          );
+          points = world.map((p) => new Vector4(...p, 1).applyMatrix4(matrix));
+        }
+        if (!points.length) continue;
+        if (points.some((p) => p.w <= 0 || Math.abs(p.z) > p.w)) {
+          whole = false;
+          for (const distance of [
+            (p: Vector4) => 1e-9 - p.w,
+            (p: Vector4) => -p.z - p.w,
+            (p: Vector4) => p.z - p.w,
+          ])
+            points = clip(points, distance, (a, b, t) => a.clone().lerp(b, t));
+        }
+        if (points.length) polygons.push(points.map(toScreen));
+      }
+    } else if (mesh.edges?.length) {
+      for (let i = 0; i < mesh.edges.length; i += 6) {
+        let world = [mesh.edges.slice(i, i + 3) as Vec3, mesh.edges.slice(i + 3, i + 6) as Vec3];
+        if (sectionDistance)
+          world = clip(
+            world,
+            sectionDistance,
+            (a, b, t) => a.map((n, k) => n + (b[k] - n) * t) as Vec3,
+          );
+        let points = world.map((p) => new Vector4(...p, 1).applyMatrix4(matrix));
+        if (points.some((p) => p.w <= 0 || Math.abs(p.z) > p.w)) {
+          whole = false;
+          for (const distance of [
+            (p: Vector4) => 1e-9 - p.w,
+            (p: Vector4) => -p.z - p.w,
+            (p: Vector4) => p.z - p.w,
+          ])
+            points = clip(points, distance, (a, b, t) => a.clone().lerp(b, t));
+        }
+        if (points.length) polygons.push(points.map(toScreen));
+      }
+    } else {
+      // Degenerate/line-only meshes retain their visible segments.
+      const shown = projected.filter(
+        (p, i) => !sectionDistance || sectionDistance(vertices[i]) <= 1e-6,
+      );
+      whole = shown.every((p) => p.w > 0 && Math.abs(p.z) <= p.w);
+      if (whole && shown.length) polygons.push(shown.map(toScreen));
+    }
     let left = Infinity,
       right = -Infinity,
       top = Infinity,
-      bottom = -Infinity,
-      clipped = false;
-    let vertices = mesh.vertices;
-    if (sectionDistance) {
-      const clippedVertices: number[] = [],
-        distances: number[] = [];
-      for (let i = 0; i < vertices.length; i += 3) {
-        const distance = sectionDistance(vertices.slice(i, i + 3) as Vec3);
-        distances.push(distance);
-        if (distance <= 1e-6) clippedVertices.push(vertices[i], vertices[i + 1], vertices[i + 2]);
+      bottom = -Infinity;
+    for (const polygon of polygons)
+      for (const [x, y] of polygon) {
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
       }
-      if (!clippedVertices.length) continue;
-      for (let i = 0; i < (mesh.triangles?.length ?? 0); i += 3)
-        for (let j = 0; j < 3; j++) {
-          const a = mesh.triangles[i + j],
-            b = mesh.triangles[i + ((j + 1) % 3)],
-            da = distances[a],
-            db = distances[b];
-          if (da > 0 === db > 0) continue;
-          const t = da / (da - db);
-          for (let k = 0; k < 3; k++)
-            clippedVertices.push(
-              vertices[a * 3 + k] + (vertices[b * 3 + k] - vertices[a * 3 + k]) * t,
-            );
-        }
-      vertices = clippedVertices;
-    }
-    for (let i = 0; i < vertices.length; i += 3) {
-      point.set(vertices[i], vertices[i + 1], vertices[i + 2], 1).applyMatrix4(matrix);
-      // A body crossing the near/far plane cannot be wholly inside the visible rectangle.
-      if (point.w <= 0 || Math.abs(point.z) > point.w) {
-        clipped = true;
-        break;
-      }
-      const x = ((point.x / point.w + 1) * width) / 2,
-        y = ((1 - point.y / point.w) * height) / 2;
-      left = Math.min(left, x);
-      right = Math.max(right, x);
-      top = Math.min(top, y);
-      bottom = Math.max(bottom, y);
-    }
-    if (!clipped && Number.isFinite(left)) result.push({ id: mesh.id, left, right, top, bottom });
+    if (Number.isFinite(left))
+      result.push({ id: mesh.id, left, right, top, bottom, whole, polygons });
   }
   return result;
 }
+
 export function insideSelectionRect(
   bounds: ScreenBounds[],
   x1: number,
   y1: number,
   x2: number,
   y2: number,
+  crossing = false,
 ) {
-  const left = Math.min(x1, x2),
-    right = Math.max(x1, x2),
-    top = Math.min(y1, y2),
-    bottom = Math.max(y1, y2);
+  const left = Math.min(x1, x2) - 0.1,
+    right = Math.max(x1, x2) + 0.1,
+    top = Math.min(y1, y2) - 0.1,
+    bottom = Math.max(y1, y2) + 0.1;
   return bounds
-    .filter(
-      (b) =>
-        b.left >= left - 0.1 &&
-        b.right <= right + 0.1 &&
-        b.top >= top - 0.1 &&
-        b.bottom <= bottom + 0.1,
-    )
+    .filter((b) => {
+      if (!crossing)
+        return (
+          b.whole !== false &&
+          b.left >= left &&
+          b.right <= right &&
+          b.top >= top &&
+          b.bottom <= bottom
+        );
+      if (b.left > right || b.right < left || b.top > bottom || b.bottom < top) return false;
+      if (!b.polygons) return true;
+      // Bounding boxes alone would select empty cabinet openings and the corners of rotated parts.
+      return b.polygons.some((polygon) => {
+        let clipped = polygon;
+        for (const distance of [
+          (p: Point2) => left - p[0],
+          (p: Point2) => p[0] - right,
+          (p: Point2) => top - p[1],
+          (p: Point2) => p[1] - bottom,
+        ]) {
+          clipped = clip(clipped, distance, (a, b, t): Point2 => [
+            a[0] + (b[0] - a[0]) * t,
+            a[1] + (b[1] - a[1]) * t,
+          ]);
+          if (!clipped.length) return false;
+        }
+        return true;
+      });
+    })
     .map((b) => b.id);
 }

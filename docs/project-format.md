@@ -292,3 +292,12 @@ Tuonti käyttää nykyistä kuvarajaa: PNG/JPEG/WebP, tiedosto enintään 20 MiB
 pisin tallennettu sivu 2 048 pikseliä ja projektin kaikkien kuvien yhteisbudjetti
 32 miljoonaa data-URL-merkkiä. PDF-pohjapiirroksen tuonti ja automaattinen
 viivojen tunnistus ovat jatkotyötä. Eristä valinta ei tallennu projektiformaattiin.
+
+## Avoimet viivat sovellusversiossa 0.16
+
+Avoin kynäviiva tallentuu olemassa olevana `brep`-featurena, `solid: false`.
+Sen BRep sisältää avoimen CAD-wiren, `linearEdges` ja verteksiviitteet antavat
+tarkat tartunnat. Näyttöverkossa voi siksi olla reunoja ilman kolmioita ja
+pintoja. Oletuskäyttö on `drawing`, tai käyttäjän valitsema `construction`.
+Projektiversio pysyy seitsemässä; toistosiirto ja aukon esikatselun valinta
+eivät lisää pysyviä kenttiä. Hyväksytty aukko tallentuu tavallisina tulos-BRepeinä.

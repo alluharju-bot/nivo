@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { guideMeasurement, lineIntersection } from './guides';
+import { guideMeasurement, guidePlaneNormal, lineIntersection } from './guides';
 import { snapPoint, snapOnSketchPlane } from './snap';
 import { sketchFrame } from './sketch';
 import type { Guide, Vec3 } from './project';
@@ -24,6 +24,31 @@ const horizontal: Guide = {
 };
 
 describe('guide measurements and intersections', () => {
+  it('recovers the vertical plane of a guide raised from a floor edge', () => {
+    const raised: Guide = {
+      ...horizontal,
+      plane: 'XY',
+      anchor: { point: [100, 25, 0] },
+      offset: [0, 0, 800],
+    };
+    expect(guidePlaneNormal(raised)).toEqual([0, -1, 0]);
+    const second = {
+      ...raised,
+      anchor: { point: [100, 25, 800] as Vec3 },
+      offset: [0, 0, 1000] as Vec3,
+    };
+    const hit = snapOnSketchPlane(
+      [220, 25, 1802],
+      sketchFrame([0, 25, 0], guidePlaneNormal(second)),
+      [],
+      [],
+      [second],
+      10,
+      true,
+    );
+    expect(hit.point).toEqual([220, 25, 1800]);
+    expect(hit.label).toBe('Apuviiva');
+  });
   it('snaps rectangle sides at 45 degrees while retaining pen length steps', () => {
     const frame = sketchFrame([0, 0, 0], [0, 0, 1]);
     const rectangle = snapOnSketchPlane(

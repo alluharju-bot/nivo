@@ -41,6 +41,13 @@ export function GroupActions({
       </p>
       <div className="object-quick-actions">
         <button
+          disabled={busy}
+          onClick={onRemove}
+          title="Osat ja alaryhmät säilyvät ylemmällä tasolla"
+        >
+          <Trash2 size={15} /> Poista ryhmä
+        </button>
+        <button
           disabled={busy || groupAncestors(groups, group.parentId).some((g) => g.locked)}
           onClick={() => onChange({ locked: !group.locked })}
         >
@@ -62,6 +69,7 @@ export function GroupActions({
           <FolderPlus size={15} /> Luo alaryhmä
         </button>
       </div>
+      <p className="muted">Ryhmän poistaminen säilyttää osat ja alaryhmät ylemmällä tasolla.</p>
       <details className="inspector-disclosure">
         <summary>Ryhmän asetukset</summary>
         <div className="disclosure-content">
@@ -91,15 +99,6 @@ export function GroupActions({
           >
             <Merge size={15} /> Yhdistä valitut kappaleeksi
           </button>
-          <button
-            className="button subtle full"
-            aria-label={`Pura ryhmä: ${group.name}`}
-            disabled={busy}
-            onClick={onRemove}
-          >
-            <Trash2 size={15} /> Pura ryhmä
-          </button>
-          <p className="muted">Purkaminen säilyttää kappaleet ja alaryhmät.</p>
         </div>
       </details>
     </section>

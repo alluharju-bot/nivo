@@ -24,6 +24,7 @@ export function DynamicInput({
   title,
   activeKey,
   onActivate,
+  initialValue,
 }: {
   fields: NumericField[];
   showActions?: boolean;
@@ -39,6 +40,7 @@ export function DynamicInput({
   title: string;
   activeKey?: string;
   onActivate?: (key: string, transfer: boolean) => void;
+  initialValue?: (key: string, character: string) => string;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointer: number; x: number; y: number } | undefined>(undefined);
@@ -79,19 +81,24 @@ export function DynamicInput({
           0,
           fields.findIndex((f) => f.key === activeKey),
         );
-        flushSync(() => onChange(fields[index].key, event.key));
+        const key = fields[index].key;
+        flushSync(() => onChange(key, initialValue?.(key, event.key) ?? event.key));
         const input = inputs.current[index];
         input?.focus();
         input?.setSelectionRange(input.value.length, input.value.length);
       } else if (event.key === 'Tab') {
         event.preventDefault();
-        inputs.current[0]?.focus();
-        inputs.current[0]?.select();
+        const index = Math.max(
+          0,
+          fields.findIndex((f) => f.key === activeKey),
+        );
+        inputs.current[index]?.focus();
+        inputs.current[index]?.select();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [fields, onChange, busy, activeKey]);
+  }, [fields, onChange, busy, activeKey, initialValue]);
   return (
     <div
       ref={panel}
