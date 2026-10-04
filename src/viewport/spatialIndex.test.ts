@@ -1,7 +1,37 @@
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { makeBody } from '../model/project';
-import { BodySpatialIndex } from './spatialIndex';
+import { BodySpatialIndex, intersectModel } from './spatialIndex';
+
+it.each([false, true])(
+  'picks coplanar sketches consistently with reversed insertion = %s',
+  (reverse) => {
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const solid = new THREE.Mesh(new THREE.BoxGeometry(600, 400, 18.125), material);
+    solid.position.z = -18.125 / 2;
+    const sketch = new THREE.Mesh(new THREE.PlaneGeometry(200, 150), material);
+    const newest = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), material);
+    sketch.userData.surfacePriority = 1;
+    newest.userData.surfacePriority = 2;
+    const group = new THREE.Group();
+    const objects = [solid, sketch, newest];
+    group.add(...(reverse ? objects.reverse() : objects));
+    group.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(new THREE.Vector3(20, 10, 100), new THREE.Vector3(0, 0, -1));
+    expect(intersectModel(ray, group)[0].object).toBe(newest);
+    newest.visible = false;
+    expect(intersectModel(ray, group)[0].object).toBe(sketch);
+    const foreground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), material);
+    foreground.position.z = 0.001;
+    group.add(foreground);
+    group.updateMatrixWorld(true);
+    expect(intersectModel(ray, group)[0].object).toBe(foreground);
+    group.userData.acceptPoint = (p: THREE.Vector3) => p.z < 0.0001;
+    expect(intersectModel(ray, group)[0].object).toBe(sketch);
+    group.children.forEach((object) => (object as THREE.Mesh).geometry.dispose());
+    material.dispose();
+  },
+);
 
 it('reduces a 10000-part scene to nearby candidates without changing the exact ray result', () => {
   const parts = Array.from({ length: 10000 }, (_, i) =>

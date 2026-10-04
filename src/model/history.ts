@@ -1,4 +1,5 @@
 import { parseProject, type Project } from './project';
+import { actionInfoSchema, type ActionInfo } from './activity';
 
 const MAX_SAVED_BYTES = 8 * 1024 * 1024;
 const MAX_SAVED_STEPS = 20;
@@ -7,6 +8,19 @@ export class History {
   private past: Project[] = [];
   private future: Project[] = [];
   private weights = new WeakMap<Project, number>();
+  private actions = new WeakMap<Project, ActionInfo>();
+  get undoInfo() {
+    return this.actions.get(this.current);
+  }
+  get redoInfo() {
+    const next = this.peekRedo();
+    return next && this.actions.get(next);
+  }
+  adopt(next: Project) {
+    const info = this.actions.get(this.current);
+    if (info) this.actions.set(next, info);
+    this.current = next;
+  }
   constructor(
     public current: Project,
     private memoryBudget = 64 * 1024 * 1024,
@@ -37,10 +51,11 @@ export class History {
   get canRedo() {
     return this.future.length > 0;
   }
-  commit(next: Project) {
+  commit(next: Project, info?: ActionInfo) {
     this.past.push(this.current);
     if (this.past.length > 100) this.past.shift();
     this.current = next;
+    if (info) this.actions.set(next, info);
     this.future = [];
     this.trimMemory();
   }
@@ -72,7 +87,11 @@ export class History {
     // entire history while trimming it freezes large models on every edit.
     const encoder = new TextEncoder();
     const pack = (p: Project) =>
-      JSON.stringify({ ...p, assets: p.assets ? Object.keys(p.assets) : undefined });
+      JSON.stringify({
+        ...p,
+        assets: p.assets ? Object.keys(p.assets) : undefined,
+        _history: this.actions.get(p),
+      });
     const current = pack(this.current),
       past: string[] = [],
       future: string[] = [];
@@ -153,6 +172,13 @@ export class History {
       const future = data.future.map((project: unknown) => parseProject(JSON.stringify(project)));
       this.past = past;
       this.future = future;
+      const restoreInfo = (project: Project, raw: any) => {
+        const info = actionInfoSchema.safeParse(raw?._history);
+        if (info.success) this.actions.set(project, info.data);
+      };
+      restoreInfo(this.current, data.current);
+      past.forEach((p: Project, i: number) => restoreInfo(p, data.past[i]));
+      future.forEach((p: Project, i: number) => restoreInfo(p, data.future[i]));
       this.trimMemory();
       return true;
     } catch {

@@ -3,10 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.14.0** tuo tallennettavat poikkileikkaukset, mitoitetut leikkauskuvat,
-kalibroitavat pohja- ja julkisivukuvat sekä valinnan eristämisen. Suurten mallien
-CAD-laskenta, piirto, tartunnat ja mallilista käyttävät nyt välimuisteja ja
-instansseja. [Mitattu suorituskyky ja rajat](docs/performance.md).
+Versio **0.14.1** suojaa siirtoon valmistellun valinnan ja korostaa koko
+siirrettävän osan, kokoonpanon tai monivalinnan jo ennen painallusta. Tyhjästä
+voi vetää valintalaatikon myös muissa muokkaustyökaluissa. Kevyt toimintohistoria
+näyttää viimeisen muutoksen ja palauttaa siihen liittyvän valinnan.
+Komponentin pinnalle piirretty tasomuoto saa etusijan piirrossa ja valinnassa
+ilman geometrian siirtämistä irti pinnasta.
+V0.14:n poikkileikkaukset, pohjakuvat ja suuren mallin optimoinnit ovat mukana.
+[Mitattu suorituskyky ja rajat](docs/performance.md).
 
 - Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
 - Napsauta valitun osan tai ryhmän otsikkonimeä nimetäksesi sen. Ryhmäpolku näkyy heti alla.
@@ -57,6 +61,35 @@ npm run preview     # tuotantopaketin paikallinen esikatselu
 10 mm:n ruudukolla vapaa suorakulmion sivu, ympyrän halkaisija ja push/pullin toteutuva paksuus askeltavat 10 mm. Siirto askeltaa siirtymää lähtöpisteestä, joten se ei muuta muiden akselien sijaintia. Ruudukon askel on vaihdettavissa asetuksissa. Kirjoitettu tarkka mitta ja korostettu geometriatartunta ohittavat ruudukon: esimerkiksi 18 mm:n levyn pinnalle piirretty muoto pysyy levyn pinnalla.
 
 Piirtämisen alku valitsee näkyvän pinnan. Yhteisessä nurkassa suositaan kameraa kohti olevaa pintaa; etupuolella oleva geometria estää takakulmaan tarttumisen. Suorakulmion ja ympyrän X/Y/Z valitsee piirtotason normaalin: X = YZ, Y = XZ ja Z = XY. Tason voi vaihtaa myös ensimmäisen pisteen jälkeen. Kynän X/Y/Z lukitsee viivan suunnan.
+
+Samalla pinnalla oleva tasomuoto näkyy tukikappaleen päällä ja klikkaus poimii
+muodon. Päällekkäisistä tasomuodoista uusin on päällimmäinen. Sama etusija
+toimii E-push/pullissa ja siirron yhteisissä kulmapisteissä. Oikea edessä oleva
+kappale peittää muodot edelleen. Muotoa ei siirretä millimetriäkään näkyvyyden
+vuoksi. Rakennusmuoto valitaan edelleen ääriviivastaan; sen sisusta jättää
+alla olevan pinnan käytettäväksi.
+
+## Valinta siirtotyökalussa ja toimintohistoria
+
+- **M:** ilman valintaa koko osoitettu osa tai kokoonpano korostuu ja on heti
+  vedettävissä. Kun valinta on jo tehty, siirto alkaa vain siihen kuuluvasta osasta.
+  Viereiseen kappaleeseen osuminen säilyttää valmistellun valinnan.
+- **Shift-klikkaus** lisää tai poistaa osia myös valmiustilassa olevissa
+  muokkaustyökaluissa. **Tyhjästä vedettävä laatikko** valitsee sen sisällä olevat
+  osat; Shift lisää niitä nykyiseen valintaan. Tämä toimii siirrossa, kierrossa,
+  pensselissä, kumituksessa, Offsetissä, reunatyökalussa ja apuviivatyökalussa.
+  Cut/Joinissa laatikko täyttää aktiivista kohde-/työstövalintaa.
+- Piirtäminen, push/pull, keskeneräinen työkaluele ja kiertokahvat säilyttävät
+  omat toimintonsa. Valinta ei keskeytä luonnosta eikä Shiftin tavoitepoimintaa.
+- Alapalkissa näkyy **Viimeisin toiminto**. Avaa **Toimintohistoria** nähdäksesi
+  toiminnot ja niiden valinnat, esimerkiksi _Siirretty 48 kappaletta · X +100 mm_.
+  **Palauta valinta** palauttaa osat valintaan muuttamatta niiden geometriaa.
+  **Edellinen valinta** tarjoaa saman toiminnon yhdellä painalluksella.
+- Myös työkalulle valmisteltu valinta säilytetään. Shift-klikkauksia ei kirjata
+  erikseen; valmistelu yhdistyy hyväksyttyyn toimintoon. Lokissa on enintään
+  **100 merkintää / 2 MiB:n tekstibudjetti**, ja se säilyy saman välilehden
+  päivityksessä. Se ei sisällä CAD-kopioita. Poistetut ja piilotetut osat ohitetaan
+  valinnan palautuksessa. Varsinainen Peru-historia on tästä erillinen.
 
 ## Poikkileikkaus ja pohjakuva
 
@@ -124,10 +157,9 @@ tavallisen ikkunan. Kapealla näytöllä tiedostot ja muut lisätoiminnot avataa
 
 Yksi klikkaus valitsee koko objektin. Pintakorostus osoittaa, mihin E tai O
 kohdistuu. **M** siirtää osaa siitä verteksistä tai kohdasta, josta tartuit.
-Pidä **Ctrl** (tai Alt) pohjassa vedon aikana ja vapauta hiiri: kopio asettuu
-kohteeseen, alkuperäinen pysyy paikoillaan. Jos vapautat Ctrl:n ennen hiirtä,
-tulos on tavallinen siirto. **Siirrä kopio** -valinnalla voi myös kirjoittaa
-siirtymän tai käyttää toimintoa kosketuksella. Esc peruu keskeneräisen kopion;
+Paina **Ctrl** (tai Alt) kerran vedon aikana: kopiointi kytkeytyy päälle ja
+säilyy näppäimen vapautuksen jälkeen. Toinen painallus kytkee sen pois.
+**Siirrä kopio** toimii myös numerosarjalla tai kosketuksella. Esc peruu keskeneräisen kopion;
 Peru poistaa hyväksytyn kopion yhdellä askeleella. Kopio säilyttää tarkan
 geometrian, värin ja ryhmän, mutta saa oman tunnisteen.
 
@@ -439,7 +471,7 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
   muutu hiiren liikkeestä. Kenttää voi valita myös napsauttamalla.
 - **Jatkuvat työkalut:** hyväksytty toiminto päättää vain nykyisen vedon.
   Aloita seuraava piirto, siirto, apuviiva tai pintamuokkaus samalla työkalulla.
-  Siirrä-työkalulla voi tarttua suoraan seuraavaan kappaleeseen.
+  Siirrä-työkalu tarttuu valmisteltuun valintaan; ilman valintaa osan voi poimia suoraan vedolla.
   Esc peruu keskeneräisen luonnoksen, tyhjentää valinnan ja palauttaa valintatyökaluun.
 - **Erilliset osat:** jokaisella objektilla on oma mesh. Monivalinta tai
   Shift/Ctrl/Cmd-napsautus valitsee useita osia. Yhdistä tekee niistä yhden

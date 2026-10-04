@@ -4841,3 +4841,102 @@ p {
   border-color: #b1c3a6;
   color: #294734;
 }
+
+/* A compact audit trail stays visible when tool hints replace the status text. */
+.status-bar > .activity-history {
+  position: relative;
+  flex: 0 1 470px;
+  min-width: 0;
+  gap: 8px;
+}
+.activity-history button {
+  border: 0;
+  background: transparent;
+  color: var(--ink, #254539);
+  cursor: pointer;
+}
+.activity-history button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.activity-summary,
+.restore-selection {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  min-width: 0;
+}
+.activity-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.restore-selection {
+  flex: none;
+}
+.activity-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  width: min(430px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid #cbd3c6;
+  border-radius: 16px;
+  background: #fbfcf8;
+  box-shadow: 0 12px 40px #183c2426;
+  z-index: 130;
+  color: #294237;
+  font-size: 12px;
+}
+.activity-popover header,
+.activity-popover li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.activity-popover header {
+  font-size: 15px;
+}
+.activity-popover p,
+.activity-popover small {
+  color: #617364;
+  line-height: 1.5;
+}
+.activity-popover ol {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  max-height: min(420px, 55vh);
+  overflow: auto;
+}
+.activity-popover li {
+  border-top: 1px solid #e0e5da;
+  padding: 11px 0;
+}
+.activity-popover li > div + div {
+  margin-top: 7px;
+  color: #607062;
+}
+.activity-popover li strong {
+  font-weight: 600;
+}
+.activity-popover time {
+  color: #758271;
+  flex: none;
+}
+.activity-popover li button {
+  padding: 5px 8px;
+  background: #eaf0e3;
+  border-radius: 6px;
+  flex: none;
+}
+@media (max-width: 1150px) {
+  .status-bar > .status-right {
+    display: none;
+  }
+  .restore-selection span {
+    display: none;
+  }
+}

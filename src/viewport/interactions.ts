@@ -245,6 +245,8 @@ export function installInteractions({
     sketch?: SketchFrame;
     bodyId?: string;
     extendSelection?: boolean;
+    selection?: boolean;
+    selectionBodyId?: string;
     movingIds?: string[];
     moveAxis?: Axis;
   };
@@ -485,6 +487,7 @@ export function installInteractions({
   let meshById = new Map<string, ReturnType<typeof current>['meshes'][number]>();
   let indexedBodies: ReturnType<typeof current>['bodies'];
   let bodyById = new Map<string, ReturnType<typeof current>['bodies'][number]>();
+  let surfacePriorityById = new Map<string, number>();
   const refreshLookup = () => {
     if (indexedMeshes !== current().meshes) {
       indexedMeshes = current().meshes;
@@ -493,6 +496,9 @@ export function installInteractions({
     if (indexedBodies !== current().bodies) {
       indexedBodies = current().bodies;
       bodyById = new Map(indexedBodies.map((body) => [body.id, body]));
+      surfacePriorityById = new Map(
+        indexedBodies.map((body, i) => [body.id, featureIsSolid(body.feature) ? 0 : i + 1]),
+      );
     }
   };
   const nearby = (event: PointerEvent) => {
@@ -572,9 +578,10 @@ export function installInteractions({
   const vertexAt = (event: PointerEvent) => {
     const p = nearest(event, true);
     if (!p) return;
-    return current()
-      .meshes.flatMap((m) => m.verticesCAD)
-      .find((v) => v.point.every((n, i) => Math.abs(n - p.point[i]) < 1e-6));
+    for (const mesh of nearby(event)) {
+      const vertex = mesh.verticesCAD.find((v) => `${mesh.id}:${v.anchor.key}` === p.key);
+      if (vertex) return vertex;
+    }
   };
   const faceAt = (event: PointerEvent) => {
     setRay(event);
@@ -1135,12 +1142,14 @@ export function installInteractions({
     const x = event.clientX - rect.left,
       y = event.clientY - rect.top;
     const excluded = source ? [] : (drag?.movingIds ?? props.selectedIds);
+    const selected = new Set(props.selectedIds);
     const eligible = nearby(event)
       .map((mesh) => bodyById.get(mesh.id)!)
       .filter(Boolean)
       .filter(
         (b) =>
           !excluded.includes(b.id) &&
+          (!source || !selected.size || selected.has(b.id)) &&
           (!source || (!b.locked && (!props.editingBodyId || b.id === props.editingBodyId))),
       );
     const visible = (point: Vec3, center = false, bodyId?: string) => {
@@ -1166,6 +1175,7 @@ export function installInteractions({
       priority: number;
       distance: number;
       depth: number;
+      surfacePriority?: number;
       edge?: { start: Vec3; end: Vec3 };
     })[] = [];
     for (const body of eligible) {
@@ -1182,6 +1192,7 @@ export function installInteractions({
           candidates.push({
             ...p,
             bodyId: body.id,
+            surfacePriority: surfacePriorityById.get(body.id),
             priority,
             distance,
             depth: q.z,
@@ -1206,6 +1217,7 @@ export function installInteractions({
             key: `${body.id}:edge:${edge.from.key}:${edge.to.key}`,
             label: 'Reuna',
             bodyId: body.id,
+            surfacePriority: surfacePriorityById.get(body.id),
             priority: 2,
             distance,
             depth: q.z,
@@ -1230,6 +1242,9 @@ export function installInteractions({
     const found = candidates.sort(
       (a, b) =>
         a.priority - b.priority ||
+        (Math.hypot(...sub(a.point, b.point)) <= 1e-5
+          ? (b.surfacePriority ?? 0) - (a.surfacePriority ?? 0)
+          : 0) ||
         (Math.abs(a.distance - b.distance) < 0.75 ? a.depth - b.depth : a.distance - b.distance),
     )[0];
     highlightEdge(found?.edge);
@@ -1978,6 +1993,54 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.tool === 'navigate') return;
+    // Idle tools share selection; active drawing, reference acquisition and
+    // face gestures keep their own modifiers and empty-space semantics.
+    const selectionTool =
+      ['move', 'rotate', 'offset', 'detail', 'erase', 'paint', 'boolean'].includes(props.tool) ||
+      (props.tool === 'measure' && props.measureMode === 'guide');
+    if (
+      selectionTool &&
+      !drag &&
+      !offsetSession &&
+      !measureSession &&
+      !dimensionSession &&
+      !props.pickReference &&
+      !props.rotation?.picking
+    ) {
+      const hit = faceAt(event);
+      const empty =
+        !hit &&
+        !selectableGuideAt(event) &&
+        !(props.tool === 'move' && moveSnapAt(event, true)) &&
+        !(props.tool === 'rotate' && rotationHandleAt(event)) &&
+        !(props.tool === 'detail' && detailEdgeAt(event)) &&
+        !(props.tool === 'measure' && (vertexAt(event) || edgeAt(event) || guideAt(event)));
+      if ((empty || event.shiftKey) && !(props.tool === 'rotate' && rotationHandleAt(event))) {
+        drag = {
+          start: [0, 0, 0],
+          origin: [0, 0, 0],
+          screenX: event.clientX,
+          screenY: event.clientY,
+          height: 0,
+          plane: 'XY',
+          second: false,
+          selection: true,
+          selectionBodyId: hit?.target.bodyId,
+          extendSelection: event.shiftKey,
+        };
+        const rect = canvas.getBoundingClientRect();
+        selectionBounds = projectSelectionBounds(
+          props.meshes.filter((m) => !props.editingBodyId || m.id === props.editingBodyId),
+          camera(),
+          rect.width,
+          rect.height,
+          props.section ? (point) => sectionDistance(props.section!, point) : undefined,
+        );
+        canvas.setPointerCapture(event.pointerId);
+        canvas.focus({ preventScroll: true });
+        return;
+      }
+    }
     if (props.tool === 'paint') {
       const picked = faceAt(event);
       if (picked && !editBlocked(event, picked.target.bodyId)) props.onPaint(picked.target.bodyId);
@@ -2220,6 +2283,14 @@ export function installInteractions({
     const moveTarget = moveSnap?.bodyId ?? moveHit?.target.bodyId;
     if (
       props.tool === 'move' &&
+      props.selectedIds.length &&
+      (!moveTarget || !props.selectedIds.includes(moveTarget))
+    ) {
+      props.onSnap('Valinta säilyy. Tartu valittuun osaan tai lisää osa Shift-klikkauksella.');
+      return;
+    }
+    if (
+      props.tool === 'move' &&
       props.editingBodyId &&
       (moveTarget ?? props.selected) !== props.editingBodyId
     ) {
@@ -2234,6 +2305,7 @@ export function installInteractions({
       return;
     }
     const moveIds = moveTarget ? props.onMoveTarget(moveTarget) : undefined;
+    if (props.tool === 'move') props.onMoveHover?.(undefined);
     if (props.tool !== 'select') props.onStart();
     const selected = props.bodies.find((b) => b.id === (moveTarget ?? props.selected)),
       origin = selected?.origin ?? ([0, 0, 0] as Vec3);
@@ -2365,6 +2437,12 @@ export function installInteractions({
       drag.moved = true;
     const props = current();
     if (blocked || props.busy) return;
+    if (drag?.selection) {
+      if (drag.moved) boxSelection(event);
+      highlightFace();
+      show();
+      return;
+    }
     if (dimensionSession || (props.tool === 'measure' && props.measureMode === 'dimension')) {
       updateDimension(event);
       return;
@@ -2527,7 +2605,29 @@ export function installInteractions({
     if (props.tool === 'move' && !drag) {
       hoveredReference = undefined;
       const target = moveSnapAt(event, true);
-      show(target ? { ...target, label: `Tartuntapiste · ${target.label}` } : undefined);
+      const hit = faceAt(event);
+      const id = target?.bodyId ?? hit?.target.bodyId;
+      const eligible =
+        id &&
+        (!props.selectedIds.length || props.selectedIds.includes(id)) &&
+        !bodyById.get(id)?.locked;
+      const count = props.onMoveHover?.(eligible ? id : undefined) ?? props.selectedIds.length;
+      const label =
+        props.selectedIds.length > 1
+          ? `Siirrä valintaa · ${props.selectedIds.length} kappaletta`
+          : count > 1
+            ? `Siirrä kokoonpanoa · ${count} kappaletta`
+            : 'Siirrä osoitettua osaa';
+      show(
+        eligible
+          ? target
+            ? { ...target, label: `${label} · ${target.label}` }
+            : hit
+              ? { point: hit.target.point, key: 'move-face', label }
+              : undefined
+          : undefined,
+      );
+      if (id && !eligible) props.onSnap('Valinta säilyy · Lisää osa Shift-klikkauksella.');
       canvas.dataset.moveSnap = target ? target.key : '';
       return;
     }
@@ -2684,7 +2784,13 @@ export function installInteractions({
       const moved =
         active.moved ||
         Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
-      if (props.tool === 'detail') {
+      if (active.selection) {
+        if (moved)
+          props.onSelectMany(boxSelection(event), !!active.extendSelection || event.shiftKey);
+        else if (active.extendSelection && active.selectionBodyId)
+          props.onSelect(active.selectionBodyId, undefined, true);
+        // An empty click in a tool is not a request to discard a prepared selection.
+      } else if (props.tool === 'detail') {
         if (event.button !== 0 || (detailSession && event.pointerId !== detailSession.pointerId))
           return;
         if (detailSession?.started) {
@@ -2848,7 +2954,15 @@ export function installInteractions({
     if (event.key === 'Shift' && !event.repeat) {
       shift = true;
       // In Select, Shift belongs exclusively to object multiselection.
-      if (props.tool === 'select') return;
+      if (
+        props.tool === 'select' ||
+        drag?.selection ||
+        (['move', 'rotate', 'offset', 'detail', 'erase', 'paint', 'boolean'].includes(props.tool) &&
+          !drag &&
+          !offsetSession &&
+          !props.rotation?.picking)
+      )
+        return;
       if (props.tool === 'move') {
         if (drag && lastEvent) {
           const p = planePoint(lastEvent, drag.plane, drag.start);
@@ -2946,6 +3060,7 @@ export function installInteractions({
     show();
   };
   const leave = () => {
+    if (!drag) current().onMoveHover?.(undefined);
     if (current().tool === 'detail') {
       if (!detailSession?.started) highlightDetail();
       return;

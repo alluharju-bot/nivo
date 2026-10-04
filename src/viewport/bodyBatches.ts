@@ -71,6 +71,9 @@ export function createBodyBatches(scene: THREE.Object3D, allowTransparent = fals
       for (const part of parts) {
         const material = part.mesh.material[0];
         if (
+          // Coplanar sketches retain their individual creation order, including
+          // after selection changes. Solid parts continue to share draw calls.
+          part.mesh.userData.surfacePriority ||
           part.mesh.material.length !== 1 ||
           (material.transparent && !allowTransparent) ||
           part.outline.material instanceof THREE.LineDashedMaterial

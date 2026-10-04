@@ -108,6 +108,8 @@ export interface ViewportProps {
   meshes: BodyMesh[];
   selected?: string;
   selectedIds: string[];
+  moveHoveredIds?: string[];
+  onMoveHover?: (id?: string) => number;
   selectedGroupId?: string;
   selectedFace?: FaceRef;
   tool: Tool;
@@ -151,7 +153,7 @@ export interface ViewportProps {
   onReference: (point?: ReferencePoint) => void;
   onReferencePicked: () => void;
   onStart: () => void;
-  onMoveTarget: (id: string) => string[];
+  onMoveTarget: (id: string) => string[] | undefined;
   onFaceTarget: (target: FaceTarget) => void;
   onFaceHover: (target?: FaceTarget) => void;
   onSelectGuide: (id: string) => void;

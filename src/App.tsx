@@ -1,4 +1,7 @@
 import { SectionDrawing } from './drawing/SectionDrawing';
+import { ActivityHistory } from './ui/ActivityHistory';
+import { useActivityHistory } from './ui/useActivityHistory';
+import type { SelectionContext } from './model/activity';
 import { useWorkspaceViews } from './ui/WorkspaceViews';
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, type PointDimension } from './model/project';
@@ -232,7 +235,7 @@ const instructions: Record<Tool, string> = {
   boolean: 'Valitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.',
   extrude:
     'E · Shift poimii tavoitemitan pisteestä, reunasta, apuviivasta tai pinnasta. Kirjoitettu mitta ohittaa tartunnan. Enter tai klikkaus hyväksyy.',
-  move: 'Vedä tartuntapisteestä yhdellä akselilla. X/Y/Z vaihtaa akselia. Ctrl painallus vaihtaa kopioinnin päälle tai pois. Esc peruu.',
+  move: 'Korostus näyttää siirrettävät osat. Vedä valitusta osasta; Shift-klikkaus muuttaa valintaa. Tyhjästä veto valitsee laatikolla. X/Y/Z lukitsee akselin, Ctrl vaihtaa kopioinnin.',
   pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc päättää työkalun.',
   measure:
     'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc päättää työkalun. R kiertää 45°, Shift+R vapaasti.',
@@ -288,6 +291,7 @@ export default function App() {
   liveProject.current = { project, busy };
   const [selected, setSelected] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [moveHovered, setMoveHovered] = useState<string>();
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [isolated, setIsolated] = useState<{ projectId: string; excluded: Set<string> }>();
   const [drawingSectionId, setDrawingSectionId] = useState<string>();
@@ -378,6 +382,16 @@ export default function App() {
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
   const [openedAssembly, setOpenedAssembly] = useState<string>();
+  const actionContext: SelectionContext = {
+    ids: selectedIds,
+    primary: selected,
+    groupId: selectedGroupId,
+    editingBodyId,
+    openedAssembly,
+  };
+  editor.setActionContext(actionContext);
+  const activityHistory = useActivityHistory(project.id, ready, editor.activity);
+  useEffect(() => setMoveHovered(undefined), [tool, selectedIds]);
   const [dock, setDock] = useState<ToolDock>(() => {
     const saved = localStorage.getItem('nivo-tool-dock');
     return ['left', 'right', 'top', 'bottom'].includes(saved ?? '') ? (saved as ToolDock) : 'left';
@@ -483,6 +497,16 @@ export default function App() {
     const ids = new Set(visibleBodies.map((body) => body.id));
     return editor.meshes.filter((mesh) => ids.has(mesh.id));
   }, [editor.meshes, visibleBodies]);
+  const moveHoveredIds = useMemo(() => {
+    if (tool !== 'move' || !moveHovered) return [];
+    const target = visibleBodies.find((b) => b.id === moveHovered);
+    if (!target || target.locked) return [];
+    return selectedIds.length
+      ? selectedIdSet.has(moveHovered)
+        ? selectedIds
+        : []
+      : selectionUnit(project, moveHovered, openedAssembly).ids;
+  }, [tool, moveHovered, visibleBodies, selectedIds, project.groups, openedAssembly]);
   const workspace = useWorkspaceViews(
     project,
     visibleBodies,
@@ -777,6 +801,7 @@ export default function App() {
       id && !force
         ? selectionUnit(project, id, openedAssembly)
         : { ids: id ? [id] : [], groupId: undefined };
+    if (!extend && selectedIds.length > 1) activityHistory.prepare(actionContext);
     const ids = id
       ? extend
         ? unit.ids.every((key) => selectedIdSet.has(key))
@@ -928,6 +953,7 @@ export default function App() {
   };
   const begin = (next: Tool) => {
     if (busy) return;
+    if (next !== 'select' && next !== 'navigate') activityHistory.prepare(actionContext);
     setPartsOpen(false);
     if (editingBodyId && next === 'boolean') {
       editor.setMessage('Päätä osan muokkaus ennen usean kappaleen Cut/Join-toimintoa.');
@@ -1516,8 +1542,14 @@ export default function App() {
           await editor.transact(
             result.project,
             copyMoveRef.current
-              ? 'Valinnan kopio sijoitettu. Alkuperäiset säilyivät paikallaan.'
-              : 'Valitut osat siirretty.',
+              ? `Kopioitu ${result.ids.length} kappaletta · ${sub(candidate.origin, source.origin)
+                  .map((n, i) => (n ? `${'XYZ'[i]} ${n > 0 ? '+' : ''}${formatLength(n)} mm` : ''))
+                  .filter(Boolean)
+                  .join(' · ')}`
+              : `Siirretty ${result.ids.length} kappaletta · ${sub(candidate.origin, source.origin)
+                  .map((n, i) => (n ? `${'XYZ'[i]} ${n > 0 ? '+' : ''}${formatLength(n)} mm` : ''))
+                  .filter(Boolean)
+                  .join(' · ')}`,
           )
         ) {
           finishOperation(result.ids[0]);
@@ -1532,6 +1564,7 @@ export default function App() {
     }
   };
   const cancel = () => {
+    activityHistory.prepare(actionContext);
     const hadGesture = gestureActive.current || !!faceRef.current || !!rotationRef.current || busy;
     if (busy) editor.cancel();
     resetGesture();
@@ -3305,6 +3338,13 @@ export default function App() {
               meshes={visibleMeshes}
               selected={selected}
               selectedIds={selectedIds}
+              moveHoveredIds={moveHoveredIds}
+              onMoveHover={(id) => {
+                setMoveHovered(id);
+                return id
+                  ? selectedIds.length || selectionUnit(project, id, openedAssembly).ids.length
+                  : 0;
+              }}
               selectedGroupId={selectedGroupId}
               selectedFace={selectedFace}
               tool={tool}
@@ -3324,10 +3364,36 @@ export default function App() {
               epoch={epoch}
               onSelect={select}
               onSelectMany={(ids, additive) => {
+                if (tool === 'boolean') {
+                  const solid = new Set(
+                    project.bodies.filter((b) => featureIsSolid(b.feature)).map((b) => b.id),
+                  );
+                  const next = [
+                    ...new Set([
+                      ...(additive
+                        ? booleanActive === 'targets'
+                          ? booleanTargets
+                          : booleanTools
+                        : []),
+                      ...ids.filter((id) => solid.has(id)),
+                    ]),
+                  ];
+                  const set = new Set(next);
+                  if (booleanActive === 'targets') {
+                    setBooleanTargets(next);
+                    setBooleanTools((old) => old.filter((id) => !set.has(id)));
+                  } else {
+                    setBooleanTools(next);
+                    setBooleanTargets((old) => old.filter((id) => !set.has(id)));
+                  }
+                  return;
+                }
+                if (!additive && selectedIds.length > 1) activityHistory.prepare(actionContext);
+                const visible = new Set(visibleBodies.map((b) => b.id));
                 const allowed = ids
                   .filter(
                     (id) =>
-                      visibleBodies.some((b) => b.id === id) &&
+                      visible.has(id) &&
                       (!editingBodyId || id === editingBodyId) &&
                       inAssembly(project, id, openedAssembly),
                   )
@@ -3343,6 +3409,7 @@ export default function App() {
                 setAwaitingStart(true);
                 setMeasureMenu(false);
                 resetGesture();
+                if (tool === 'rotate' && next.length) startRotation(next);
                 editor.setMessage(`${next.length} osaa valittu. M siirtää valinnan.`);
               }}
               radialShape={shapeKind}
@@ -3434,10 +3501,12 @@ export default function App() {
               }}
               onRotationAxis={(axis) => changeRotation({ axis, picking: undefined })}
               onStart={() => {
+                activityHistory.prepare(actionContext);
                 gestureActive.current = true;
                 setAwaitingStart(false);
               }}
               onMoveTarget={(id) => {
+                if (selectedIds.length && !selectedIdSet.has(id)) return undefined;
                 setSelected(id);
                 if (!selectedIdSet.has(id)) {
                   const unit = selectionUnit(project, id, openedAssembly);
@@ -4502,7 +4571,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.14.0</span>
+                    <span>v0.14.1</span>
                   </div>
                 </>
               )}
@@ -4642,6 +4711,49 @@ export default function App() {
                   : editor.message}
           </span>
         </div>
+        <ActivityHistory
+          entries={activityHistory.entries}
+          current={actionContext}
+          busy={busy}
+          onRestore={(context) => {
+            const existing = new Set(
+              project.bodies.filter((b) => bodyVisible(b, project.groups)).map((b) => b.id),
+            );
+            const ids = context.ids.filter((id) => existing.has(id));
+            if (!ids.length) {
+              editor.setMessage('Valinnan osat on poistettu tai piilotettu.');
+              return;
+            }
+            resetGesture();
+            setIsolated(undefined);
+            setTool(tool === 'move' ? 'move' : 'select');
+            setSelectedIds(ids);
+            setSelected(
+              context.primary && ids.includes(context.primary) ? context.primary : ids[0],
+            );
+            setSelectedGroupId(
+              project.groups.some((g) => g.id === context.groupId) ? context.groupId : undefined,
+            );
+            const editing = project.bodies.find((b) => b.id === context.editingBodyId);
+            const editId =
+              editing && existing.has(editing.id) && !bodyLocked(editing, project.groups)
+                ? editing.id
+                : undefined;
+            setEditingBodyId(editId);
+            setSurfaceMode(editId ? 'region' : 'new');
+            setOpenedAssembly(
+              project.groups.some((g) => g.id === context.openedAssembly)
+                ? context.openedAssembly
+                : undefined,
+            );
+            setSelectedFace(undefined);
+            setSelectedGuideId(undefined);
+            setAwaitingStart(true);
+            editor.setMessage(
+              `Valinta palautettu · ${ids.length} kappaletta${ids.length < context.ids.length ? ' · poistetut tai piilotetut osat ohitettu' : ''}.`,
+            );
+          }}
+        />
         <span className="status-right">
           {partsOpen
             ? 'Osat / leikkauslista'

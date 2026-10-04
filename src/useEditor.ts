@@ -13,6 +13,8 @@ import {
 import { History } from './model/history';
 import { loadLocalSession, saveLocal } from './storage/projects';
 import { synchronizeComponents } from './model/components';
+import type { Activity, SelectionContext } from './model/activity';
+import { uid } from './model/project';
 
 export function useEditor() {
   const [cad] = useState(() => new CadClient());
@@ -24,6 +26,8 @@ export function useEditor() {
   const [message, setMessage] = useState('Valmistellaan työtilaa…');
   const [error, setError] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
+  const actionContext = useRef<SelectionContext>({ ids: [] });
+  const [activity, setActivity] = useState<Activity & { projectId: string }>();
   const revision = useRef(0);
   const saveRevision = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
@@ -95,6 +99,9 @@ export function useEditor() {
       mode: 'commit' | 'replace' | 'undo' | 'redo' = 'commit',
     ) => {
       const current = ++revision.current;
+      const info =
+        mode === 'undo' ? history.undoInfo : mode === 'redo' ? history.redoInfo : undefined;
+      const context = mode === 'replace' ? { ids: [] } : (info?.context ?? actionContext.current);
       setBusy(true);
       setError('');
       setMessage('Lasketaan tarkkaa geometriaa…');
@@ -129,11 +136,19 @@ export function useEditor() {
         if (current !== revision.current) return false;
         if (mode === 'undo') history.undo();
         else if (mode === 'redo') history.redo();
-        else history.commit(next);
-        history.current = next;
+        else history.commit(next, { label, context });
+        history.adopt(next);
         setProject(next);
         setMeshes(built);
         setMessage(label);
+        setActivity({
+          id: uid(),
+          projectId: next.id,
+          at: Date.now(),
+          context,
+          kind: mode === 'undo' ? 'undo' : mode === 'redo' ? 'redo' : 'edit',
+          label: info ? `${mode === 'undo' ? 'Peruttu' : 'Palautettu'}: ${info.label}` : label,
+        });
         persist(next);
         return true;
       } catch (e) {
@@ -166,6 +181,10 @@ export function useEditor() {
   };
   return {
     project,
+    activity,
+    setActionContext: (context: SelectionContext) => {
+      actionContext.current = context;
+    },
     meshes,
     cad,
     busy,

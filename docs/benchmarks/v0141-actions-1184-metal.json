@@ -1,0 +1,18 @@
+{
+  "parts": 1184,
+  "resultParts": 2368,
+  "loadMs": 474,
+  "selectionMs": 121,
+  "moveCommitMs": 258,
+  "undoMs": 272,
+  "copyCommitMs": 394,
+  "saveFileMs": 49,
+  "reloadMs": 608,
+  "preview": {
+    "medianMs": 16.7,
+    "p95Ms": 17,
+    "drawCalls": 16
+  },
+  "allocationAfterSelection": 0,
+  "heapMiBAfterReload": 70
+}

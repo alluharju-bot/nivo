@@ -2,6 +2,19 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.14.1 — valinnan varmuus ja pinnalle piirtäminen
+
+Toteutettu: koko siirrettävän osan/kokoonpanon korostus ennen tarttumista,
+valmiin monivalinnan suojaaminen, Shift-valinta ja tyhjästä vedettävä
+valintalaatikko odottavissa muokkaustyökaluissa. Kevyt toimintohistoria
+sitoo valinnan tehtyyn muutokseen; vanhan valinnan voi palauttaa erikseen.
+Lokissa säilyy enintään 100 merkintää ja 2 MiB tekstiä saman välilehden ajan.
+
+Pinnalla oleva tasomuoto saa samassa tasossa olevan tukikappaleen edelle
+piirto- ja valintaetusijan. Uusin päällekkäinen tasomuoto on päällimmäinen;
+oikea etualan geometria peittää sen. CAD-sijaintiin ei lisätä näyttösiirtymää.
+Yhteisen kulman siirtotartunta noudattaa samaa etusijaa.
+
 ## V0.14 — suuren työmaan sujuva mallinnus
 
 Käyttäjän 296 osan kaappirivin kopiointi osoitti kaksi eri ongelmaa:

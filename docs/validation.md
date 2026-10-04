@@ -4,6 +4,43 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.14.1 — varma siirtovalinta, toimintohistoria ja pintaluonnokset
+
+**174 yksikkö-/CAD-testiä hyväksytty (34 tiedostoa).** Uudet kokeet tarkistavat
+toimintoon yhdistyvän 48 osan valinnan, 100 merkinnän ja 2 MiB:n rajat,
+valintakontekstin säilymisen Peru/Palauta-haaroissa ja selaimen historiassa
+sekä väärän projektin tai rikkoutuneen lokin ohituksen.
+
+Poimintakokeessa samassa tasossa oleva tasomuoto voittaa tukikappaleen ja
+uudempi muoto vanhemman riippumatta näyttöobjektien lisäysjärjestyksestä.
+0,001 mm edempänä oleva oikea pinta voittaa edelleen; näkymän leikkaus
+suodattaa osumat ennen etusijan soveltamista. TypeScript, tuotantobuild,
+muotoilu ja lisenssitarkistus hyväksytty.
+
+**74/74 tuotantopaketin selainkoetta hyväksytty** desktop- ja
+tablettiprofiileilla (5,7 min). Uudet työnkulut varmistavat:
+
+- 48 osan laatikkovalinnan M-työkalussa, viereisen osan väärän siirron eston,
+  Shift-lisäyksen/-poiston sekä koko valinnan korostuksen ja siirron yhdellä vedolla;
+- kokoonpanon suoran siirtämisen ilman erillistä valintaklikkausta;
+- tyhjästä alkavan valintalaatikon pensselissä, kumituksessa, kierrossa,
+  Offsetissä, reunatyökalussa ja apuviivatyökalussa muuttamatta geometriaa;
+- toimintoon liittyvän valinnan palauttamisen, Peru-toiminnon ja lokin
+  säilymisen päivityksessä ilman yksittäisten Shift-klikkausten kertymistä;
+- muodon piirtämisen vaakapinnalle Z = 18,125 mm ja pystypinnalle Y = 7,125 mm,
+  uuden muodon valinnan ja E-paksunnoksen alkuperäistä osaa muuttamatta;
+- yhteisestä kulmasta tarttumisen tasomuotoon, päällekkäisten tasomuotojen
+  vakaan järjestyksen sekä etualan osan normaalin peittävyyden.
+
+Regressiot kattavat rakennusmuotojen ääriviivavalinnan, Offset-ontelot ja
+läpiviennit, onton kaapin sisäpinnan, kynän tarkat ankkurit, ruudukon,
+Ctrl-kopioinnin ja Shift-push/pullin kolmella suunnalla. Toimintohistorian
+työpöytä-/tablettiasettelu ja pintamuotojen näkyvyys tarkistettu kuvina.
+
+1 184 osan siirtomittaus: 16,7 / 17,0 ms (mediaani / p95), 16 piirtokutsua;
+valinta ei rakenna uutta GPU-geometriaa. Kopiointi 2 368 osaan, tarkka siirto,
+Peru, tiedostovienti ja uudelleenavaus varmennettu. [Mittaus](performance.md).
+
 ## V0.14 — työmaamallit, poikkileikkaukset ja pohjakuvat
 
 **169 yksikkö-/CAD-testiä hyväksytty (33 tiedostoa).** Aidon OpenCascaden

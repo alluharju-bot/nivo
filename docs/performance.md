@@ -1,5 +1,19 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.14.1 — siirtokorostuksen regressio, 4.10.2026
+
+Alla kuvatulla M1 Pro / ANGLE Metal -kokoonpanolla uusi koko valinnan
+korostus ja toimintohistoria säilyttivät 1 184 osan siirron noin 60 kuvaa/s:
+mediaani **16,7 ms**, p95 **17,0 ms**, **16 piirtokutsua**. Valinta ei luonut
+uutta GPU-geometriaa. Valinta 121 ms, siirron hyväksyntä 258 ms, Peru 272 ms,
+kopiointi 2 368 osaan 394 ms ja uudelleenavaus 608 ms.
+[Mittauksen tulos](benchmarks/v0141-actions-1184-metal.json).
+
+Tasomuodot piirretään yksittäin, jotta päällekkäisten pintojen luontijärjestys
+säilyy myös valinnan vaihtuessa. Tavallisten kiinteiden osien instanssipiirto
+säilyy. Tämä tarkistus koskee kiinteiden levyjen mallia, ei tuhansia
+päällekkäisiä tasoluonnoksia.
+
 ## V0.14 — 4.10.2026
 
 Suuren mallin ensimmäinen raja oli projektin 1 000 osan tarkistusraja, joka

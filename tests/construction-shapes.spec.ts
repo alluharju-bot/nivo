@@ -42,6 +42,9 @@ test('construction rectangle overlays an edited face without splitting it and re
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies).toEqual([body]);
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  // Redo builds the CAD result asynchronously; do not reload while its old
+  // model still carries the preceding transaction's saved status.
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '2');
   await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
   await page.reload();
   await expect(page.locator('.object-list .object-select')).toHaveCount(2);

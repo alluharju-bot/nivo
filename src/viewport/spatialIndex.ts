@@ -94,10 +94,28 @@ export function intersectModel(ray: THREE.Raycaster, group: THREE.Group) {
     index && nodes
       ? index.ray(ray.ray, ray.params.Line?.threshold ?? 0).flatMap((id) => nodes.get(id) ?? [])
       : group.children;
-  return ray
+  const hits = ray
     .intersectObjects(
       objects.filter((object) => object.visible),
       false,
     )
     .filter((hit) => !group.userData.acceptPoint || group.userData.acceptPoint(hit.point));
+  // Ray hits ignore polygon offset. Match the displayed sketch at coincident
+  // surfaces, without allowing it to win over physically nearer geometry.
+  // Cluster from the nearest hit to avoid a non-transitive epsilon comparator.
+  for (let start = 0; start < hits.length;) {
+    let end = start + 1;
+    while (end < hits.length && hits[end].distance - hits[start].distance <= 1e-5) end++;
+    if (end - start > 1) {
+      const coincident = hits
+        .slice(start, end)
+        .sort(
+          (a, b) =>
+            (b.object.userData.surfacePriority ?? 0) - (a.object.userData.surfacePriority ?? 0),
+        );
+      for (let i = start; i < end; i++) hits[i] = coincident[i - start];
+    }
+    start = end;
+  }
+  return hits;
 }

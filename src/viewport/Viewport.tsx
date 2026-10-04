@@ -254,13 +254,17 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     clippingSphere.center.copy(min).add(max).multiplyScalar(0.5);
     clippingSphere.radius = Math.max(100, min.distanceTo(max) / 2);
     const bodyById = new Map(props.bodies.map((body) => [body.id, body]));
+    const surfaceOrder = new Map(props.bodies.map((body, i) => [body.id, i + 1]));
     const selectedIds = new Set(props.selectedIds);
+    const moveHoveredIds = new Set(props.moveHoveredIds);
+    renderer.domElement.dataset.moveHovered = JSON.stringify(props.moveHoveredIds ?? []);
     const scopeIds = props.scopeIds && new Set(props.scopeIds);
     const nextNodes = new Map<string, BodyNode>();
     for (const data of props.meshes) {
       const body = bodyById.get(data.id);
       if (!body) continue;
       const selected = selectedIds.has(data.id);
+      const moveHovered = moveHoveredIds.has(data.id);
       const context = data.id === props.editingBodyId;
       const reference =
         (!!props.editingBodyId && !context) || (!!scopeIds && !scopeIds.has(data.id));
@@ -268,6 +272,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
         auxiliary = body.purpose === 'construction' || body.purpose === 'drawing',
         constructionLine = body.purpose === 'construction' && !featureIsSolid(body.feature);
+      const surfacePriority = !featureIsSolid(body.feature) ? surfaceOrder.get(body.id)! : 0;
+      // A sketch stays on its exact CAD plane. The supporting solid is depth-biased
+      // away instead; depth testing still hides the sketch behind real foreground parts.
+      const surfaceRenderOrder = surfacePriority ? 1 + surfacePriority / (surfacePriority + 1) : 0;
       const old = bodyNodes.get(body.id);
       const uv = JSON.stringify(body.textureFrame);
       const style = JSON.stringify([
@@ -277,6 +285,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         body.locked,
         body.purpose,
         selected,
+        moveHovered,
         context,
         reference,
         target,
@@ -291,6 +300,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         old.uv === uv &&
         old.assets === props.assets
       ) {
+        old.mesh.userData.surfacePriority = surfacePriority;
+        old.mesh.renderOrder = surfaceRenderOrder;
         nextNodes.set(body.id, old);
         continue;
       }
@@ -329,18 +340,20 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                     : '#9865b4'
                   : body.locked
                     ? '#9b7bb8'
-                    : selected && face.ref === props.selectedFace
-                      ? '#e1bd7b'
-                      : selected && !props.selectedFace
-                        ? new THREE.Color(body.color).lerp(
-                            new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
-                            0.3,
-                          )
-                        : body.color,
+                    : moveHovered
+                      ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
+                      : selected && face.ref === props.selectedFace
+                        ? '#e1bd7b'
+                        : selected && !props.selectedFace
+                          ? new THREE.Color(body.color).lerp(
+                              new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
+                              0.3,
+                            )
+                          : body.color,
           side: THREE.DoubleSide,
           polygonOffset: true,
-          polygonOffsetFactor: 1,
-          polygonOffsetUnits: 1,
+          polygonOffsetFactor: surfacePriority ? 0 : 1,
+          polygonOffsetUnits: surfacePriority ? 0 : 1,
           transparent: auxiliary || cutter,
           opacity: constructionLine ? 0 : cutter ? 0.22 : auxiliary ? 0.035 : 1,
           depthWrite: !auxiliary && !cutter,
@@ -356,7 +369,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       // Self-shadow acne on broad coplanar CAD faces caused view-dependent striping.
       // Parts still cast a ground shadow; their own surfaces use stable direct lighting.
       mesh.receiveShadow = false;
-      mesh.userData = { id: body.id, faces: data.faces, purpose: body.purpose };
+      mesh.userData = { id: body.id, faces: data.faces, purpose: body.purpose, surfacePriority };
+      mesh.renderOrder = surfaceRenderOrder;
       if (constructionLine) mesh.raycast = () => {};
       bodies.add(mesh);
       const outline = new THREE.LineSegments(
@@ -364,23 +378,25 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         new THREE.LineBasicMaterial({
           color: context
             ? '#267e65'
-            : reference
-              ? '#819087'
-              : target
-                ? '#0066bf'
-                : cutter
-                  ? '#cc3d28'
-                  : auxiliary
-                    ? body.purpose === 'construction'
-                      ? '#1289c6'
-                      : '#9865b4'
-                    : body.locked
-                      ? '#684294'
-                      : selected
-                        ? props.selectedGroupId
-                          ? '#356eab'
-                          : '#237b65'
-                        : '#766851',
+            : moveHovered
+              ? '#116c53'
+              : reference
+                ? '#819087'
+                : target
+                  ? '#0066bf'
+                  : cutter
+                    ? '#cc3d28'
+                    : auxiliary
+                      ? body.purpose === 'construction'
+                        ? '#1289c6'
+                        : '#9865b4'
+                      : body.locked
+                        ? '#684294'
+                        : selected
+                          ? props.selectedGroupId
+                            ? '#356eab'
+                            : '#237b65'
+                          : '#766851',
           transparent: true,
           opacity: reference
             ? 0.65
@@ -1142,6 +1158,7 @@ export function Viewport(props: Props) {
     props.bodies,
     props.meshes,
     props.selectedIds,
+    props.moveHoveredIds,
     props.selectedGroupId,
     props.selectedFace,
     props.editingBodyId,
