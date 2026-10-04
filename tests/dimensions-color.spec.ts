@@ -1,3 +1,4 @@
+import { revealBrowser } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { freshProject, makeBody, type Body, type Guide, type Project } from '../src/model/project';
@@ -98,6 +99,7 @@ test('color applies to a multi-selection in one undo step; custom color and 3D d
   expect((await save(page)).bodies.map((b) => b.color)).toEqual([a.color, b.color]);
   await page.getByRole('button', { name: 'Lisää kokonaismitat', exact: true }).click();
   await expect(page.getByTestId('dimension-3d')).toHaveCount(6);
+  await revealBrowser(page);
   await page.getByRole('button', { name: 'Kappaleet 2', exact: true }).click();
   await page.getByTestId(`body-${a.id}`).click();
   await page.getByLabel('Oma osaväri', { exact: true }).fill('#b45588');

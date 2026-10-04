@@ -30,7 +30,7 @@ test('third tap places a dimension, dragging changes only its offset and Escape 
     if (info.project.name === 'tablet') await page.touchscreen.tap(p.x, p.y);
     else await page.mouse.click(p.x, p.y);
   }
-  await expect(page.locator('.dimension-list > div')).toHaveCount(1);
+  await expect(page.locator('.dimension-list:visible > div')).toHaveCount(1);
   await page.getByRole('button', { name: 'Lopeta mitoitus', exact: true }).click();
   const original = await save(page),
     d = original.dimensions[0];

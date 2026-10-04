@@ -15,9 +15,9 @@ test('construction rectangle overlays an edited face without splitting it and re
   await expect(page.getByRole('textbox', { name: 'Muodon paksuus', exact: true })).toBeDisabled();
   await click(page, p(50, 50, 40));
   await page.mouse.move(p(150, 150, 40).x, p(150, 150, 40).y);
-  await page.getByRole('textbox', { name: 'Muodon leveys', exact: true }).fill('100');
-  await page.getByRole('textbox', { name: 'Muodon syvyys', exact: true }).fill('100');
-  await page.getByRole('textbox', { name: 'Muodon syvyys', exact: true }).press('Enter');
+  await page.getByTestId('width-input').fill('100');
+  await page.getByTestId('depth-input').fill('100');
+  await page.getByTestId('depth-input').press('Enter');
   await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   let result = await save(page);
   expect(result.bodies[0]).toEqual(body);
@@ -28,6 +28,7 @@ test('construction rectangle overlays an edited face without splitting it and re
   expect(outline.feature.depth).toBeCloseTo(100, 5);
   expect(outline.origin[2]).toBeCloseTo(40, 5);
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape'); // Leave the part edit scope after ending the tool.
   // Interior clicks reach the original part; only the outline selects the guide shape.
   await click(page, p(100, 100, 40));
   await expect(page.getByTestId(`body-${body.id}`)).toHaveClass(/selected/);

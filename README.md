@@ -3,13 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.14.1** suojaa siirtoon valmistellun valinnan ja korostaa koko
-siirrettävän osan, kokoonpanon tai monivalinnan jo ennen painallusta. Tyhjästä
-voi vetää valintalaatikon myös muissa muokkaustyökaluissa. Kevyt toimintohistoria
-näyttää viimeisen muutoksen ja palauttaa siihen liittyvän valinnan.
-Komponentin pinnalle piirretty tasomuoto saa etusijan piirrossa ja valinnassa
-ilman geometrian siirtämistä irti pinnasta.
-V0.14:n poikkileikkaukset, pohjakuvat ja suuren mallin optimoinnit ovat mukana.
+Versio **0.15.0** yhtenäistää työkalujen käytön: oikea paneeli näyttää tehtävän,
+kohteen ja tärkeät mitat. Lisäasetukset avataan tarvittaessa. **Hae** (Ctrl/⌘ K)
+löytää työkalut ja toiminnot myös tutuilla sanoilla, kuten ”pyöristys” tai ”materiaali”.
+**Valitse toinen** näyttää osoitetun kohdan päällekkäiset osat ja esikorostaa
+myös peitossa olevan osan ennen valintaa. Aiemmat mallinnus-, piirustus-,
+renderöinti- ja suuren mallin työkalut ovat mukana.
 [Mitattu suorituskyky ja rajat](docs/performance.md).
 
 - Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
@@ -23,7 +22,7 @@ V0.14:n poikkileikkaukset, pohjakuvat ja suuren mallin optimoinnit ovat mukana.
 OpenCascade laskee tarkan geometrian Web Workerissa. Three.js näyttää siitä
 johdetun verkon; projektin mitat eivät riipu renderöintikolmioista.
 
-![Nivon läpikuultava mallilista ja työtila](docs/images/nivo-v013-workspace.png)
+![Nivon yhteinen työkalupaneeli ja mittasyöttö](docs/images/nivo-v015-workspace.png)
 
 ## Testaa selaimessa
 
@@ -55,6 +54,29 @@ fontteja, CDN-kirjastoja tai laskentapalveluja.
 npm run build       # tyyppitarkistus ja dist/
 npm run preview     # tuotantopaketin paikallinen esikatselu
 ```
+
+## Yhteinen työskentelytapa
+
+- Paneelin yläosa kertoo työkalun, kohteen ja seuraavan vaiheen. **Uusi osa**
+  ja **Muokkaa osaa** erottuvat toisistaan. Akseli ja kopiointitila näkyvät samassa yhteydessä.
+- Napsauta muodon aloituspistettä ja vastapistettä tai vedä. Numeron kirjoittaminen
+  aloittaa mittasyötön, Tab vaihtaa kenttää ja Enter hyväksyy. Leveys ja syvyys
+  ovat vain yhdessä lomakkeessa; nimen ja muut lisäasetukset voi avata alta.
+  Mittaikkunan voi edelleen vetää irti paneelista ja palauttaa oikeaan reunaan.
+- **Esc** peruu keskeneräisen toiminnon säilyttäen työkalun ja valinnan.
+  Seuraava Esc päättää työkalun. Osan muokkaustilassa vielä yksi Esc tai
+  **Lopeta muokkaus** sulkee osan. **Lopeta työkalu** päättää työkalun suoraan.
+  Hyväksytty toiminto jättää työkalun valmiiksi seuraavaan aloitukseen.
+- **Hae** löytyy yläpalkista. ↑/↓ selaa ja Enter käynnistää toiminnon.
+  Hakutulos kertoo syyn, jos toiminto vaatii esimerkiksi osan valinnan.
+  Haun Esc sulkee vain haun ja säilyttää kesken olevan esikatselun.
+- **Toiminnot → Valitse toinen** tai sama toimintohaku antaa valita päällekkäisistä
+  osista. Hiirellä osoitus esikorostaa ja napsautus valitsee. Kosketuksella
+  napauta nimeä esikorostusta varten ja vahvista **Valitse korostettu**.
+  Suljetut kokoonpanot ovat yksi vaihtoehto. Piilotettuja osia tai avoimen
+  muokkauskohteen ulkopuolisia osia ei tarjota.
+- Valitun osan mitat ovat ennen lisäasetuksia. Komponenttien linkitys löytyy
+  avattavasta **Komponentti ja linkitys** -osiosta.
 
 ## Ruudukko ja pinnalle piirtäminen
 

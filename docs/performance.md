@@ -1,5 +1,23 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.15 — yhteisen työkalupaneelin regressio, 4.10.2026
+
+Sama M1 Pro / ANGLE Metal -kokoonpano ja 1 184 levyn toimintasarja:
+siirron mediaani **16,7 ms**, p95 **18,4 ms**, **16 piirtokutsua**.
+V0.14.1:n vastaavat luvut olivat 16,7 / 17,0 ms ja 16 piirtokutsua.
+Mediaani säilyi noin 60 kuvassa/s; yksittäisen ajon pieni p95-ero ei yksin
+osoita pysyvää muutosta. Valinta ei luonut uutta GPU-geometriaa.
+
+Valinta 122 ms, siirron hyväksyntä 260 ms, Peru 283 ms, kopiointi
+**2 368 osaan 378 ms**, tiedostolataus 46 ms ja uudelleenavaus 602 ms.
+Kaikkien osien tarkka siirto ja muuttumattomat muut akselit tarkistettiin.
+[Mittauksen tulos](benchmarks/v015-actions-1184-metal.json).
+
+Kohdevalitsimen esikorostus lainaa osien olemassa olevaa näyttögeometriaa;
+se ei tesselloi CAD-osia uudelleen. Mittaus koskee tavallista suuren valinnan
+siirtoa, ei tuhansien päällekkäisten osien valitsinlistan pahinta tapausta.
+Alla olevat laite-, malli- ja muistimittausten rajaukset pätevät edelleen.
+
 ## V0.14.1 — siirtokorostuksen regressio, 4.10.2026
 
 Alla kuvatulla M1 Pro / ANGLE Metal -kokoonpanolla uusi koko valinnan

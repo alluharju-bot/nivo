@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { bounds, makeBody, makeProfileBody } from '../src/model/project';
 import { sketchFrame } from '../src/model/sketch';
 import * as THREE from 'three';
-import { ready, view, click, save } from './helpers';
+import { ready, view, click, save, revealBrowser } from './helpers';
 
 test('picked edges fillet with a preview, exact size and persistent undo', async ({
   page,
@@ -43,6 +43,7 @@ test('all-edge chamfer can be cancelled, rejects oversized cuts, and applies a v
 }) => {
   const body = makeBody(200, 160, 40);
   await ready(page, [body]);
+  await revealBrowser(page);
   await page.getByTestId(`body-${body.id}`).click();
   await page.keyboard.press('f');
   await page.getByRole('combobox', { name: 'Reunakäsittely', exact: true }).selectOption('chamfer');
@@ -53,6 +54,7 @@ test('all-edge chamfer can be cancelled, rejects oversized cuts, and applies a v
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-detail-preview', '');
   expect((await save(page)).bodies).toEqual([body]);
+  await revealBrowser(page);
   await page.getByTestId(`body-${body.id}`).click();
   await page.keyboard.press('f');
   await page.getByRole('button', { name: 'Kaikki reunat', exact: true }).click();

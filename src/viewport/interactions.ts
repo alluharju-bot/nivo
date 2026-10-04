@@ -1965,7 +1965,34 @@ export function installInteractions({
   };
   let contextStart: { x: number; y: number } | undefined;
   const contextEvent = (event: MouseEvent) => event.preventDefault();
+  const pickCandidatesAt = (event: PointerEvent) => {
+    setRay(event);
+    const seen = new Set<string>();
+    return intersectModel(raycaster, bodies).flatMap((hit) => {
+      const id = hit.object.userData.id as string | undefined;
+      const props = current();
+      if (
+        !(hit.object instanceof THREE.Mesh) ||
+        !id ||
+        seen.has(id) ||
+        (props.editingBodyId && id !== props.editingBodyId) ||
+        (props.scopeIds && !props.scopeIds.includes(id))
+      )
+        return [];
+      seen.add(id);
+      const mesh = props.meshes.find((m) => m.id === id);
+      const index = (hit.faceIndex ?? 0) * 3;
+      return [
+        {
+          bodyId: id,
+          face: mesh?.faces.find((f) => index >= f.start && index < f.start + f.count)?.ref,
+        },
+      ];
+    });
+  };
+  let pickingOther = false;
   const down = (event: PointerEvent) => {
+    pickingOther = false;
     if (event.button === 2) contextStart = { x: event.clientX, y: event.clientY };
     lastEvent = event;
     sync();
@@ -1992,7 +2019,21 @@ export function installInteractions({
       return;
     }
     const props = current();
-    if (props.busy || props.tool === 'navigate') return;
+    if (props.busy || props.modalOpen) return;
+    if (props.pickOthers) {
+      // Opening on pointerdown must suppress the canvas default focus, which
+      // otherwise steals keyboard focus back from the newly mounted picker.
+      event.preventDefault();
+      pickingOther = true;
+      props.onPickCandidates?.({
+        x: event.clientX,
+        y: event.clientY,
+        candidates: pickCandidatesAt(event),
+      });
+      pointers.delete(event.pointerId);
+      return;
+    }
+    if (props.tool === 'navigate') return;
     // Idle tools share selection; active drawing, reference acquisition and
     // face gestures keep their own modifiers and empty-space semantics.
     const selectionTool =
@@ -2436,6 +2477,7 @@ export function installInteractions({
     if (drag && Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4)
       drag.moved = true;
     const props = current();
+    if (props.modalOpen) return;
     if (blocked || props.busy) return;
     if (drag?.selection) {
       if (drag.moved) boxSelection(event);
@@ -2740,6 +2782,17 @@ export function installInteractions({
     }
   };
   const up = (event: PointerEvent) => {
+    if (pickingOther || current().modalOpen) {
+      pickingOther = false;
+      pointers.delete(event.pointerId);
+      drag = undefined;
+      rotationDrag = undefined;
+      dimensionPress = undefined;
+      detailSession = undefined;
+      clearSelectionBox();
+      if (!pointers.size) blocked = false;
+      return;
+    }
     if (event.button === 2) {
       if (
         contextStart &&
@@ -2753,6 +2806,7 @@ export function installInteractions({
           y: event.clientY,
           bodyId: picked?.target.bodyId,
           guideId: guide?.object.userData.guideId,
+          candidates: pickCandidatesAt(event),
         });
       }
       contextStart = undefined;
@@ -2924,14 +2978,25 @@ export function installInteractions({
     rotationDrag = undefined;
     if (!pointers.size) blocked = false;
   };
+  let controlCopyBefore: boolean | undefined;
   const keydown = (event: KeyboardEvent) => {
+    if (controlCopyBefore !== undefined && event.ctrlKey && event.key !== 'Control') {
+      current().onCopyMove(controlCopyBefore);
+      controlCopyBefore = undefined;
+    }
     if (
-      (event.target as HTMLElement).closest('input,textarea,select,[contenteditable],[role=menu]')
+      current().modalOpen ||
+      (event.target as HTMLElement).closest(
+        'input,textarea,select,[contenteditable],[role=menu],[role=dialog]',
+      )
     )
       return;
     if ((event.key === 'Control' || event.key === 'Alt') && current().tool === 'move') {
       event.preventDefault();
-      if (!event.repeat) current().onCopyMove(!current().copyMove);
+      if (!event.repeat) {
+        if (event.key === 'Control') controlCopyBefore = current().copyMove;
+        current().onCopyMove(!current().copyMove);
+      }
       return;
     }
     // Axis shortcuts must not intercept application commands such as Ctrl/Cmd+Z.
@@ -3005,6 +3070,11 @@ export function installInteractions({
     }
   };
   const keyup = (event: KeyboardEvent) => {
+    if (event.key === 'Control') controlCopyBefore = undefined;
+    if (current().modalOpen) {
+      if (event.key === 'Shift') shift = false;
+      return;
+    }
     if (event.key === 'Shift') {
       shift = false;
       if (current().tool === 'extrude') {

@@ -178,6 +178,11 @@ test('move, rectangle and push/pull stay active across commits; Escape clears ev
   await click(page, point(230, 0, 130));
   await page.keyboard.press('z');
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Mittatyökalu', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.keyboard.press('Escape');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Valitse', exact: true })).toHaveAttribute(
     'aria-pressed',

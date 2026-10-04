@@ -7,6 +7,10 @@ import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, type PointDimension } from './model/project';
 import { PaintPanel } from './ui/PaintPanel';
 import { ContextActions, type QuickAction } from './ui/ContextActions';
+import { CommandSearch } from './ui/CommandSearch';
+import type { Command } from './ui/commands';
+import { ToolContext } from './ui/ToolContext';
+import { OverlapPicker, type PickCandidate } from './ui/OverlapPicker';
 import { defaultAppearance } from './model/materials';
 import { CabinetBuilder } from './ui/CabinetBuilder';
 import { insertCabinet } from './model/cabinet';
@@ -41,6 +45,7 @@ import {
   Minimize,
   MoreHorizontal,
   Settings2,
+  Search,
   MousePointer2,
   Move3D,
   PanelRightClose,
@@ -223,7 +228,7 @@ const instructions: Record<Tool, string> = {
   erase:
     'U · Osoita pintojen välistä jakoviivaa. Korostetut tasopinnat yhdistyvät klikkauksella. Kulmat ja aukot säilyvät.',
   rotate:
-    'R · Poimi kiertopiste tai reuna. Vedä rengasta tai anna kulma. X/Y/Z valitsee akselin; Shift porrastaa 15°. Esc päättää työkalun.',
+    'R · Poimi kiertopiste tai reuna. Vedä rengasta tai anna kulma. X/Y/Z valitsee akselin; Shift porrastaa 15°. Esc peruu toiminnon; seuraava Esc päättää työkalun.',
   offset:
     'O · Osoita pintaa ja liikuta hiirtä tai vedä pinnasta. Kirjoita tarkka mitta. Klikkaus, vapautus tai Enter hyväksyy. Esc peruu.',
   select:
@@ -236,9 +241,9 @@ const instructions: Record<Tool, string> = {
   extrude:
     'E · Shift poimii tavoitemitan pisteestä, reunasta, apuviivasta tai pinnasta. Kirjoitettu mitta ohittaa tartunnan. Enter tai klikkaus hyväksyy.',
   move: 'Korostus näyttää siirrettävät osat. Vedä valitusta osasta; Shift-klikkaus muuttaa valintaa. Tyhjästä veto valitsee laatikolla. X/Y/Z lukitsee akselin, Ctrl vaihtaa kopioinnin.',
-  pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc päättää työkalun.',
+  pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc peruu toiminnon; seuraava Esc päättää työkalun.',
   measure:
-    'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc päättää työkalun. R kiertää 45°, Shift+R vapaasti.',
+    'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc peruu toiminnon; seuraava Esc päättää työkalun. R kiertää 45°, Shift+R vapaasti.',
   navigate: 'Vedä yhdellä sormella kiertääksesi. Kahdella sormella panoroit ja zoomaat.',
 };
 type Fields = {
@@ -377,7 +382,15 @@ export default function App() {
   const [tool, setTool] = useState<Tool>('select');
   const [renderOpen, setRenderOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
-  const [actionMenu, setActionMenu] = useState<{ x: number; y: number }>();
+  const [actionMenu, setActionMenu] = useState<{
+    x: number;
+    y: number;
+    candidates?: PickCandidate[];
+  }>();
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [pickOthers, setPickOthers] = useState(false);
+  const [pickList, setPickList] = useState<{ x: number; y: number; candidates: PickCandidate[] }>();
+  const [pickHovered, setPickHovered] = useState<string>();
   const [brush, setBrush] = useState({ appearance: defaultAppearance('matte'), color: '#dbd3bd' });
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
@@ -719,6 +732,9 @@ export default function App() {
     setLocked(new Set());
   };
   const resetGesture = () => {
+    setPickOthers(false);
+    setPickList(undefined);
+    setPickHovered(undefined);
     gestureActive.current = false;
     setDimensionDraft(undefined);
     setDetailTarget(undefined);
@@ -1563,9 +1579,42 @@ export default function App() {
       committing.current = false;
     }
   };
-  const cancel = () => {
+  const cancel = (finish = false) => {
+    if (!finish && pickOthers) {
+      setPickOthers(false);
+      return;
+    }
     activityHistory.prepare(actionContext);
-    const hadGesture = gestureActive.current || !!faceRef.current || !!rotationRef.current || busy;
+    const hadGesture =
+      gestureActive.current ||
+      !!dimensionDraft ||
+      !!guideRef.current ||
+      !!penRef.current.length ||
+      (tool === 'offset' && !!faceTarget) ||
+      (tool === 'detail' && !!detailTarget?.indices.length) ||
+      (tool === 'boolean' && booleanTools.length > 0) ||
+      busy;
+    if (!finish && hadGesture) {
+      if (busy) editor.cancel();
+      resetGesture();
+      setAwaitingStart(true);
+      writeFields({
+        ...defaults,
+        ...(tool === 'circle' ? { width: '100', depth: '60' } : {}),
+        ...(tool === 'offset' ? { offset: '18' } : tool === 'detail' ? { offset: '2' } : {}),
+      });
+      setMeasureMenu(false);
+      if (tool === 'boolean') {
+        setBooleanTools([]);
+        setBooleanTargets([]);
+        setBooleanActive('targets');
+      }
+      editor.setError('');
+      editor.setMessage(
+        'Toiminto peruttu. Työkalu on valmis uuteen aloitukseen. Esc päättää työkalun.',
+      );
+      return;
+    }
     if (busy) editor.cancel();
     resetGesture();
     setTool('select');
@@ -1585,7 +1634,7 @@ export default function App() {
           .find((g) => g.kind === 'assembly')?.id,
       );
     if (editingBodyId) {
-      if (!hadGesture) {
+      if (!hadGesture && tool === 'select') {
         setEditingBodyId(undefined);
         setSurfaceMode('new');
         editor.setMessage('Osan muokkaus päätetty. Piirtäminen luo uuden osan.');
@@ -2272,6 +2321,14 @@ export default function App() {
     setMode('drawing');
     setTab('dimensions');
   };
+  const openParts = () => {
+    resetGesture();
+    setEditingBodyId(undefined);
+    setSurfaceMode('new');
+    setRenderOpen(false);
+    setPartsOpen(true);
+    setTool('select');
+  };
   const dimensionSelection = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
     const next = addBodyDimensions(project, ids);
@@ -2319,6 +2376,24 @@ export default function App() {
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || cabinetOpen || actionMenu) return;
+      if (commandOpen || pickList) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setCommandOpen(false);
+          setPickList(undefined);
+          setPickHovered(undefined);
+        }
+        return;
+      }
+      if (help) {
+        if (event.key === 'Escape') setHelp(false);
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandOpen(true);
+        return;
+      }
       if (event.key === 'Escape') {
         if (renderOpen || partsOpen || mode === 'drawing') {
           closeRender();
@@ -2504,6 +2579,11 @@ export default function App() {
       `${ids.length} osan materiaali päivitetty.`,
     );
   };
+  const movementBlocked = project.bodies.some(
+    (b) => selectedIdSet.has(b.id) && bodyLocked(b, project.groups),
+  )
+    ? 'Vapauta valinnan Hold ennen muokkaamista.'
+    : undefined;
   const quickActions: QuickAction[] = selectedGuide
     ? [
         { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
@@ -2516,9 +2596,24 @@ export default function App() {
           disabled: busy || !body,
         },
         { label: 'Eristä valinta', run: isolateSelection, disabled: busy || !selectedIds.length },
-        { label: 'Siirrä · M', run: () => begin('move'), disabled: busy || !body },
-        { label: 'Kopioi ja siirrä', run: copyBody, disabled: busy || !body },
-        { label: 'Kierrä · R', run: () => begin('rotate'), disabled: busy || !body },
+        {
+          label: 'Siirrä · M',
+          run: () => begin('move'),
+          reason: movementBlocked,
+          disabled: busy || !body,
+        },
+        {
+          label: 'Kopioi ja siirrä',
+          run: copyBody,
+          reason: movementBlocked,
+          disabled: busy || !body,
+        },
+        {
+          label: 'Kierrä · R',
+          run: () => begin('rotate'),
+          reason: movementBlocked,
+          disabled: busy || !body,
+        },
         { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
         { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
         {
@@ -2542,9 +2637,270 @@ export default function App() {
         {
           label: `Poista valinta (${selectedIds.length})`,
           run: () => void removeBody(),
+          reason: movementBlocked,
           disabled: busy || !selectedIds.length,
         },
       ];
+  const chooseOther = () => {
+    if (actionMenu?.candidates?.length) {
+      setPickList({ ...actionMenu, candidates: actionMenu.candidates });
+    } else {
+      setPickOthers(true);
+    }
+    setActionMenu(undefined);
+  };
+  const pickPreviewIds = useMemo(
+    () => (pickHovered ? selectionUnit(project, pickHovered, openedAssembly).ids : undefined),
+    [pickHovered, project, openedAssembly],
+  );
+  const pickCandidates = (() => {
+    const seen = new Set<string>();
+    return (pickList?.candidates ?? []).flatMap((candidate) => {
+      const part = project.bodies.find((b) => b.id === candidate.bodyId);
+      if (!part) return [];
+      const unit = selectionUnit(project, part.id, openedAssembly);
+      const key = unit.groupId ?? part.id;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      const group = project.groups.find((g) => g.id === unit.groupId);
+      return [
+        {
+          ...candidate,
+          name: group?.name ?? part.name,
+          description: [
+            group
+              ? `Kokoonpano · ${unit.ids.length} osaa`
+              : groupPath(project.groups, part.groupId) || 'Päätaso',
+            bodyLocked(part, project.groups) ? 'Hold' : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        },
+      ];
+    });
+  })();
+  const startCommandTool = (next: Tool) => {
+    setRenderOpen(false);
+    setPartsOpen(false);
+    begin(next);
+    setPanelOpen(true);
+  };
+  const commands: Command[] = [
+    ...tools.map((t) => ({
+      id: `tool-${t.id}`,
+      label: t.label,
+      group: 'Työkalut',
+      shortcut: t.shortcut,
+      keywords: (
+        {
+          extrude: 'pursota paksuus push pull',
+          move: 'move siirto',
+          rotate: 'rotate kierto',
+          detail: 'viiste pyöristys fillet chamfer',
+          paint: 'väri materiaali tekstuuri maalaa',
+          boolean: 'cut join leikkaa yhdistä',
+          offset: 'sisennys inset',
+        } as Partial<Record<Tool, string>>
+      )[t.id],
+      reason: busy ? 'Odota keskeneräisen laskennan valmistumista.' : undefined,
+      run: () => startCommandTool(t.id),
+    })),
+    ...(['ellipse', 'polygon'] as const).map((kind) => ({
+      id: kind,
+      label: kind === 'ellipse' ? 'Ellipsi' : 'Monikulmio',
+      group: 'Muodot',
+      reason: busy ? 'Odota laskennan valmistumista.' : undefined,
+      run: () => {
+        setShapeKind(kind);
+        startCommandTool('circle');
+      },
+    })),
+    ...(['dimension', 'guide', 'free'] as const).map((kind) => ({
+      id: `measure-${kind}`,
+      label:
+        kind === 'dimension'
+          ? 'Dimensio · kaksi pistettä'
+          : kind === 'guide'
+            ? 'Apuviiva'
+            : 'Vapaa mittaviiva',
+      group: 'Mittaaminen',
+      keywords: 'mittaus mitta mitat mitoita pituus mittaviiva',
+      reason: busy ? 'Odota laskennan valmistumista.' : undefined,
+      run: () => {
+        startCommandTool('measure');
+        resetGesture();
+        setMeasureMode(kind);
+        setMeasureMenu(false);
+        setAwaitingStart(true);
+      },
+    })),
+    ...quickActions.map((a, i) => ({
+      id: `selection-${i}`,
+      label: a.label,
+      group: 'Valinta',
+      reason:
+        a.reason ??
+        (a.disabled ? (busy ? 'Odota laskennan valmistumista.' : 'Valitse ensin osa.') : undefined),
+      run: () => {
+        setRenderOpen(false);
+        setPartsOpen(false);
+        setMode('model');
+        a.run();
+      },
+    })),
+    {
+      id: 'pick-other',
+      label: 'Valitse toinen',
+      group: 'Valinta',
+      keywords: 'päällekkäiset takana peitossa',
+      reason:
+        mode !== 'model' || renderOpen || partsOpen
+          ? 'Palaa ensin Malli-näkymään.'
+          : busy
+            ? 'Odota laskennan valmistumista.'
+            : undefined,
+      run: chooseOther,
+    },
+    {
+      id: 'section',
+      label: 'Poikkileikkaus',
+      group: 'Näkymät',
+      keywords: 'leikkaus leikkaustaso section',
+      run: () => {
+        startCommandTool('select');
+        workspace.open('section');
+      },
+    },
+    {
+      id: 'reference-image',
+      label: 'Pohjakuva',
+      group: 'Näkymät',
+      keywords: 'kuva mittakaava kalibroi',
+      run: () => {
+        startCommandTool('select');
+        workspace.open('image');
+      },
+    },
+    {
+      id: 'drawing',
+      label: 'Mittakuva',
+      group: 'Työtilat',
+      keywords: 'piirustus tulosta pdf',
+      reason: !project.bodies.length
+        ? 'Luo ensin osa.'
+        : busy
+          ? 'Odota laskennan valmistumista.'
+          : undefined,
+      run: openDrawing,
+    },
+    {
+      id: 'render',
+      label: 'Renderöi',
+      group: 'Työtilat',
+      keywords: 'render valokuva valo',
+      reason: busy ? 'Odota laskennan valmistumista.' : undefined,
+      run: openRender,
+    },
+    {
+      id: 'model',
+      label: 'Malli',
+      group: 'Työtilat',
+      keywords: 'mallinnus takaisin',
+      run: closeRender,
+    },
+    {
+      id: 'parts',
+      label: 'Osaluettelo ja leikkauslista',
+      group: 'Työtilat',
+      keywords: 'osat levyt räjäytyskuva',
+      reason: !project.bodies.length ? 'Luo ensin osa.' : undefined,
+      run: openParts,
+    },
+    {
+      id: 'cabinet',
+      label: 'Levyrunko',
+      group: 'Muodot',
+      keywords: 'kaappi kaluste',
+      reason: editingBodyId ? 'Lopeta ensin osan muokkaus.' : undefined,
+      run: () => {
+        startCommandTool('select');
+        setCabinetOpen(true);
+      },
+    },
+    {
+      id: 'fit',
+      label: 'Sovita malli näkymään',
+      group: 'Kamera',
+      keywords: 'zoom kamera',
+      run: fit,
+    },
+    ...(
+      [
+        ['top', 'Ylhäältä'],
+        ['front', 'Edestä'],
+        ['right', 'Sivulta'],
+        ['iso', '3D'],
+      ] as const
+    ).map(([id, label]) => ({
+      id: `view-${id}`,
+      label,
+      group: 'Kamera',
+      run: () => changeView(id),
+    })),
+  ];
+  for (const command of commands) {
+    if (!ready || busy) command.reason ??= 'Odota laskennan valmistumista.';
+  }
+  const activeTool = !['select', 'navigate'].includes(tool);
+  const shapeTool = ['rectangle', 'circle', 'pen'].includes(tool);
+  const toolTitle =
+    tool === 'circle'
+      ? { circle: 'Ympyrä', ellipse: 'Ellipsi', polygon: 'Monikulmio' }[shapeKind]
+      : tool === 'measure'
+        ? { dimension: 'Dimensio', guide: 'Apuviiva', free: 'Vapaa mittaviiva' }[measureMode]
+        : tool === 'boolean'
+          ? booleanOperation === 'cut'
+            ? 'Leikkaa'
+            : 'Yhdistä'
+          : (tools.find((t) => t.id === tool)?.label ?? '');
+  const targetName = selectedIds.length > 1 ? `${selectedIds.length} kappaletta` : body?.name;
+  const shapeTarget =
+    sketchTarget && project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name;
+  const toolContext = shapeTool
+    ? constructionLine
+      ? 'Rakennusviiva · ei muuta pintaa'
+      : editingBody && surfaceMode === 'region'
+        ? `Muokkaa osaa · ${editingBody.name}`
+        : `Uusi osa${shapeTarget ? ` · ${shapeTarget} / pinta` : ''}`
+    : editingBody
+      ? `Muokkaa osaa · ${editingBody.name}`
+      : targetName;
+  const toolStep =
+    tool === 'move'
+      ? selectedIds.length
+        ? 'Tartu valinnan korostettuun pisteeseen ja vedä. Shift lisää osia valintaan.'
+        : 'Osoita osaa ja tartu korostettuun pisteeseen.'
+      : tool === 'extrude'
+        ? faceTarget
+          ? 'Vedä pintaa tai kirjoita mitta. Shift poimii tavoitteen toisesta pisteestä tai pinnasta.'
+          : 'Osoita pintaa ja vedä siitä.'
+        : tool === 'offset'
+          ? faceTarget
+            ? 'Säädä sisennystä hiirellä tai kirjoita mitta. Klikkaus tai Enter hyväksyy.'
+            : 'Osoita pintaa ja napsauta tai vedä.'
+          : tool === 'rectangle'
+            ? awaitingStart
+              ? 'Napsauta alkukulmaa näkymästä.'
+              : 'Napsauta vastakulmaa tai kirjoita mitat. Enter hyväksyy.'
+            : tool === 'circle'
+              ? awaitingStart
+                ? 'Napsauta keskipistettä näkymästä.'
+                : 'Napsauta reunaa tai kirjoita halkaisija. Enter hyväksyy.'
+              : tool === 'detail'
+                ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
+                : tool === 'measure' && measureMode === 'dimension'
+                  ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
+                  : instructions[tool];
   const objectActions = body && !selectedGroup && mode === 'model' && (
     <ObjectActions
       body={{ ...body, locked: bodyLocked(body, project.groups) }}
@@ -2573,10 +2929,19 @@ export default function App() {
     />
   );
   const numericInput = editing &&
+    (tool !== 'move' || !!body) &&
+    (tool !== 'rotate' || !!rotation) &&
+    (tool !== 'measure' || !!guideDraft) &&
+    (tool !== 'pen' || !!penPoints.length) &&
     !(tool === 'measure' && measureMode === 'dimension') &&
     numericFields.length > 0 && (
       <DynamicInput
         fields={numericFields}
+        showActions={tool !== 'detail'}
+        canAccept={
+          tool !== 'detail' ||
+          (!!detailTarget?.indices.length && !detailPreview.loading && !detailPreview.error)
+        }
         position={popup}
         onPositionChange={setPopup}
         docked={panelOpen}
@@ -2585,34 +2950,36 @@ export default function App() {
         activeKey={tool === 'extrude' ? extrusionMode : undefined}
         onActivate={tool === 'extrude' ? activateExtrusion : undefined}
         onAccept={() => void apply()}
-        onCancel={cancel}
+        onCancel={() => cancel()}
         busy={busy}
         title={
-          tool === 'detail'
-            ? 'Viimeistele reunat'
-            : tool === 'offset'
-              ? 'Offset · sisennys'
-              : tool === 'rotate'
-                ? 'Kierrä'
-                : tool === 'rectangle'
-                  ? 'Suorakulmio'
-                  : tool === 'circle'
-                    ? shapeKind === 'circle'
-                      ? 'Ympyrä'
-                      : shapeKind === 'ellipse'
-                        ? 'Ellipsi'
-                        : 'Monikulmio'
-                    : tool === 'measure'
-                      ? measureMode === 'guide'
-                        ? 'Apuviiva'
-                        : 'Vapaa mittaviiva'
-                      : tool === 'pen'
-                        ? 'Kynä · seuraava piste'
-                        : tool === 'move'
-                          ? copyMove
-                            ? 'Siirrä kopio'
-                            : 'Siirrä'
-                          : 'Push / pull'
+          panelOpen && !popup
+            ? 'Mitat'
+            : tool === 'detail'
+              ? 'Viimeistele reunat'
+              : tool === 'offset'
+                ? 'Offset · sisennys'
+                : tool === 'rotate'
+                  ? 'Kierrä'
+                  : tool === 'rectangle'
+                    ? 'Suorakulmio'
+                    : tool === 'circle'
+                      ? shapeKind === 'circle'
+                        ? 'Ympyrä'
+                        : shapeKind === 'ellipse'
+                          ? 'Ellipsi'
+                          : 'Monikulmio'
+                      : tool === 'measure'
+                        ? measureMode === 'guide'
+                          ? 'Apuviiva'
+                          : 'Vapaa mittaviiva'
+                        : tool === 'pen'
+                          ? 'Kynä · seuraava piste'
+                          : tool === 'move'
+                            ? copyMove
+                              ? 'Siirrä kopio'
+                              : 'Siirrä'
+                            : 'Push / pull'
         }
       />
     );
@@ -2657,14 +3024,7 @@ export default function App() {
           <button
             aria-pressed={partsOpen}
             disabled={!ready || busy || !project.bodies.length}
-            onClick={() => {
-              resetGesture();
-              setEditingBodyId(undefined);
-              setPartsOpen(false);
-              setRenderOpen(false);
-              setPartsOpen(true);
-              setTool('select');
-            }}
+            onClick={openParts}
           >
             <Layers2 size={16} />
             Osat
@@ -2697,6 +3057,15 @@ export default function App() {
             {editor.saveStatus || 'Valmistellaan…'}
           </span>
         </div>
+        <button
+          className="command-search-trigger icon-button"
+          aria-label="Hae toiminto"
+          title="Hae toiminto · Ctrl / ⌘ K"
+          onClick={() => setCommandOpen(true)}
+        >
+          <Search size={16} />
+          <span className="command-search-label">Hae</span>
+        </button>
         <button
           className="icon-button header-menu-toggle"
           aria-label="Lisää toimintoja"
@@ -2947,6 +3316,12 @@ export default function App() {
         )}
 
         <main className={`canvas-area ${editingBody && mode === 'model' ? 'is-editing' : ''}`}>
+          {pickOthers && (
+            <div className="pick-instruction" role="status">
+              Napsauta kohtaa, jonka päällekkäiset osat haluat nähdä.
+              <button onClick={() => setPickOthers(false)}>Peru · Esc</button>
+            </div>
+          )}
           <div className="canvas-topbar" hidden={mode !== 'model'}>
             <div className="view-tabs" aria-label="Näkymät">
               {(
@@ -3307,7 +3682,14 @@ export default function App() {
               editingBodyId={editingBodyId}
               scopeIds={scopeIds}
               onPaint={paintBody}
-              onContextMenu={({ x, y, bodyId, guideId }) => {
+              modalOpen={commandOpen || !!pickList}
+              pickOthers={pickOthers}
+              pickHoveredIds={pickPreviewIds}
+              onPickCandidates={(list) => {
+                setPickOthers(false);
+                setPickList(list);
+              }}
+              onContextMenu={({ x, y, bodyId, guideId, candidates }) => {
                 if (busy) return;
                 if (
                   bodyId &&
@@ -3324,7 +3706,7 @@ export default function App() {
                   if (bodyId && !selectedIdSet.has(bodyId)) select(bodyId);
                 }
                 if (bodyId || guideId || selectedIds.length) {
-                  setActionMenu({ x, y });
+                  setActionMenu({ x, y, candidates });
                   setPanelOpen(true);
                 }
               }}
@@ -3779,7 +4161,23 @@ export default function App() {
 
         {panelOpen && mode === 'model' && (
           <aside className="inspector" aria-label="Ominaisuudet">
-            <div ref={inspectorDetails} className="inspector-details">
+            <div
+              ref={inspectorDetails}
+              className={`inspector-details ${activeTool ? 'tool-inspector' : ''}`}
+            >
+              {activeTool && (
+                <ToolContext
+                  title={`${toolTitle}${tool === 'move' && selectedIds.length > 1 ? ` · ${selectedIds.length} kappaletta` : ''}`}
+                  context={toolContext}
+                  instruction={toolStep}
+                  status={[
+                    axis ? `${axis.toUpperCase()}-akseli` : '',
+                    copyMove && tool === 'move' ? 'Kopio' : '',
+                    editing ? snapLabel : 'Valmis aloitukseen',
+                  ].filter(Boolean)}
+                  onFinish={() => cancel(true)}
+                />
+              )}
               {tool === 'paint' && (
                 <PaintPanel
                   {...brush}
@@ -3876,7 +4274,7 @@ export default function App() {
                   loading={detailPreview.loading}
                   error={detailPreview.error}
                   onAccept={() => void apply()}
-                  onCancel={cancel}
+                  onCancel={() => cancel()}
                   all={() => {
                     if (detailSource) {
                       setDetailTarget({
@@ -3896,7 +4294,7 @@ export default function App() {
                     setDetailTarget((old) => (old ? { ...old, indices: [] } : undefined))
                   }
                 />
-              ) : tool === 'rotate' && editing ? (
+              ) : tool === 'rotate' ? (
                 <RotationPanel
                   rotation={rotation}
                   busy={busy}
@@ -3929,60 +4327,11 @@ export default function App() {
                   keepTools={keepTools}
                   onKeepTools={setKeepTools}
                   onAccept={() => void apply()}
-                  onCancel={() => {
-                    setTool('select');
-                    resetGesture();
-                  }}
+                  onCancel={() => cancel()}
                   busy={busy}
                 />
-              ) : editing || (!body && ['rectangle', 'circle'].includes(tool)) ? (
+              ) : activeTool ? (
                 <>
-                  <div className="panel-title">
-                    <div>
-                      <span className="eyebrow">TYÖKALU</span>
-                      <h2>
-                        {tool === 'offset'
-                          ? 'Offset · sisennys'
-                          : tool === 'rotate'
-                            ? 'Kierrä kappaletta'
-                            : tool === 'rectangle'
-                              ? 'Suorakulmio'
-                              : tool === 'circle'
-                                ? shapeKind === 'circle'
-                                  ? 'Ympyrä'
-                                  : shapeKind === 'ellipse'
-                                    ? 'Ellipsi'
-                                    : 'Monikulmio'
-                                : tool === 'extrude'
-                                  ? 'Push / pull'
-                                  : tool === 'measure'
-                                    ? 'Mittatyökalu'
-                                    : tool === 'pen'
-                                      ? 'Kynä'
-                                      : 'Siirrä kappaletta'}
-                      </h2>
-                    </div>
-                    <span className="step-number">{tool === 'rectangle' ? '01' : '02'}</span>
-                  </div>
-                  <p className="panel-description">
-                    {tool === 'offset'
-                      ? 'Liikuta hiirtä sisennyksen säätämiseksi tai kirjoita tarkka mitta. Klikkaus, vedon päättäminen tai Enter hyväksyy. E tekee syvennyksen tai läpireiän.'
-                      : tool === 'rectangle'
-                        ? awaitingStart
-                          ? 'Valitse alkukulma näkymästä. Siirrä osoitinta ja napsauta vastakulmaa.'
-                          : 'Mitat millimetreinä. Voit kirjoittaa myös esimerkiksi 2,4 m.'
-                        : tool === 'circle'
-                          ? 'Aseta keskipiste ja vedä muoto. Tarkat halkaisijat voit kirjoittaa.'
-                          : tool === 'extrude'
-                            ? 'E · Vedä pintaa. Pidä Shift pohjassa ja osoita kulmaa, keskipistettä, reunaa tai pintaa: korostus näyttää tavoitteen. Vapauta Shift jatkaaksesi vapaata vetoa samasta mitasta. Voit myös kirjoittaa mitan.'
-                            : tool === 'pen'
-                              ? 'Aseta verteksit. Shift lukitsee suunnan; napsauta toista pistettä poimiaksesi pituuden. Sulje tasomainen muoto ensimmäiseen pisteeseen.'
-                              : tool === 'measure'
-                                ? measureMode === 'guide'
-                                  ? 'Aloita verteksistä tai vedä reunasta sen suuntainen apuviiva. Piirtäminen ja siirtäminen tarttuvat viivaan.'
-                                  : 'Valitse kaksi pistettä nähdäksesi niiden etäisyyden.'
-                                : 'Anna siirtymä nykyisestä sijainnista tai vedä kappaletta näkymässä.'}
-                  </p>
                   <div className="tool-fields">
                     {tool === 'offset' && offsetPreview.error && (
                       <p role="status" className="muted">
@@ -4026,7 +4375,7 @@ export default function App() {
                       </>
                     )}
                     {['rectangle', 'circle'].includes(tool) && (
-                      <label>
+                      <label className="modeling-field">
                         Piirtotaso
                         <select
                           aria-label="Piirtotaso"
@@ -4049,8 +4398,6 @@ export default function App() {
                         tool={tool as 'rectangle' | 'circle' | 'pen'}
                         kind={shapeKind}
                         onKind={setShapeKind}
-                        width={fields.width}
-                        depth={fields.depth}
                         thickness={fields.thickness}
                         onField={field}
                         purpose={shapePurpose}
@@ -4069,7 +4416,9 @@ export default function App() {
                             ? `Pinta: ${project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name}`
                             : 'Valitse piste työtasolta tai kappaleen pinnalta'
                         }
-                        onAccept={() => void apply(tool === 'pen')}
+                        onAccept={() => {
+                          if (!awaitingStart) void apply(tool === 'pen');
+                        }}
                       />
                     )}
                     {tool === 'extrude' && faceTarget && (
@@ -4080,32 +4429,24 @@ export default function App() {
                               <span>
                                 Nykyinen mitta <strong>{formatLength(faceSpan.depth)} mm</strong>
                               </span>
-                              <span>
-                                Toteutuva kokonaismitta{' '}
-                                <strong>{formatLength(finalSize!)} mm</strong>
-                              </span>
-                              <span>
-                                Siirtymä{' '}
-                                <strong>
-                                  {faceDistance > 0 ? '+' : ''}
-                                  {formatLength(faceDistance)} mm
-                                </strong>
-                              </span>
                             </>
                           ) : (
                             <span>{spanLoading ? 'Mitataan vastapintaa…' : spanError}</span>
                           )}
                         </div>
-                        <p className="muted">
-                          Tab vaihtaa siirtymän ja toteutuvan kokonaismitan välillä ja säilyttää
-                          kirjoittamasi luvun. Miinus työntää sisään, plus vetää ulos. Ilman
-                          etumerkkiä luku seuraa vedon suuntaa.
-                        </p>
-                        <p className="muted">
-                          Vihreä mittaviiva näyttää toteutuvan kokonaismitan tässä kohdassa,
-                          kohtisuoraan valittua pintaa vastaan. Nolla avaa rajatun alueen läpi. Voit
-                          myös vetää pinnan vastapinnan ohi tai valita Leikkaa läpi.
-                        </p>
+                        <details className="tool-advanced">
+                          <summary>Mitan syöttö ja läpileikkaus</summary>
+                          <p className="muted">
+                            Tab vaihtaa siirtymän ja toteutuvan kokonaismitan välillä ja säilyttää
+                            kirjoittamasi luvun. Miinus työntää sisään, plus vetää ulos. Ilman
+                            etumerkkiä luku seuraa vedon suuntaa.
+                          </p>
+                          <p className="muted">
+                            Vihreä mittaviiva näyttää toteutuvan kokonaismitan tässä kohdassa,
+                            kohtisuoraan valittua pintaa vastaan. Nolla avaa rajatun alueen läpi.
+                            Voit myös vetää pinnan vastapinnan ohi tai valita Leikkaa läpi.
+                          </p>
+                        </details>
                         <button
                           className="button outlined full"
                           aria-pressed={pickDepth}
@@ -4135,10 +4476,6 @@ export default function App() {
                         </button>
                       </div>
                     )}
-                    <p className="muted">
-                      Kirjoita numero aloittaaksesi ensimmäisestä kentästä. Tab siirtyy seuraavaan.
-                      Enter tai vedon päättäminen hyväksyy osan.
-                    </p>
                     {tool === 'measure' && (
                       <>
                         <button
@@ -4161,8 +4498,9 @@ export default function App() {
                           Kierrä 45° · R
                         </button>
                         <p className="muted">
-                          X/Y/Z lukitsee siirtosuunnan; sama näppäin vapauttaa. Esc päättää
-                          työkalun. Shift+R käynnistää vapaan kierron; osoita suunta ja hyväksy.
+                          X/Y/Z lukitsee siirtosuunnan; sama näppäin vapauttaa. Esc peruu vedon;
+                          seuraava Esc päättää työkalun. Shift+R käynnistää vapaan kierron; osoita
+                          suunta ja hyväksy.
                         </p>
                         <button
                           className="button outlined"
@@ -4236,18 +4574,17 @@ export default function App() {
                       </>
                     )}
                     {['rectangle', 'pen', 'move'].includes(tool) && (
-                      <p className="muted">
-                        {tool === 'move'
-                          ? 'Poimi korostettu kulma, reuna tai keskipiste. Siirto lukittuu oletuksena yhdelle akselille. X/Y/Z vaihtaa siirron pääakselille. Lukittuna kohdepiste antaa tämän akselin tavoitemitan.'
-                          : tool === 'pen' && penPoints.length
-                            ? 'Shift lukitsee piirtosuunnan pituuden poimimista varten. Erillisen viitepisteen saat Poimi viite -painikkeesta.'
-                            : 'Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen suuntalinjat ohjaavat piirtämistä. Kosketuksella käytä Poimi viite -painiketta.'}
-                      </p>
+                      <details className="tool-advanced">
+                        <summary>Tartunnat ja viitepisteet</summary>
+                        <p className="muted">
+                          {tool === 'move'
+                            ? 'Poimi korostettu kulma, reuna tai keskipiste. Siirto lukittuu oletuksena yhdelle akselille. X/Y/Z vaihtaa siirron pääakselille. Lukittuna kohdepiste antaa tämän akselin tavoitemitan.'
+                            : tool === 'pen' && penPoints.length
+                              ? 'Shift lukitsee piirtosuunnan pituuden poimimista varten. Erillisen viitepisteen saat Poimi viite -painikkeesta.'
+                              : 'Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen suuntalinjat ohjaavat piirtämistä. Kosketuksella käytä Poimi viite -painiketta.'}
+                        </p>
+                      </details>
                     )}
-                  </div>
-                  <div className="tool-tip">
-                    <span className="tiny-dot" />
-                    {snapLabel}
                   </div>
                 </>
               ) : (
@@ -4321,60 +4658,6 @@ export default function App() {
                       >
                         Luo ryhmä
                       </button>
-                    </div>
-                  )}
-                  {body && !selectedGroup && (
-                    <div className="component-actions">
-                      <p>
-                        {body.component
-                          ? `Linkitetty komponentti · ${project.bodies.filter((b) => b.component?.id === body.component?.id).length} esiintymää`
-                          : body.purpose === 'component'
-                            ? 'Komponentti · ensimmäinen kopio luo linkin'
-                            : 'Erillinen kappale'}
-                      </p>
-                      {selectedIds.length > 1 ? (
-                        <>
-                          <p>
-                            Linkitys käyttää osan ”{body.name}” muotoa. Valittujen osien sijainnit
-                            ja kierrot säilyvät.
-                          </p>
-                          <button
-                            className="button outlined"
-                            disabled={busy}
-                            onClick={() => void linkSelected()}
-                          >
-                            Linkitä valitut tähän osaan
-                          </button>
-                        </>
-                      ) : (
-                        !body.component && (
-                          <button
-                            className="button outlined"
-                            disabled={busy}
-                            onClick={() => void linkSelected()}
-                          >
-                            Tee komponentti
-                          </button>
-                        )
-                      )}
-                      {project.bodies.some((b) => selectedIdSet.has(b.id) && b.component) && (
-                        <button className="button subtle" disabled={busy} onClick={makeUnique}>
-                          Tee uniikiksi
-                        </button>
-                      )}
-                      {body.component && (
-                        <label className="checkbox-label">
-                          <CommitCheckbox
-                            label="Esiintymäkohtainen materiaali"
-                            checked={!!body.localMaterial}
-                            disabled={busy}
-                            onChange={(localMaterial) =>
-                              patchBodies(selectedIds, { localMaterial })
-                            }
-                          />
-                          Materiaali vain tälle esiintymälle
-                        </label>
-                      )}
                     </div>
                   )}
                   {body && !selectedGroup ? (
@@ -4468,6 +4751,61 @@ export default function App() {
                           changeAppearance(selectedIds.length ? selectedIds : [body.id], ...args)
                         }
                       />
+                      {body && !selectedGroup && (
+                        <details className="component-actions">
+                          <summary>Komponentti ja linkitys</summary>
+                          <p>
+                            {body.component
+                              ? `Linkitetty komponentti · ${project.bodies.filter((b) => b.component?.id === body.component?.id).length} esiintymää`
+                              : body.purpose === 'component'
+                                ? 'Komponentti · ensimmäinen kopio luo linkin'
+                                : 'Erillinen kappale'}
+                          </p>
+                          {selectedIds.length > 1 ? (
+                            <>
+                              <p>
+                                Linkitys käyttää osan ”{body.name}” muotoa. Valittujen osien
+                                sijainnit ja kierrot säilyvät.
+                              </p>
+                              <button
+                                className="button outlined"
+                                disabled={busy}
+                                onClick={() => void linkSelected()}
+                              >
+                                Linkitä valitut tähän osaan
+                              </button>
+                            </>
+                          ) : (
+                            !body.component && (
+                              <button
+                                className="button outlined"
+                                disabled={busy}
+                                onClick={() => void linkSelected()}
+                              >
+                                Tee komponentti
+                              </button>
+                            )
+                          )}
+                          {project.bodies.some((b) => selectedIdSet.has(b.id) && b.component) && (
+                            <button className="button subtle" disabled={busy} onClick={makeUnique}>
+                              Tee uniikiksi
+                            </button>
+                          )}
+                          {body.component && (
+                            <label className="checkbox-label">
+                              <CommitCheckbox
+                                label="Esiintymäkohtainen materiaali"
+                                checked={!!body.localMaterial}
+                                disabled={busy}
+                                onChange={(localMaterial) =>
+                                  patchBodies(selectedIds, { localMaterial })
+                                }
+                              />
+                              Materiaali vain tälle esiintymälle
+                            </label>
+                          )}
+                        </details>
+                      )}
                       {objectActions}
                       {!featureIsSolid(body.feature) && mode === 'model' && (
                         <button
@@ -4571,7 +4909,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.14.1</span>
+                    <span>v0.15.0</span>
                   </div>
                 </>
               )}
@@ -4589,8 +4927,36 @@ export default function App() {
               : (selectedGroup?.name ??
                 (selectedIds.length > 1 ? `${selectedIds.length} osaa` : (body?.name ?? 'Valinta')))
           }
-          actions={quickActions}
+          actions={[...quickActions, { label: 'Valitse toinen', run: chooseOther, disabled: busy }]}
           onClose={() => setActionMenu(undefined)}
+        />
+      )}
+      {commandOpen && <CommandSearch commands={commands} onClose={() => setCommandOpen(false)} />}
+      {pickList && (
+        <OverlapPicker
+          {...pickList}
+          candidates={pickCandidates}
+          onPreview={setPickHovered}
+          onClose={() => {
+            setPickList(undefined);
+            setPickHovered(undefined);
+          }}
+          onSelect={(candidate) => {
+            const unit = selectionUnit(project, candidate.bodyId, openedAssembly);
+            activityHistory.prepare(actionContext);
+            resetGesture();
+            setSelected(candidate.bodyId);
+            setSelectedIds(unit.ids);
+            setSelectedGroupId(unit.groupId);
+            setSelectedFace(undefined);
+            pickedFaceRef.current = candidate.face
+              ? { bodyId: candidate.bodyId, face: candidate.face }
+              : undefined;
+            setMultiSelect(false);
+            setAwaitingStart(true);
+            setTool('select');
+            setPanelOpen(true);
+          }}
         />
       )}
       {cabinetOpen && (
@@ -4802,6 +5168,12 @@ export default function App() {
               </li>
             </ol>
             <p>
+              <strong>Hae ja Valitse toinen:</strong> Hae-painike tai Ctrl/⌘ K löytää työkalut ja
+              valinnan toiminnot. Esc sulkee haun säilyttäen keskeneräisen muodon. Valitse toinen
+              listaa osoitetun kohdan päällekkäiset osat; osoitus korostaa vaihtoehdon ja napsautus
+              valitsee. Kosketuksella vahvista esikorostus Valitse korostettu -painikkeella.
+            </p>
+            <p>
               <strong>Poikkileikkaus:</strong> avaa Leikkaus ja lisää nimetty leikkaus. Valitse
               X/Y/Z tai poimi tasopinta. Vedä nuolesta tai kirjoita sijainti; Esc peruu vedon. Avaa
               leikkaus mittakuvaan, valitse kaksi leikkauspistettä ja sijoita mittaviiva. PDF ja SVG
@@ -4828,7 +5200,8 @@ export default function App() {
               piirto jakaa vain avattua osaa. Lopeta muokkaus sulkee muokkaustilan. Myös
               Valitse-työkalun tuplaklikkaus tyhjään tilaan sulkee sen; yksittäinen napsautus tai
               kameran liikuttaminen ei poistu muokkaustilasta. Esc peruu ensin keskeneräisen
-              toiminnon, seuraava Esc sulkee muokkaustilan. E/O toimii suoraan myös normaalitilassa.
+              toiminnon, seuraava Esc päättää työkalun ja vielä yksi Esc sulkee muokkaustilan. E/O
+              toimii suoraan myös normaalitilassa.
             </p>
             <p>
               <strong>Poista rajaus (U):</strong> osoita samantasoisten pintojen jakoviivaa ja
@@ -4929,8 +5302,8 @@ export default function App() {
               <strong>Apuviivat:</strong> mittatyökalun ensimmäinen painallus valitsee apuviivan,
               toinen avaa tilavalinnan. Reunasta vedetty viiva pysyy reunan suuntaisena. R kiertää
               45°, Shift+R sallii vapaan kierron. X/Y/Z lukitsee akselin ja sama näppäin vapauttaa.
-              Esc päättää työkalun. Voit myös kirjoittaa asteluvun. X-ray valitaan Viivat-listasta
-              tai kaikille asetuksista.
+              Esc peruu toiminnon; seuraava Esc päättää työkalun. Voit myös kirjoittaa asteluvun.
+              X-ray valitaan Viivat-listasta tai kaikille asetuksista.
             </p>
             <p>
               <strong>Hae viite:</strong> vie kohdistin kappaleen keskipisteen, reunan keskipisteen

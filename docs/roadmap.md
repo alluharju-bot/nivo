@@ -2,6 +2,24 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.15 — yksi ymmärrettävä työskentelytapa
+
+Toteutettu: työkalun yhteinen konteksti oikean paneelin yläosassa, yksi
+mittalomake, lisäasetusten avaaminen tarvittaessa ja mittojen nostaminen
+komponenttilinkityksen edelle. Esc peruu keskeneräisen eleen säilyttäen valinnan;
+seuraava Esc päättää työkalun ja erillinen askel sulkee osan muokkauksen.
+Hyväksyntä säilyttää työkalun. Mittaikkunan irrottaminen säilyy.
+
+Hae-toiminto (Ctrl/⌘ K) etsii toteutettuja toimintoja nimillä ja avainsanoilla.
+Toiminnot-valikon kanssa käytetään samoja valintatoimintoja; eston syy näkyy
+haussa. Valitse toinen listaa osoitetun kohdan osat, esikorostaa myös peitossa
+olevan osan ja huomioi kokoonpanot, piilotukset sekä muokkausrajauksen.
+Kosketuksella esikorostus vahvistetaan erikseen. Mallilistan piilotettu pinta
+ei enää peitä työkalupalkin napsautuksia.
+
+Seuraava erillinen kokonaisuus: **Luo mittakuvat** — useita näkymiä ja
+leikkauksia yhdelle arkille selkeällä oletusasettelulla. Ei osa V0.15-passia.
+
 ## V0.14.1 — valinnan varmuus ja pinnalle piirtäminen
 
 Toteutettu: koko siirrettävän osan/kokoonpanon korostus ennen tarttumista,

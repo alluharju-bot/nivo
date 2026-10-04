@@ -142,8 +142,6 @@ export function ShapeProperties({
   tool,
   kind,
   onKind,
-  width,
-  depth,
   thickness,
   onField,
   purpose,
@@ -163,8 +161,6 @@ export function ShapeProperties({
   tool: 'rectangle' | 'circle' | 'pen';
   kind: 'circle' | 'ellipse' | 'polygon';
   onKind: (kind: 'circle' | 'ellipse' | 'polygon') => void;
-  width: string;
-  depth: string;
   thickness: string;
   onField: (key: string, value: string) => void;
   purpose: Body['purpose'];
@@ -196,16 +192,6 @@ export function ShapeProperties({
         }
       }}
     >
-      <OperationSelect value="new" onChange={onOperation} />
-      <label className="modeling-field">
-        Nimi
-        <input
-          aria-label="Muodon nimi"
-          value={name}
-          maxLength={120}
-          onChange={(e) => onName(e.target.value)}
-        />
-      </label>
       {tool === 'circle' && (
         <label className="modeling-field">
           Muoto
@@ -219,30 +205,6 @@ export function ShapeProperties({
             <option value="polygon">Säännöllinen monikulmio</option>
           </select>
         </label>
-      )}
-      {tool !== 'pen' && (
-        <div className="modeling-dimensions">
-          <label className="modeling-field">
-            {tool === 'circle' ? 'Halkaisija X' : 'Leveys'}
-            <input
-              aria-label="Muodon leveys"
-              inputMode="decimal"
-              value={width}
-              onChange={(e) => onField('width', e.target.value)}
-            />
-          </label>
-          {(tool === 'rectangle' || kind === 'ellipse') && (
-            <label className="modeling-field">
-              {tool === 'circle' ? 'Halkaisija Y' : 'Syvyys'}
-              <input
-                aria-label="Muodon syvyys"
-                inputMode="decimal"
-                value={depth}
-                onChange={(e) => onField('depth', e.target.value)}
-              />
-            </label>
-          )}
-        </div>
       )}
       {tool === 'circle' && kind === 'polygon' && (
         <label className="modeling-field">
@@ -294,36 +256,30 @@ export function ShapeProperties({
           </option>
         </select>
       </label>
-      <p className="muted">
-        {frameLabel}.{' '}
-        {constructionLine
-          ? 'Rakennusviiva ei jaa eikä leikkaa pintaa. Voit käyttää sitä piirtämisen ja mittaamisen apuna.'
-          : surfaceMode === 'new' || purpose !== 'model'
-            ? 'Muoto syntyy omaksi objektiksi. Aloituspinta toimii piirtotasona.'
-            : `Muokataan: ${editingBodyName}. Paksuus 0 jakaa pinnan, positiivinen lisää materiaalia ja negatiivinen leikkaa.`}
-      </p>
-      {!editingBodyName && !constructionLine && (
-        <p className="muted">
-          Pinnan jakaminen: avaa osa ensin tuplaklikkauksella tai Muokkaa osaa -painikkeella.
-        </p>
-      )}
-      {purpose === 'construction' && (
+      <details className="tool-advanced">
+        <summary>Lisäasetukset</summary>
+        <label className="modeling-field">
+          Nimi
+          <input
+            aria-label="Muodon nimi"
+            value={name}
+            maxLength={120}
+            onChange={(e) => onName(e.target.value)}
+          />
+        </label>
+        <OperationSelect value="new" onChange={onOperation} />
+        <p className="muted">{frameLabel}.</p>
         <p className="muted">
           {constructionLine
-            ? 'Katkoviivana näkyvä ääriviiva tallentuu erikseen ja jää pois mittakuvasta ja renderöinnistä.'
-            : 'Sininen apumuoto tarjoaa tartunnat ja jää pois mittakuvasta.'}
+            ? 'Rakennusviiva ei jaa eikä leikkaa pintaa. Se tarjoaa tartunnat piirtämiselle.'
+            : editingBodyName && surfaceMode === 'region'
+              ? 'Paksuus 0 jakaa pinnan. Positiivinen lisää materiaalia, negatiivinen leikkaa.'
+              : 'Muoto syntyy omaksi osaksi. Pinnan jakamista varten avaa osa ensin tuplaklikkauksella.'}
         </p>
-      )}
-      {purpose === 'drawing' && (
-        <p className="muted">Piirros näkyy ääriviivoina ja tulee mukaan mittakuvaan.</p>
-      )}
-      {purpose === 'component' && (
-        <p className="muted">Nimetty itsenäinen osa. Kopiot muokkautuvat erikseen.</p>
-      )}
-      <button className="button dark full" onClick={onAccept}>
-        <Check size={16} />
-        Hyväksy muoto
-      </button>
+        {purpose === 'component' && (
+          <p className="muted">Kopiot ovat linkitettyjä. Tee uniikiksi irrottaa linkin.</p>
+        )}
+      </details>
     </div>
   );
 }

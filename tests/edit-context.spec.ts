@@ -6,7 +6,7 @@ import { makeBody, makeProfileBody, type Body } from '../src/model/project';
 import { sketchFrame } from '../src/model/sketch';
 import { createShape, meshBody } from '../src/cad/kernel';
 import { splitFace } from '../src/cad/operations';
-import { ready, view, click, save, editBody } from './helpers';
+import { ready, view, click, save, editBody, revealBrowser } from './helpers';
 
 test.beforeAll(async () =>
   setOC(
@@ -102,6 +102,12 @@ test('double-click opens one part, drawing edits only it, and Escape cancels bef
   await expect(page.getByTestId('edit-context')).toBeVisible();
   expect((await save(page)).bodies).toEqual(result.bodies);
   await page.keyboard.press('Escape');
+  await expect(page.getByTestId('edit-context')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Valitse', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.keyboard.press('Escape');
   await expect(page.getByTestId('edit-context')).toHaveCount(0);
   await page.keyboard.press('s');
   await click(page, point(180, 180, 40));
@@ -138,6 +144,7 @@ test('the edit button works for components; references snap but cannot be pushed
   expect((await save(page)).bodies).toEqual([source, reference]);
   await page.getByRole('button', { name: 'Lopeta muokkaus', exact: true }).click();
   await expect(page.getByTestId('edit-context')).toHaveCount(0);
+  await revealBrowser(page);
   await page.getByTestId(`body-${source.id}`).click();
   await page.getByRole('button', { name: 'Kiinnitä paikalleen', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Muokkaa osaa', exact: true })).toBeDisabled();
@@ -310,6 +317,7 @@ test('empty-space exit requires two clicks; misses, drags, navigation and drawin
   await expect(canvas).toHaveAttribute('data-editing-body', body.id);
   await page.keyboard.press('Escape');
   await expect(canvas).toHaveAttribute('data-editing-body', body.id);
+  await page.keyboard.press('Escape'); // Finish the rectangle tool, keeping the edit scope.
   await page.mouse.dblclick(empty.x, empty.y);
   await expect(page.getByTestId('edit-context')).toHaveCount(0);
   expect((await save(page)).bodies).toEqual([body]);

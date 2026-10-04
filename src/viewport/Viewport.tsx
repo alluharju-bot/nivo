@@ -195,7 +195,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   workspaceGrid = createWorkspaceGrid(scene, container);
   const bodies = new THREE.Group(),
     ghost = new THREE.Group();
-  scene.add(bodies, ghost);
+  const pickPreview = new THREE.Group();
+  scene.add(bodies, ghost, pickPreview);
+  let pickPreviewKey = '';
+
   const labelRay = new THREE.Raycaster();
   labelOccluded = (point) => {
     const projected = point.clone().project(camera);
@@ -457,6 +460,45 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         }),
       ),
     );
+    // Picker preview is explicit and may show an occluded part. Reuse model edge
+    // geometry; no retessellation, material cloning or model hit-test changes.
+    const pickKey = (props.pickHoveredIds ?? []).join('|');
+    if (pickKey !== pickPreviewKey || geometryChanged) {
+      for (const object of pickPreview.children)
+        if (object instanceof THREE.LineSegments || object instanceof THREE.Mesh)
+          (object.material as THREE.Material).dispose();
+      pickPreview.clear();
+      pickPreviewKey = pickKey;
+      for (const id of props.pickHoveredIds ?? []) {
+        const node = bodyNodes.get(id);
+        if (!node) continue;
+        const outline = new THREE.LineSegments(
+          node.outline.geometry,
+          new THREE.LineBasicMaterial({
+            color: '#2463a6',
+            depthTest: false,
+            depthWrite: false,
+          }),
+        );
+        outline.userData.sharedGeometry = true;
+        outline.renderOrder = 120;
+        const surface = new THREE.Mesh(
+          node.mesh.geometry,
+          new THREE.MeshBasicMaterial({
+            color: '#3685bc',
+            transparent: true,
+            opacity: 0.16,
+            depthTest: false,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }),
+        );
+        surface.userData.sharedGeometry = true;
+        surface.renderOrder = 119;
+        pickPreview.add(surface, outline);
+      }
+    }
+    renderer.domElement.dataset.pickHovered = JSON.stringify(props.pickHoveredIds ?? []);
     workspaceViews?.sync();
     renderer.domElement.dataset.geometryBuilds = String(geometryBuilds);
     const editing = [
@@ -1073,7 +1115,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     current,
     () => camera,
     bodies,
-    [bodies, ghost, bodyBatches.group, moveBatches.group],
+    [bodies, ghost, bodyBatches.group, moveBatches.group, pickPreview],
     render,
     () => {
       renderer.shadowMap.needsUpdate = true;
@@ -1112,6 +1154,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       disposeGroup(guides);
       labels.forEach((l) => l.element.remove());
       extrusionLabels.forEach((l) => l.element.remove());
+      disposeGroup(pickPreview);
       disposeGroup(bodies);
       disposeGroup(ghost);
       workspaceViews?.dispose();
@@ -1159,6 +1202,7 @@ export function Viewport(props: Props) {
     props.meshes,
     props.selectedIds,
     props.moveHoveredIds,
+    props.pickHoveredIds,
     props.selectedGroupId,
     props.selectedFace,
     props.editingBodyId,

@@ -11,6 +11,8 @@ export interface NumericField {
 }
 export function DynamicInput({
   fields,
+  showActions = true,
+  canAccept = true,
   position,
   onPositionChange,
   docked,
@@ -24,6 +26,8 @@ export function DynamicInput({
   onActivate,
 }: {
   fields: NumericField[];
+  showActions?: boolean;
+  canAccept?: boolean;
   position?: [number, number];
   onPositionChange: (point?: [number, number]) => void;
   docked: boolean;
@@ -63,7 +67,12 @@ export function DynamicInput({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || busy || event.ctrlKey || event.metaKey || event.altKey) return;
-      if ((event.target as HTMLElement).closest('input,textarea,select,[contenteditable]')) return;
+      if (
+        (event.target as HTMLElement).closest(
+          'input,textarea,select,[contenteditable],[role=dialog],[role=menu]',
+        )
+      )
+        return;
       if (/^[\d.,+\-]$/.test(event.key)) {
         event.preventDefault();
         const index = Math.max(
@@ -173,7 +182,7 @@ export function DynamicInput({
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();
-                  onAccept();
+                  if (canAccept) onAccept();
                 }
                 if (e.key === 'Escape') {
                   e.preventDefault();
@@ -186,30 +195,38 @@ export function DynamicInput({
           </label>
         ))}
       </div>
-      <div className="dynamic-footer">
-        {fields
-          .filter((f) => f.signed)
-          .map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              aria-label={`Vaihda etumerkki: ${f.label}`}
-              onClick={() =>
-                onChange(f.key, f.value.startsWith('-') ? f.value.slice(1) : `-${f.value}`)
-              }
-            >
-              ± {f.label.includes('·') ? f.label.split('·').at(-1) : ''}
-            </button>
-          ))}
-        <span className="dynamic-spacer" />
-        <button aria-label="Peruuta" onClick={onCancel}>
-          <X size={15} />
-        </button>
-        <button className="dynamic-accept" aria-label="Hyväksy" onClick={onAccept} disabled={busy}>
-          <Check size={15} />
-          <span>Enter</span>
-        </button>
-      </div>
+      {showActions && (
+        <div className="dynamic-footer">
+          {fields
+            .filter((f) => f.signed)
+            .map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                aria-label={`Vaihda etumerkki: ${f.label}`}
+                onClick={() =>
+                  onChange(f.key, f.value.startsWith('-') ? f.value.slice(1) : `-${f.value}`)
+                }
+              >
+                ± {f.label.includes('·') ? f.label.split('·').at(-1) : ''}
+              </button>
+            ))}
+          <span className="dynamic-spacer" />
+          <button aria-label="Peruuta" onClick={onCancel}>
+            <X size={15} />
+          </button>
+          <button
+            className="dynamic-accept"
+            aria-label="Hyväksy"
+            onClick={onAccept}
+            disabled={busy || !canAccept}
+          >
+            <Check size={15} />
+            <span>Enter</span>
+          </button>
+        </div>
+      )}
+      <p className="numeric-hint">Numero aloittaa · Tab vaihtaa kenttää · Esc peruu</p>
     </div>
   );
 }

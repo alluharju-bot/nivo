@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-export type QuickAction = { label: string; run: () => void; disabled?: boolean };
+export type QuickAction = { label: string; run: () => void; disabled?: boolean; reason?: string };
 export function ContextActions({
   x,
   y,
@@ -64,7 +64,8 @@ export function ContextActions({
         <button
           role="menuitem"
           key={a.label}
-          disabled={a.disabled}
+          disabled={a.disabled || !!a.reason}
+          title={a.reason}
           onClick={() => {
             onClose();
             a.run();

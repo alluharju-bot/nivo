@@ -83,7 +83,8 @@ test('circle on a face becomes a selected region, E makes a through hole, undo r
   const split = await save(page);
   expect(split.bodies[0].id).toBe(plate.id);
   expect(split.bodies[0].feature.type).toBe('brep');
-  await expect(page.locator('.selection-tag')).toContainText('Valittu pinta');
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-selection-kind', 'face');
+  await expect(page.getByTestId('tool-context')).toContainText('Ympyrä');
   await page.keyboard.press('e');
   await page.getByRole('button', { name: 'Leikkaa läpi', exact: true }).click();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
@@ -245,9 +246,12 @@ test('ellipse, regular polygon and construction roles keep precise dimensions an
   await ready(page);
   await page.keyboard.press('c');
   await page.getByRole('combobox', { name: 'Muoto', exact: true }).selectOption('ellipse');
+  await page.getByText('Lisäasetukset', { exact: true }).click();
   await page.getByRole('textbox', { name: 'Muodon nimi', exact: true }).fill('Ovaali osa');
-  await page.getByRole('textbox', { name: 'Muodon leveys', exact: true }).fill('120');
-  await page.getByRole('textbox', { name: 'Muodon syvyys', exact: true }).fill('80');
+  await page.getByRole('textbox', { name: 'Muodon nimi', exact: true }).blur();
+  await page.keyboard.type('120');
+
+  await page.getByTestId('ellipse-depth').fill('80');
   await page.getByRole('textbox', { name: 'Muodon paksuus', exact: true }).fill('12');
   await page
     .getByRole('combobox', { name: 'Muodon käyttö', exact: true })
@@ -270,7 +274,8 @@ test('ellipse, regular polygon and construction roles keep precise dimensions an
   await page.keyboard.press('c');
   await page.getByRole('combobox', { name: 'Muoto', exact: true }).selectOption('polygon');
   await page.getByRole('spinbutton', { name: 'Sivujen määrä', exact: true }).fill('6');
-  await page.getByRole('textbox', { name: 'Muodon leveys', exact: true }).fill('180');
+  await page.getByRole('spinbutton', { name: 'Sivujen määrä', exact: true }).blur();
+  await page.keyboard.type('180');
   await page
     .getByRole('combobox', { name: 'Muodon käyttö', exact: true })
     .selectOption('construction');

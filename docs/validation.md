@@ -4,6 +4,50 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.15 — yhtenäinen työkalupaneeli, toimintohaku ja kohdevalitsin
+
+**176 yksikkö-/CAD-testiä hyväksytty (35 tiedostoa).** Uudet hakukokeet
+varmistavat suomenkielisen kirjainkoon ja ääkkösten käsittelyn, kaikkien
+hakusanojen täsmäämisen, nimiosumien järjestyksen sekä estettyjen toimintojen
+syyt. Haku tarjoaa vain ohjelman oikeita toimintoja. TypeScript, tuotantobuild,
+muotoilu ja lisenssitarkistus hyväksytty.
+
+Selainkokeissa varmennettu **174 erillistä desktop-/tablettitapausta** laajalla
+ja korjausten jälkeisellä kohdennetulla kierroksella. Laajassa 174 tapauksen
+ajossa 165 hyväksyttiin, seitsemän epäonnistui ja kaksi kosketukselle tarkoitettua
+koetta ohitettiin desktopilla. Korjaukset koskivat mallilistan avaamista ja
+näkyvän mittalistan kohdistamista testeissä sekä kohdevalitsimen alkuperäistä
+näppäimistökohdistusta. Korjausten jälkeinen 42 tapauksen kierros:
+**40 hyväksytty, kaksi tarkoituksellista ohitusta**; mukana kaksi uutta
+dialogin aikaisen siirron tapausta. Viimeisen osoitineleen siivousmuutoksen
+jälkeen nämä kaksi tapausta hyväksyttiin vielä uudella tuotantopaketilla.
+
+Uusi työnkulku on tarkistettu seuraavasti:
+
+- Yksi ensisijainen mittalomake, uuden osan ja muokattavan osan erottaminen,
+  hyväksymisen jälkeinen työkalun säilyminen sekä Esc-peruutus ilman geometrian
+  tai valinnan menettämistä.
+- Toimintohaku, eston selitys, näppäimistöohjaus ja haun sulkeminen kesken
+  esikatselun. Ctrl+K ei kytke siirron kopiota päälle. Haun aikana vapautettu
+  siirtoveto ei hyväksy taustalla olevaa toimintoa.
+- Päällekkäisten osien valinta oikean napsautuksen valikosta ja erillisestä
+  pisteen poiminnasta; peittyvän osan korostus ennen valintaa, piilotettujen
+  osien suodatus, kokoonpanon yhteinen korostus ja muokkaustilan rajaus.
+- Kosketuksella ensin esikatselu ja sitten erillinen vahvistus. Valitsimen
+  avaaminen ei hyväksy keskeneräistä piirrosta. Valitseminen Cut-työkalusta
+  päättää työkalun ja valitsee osan muuttamatta leikkauskohteita.
+
+Regressiot kattavat muun muassa 48 osan siirtovalinnan ja historian,
+ruudukkotarkkuuden, Shift-push/pullin, pintaluonnokset, Offsetin,
+reunadetaljit, mitoituksen, materiaalit, linkitetyt kopiot ja ryhmät.
+Työpöytä- ja tablettiasettelut tarkistettu myös kuvina. Lopullisen paikallisen
+tuotantoversion erillinen avaus tarkistaa haun, kohdevalitsimen,
+osaluettelon ja levyrungon luonti-ikkunan ilman selainvirheitä.
+
+Suuren mallin erillinen mittaus on [suorituskykyraportissa](performance.md).
+Fyysinen tabletti, Safari ja käyttäjän oma suuri työmaamalli eivät sisälly
+tämän kierroksen varmennukseen.
+
 ## V0.14.1 — varma siirtovalinta, toimintohistoria ja pintaluonnokset
 
 **174 yksikkö-/CAD-testiä hyväksytty (34 tiedostoa).** Uudet kokeet tarkistavat

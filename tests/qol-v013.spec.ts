@@ -83,6 +83,7 @@ test('linked painting respects shared and instance material, and make unique sev
   await reveal(page);
   await page.getByTestId(`body-${a.id}`).click();
   await page.getByTestId(`body-${b.id}`).click({ modifiers: ['Shift'] });
+  await page.getByText('Komponentti ja linkitys', { exact: true }).click();
   await page.getByRole('button', { name: 'Linkitä valitut tähän osaan' }).click();
   let saved = await save(page);
   expect(saved.bodies[0].component?.id).toBeTruthy();
@@ -101,6 +102,7 @@ test('linked painting respects shared and instance material, and make unique sev
   expect(saved.bodies.map((b) => b.color)).toEqual(['#123456', '#abcdef']);
   await page.keyboard.press('Escape');
   await click(page, point(450, 100, 50));
+  await page.getByText('Komponentti ja linkitys', { exact: true }).click();
   await page
     .getByRole('checkbox', { name: 'Esiintymäkohtainen materiaali', exact: true })
     .uncheck();

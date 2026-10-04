@@ -1,4 +1,5 @@
 import type { Section } from '../model/sections';
+import type { PickCandidate } from '../ui/OverlapPicker';
 import type { ReferenceImage } from '../model/referenceImages';
 import type { SectionResult } from '../cad/protocol';
 import type { TextureAsset } from '../model/materials';
@@ -83,7 +84,17 @@ export interface ViewportProps {
   editingBodyId?: string;
   scopeIds?: string[];
   onPaint: (id: string) => void;
-  onContextMenu: (target: { x: number; y: number; bodyId?: string; guideId?: string }) => void;
+  onContextMenu: (target: {
+    x: number;
+    y: number;
+    bodyId?: string;
+    guideId?: string;
+    candidates?: PickCandidate[];
+  }) => void;
+  modalOpen?: boolean;
+  pickOthers?: boolean;
+  pickHoveredIds?: string[];
+  onPickCandidates?: (target: { x: number; y: number; candidates: PickCandidate[] }) => void;
   onEditBody: (id: string) => void;
   onCloseBodyEdit: () => void;
   onEditBlocked: (position: { x: number; y: number }) => void;
