@@ -13,6 +13,7 @@ import {
 import { History } from './model/history';
 import { loadLocalSession, saveLocal } from './storage/projects';
 import { synchronizeComponents } from './model/components';
+import { assertHolds } from './model/holds';
 import type { ActionInfo, Activity, SelectionContext } from './model/activity';
 import { uid } from './model/project';
 
@@ -110,10 +111,13 @@ export function useEditor() {
       try {
         let resolved = typeof candidate === 'function' ? await candidate() : candidate;
         if (current !== revision.current) return false;
-        if (mode === 'commit')
+        if (mode === 'commit') {
+          assertHolds(history.current, resolved);
           resolved = await synchronizeComponents(history.current, resolved, (source, targets) =>
             cad.instances(source, targets),
           );
+          assertHolds(history.current, resolved);
+        }
         if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
           ...resolved,

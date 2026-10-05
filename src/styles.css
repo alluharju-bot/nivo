@@ -3373,6 +3373,16 @@ p {
   background: #edf2eb;
   font-size: 12px;
 }
+.hold-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.hold-notice svg {
+  flex-shrink: 0;
+}
 .component-link-notice > div {
   display: flex;
   align-items: center;
@@ -3672,6 +3682,15 @@ p {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+.render-material-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 .render-tab-content[hidden] {
   display: none;

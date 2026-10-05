@@ -46,6 +46,7 @@ import {
   Hand,
   Layers2,
   Link2,
+  LockKeyhole,
   Maximize,
   Minimize,
   MoreHorizontal,
@@ -319,6 +320,7 @@ export default function App() {
   const [popup, setPopup] = useState<[number, number]>();
   const [penPoints, setPenPoints] = useState<Vec3[]>([]);
   const penRef = useRef<Vec3[]>([]);
+  const penSplitRequest = useRef(0);
   const [penHover, setPenHover] = useState<Vec3>();
   const [penConstraint, setPenConstraint] = useState<Vec3>();
   const constraintRef = useRef<Vec3 | undefined>(undefined);
@@ -537,10 +539,12 @@ export default function App() {
       dimensionBodyIds(d, project).every((id) => ids.has(id)),
     );
   }, [project.dimensions, visibleBodies]);
-  const renderBodies = useMemo(
-    () => visibleBodies.filter((b) => b.purpose === 'model' || b.purpose === 'component'),
-    [visibleBodies],
-  );
+  const renderBodies = useMemo(() => {
+    const visible = new Set(visibleBodies.map((b) => b.id));
+    return project.bodies
+      .filter((b) => visible.has(b.id) && (b.purpose === 'model' || b.purpose === 'component'))
+      .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) }));
+  }, [visibleBodies, project.bodies, project.groups]);
   const visibleMeshes = useMemo(() => {
     const ids = new Set(visibleBodies.map((body) => body.id));
     return editor.meshes.filter((mesh) => ids.has(mesh.id));
@@ -1409,6 +1413,90 @@ export default function App() {
       setAwaitingStart(false);
     }
   };
+  const penSurface = () => {
+    const target = sketchTargetRef.current;
+    const source = project.bodies.find((b) => b.id === target?.bodyId);
+    if (
+      !target ||
+      !source ||
+      shapePurpose !== 'model' ||
+      bodyLocked(source, project.groups) ||
+      !inAssembly(project, source.id, openedAssembly)
+    )
+      return;
+    if (editingBodyId) {
+      if (source.id !== editingBodyId || surfaceMode !== 'region') return;
+    } else if (source.component || source.purpose === 'component') return;
+    return { source, target };
+  };
+  const finishPenPath = async (final: boolean) => {
+    const points = penRef.current;
+    const surface = penSurface();
+    if (points.length < 2 || (!final && !surface)) return;
+    const request = ++penSplitRequest.current,
+      revision = editor.revision();
+    const current = () =>
+      request === penSplitRequest.current &&
+      points === penRef.current &&
+      revision === editor.revision();
+    let ownsCommit = false;
+    try {
+      const path = {
+        ...(await editor.cad.penPath(
+          points,
+          shapeName || `Kynäviiva ${project.bodies.length + 1}`,
+        )),
+        groupId: openedAssembly,
+      };
+      if (!current()) return;
+      const onSurface =
+        surface &&
+        points.every(
+          (p) => Math.abs(dot(sub(p, surface.target.point), surface.target.normal)) <= 1e-5,
+        );
+      const split = onSurface
+        ? await editor.cad.splitPath(surface.source, surface.target.face, path)
+        : undefined;
+      if (!current()) return;
+      const divided = split && !split.unchanged ? split : undefined;
+      // A dangling segment remains editable. It must not add an empty history
+      // action or turn into a separate wire until the user finishes it.
+      if (!divided && !final) return;
+      committing.current = true;
+      ownsCommit = true;
+      const next = divided
+        ? {
+            ...project,
+            bodies: project.bodies.map((b) => (b.id === divided.body.id ? divided.body : b)),
+          }
+        : {
+            ...project,
+            bodies: [
+              ...project.bodies,
+              {
+                ...path,
+                purpose:
+                  shapePurpose === 'construction'
+                    ? ('construction' as const)
+                    : ('drawing' as const),
+              },
+            ],
+          };
+      if (
+        await editor.transact(
+          next,
+          divided
+            ? 'Pinta jaettu viivalla. E muokkaa kumpaakin aluetta erikseen.'
+            : 'Piirrosviiva valmis. Valitse viiva ja Jaa pinta liittääksesi sen osaan.',
+        )
+      )
+        finishOperation(divided?.body.id ?? path.id, divided?.face);
+    } catch (e) {
+      if (current()) editor.setError((e as Error).message);
+    } finally {
+      if (ownsCommit) committing.current = false;
+    }
+  };
   const apply = async (forceClose = false) => {
     if (committing.current || busy) return;
     try {
@@ -1535,6 +1623,7 @@ export default function App() {
           clearLocks();
           writeFields({ x: '0', y: '0', z: '0' });
           editor.setError('');
+          void finishPenPath(false);
           return;
         }
         if (!forceClose) {
@@ -1543,53 +1632,7 @@ export default function App() {
             return;
           }
           committing.current = true;
-          const path = {
-            ...(await editor.cad.penPath(
-              penRef.current,
-              shapeName || `Kynäviiva ${project.bodies.length + 1}`,
-            )),
-            groupId: openedAssembly,
-          };
-          const target =
-            editingBodyId && surfaceMode === 'region' && shapePurpose === 'model'
-              ? sketchTargetRef.current
-              : undefined;
-          const source = project.bodies.find((b) => b.id === target?.bodyId);
-          let chosen = path.id,
-            region: FaceRef | undefined;
-          const success = await editor.transact(
-            async () => {
-              if (target && source && source.id === editingBodyId) {
-                requireMovable([source], project.groups);
-                const result = await editor.cad.splitPath(source, target.face, path);
-                if (!result.unchanged) {
-                  chosen = source.id;
-                  region = result.face;
-                  return {
-                    ...project,
-                    bodies: project.bodies.map((b) => (b.id === source.id ? result.body : b)),
-                  };
-                }
-              }
-              return {
-                ...project,
-                bodies: [
-                  ...project.bodies,
-                  {
-                    ...path,
-                    purpose:
-                      shapePurpose === 'construction'
-                        ? ('construction' as const)
-                        : ('drawing' as const),
-                  },
-                ],
-              };
-            },
-            target
-              ? 'Viiva valmis. Reunasta reunaan kulkeva viiva jakaa pinnan; E muokkaa aluetta.'
-              : 'Piirrosviiva valmis. Pisteisiin ja reunaan voi tarttua.',
-          );
-          if (success) finishOperation(chosen, region);
+          await finishPenPath(true);
           return;
         }
         let candidate = {
@@ -1913,6 +1956,7 @@ export default function App() {
       };
       setGuideDraft(guideRef.current);
     } else if (event.type === 'pen') {
+      if (committing.current || busy) return;
       if (event.close) {
         void apply(true);
         return;
@@ -1928,6 +1972,7 @@ export default function App() {
       clearLocks();
       writeFields({ x: '0', y: '0', z: '0' });
       editor.setError('');
+      void finishPenPath(false);
     }
   };
   const mergeSelected = async () => {
@@ -3320,7 +3365,9 @@ export default function App() {
       ? 'Rakennusviiva · ei muuta pintaa'
       : editingBody && surfaceMode === 'region'
         ? `Muokkaa osaa · ${editingBody.name}`
-        : `Uusi osa${shapeTarget ? ` · ${shapeTarget} / pinta` : ''}`
+        : tool === 'pen' && penSurface()
+          ? `Viiva jakaa pinnan · ${shapeTarget}`
+          : `Uusi osa${shapeTarget ? ` · ${shapeTarget} / pinta` : ''}`
     : editingBody
       ? `Muokkaa osaa · ${editingBody.name}`
       : targetName;
@@ -5097,8 +5144,9 @@ export default function App() {
                           {locked.size
                             ? 'Enter lisää numeroilla määritetyn pisteen.'
                             : 'Enter päättää viivan.'}{' '}
-                          Palaa alkupisteeseen sulkeaksesi muodon. Erillinen viiva jakaa pinnan Jaa
-                          pinta -toiminnolla; osan muokkaustilassa jako tapahtuu heti.
+                          Palaa alkupisteeseen sulkeaksesi muodon. Reunasta reunaan piirretty viiva
+                          jakaa tavallisen kappaleen tai avatun osan pinnan heti. Suljetun
+                          komponentin pinnalla valitse valmis viiva ja Jaa pinta.
                         </p>
                         <button
                           className="button outlined"
@@ -5219,6 +5267,12 @@ export default function App() {
                     </p>
                   )}
                   {linkNotice}
+                  {movementBlocked && (
+                    <p className="hold-notice" role="status">
+                      <LockKeyhole size={15} /> Hold · muokkauslukittu. Vapauta osan tai ryhmän
+                      lukitus ennen muokkaamista.
+                    </p>
+                  )}
                   {canDivideSurface && surfaceActions}
                   {selectedIds.length > 1 && !selectedGroup && (
                     <div className="selection-collection-actions">
@@ -5324,7 +5378,7 @@ export default function App() {
                         )}
                         assets={project.assets}
                         materials={project.materials}
-                        busy={busy}
+                        busy={busy || !!movementBlocked}
                         onChange={(...args) =>
                           changeAppearance(selectedIds.length ? selectedIds : [body.id], ...args)
                         }
@@ -5488,7 +5542,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.17.0</span>
+                    <span>v0.17.1</span>
                   </div>
                 </>
               )}

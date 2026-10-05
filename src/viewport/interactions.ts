@@ -246,6 +246,7 @@ export function installInteractions({
   let lastEvent: PointerEvent | undefined,
     shiftDirection: Vec3 | undefined,
     lastPenPoint: Vec3 | undefined;
+  let penShiftPending = false;
   let previousAxis = current().axis,
     previousPenCount = current().penPoints.length;
   let drawingPlane: SketchFrame | undefined;
@@ -1701,6 +1702,7 @@ export function installInteractions({
       acquired = undefined;
       hoveredReference = undefined;
       shiftDirection = undefined;
+      penShiftPending = false;
       drawingPlane = current().sketchFrame;
       drawingTarget = current().sketchTarget;
       lastPenPoint = undefined;
@@ -1725,14 +1727,17 @@ export function installInteractions({
         editing: !!current().selectedGuideId,
       };
     if (previousPenCount !== current().penPoints.length) {
+      if (previousPenCount > 0) penShiftPending = false;
       previousPenCount = current().penPoints.length;
       shiftDirection = undefined;
+      lastPenPoint = current().penPoints.at(-1);
       lastSnap = undefined;
       current().onConstraint(current().axis ? axisVector(current().axis!) : undefined);
     }
     if (previousAxis !== current().axis) {
       previousAxis = current().axis;
       shiftDirection = undefined;
+      penShiftPending = false;
       lastSnap = undefined;
       current().onConstraint(
         current().tool === 'pen' && previousAxis ? axisVector(previousAxis) : undefined,
@@ -1766,8 +1771,7 @@ export function installInteractions({
   };
   const updatePen = (event: PointerEvent): Vec3 | undefined => {
     const props = current(),
-      start = props.penPoints.at(-1),
-      direction = props.axis ? axisVector(props.axis) : shiftDirection;
+      start = props.penPoints.at(-1);
     if (!start) {
       const picked = sketchStartAt(event);
       if (!picked) return;
@@ -1777,6 +1781,50 @@ export function installInteractions({
       return picked.point;
     }
     const found = referenceAt(event);
+    if (props.penPoints.length === 1 && drawingTarget && !props.axis && !shiftDirection) {
+      const targetId = drawingTarget.bodyId;
+      const hit = faceAt(event);
+      const through =
+        found?.point ??
+        (hit?.target.bodyId === drawingTarget.bodyId ? hit.target.point : undefined);
+      const mesh = props.meshes.find((m) => m.id === targetId);
+      if (through && mesh) {
+        setRay(event);
+        const face = contextualFace(
+          mesh,
+          start,
+          raycaster.ray.direction.clone().negate().toArray() as Vec3,
+          through,
+        );
+        if (face && face.ref !== drawingTarget.face) {
+          drawingTarget = { bodyId: mesh.id, face: face.ref, normal: face.normal, point: start };
+          drawingPlane = sketchFrame(start, face.normal);
+          canvas.dataset.sketchPlane = JSON.stringify(face.normal);
+          props.onSketchPlane(drawingPlane, drawingTarget);
+          highlightFace(drawingTarget, true);
+        }
+      }
+    }
+    // Shift may be pressed before there is a direction to capture. In that case
+    // acquire the first nonzero drawing direction, then keep it independent of
+    // whichever off-axis reference the pointer visits afterwards.
+    if (penShiftPending && !props.axis) {
+      const raw = drawingPlane
+        ? framePoint(event, drawingPlane)
+        : planePoint(event, workPlane(), start);
+      if (raw) {
+        const point = drawingPlane
+          ? frameSnap(raw, drawingPlane, start, event)
+          : snap(raw, workPlane(), undefined, start);
+        const delta = sub(point, start);
+        if (Math.hypot(...delta) > 0.01) {
+          shiftDirection = unit(delta);
+          penShiftPending = false;
+          props.onConstraint(shiftDirection);
+        }
+      }
+    }
+    const direction = props.axis ? axisVector(props.axis) : shiftDirection;
     if (start && direction) {
       const picked = found?.point;
       let point = picked
@@ -3129,13 +3177,17 @@ export function installInteractions({
         }
         return;
       }
-      if (props.tool === 'pen' && props.penPoints.length && lastPenPoint) {
-        const delta = sub(lastPenPoint, props.penPoints.at(-1)!);
-        if (Math.hypot(...delta) > 0.01) {
-          shiftDirection = unit(delta);
-          props.onConstraint(shiftDirection);
-          if (lastEvent) updatePen(lastEvent);
+      if (props.tool === 'pen') {
+        penShiftPending = !props.axis;
+        if (props.penPoints.length && lastPenPoint && !props.axis) {
+          const delta = sub(lastPenPoint, props.penPoints.at(-1)!);
+          if (Math.hypot(...delta) > 0.01) {
+            shiftDirection = unit(delta);
+            penShiftPending = false;
+            props.onConstraint(shiftDirection);
+          }
         }
+        if (props.penPoints.length && lastEvent) updatePen(lastEvent);
       } else if (
         current().tool !== 'measure' &&
         acquired &&
@@ -3155,6 +3207,7 @@ export function installInteractions({
     }
     if (event.key === 'Shift') {
       shift = false;
+      penShiftPending = false;
       if (current().tool === 'rotate' && rotationDrag && lastEvent) updateRotation(lastEvent);
       if (current().tool === 'extrude') {
         if (extrudeSession && lastEvent) {
@@ -3192,6 +3245,7 @@ export function installInteractions({
     }
     emptySelectionClicks = 0;
     shift = false;
+    penShiftPending = false;
     current().onCopyMove(false);
     offsetSession = undefined;
     extrudeSession = undefined;

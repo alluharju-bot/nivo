@@ -4,7 +4,7 @@ import { dot, sub } from '../model/geometry';
 import { Triangle, Vector3 } from 'three';
 
 /** Only faces that actually contain the anchor participate, including inner cabinet faces. */
-export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3) {
+export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3, through?: Vec3) {
   const tolerance = Math.max(1e-4, ...point.map((n) => Math.abs(n) * 1e-7));
   const p = new Vector3(...point),
     a = new Vector3(),
@@ -12,11 +12,17 @@ export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3) 
     c = new Vector3();
   const triangle = new Triangle(a, b, c),
     closest = new Vector3();
+  const end = through && new Vector3(...through);
   const candidates = mesh.faces
     .flatMap((face) => {
-      if (!face.planar || Math.abs(dot(sub(point, face.center), face.normal)) > tolerance)
+      if (
+        !face.planar ||
+        Math.abs(dot(sub(point, face.center), face.normal)) > tolerance ||
+        (through && Math.abs(dot(sub(through, face.center), face.normal)) > tolerance)
+      )
         return [];
       let contains = false,
+        containsEnd = !end,
         area = 0;
       for (let i = face.start; i < face.start + face.count; i += 3) {
         a.fromArray(mesh.vertices, mesh.triangles[i] * 3);
@@ -25,8 +31,15 @@ export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3) 
         area += triangle.getArea();
         if (triangle.closestPointToPoint(p, closest).distanceToSquared(p) < tolerance * tolerance)
           contains = true;
+        if (
+          end &&
+          triangle.closestPointToPoint(end, closest).distanceToSquared(end) < tolerance * tolerance
+        )
+          containsEnd = true;
       }
-      return contains ? [{ face, area, facing: dot(face.normal, towardCamera) }] : [];
+      return contains && containsEnd
+        ? [{ face, area, facing: dot(face.normal, towardCamera) }]
+        : [];
     })
     .filter((c) => c.facing > 0.03);
   const maxArea = Math.max(1, ...candidates.map((c) => c.area));

@@ -2,6 +2,20 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.17.1 — kynän suora pinnanjako ja yhtenäinen Hold
+
+Tavallisen kappaleen tai avatun osan reunasta reunaan kulkeva kynäviiva
+jakaa pinnan heti pisteen vahvistuksessa. Keskeneräinen viivaketju ei lisää
+kumoamishistoriaan tyhjiä tapahtumia. Suljettu komponentti ja kokoonpano
+säilyttävät muokkaussuojan; valmis erillinen viiva tarjoaa Jaa pinta -toiminnon.
+Perspektiivissä ensimmäisen viivan toinen piste täsmentää yhteisen piirtopinnan.
+
+Shift lukitsee nykyisen tai ensimmäisen piirtosuunnan ja poimii viitteen pituuden
+tälle suunnalle. Vapautus tai vahvistettu piste päättää tilapäisen lukon.
+X/Y/Z:n tietoinen akselivalinta säilyy. Hold suojaa osan kaikkia tietoja paitsi
+näkyvyyttä ja itse lukituksen vapautusta, myös välillisiä komponenttimuutoksia.
+Osan alkuperäinen väri säilyy; lukitus näytetään kuvakkeella ja valinnan tekstillä.
+
 ## Yöpassi 5.10.2026 — mallista luotettavaksi työkuvaksi
 
 Käyttäjä pyysi backlogista yhtenäistä yöpassia: nopeus, selkeys ja yksinkertaisuus.

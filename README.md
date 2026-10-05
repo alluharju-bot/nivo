@@ -3,7 +3,7 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.17.0** kokoaa mallista luotettavan työkuvan. **Mittakuva → Luo mitta-arkki**
+Versio **0.17.1** kokoaa mallista luotettavan työkuvan. **Mittakuva → Luo mitta-arkki**
 asettaa 1–6 näkymää, myös tallennetut poikkileikkaukset, samalle A4-arkille yhteisessä
 mittakaavassa. Tallenna arkin kohde ja näkymät projektiin; vie PDF tai SVG.
 Kokonaismitat seuraavat osajoukon tai ryhmän nykyisiä ulkorajoja myös osien
@@ -363,9 +363,13 @@ koordinaatistoon sidottua kolmen suunnan projektiota ja pehmeää saumasekoitust
 ## Avoin kynäviiva ja nopea aukko
 
 **Kynä → kaksi tai useampia pisteitä → Enter / Valmis viiva** tekee avoimen
-viivan. Muokkaustilassa reunasta reunaan kulkeva viiva jakaa pinnan eri alueiksi,
-joita voi muokata E:llä. Pinnalle kesken päättyvä viiva säilyy erillisenä
-piirrosviivana. Normaalitilassa viiva ei muokkaa alla olevaa komponenttia.
+viivan. Tavallisen kappaleen tai avatun osan pinnalla reunasta reunaan kulkeva
+viiva jakaa pinnan heti viimeisen pisteen vahvistuksessa. Alueita voi muokata E:llä.
+Ensimmäisen viivan toinen piste auttaa valitsemaan reunalla oikean piirtopinnan,
+jotta kynä ei jää lattian ohuen sivun tasoon perspektiivissä.
+Pinnalle kesken päättyvää viivaa voi jatkaa; Enter tallentaa sen erillisenä piirrosviivana.
+Suljettua komponenttia viiva ei muokkaa automaattisesti: avaa osa tuplaklikkaamalla
+tai valitse valmis piirrosviiva ja oikeasta paneelista **Jaa pinta**.
 Viivan voi valita, siirtää, tallentaa ja poistaa; U kumittaa myös piirrosviivan.
 Suljettu muoto syntyy edelleen palaamalla alkupisteeseen tai **Sulje muoto** -painikkeella.
 
@@ -441,8 +445,9 @@ pituuden. Kulmamitat ovat jatkokehitystä.
 
 Valinnan **Väri** vaihtaa yhden tai kaikkien valittujen osien värin yhdellä
 painalluksella. Oma väri hyväksytään värivalitsimen vieressä olevasta merkistä.
-Muutos tallentuu projektiin ja peruuntuu yhtenä askeleena. Hold-kiinnitys näkyy
-edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaan.
+Muutos tallentuu projektiin ja peruuntuu yhtenä askeleena. Hold-lukittu osa säilyttää
+oman värinsä ja materiaalinsa. Lukitus näkyy listan lukosta, hillitystä reunasta
+ja valinnan Hold-merkinnästä; materiaalin muuttaminen edellyttää lukituksen vapauttamista.
 
 ## Piirtämisen perustyökalut
 
@@ -509,6 +514,9 @@ edelleen violetilla; osan oma väri palautuu näkyviin, kun kiinnitys vapautetaa
   lukitsee akselin. Shift lukitsee aloitetun viivan suunnan: toisen pisteen
   napsautus projisoi sen lukitulle viivalle ja määrää pituuden. Esimerkiksi
   suorakulmion kolmannen sivun pituuden voi poimia ensimmäisestä pisteestä.
+  Shiftin voi painaa jo ennen alkupistettä tai ensimmäistä liikettä: ensimmäinen
+  piirtosuunta lukittuu. Lukitus päättyy Shiftin vapautukseen tai viivan seuraavaan
+  vahvistettuun pisteeseen. X/Y/Z ohittaa tilapäisen suuntalukon ja pysyy valittuna.
   Vapauta Shift ja sulje muoto tarttumalla aloitusverteksiin. Myös pysty- ja
   vinotasot käyvät, kun kaikki suljettavan muodon pisteet ovat samalla tasolla.
   Numeroilla annetut X/Y/Z-siirtymät ovat suhteessa edelliseen pisteeseen;
@@ -615,8 +623,10 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
 - **Origoon:** kohdista valinnan yhteinen alakulma tai keskipiste origoon yhdellä
   painikkeella. Kappaleiden keskinäiset sijainnit säilyvät. Näkymän ristikkopainike
   keskittää kameran origoon liikuttamatta mallia.
-- **Kiinnitä (G):** paikalleen kiinnitetty osa näkyy violetilla. Sitä ei voi siirtää,
-  kiertää, Offset-muokata tai push/pullata ennen vapauttamista.
+- **Kiinnitä (G) / Hold:** estää osan muokkaamisen, poistamisen ja materiaalimuutokset,
+  myös linkitetyn kopion kautta. Oma materiaali säilyy näkyvissä. Lukitus pitää
+  vapauttaa ennen muokkausta; tuplaklikkaus ei ohita Holdia. Piilotus ja lukituksen
+  vapautus ovat käytettävissä. Ryhmän Hold suojaa myös sen alaryhmiä ja osia.
 - **Kappalelista:** valitse napsauttamalla, nimeä kaksoisnapsauttamalla tai
   Nimi-kentästä, piilota silmästä ja kiinnitä lukosta. **Ryhmä** kokoaa valitut osat.
   Ryhmät toimivat myös sisäkkäin; niitä voi nimetä ja raahata kuten kappaleita.

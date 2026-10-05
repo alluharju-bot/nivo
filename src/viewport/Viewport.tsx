@@ -345,18 +345,16 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                   ? body.purpose === 'construction'
                     ? '#1289c6'
                     : '#9865b4'
-                  : body.locked
-                    ? '#9b7bb8'
-                    : moveHovered
-                      ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
-                      : selected && face.ref === props.selectedFace
-                        ? '#e1bd7b'
-                        : selected && !props.selectedFace
-                          ? new THREE.Color(body.color).lerp(
-                              new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
-                              0.3,
-                            )
-                          : body.color,
+                  : moveHovered
+                    ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
+                    : selected && face.ref === props.selectedFace
+                      ? '#e1bd7b'
+                      : selected && !props.selectedFace
+                        ? new THREE.Color(body.color).lerp(
+                            new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
+                            0.3,
+                          )
+                        : body.color,
           side: THREE.DoubleSide,
           polygonOffset: true,
           polygonOffsetFactor: surfacePriority ? -1 : 1,
@@ -400,12 +398,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                         ? body.purpose === 'construction'
                           ? '#1289c6'
                           : '#9865b4'
-                        : body.locked
-                          ? '#684294'
-                          : selected
-                            ? props.selectedGroupId
-                              ? '#356eab'
-                              : '#237b65'
+                        : selected
+                          ? props.selectedGroupId
+                            ? '#356eab'
+                            : '#237b65'
+                          : body.locked
+                            ? '#637168'
                             : '#766851',
           transparent: true,
           opacity: reference

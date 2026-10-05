@@ -334,105 +334,102 @@ export function RenderStage(props: Props) {
           </select>
         </label>
         <div className="render-tab-content" hidden={renderTab !== 'material'}>
-          <label>
-            Materiaali
-            <select
-              aria-label="Materiaali"
-              disabled={busy || !ids.length || !!textureDraft}
-              value={mixed ? '' : material}
-              onChange={(e) => choosePreset(e.target.value)}
-            >
-              {mixed && (
-                <option value="" disabled>
-                  Useita materiaaleja
-                </option>
-              )}
-              {[...new Set(materialPresets.map((p) => p.category))].map((category) => (
-                <optgroup key={category} label={category}>
-                  {materialPresets
-                    .filter((p) => p.category === category)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
+          {targets.some((b) => b.locked) && (
+            <p className="muted" role="status">
+              Valinnassa on Hold-lukittu osa. Vapauta lukitus mallissa ennen materiaalin
+              muokkaamista.
+            </p>
+          )}
+          <fieldset className="render-material-fields" disabled={targets.some((b) => b.locked)}>
+            <label>
+              Materiaali
+              <select
+                aria-label="Materiaali"
+                disabled={busy || !ids.length || !!textureDraft}
+                value={mixed ? '' : material}
+                onChange={(e) => choosePreset(e.target.value)}
+              >
+                {mixed && (
+                  <option value="" disabled>
+                    Useita materiaaleja
+                  </option>
+                )}
+                {[...new Set(materialPresets.map((p) => p.category))].map((category) => (
+                  <optgroup key={category} label={category}>
+                    {materialPresets
+                      .filter((p) => p.category === category)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+                {!!props.materials?.length && (
+                  <optgroup label="Projektin materiaalit">
+                    {props.materials.map((m) => (
+                      <option key={m.id} value={`custom:${m.id}`}>
+                        {m.name}
                       </option>
                     ))}
-                </optgroup>
-              ))}
-              {!!props.materials?.length && (
-                <optgroup label="Projektin materiaalit">
-                  {props.materials.map((m) => (
-                    <option key={m.id} value={`custom:${m.id}`}>
-                      {m.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {Object.entries(materialNames).map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!textureDraft && (
-            <>
-              <label>
-                Materiaaliryhmä
-                <select
-                  aria-label="Materiaaliryhmä"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  {[...new Set(materialPresets.map((p) => p.category))].map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="material-swatches">
-                {thumbnails.map((p) => (
-                  <button
-                    key={p.id}
-                    title={p.name}
-                    aria-label={p.name}
-                    aria-pressed={material === p.id}
-                    disabled={busy || !ids.length}
-                    onClick={() => choosePreset(p.id)}
-                  >
-                    <span
-                      style={{
-                        backgroundColor: p.color,
-                        backgroundImage: p.image ? `url(${p.image})` : undefined,
-                        backgroundBlendMode: 'multiply',
-                      }}
-                    />
-                    {p.name}
-                  </button>
+                  </optgroup>
+                )}
+                {Object.entries(materialNames).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
                 ))}
-              </div>
-            </>
-          )}
-          <BodyColor
-            color={color}
-            mixed={targets.some((b) => b.color !== color)}
-            busy={busy || !ids.length || !!textureDraft}
-            onChange={(value) => props.onColor(ids, value)}
-          />
-          {!textureDraft && (
-            <>
-              <div className="surface-properties">
-                {(['roughness', 'metalness', 'transmission', 'clearcoat'] as const).map((key) => (
-                  <label key={key}>
-                    {
+              </select>
+            </label>
+            {!textureDraft && (
+              <>
+                <label>
+                  Materiaaliryhmä
+                  <select
+                    aria-label="Materiaaliryhmä"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    {[...new Set(materialPresets.map((p) => p.category))].map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="material-swatches">
+                  {thumbnails.map((p) => (
+                    <button
+                      key={p.id}
+                      title={p.name}
+                      aria-label={p.name}
+                      aria-pressed={material === p.id}
+                      disabled={busy || !ids.length}
+                      onClick={() => choosePreset(p.id)}
+                    >
+                      <span
+                        style={{
+                          backgroundColor: p.color,
+                          backgroundImage: p.image ? `url(${p.image})` : undefined,
+                          backgroundBlendMode: 'multiply',
+                        }}
+                      />
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            <BodyColor
+              color={color}
+              mixed={targets.some((b) => b.color !== color)}
+              busy={busy || !ids.length || !!textureDraft}
+              onChange={(value) => props.onColor(ids, value)}
+            />
+            {!textureDraft && (
+              <>
+                <div className="surface-properties">
+                  {(['roughness', 'metalness', 'transmission', 'clearcoat'] as const).map((key) => (
+                    <label key={key}>
                       {
-                        roughness: 'Karheus',
-                        metalness: 'Metallisuus',
-                        transmission: 'Läpäisevyys',
-                        clearcoat: 'Pinnoite',
-                      }[key]
-                    }
-                    <input
-                      key={`${ids.join()}:${appearance[key]}:${preset.id}`}
-                      aria-label={
                         {
                           roughness: 'Karheus',
                           metalness: 'Metallisuus',
@@ -440,320 +437,333 @@ export function RenderStage(props: Props) {
                           clearcoat: 'Pinnoite',
                         }[key]
                       }
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      disabled={busy || !ids.length}
-                      defaultValue={appearance[key] ?? preset[key] ?? 0}
-                      onBlur={(e) => {
-                        const n = Number(e.target.value);
+                      <input
+                        key={`${ids.join()}:${appearance[key]}:${preset.id}`}
+                        aria-label={
+                          {
+                            roughness: 'Karheus',
+                            metalness: 'Metallisuus',
+                            transmission: 'Läpäisevyys',
+                            clearcoat: 'Pinnoite',
+                          }[key]
+                        }
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        disabled={busy || !ids.length}
+                        defaultValue={appearance[key] ?? preset[key] ?? 0}
+                        onBlur={(e) => {
+                          const n = Number(e.target.value);
+                          if (
+                            Number.isFinite(n) &&
+                            n >= 0 &&
+                            n <= 1 &&
+                            n !== (appearance[key] ?? preset[key] ?? 0)
+                          )
+                            void props.onAppearance(ids, {
+                              ...appearance,
+                              [key]: n,
+                            });
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <input
+                  ref={imageInput}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  hidden
+                  onChange={(e) => {
+                    void upload(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  className="button outlined full"
+                  disabled={busy || !ids.length}
+                  onClick={() => imageInput.current?.click()}
+                >
+                  Lisää kuva
+                </button>
+                {appearance.assetId && (
+                  <p className="muted">
+                    {props.assets?.[appearance.assetId]?.name ?? 'Kuva puuttuu'}
+                  </p>
+                )}
+                <button
+                  className="button outlined full"
+                  disabled={busy || ids.length !== 1 || (!appearance.assetId && !preset.pattern)}
+                  onClick={() => {
+                    textureSource.current = JSON.stringify(targets[0]);
+                    setTextureDraft({
+                      id: ids[0],
+                      appearance: structuredClone(appearance),
+                    });
+                  }}
+                >
+                  Muokkaa tekstuuria
+                </button>
+                {ids.length !== 1 && (
+                  <p className="muted">Valitse yksi osa tekstuurin sijoitteluun.</p>
+                )}
+                <details>
+                  <summary>Tallenna oma materiaali</summary>
+                  <label>
+                    Nimi
+                    <input
+                      aria-label="Oman materiaalin nimi"
+                      value={materialName}
+                      maxLength={80}
+                      onChange={(e) => setMaterialName(e.target.value)}
+                    />
+                  </label>
+                  <button
+                    className="button outlined full"
+                    disabled={busy || !ids.length || !materialName.trim()}
+                    onClick={() =>
+                      void props
+                        .onSaveMaterial(materialName.trim(), appearance, color)
+                        .then((ok) => {
+                          if (ok) setMaterialName('');
+                        })
+                    }
+                  >
+                    Tallenna materiaali projektiin
+                  </button>
+                </details>
+              </>
+            )}
+            {textureDraft && (
+              <section className="texture-editor" aria-label="Tekstuurin sijoittelu">
+                <h3>Tekstuurin sijoittelu</h3>
+                <p>
+                  Vedä pintaa siirtääksesi kuviota. ↗ säätää kokoa, ↻ kiertää. Oikea painike kiertää
+                  kameraa.
+                </p>
+                {(['width', 'height', 'offsetX', 'offsetY', 'rotation'] as const).map((key) => (
+                  <label key={key}>
+                    {
+                      {
+                        width: 'Kuvion leveys (mm)',
+                        height: 'Kuvion korkeus (mm)',
+                        offsetX: 'Siirtymä U (mm)',
+                        offsetY: 'Siirtymä V (mm)',
+                        rotation: 'Kierto (°)',
+                      }[key]
+                    }
+                    <TextureNumber
+                      label={
+                        {
+                          width: 'Kuvion leveys',
+                          height: 'Kuvion korkeus',
+                          offsetX: 'Siirtymä U',
+                          offsetY: 'Siirtymä V',
+                          rotation: 'Tekstuurin kierto',
+                        }[key]
+                      }
+                      value={textureDraft.appearance.texture[key]}
+                      min={
+                        key === 'width' || key === 'height'
+                          ? 0.1
+                          : key === 'rotation'
+                            ? -360000
+                            : -100000
+                      }
+                      max={key === 'rotation' ? 360000 : 100000}
+                      onValue={(n) => {
+                        const old = textureDraft.appearance.texture,
+                          next = { ...old, [key]: n };
+                        if (old.lockAspect && key === 'width')
+                          next.height = (old.height * n) / old.width;
+                        if (old.lockAspect && key === 'height')
+                          next.width = (old.width * n) / old.height;
                         if (
-                          Number.isFinite(n) &&
-                          n >= 0 &&
-                          n <= 1 &&
-                          n !== (appearance[key] ?? preset[key] ?? 0)
+                          next.width < 0.1 ||
+                          next.width > 100000 ||
+                          next.height < 0.1 ||
+                          next.height > 100000
                         )
-                          void props.onAppearance(ids, {
-                            ...appearance,
-                            [key]: n,
-                          });
+                          return;
+                        changeTexture(next);
                       }}
                     />
                   </label>
                 ))}
-              </div>
-              <input
-                ref={imageInput}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                hidden
-                onChange={(e) => {
-                  void upload(e.target.files?.[0]);
-                  e.target.value = '';
-                }}
-              />
-              <button
-                className="button outlined full"
-                disabled={busy || !ids.length}
-                onClick={() => imageInput.current?.click()}
-              >
-                Lisää kuva
-              </button>
-              {appearance.assetId && (
-                <p className="muted">
-                  {props.assets?.[appearance.assetId]?.name ?? 'Kuva puuttuu'}
-                </p>
-              )}
-              <button
-                className="button outlined full"
-                disabled={busy || ids.length !== 1 || (!appearance.assetId && !preset.pattern)}
-                onClick={() => {
-                  textureSource.current = JSON.stringify(targets[0]);
-                  setTextureDraft({
-                    id: ids[0],
-                    appearance: structuredClone(appearance),
-                  });
-                }}
-              >
-                Muokkaa tekstuuria
-              </button>
-              {ids.length !== 1 && (
-                <p className="muted">Valitse yksi osa tekstuurin sijoitteluun.</p>
-              )}
-              <details>
-                <summary>Tallenna oma materiaali</summary>
-                <label>
-                  Nimi
+                <label className="render-check">
                   <input
-                    aria-label="Oman materiaalin nimi"
-                    value={materialName}
-                    maxLength={80}
-                    onChange={(e) => setMaterialName(e.target.value)}
+                    type="checkbox"
+                    checked={textureDraft.appearance.texture.lockAspect}
+                    onChange={(e) =>
+                      changeTexture({
+                        ...textureDraft.appearance.texture,
+                        lockAspect: e.target.checked,
+                      })
+                    }
                   />
+                  Lukitse kuvasuhde
                 </label>
                 <button
                   className="button outlined full"
-                  disabled={busy || !ids.length || !materialName.trim()}
-                  onClick={() =>
-                    void props.onSaveMaterial(materialName.trim(), appearance, color).then((ok) => {
-                      if (ok) setMaterialName('');
-                    })
-                  }
-                >
-                  Tallenna materiaali projektiin
-                </button>
-              </details>
-            </>
-          )}
-          {textureDraft && (
-            <section className="texture-editor" aria-label="Tekstuurin sijoittelu">
-              <h3>Tekstuurin sijoittelu</h3>
-              <p>
-                Vedä pintaa siirtääksesi kuviota. ↗ säätää kokoa, ↻ kiertää. Oikea painike kiertää
-                kameraa.
-              </p>
-              {(['width', 'height', 'offsetX', 'offsetY', 'rotation'] as const).map((key) => (
-                <label key={key}>
-                  {
-                    {
-                      width: 'Kuvion leveys (mm)',
-                      height: 'Kuvion korkeus (mm)',
-                      offsetX: 'Siirtymä U (mm)',
-                      offsetY: 'Siirtymä V (mm)',
-                      rotation: 'Kierto (°)',
-                    }[key]
-                  }
-                  <TextureNumber
-                    label={
-                      {
-                        width: 'Kuvion leveys',
-                        height: 'Kuvion korkeus',
-                        offsetX: 'Siirtymä U',
-                        offsetY: 'Siirtymä V',
-                        rotation: 'Tekstuurin kierto',
-                      }[key]
-                    }
-                    value={textureDraft.appearance.texture[key]}
-                    min={
-                      key === 'width' || key === 'height'
-                        ? 0.1
-                        : key === 'rotation'
-                          ? -360000
-                          : -100000
-                    }
-                    max={key === 'rotation' ? 360000 : 100000}
-                    onValue={(n) => {
-                      const old = textureDraft.appearance.texture,
-                        next = { ...old, [key]: n };
-                      if (old.lockAspect && key === 'width')
-                        next.height = (old.height * n) / old.width;
-                      if (old.lockAspect && key === 'height')
-                        next.width = (old.width * n) / old.height;
-                      if (
-                        next.width < 0.1 ||
-                        next.width > 100000 ||
-                        next.height < 0.1 ||
-                        next.height > 100000
-                      )
-                        return;
-                      changeTexture(next);
-                    }}
-                  />
-                </label>
-              ))}
-              <label className="render-check">
-                <input
-                  type="checkbox"
-                  checked={textureDraft.appearance.texture.lockAspect}
-                  onChange={(e) =>
+                  onClick={() => {
+                    const asset = textureDraft.appearance.assetId
+                      ? props.assets?.[textureDraft.appearance.assetId]
+                      : undefined;
                     changeTexture({
-                      ...textureDraft.appearance.texture,
-                      lockAspect: e.target.checked,
-                    })
-                  }
-                />
-                Lukitse kuvasuhde
-              </label>
-              <button
-                className="button outlined full"
-                onClick={() => {
-                  const asset = textureDraft.appearance.assetId
-                    ? props.assets?.[textureDraft.appearance.assetId]
-                    : undefined;
-                  changeTexture({
-                    ...textureDefaults,
-                    height: asset
-                      ? (textureDefaults.width * asset.height) / asset.width
-                      : textureDefaults.height,
-                  });
-                }}
-              >
-                Palauta sijoittelu
-              </button>
-              <button
-                className="button dark full"
-                disabled={busy}
-                onClick={() => void acceptTexture()}
-              >
-                Hyväksy tekstuuri · Enter
-              </button>
-              <button className="button outlined full" onClick={cancelTexture}>
-                Peru tekstuuri · Esc
-              </button>
-            </section>
-          )}
-          {!textureDraft && (
-            <SurfaceMaps
-              appearance={appearance}
-              assets={props.assets}
-              busy={busy || !ids.length}
-              onChange={(value, color, asset) => props.onAppearance(ids, value, color, asset)}
-            />
-          )}
-          <details className="emission-controls">
-            <summary>Osa valonlähteenä</summary>
-            <label className="render-check">
-              <CommitCheckbox
-                label="Valaiseva materiaali"
-                checked={emission.enabled}
-                disabled={busy || !ids.length}
-                onChange={(enabled) => changeEmission({ enabled })}
-              />
-              Valaiseva materiaali
-            </label>
-            {emission.enabled && (
-              <>
-                <label>
-                  Valon tyyppi
-                  <select
-                    aria-label="Valon tyyppi"
-                    value={emission.type}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void changeEmission({ type: e.target.value as 'surface' | 'spot' })
-                    }
-                  >
-                    <option value="surface">Valaiseva pinta · LED / taustavalo</option>
-                    <option value="spot">Kohdevalo · spotti</option>
-                  </select>
-                </label>
-                <label>
-                  Valon väri
-                  <input
-                    aria-label="Valon väri"
-                    type="color"
-                    defaultValue={emission.color}
-                    key={emission.color}
-                    disabled={busy}
-                    onBlur={(e) => {
-                      if (e.target.value !== emission.color)
-                        void changeEmission({ color: e.target.value });
-                    }}
-                  />
-                </label>
-                <label>
-                  Voimakkuus
-                  <input
-                    aria-label="Valon voimakkuus"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    key={emission.intensity}
-                    defaultValue={emission.intensity}
-                    disabled={busy}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    onBlur={(e) => {
-                      const n = Number(e.target.value);
-                      if (e.target.value && Number.isFinite(n) && n >= 0 && n <= 100)
-                        void changeEmission({ intensity: n });
-                      else e.target.value = String(emission.intensity);
-                    }}
-                  />
-                </label>
-                {emission.type === 'spot' && (
-                  <>
-                    <label>
-                      Suunta
-                      <select
-                        aria-label="Spotin suunta"
-                        value={emission.direction}
-                        disabled={busy}
-                        onChange={(e) =>
-                          void changeEmission({
-                            direction: e.target.value as typeof emission.direction,
-                          })
-                        }
-                      >
-                        {(['-z', 'z', '-y', 'y', '-x', 'x'] as const).map((d) => (
-                          <option key={d} value={d}>
-                            {
-                              {
-                                '-z': 'Alas −Z',
-                                z: 'Ylös +Z',
-                                '-y': 'Eteen −Y',
-                                y: 'Taakse +Y',
-                                '-x': 'Vasen −X',
-                                x: 'Oikea +X',
-                              }[d]
-                            }
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Keilan kulma (°)
-                      <input
-                        aria-label="Spotin kulma"
-                        type="number"
-                        min="5"
-                        max="160"
-                        key={emission.angle}
-                        defaultValue={emission.angle}
-                        disabled={busy}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') e.currentTarget.blur();
-                        }}
-                        onBlur={(e) => {
-                          const n = Number(e.target.value);
-                          if (e.target.value && Number.isFinite(n) && n >= 5 && n <= 160)
-                            void changeEmission({ angle: n });
-                          else e.target.value = String(emission.angle);
-                        }}
-                      />
-                    </label>
-                  </>
-                )}
-                <p className="muted">
-                  Tarkentuva renderöinti laskee myös pinnan valon ympäröiviin osiin. Spotti valaisee
-                  jo nopeassa esikatselussa.
-                </p>
-              </>
+                      ...textureDefaults,
+                      height: asset
+                        ? (textureDefaults.width * asset.height) / asset.width
+                        : textureDefaults.height,
+                    });
+                  }}
+                >
+                  Palauta sijoittelu
+                </button>
+                <button
+                  className="button dark full"
+                  disabled={busy}
+                  onClick={() => void acceptTexture()}
+                >
+                  Hyväksy tekstuuri · Enter
+                </button>
+                <button className="button outlined full" onClick={cancelTexture}>
+                  Peru tekstuuri · Esc
+                </button>
+              </section>
             )}
-          </details>
+            {!textureDraft && (
+              <SurfaceMaps
+                appearance={appearance}
+                assets={props.assets}
+                busy={busy || !ids.length}
+                onChange={(value, color, asset) => props.onAppearance(ids, value, color, asset)}
+              />
+            )}
+            <details className="emission-controls">
+              <summary>Osa valonlähteenä</summary>
+              <label className="render-check">
+                <CommitCheckbox
+                  label="Valaiseva materiaali"
+                  checked={emission.enabled}
+                  disabled={busy || !ids.length}
+                  onChange={(enabled) => changeEmission({ enabled })}
+                />
+                Valaiseva materiaali
+              </label>
+              {emission.enabled && (
+                <>
+                  <label>
+                    Valon tyyppi
+                    <select
+                      aria-label="Valon tyyppi"
+                      value={emission.type}
+                      disabled={busy}
+                      onChange={(e) =>
+                        void changeEmission({ type: e.target.value as 'surface' | 'spot' })
+                      }
+                    >
+                      <option value="surface">Valaiseva pinta · LED / taustavalo</option>
+                      <option value="spot">Kohdevalo · spotti</option>
+                    </select>
+                  </label>
+                  <label>
+                    Valon väri
+                    <input
+                      aria-label="Valon väri"
+                      type="color"
+                      defaultValue={emission.color}
+                      key={emission.color}
+                      disabled={busy}
+                      onBlur={(e) => {
+                        if (e.target.value !== emission.color)
+                          void changeEmission({ color: e.target.value });
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Voimakkuus
+                    <input
+                      aria-label="Valon voimakkuus"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      key={emission.intensity}
+                      defaultValue={emission.intensity}
+                      disabled={busy}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                      }}
+                      onBlur={(e) => {
+                        const n = Number(e.target.value);
+                        if (e.target.value && Number.isFinite(n) && n >= 0 && n <= 100)
+                          void changeEmission({ intensity: n });
+                        else e.target.value = String(emission.intensity);
+                      }}
+                    />
+                  </label>
+                  {emission.type === 'spot' && (
+                    <>
+                      <label>
+                        Suunta
+                        <select
+                          aria-label="Spotin suunta"
+                          value={emission.direction}
+                          disabled={busy}
+                          onChange={(e) =>
+                            void changeEmission({
+                              direction: e.target.value as typeof emission.direction,
+                            })
+                          }
+                        >
+                          {(['-z', 'z', '-y', 'y', '-x', 'x'] as const).map((d) => (
+                            <option key={d} value={d}>
+                              {
+                                {
+                                  '-z': 'Alas −Z',
+                                  z: 'Ylös +Z',
+                                  '-y': 'Eteen −Y',
+                                  y: 'Taakse +Y',
+                                  '-x': 'Vasen −X',
+                                  x: 'Oikea +X',
+                                }[d]
+                              }
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Keilan kulma (°)
+                        <input
+                          aria-label="Spotin kulma"
+                          type="number"
+                          min="5"
+                          max="160"
+                          key={emission.angle}
+                          defaultValue={emission.angle}
+                          disabled={busy}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
+                          onBlur={(e) => {
+                            const n = Number(e.target.value);
+                            if (e.target.value && Number.isFinite(n) && n >= 5 && n <= 160)
+                              void changeEmission({ angle: n });
+                            else e.target.value = String(emission.angle);
+                          }}
+                        />
+                      </label>
+                    </>
+                  )}
+                  <p className="muted">
+                    Tarkentuva renderöinti laskee myös pinnan valon ympäröiviin osiin. Spotti
+                    valaisee jo nopeassa esikatselussa.
+                  </p>
+                </>
+              )}
+            </details>
+          </fieldset>
           <details className="studio-lighting">
             <summary>Studion valaistus</summary>
             <label>

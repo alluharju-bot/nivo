@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { cabinetProject, makeBody } from '../src/model/project';
-import { ready, save } from './helpers';
+import { ready, save, revealBrowser } from './helpers';
 
 test('render materials and lighting persist without changing geometry or Hold', async ({
   page,
@@ -14,6 +14,14 @@ test('render materials and lighting persist without changing geometry or Hold', 
   await ready(page, [base, hidden, construction]);
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await expect(page.getByTestId('render-canvas')).toHaveAttribute('data-body-count', '1');
+  await expect(page.getByRole('combobox', { name: 'Materiaali', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Väri: Terrakotta', exact: true })).toBeDisabled();
+  await expect(page.getByText('Valinnassa on Hold-lukittu osa.', { exact: false })).toBeVisible();
+  expect((await save(page)).bodies).toEqual([base, hidden, construction]);
+  await page.keyboard.press('Escape');
+  await revealBrowser(page);
+  await page.getByRole('button', { name: 'Vapauta: Levy', exact: true }).click();
+  await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await page.getByRole('combobox', { name: 'Materiaali', exact: true }).selectOption('wood');
   await expect(page.getByRole('combobox', { name: 'Materiaali', exact: true })).toHaveValue('wood');
   await page.getByRole('button', { name: 'Väri: Terrakotta', exact: true }).click();
@@ -32,7 +40,7 @@ test('render materials and lighting persist without changing geometry or Hold', 
   await exposure.press('ArrowRight');
   await expect(exposure).toHaveValue('1.1');
   const result = await save(page);
-  expect(result.bodies[0]).toEqual({ ...base, material: 'wood', color: '#bc8874' });
+  expect(result.bodies[0]).toEqual({ ...base, locked: false, material: 'wood', color: '#bc8874' });
   expect(result.bodies.slice(1)).toEqual([hidden, construction]);
   expect(result.settings.render).toEqual({ environment: 'warm', exposure: 1.1, shadows: false });
   await page.getByRole('button', { name: 'Peru', exact: true }).click();

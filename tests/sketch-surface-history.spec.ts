@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { ready, view, click, save, revealBrowser } from './helpers';
 import { makeBody, type Guide } from '../src/model/project';
+import { asComponent } from '../src/model/components';
 
 const snap = async (page: import('@playwright/test').Page) =>
   JSON.parse((await page.getByTestId('viewport').getAttribute('data-snap-point')) || 'null');
 
-test('standalone two-point pen line divides a floor without entering edit mode and remains undoable', async ({
+test('a closed component offers explicit surface division for a finished pen line without entering edit mode', async ({
   page,
 }) => {
-  const floor = makeBody(600, 400, 100, [0, 0, -100], 'Lattia');
+  const floor = asComponent(makeBody(600, 400, 100, [0, 0, -100], 'Lattia'));
   await ready(page, [floor]);
   const p = await view(page, [floor]);
   await page.keyboard.press('k');
@@ -19,6 +20,10 @@ test('standalone two-point pen line divides a floor without entering edit mode a
   const withLine = await save(page);
   expect(withLine.bodies[0]).toEqual(floor);
   await page.getByRole('button', { name: 'Jaa pinta', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Jaa pinta', exact: true })
+    .getByRole('button', { name: 'Jaa valitut pinnat', exact: true })
+    .click();
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '1');
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-editing-body', '');
   const divided = (await save(page)).bodies[0];

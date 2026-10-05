@@ -226,6 +226,10 @@ it('chooses the camera-facing adjacent drawing face without accepting a remote c
     expect(contextualFace(mesh, [21.125, 6.375, 804.625], [0.9, -0.2, 0.1])?.ref).toBe('x:max');
     expect(contextualFace(mesh, [21.125, 6.375, 804.625], [0.1, -0.9, 0.2])?.ref).toBe('y:min');
     expect(contextualFace(mesh, [21.125, 1000, 804.625], [0.9, -0.2, 0.1])).toBeUndefined();
+    // The second point disambiguates an edge start even when the thin side faces the camera more.
+    expect(
+      contextualFace(mesh, [21.125, 6.375, 804.625], [0.9, -0.2, 0.1], [10, 200, 804.625])?.ref,
+    ).toBe('z:max');
     expect(
       moveAxisFromScreen(
         [30, 4],

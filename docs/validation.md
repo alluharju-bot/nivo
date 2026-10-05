@@ -4,6 +4,45 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.17.1 — kynän pinnanjako, Shift ja Hold
+
+**201 yksikkö-/CAD-testiä hyväksytty (41 tiedostoa)**. TypeScript,
+tuotantobuild ja muotoilu hyväksytty. Hold-tarkistus kattaa geometrian,
+sijainnin, nimen, ryhmän, materiaalin ja poiston sekä linkityksen kautta tulevan
+materiaalimuutoksen. Piilotus ja erillinen lukituksen vapautus ovat sallittuja;
+Peru/Palauta ja projektin avaus käyttävät edelleen omia palautuspolkujaan.
+
+Uusi 6 × 4 m lattian selainkoe toisti myös perspektiivivirheen: alkureuna
+valitsi lattian ohuen sivupinnan. Kynän ensimmäisen viivan toinen piste rajaa
+nyt valinnan molemmat pisteet sisältävään pintaan. Reunojen keskipisteiden väli
+jakautui heti toisen pisteen napsautuksessa sekä yläkuvassa että perspektiivissä,
+12 000 / 8 000 mm koordinaateissa. Kaksi eri aluepintaa, muuttumaton osamäärä,
+tarkat rajat ja yksi Peru/Palauta-askel varmennettiin.
+
+Kynän, komponenttien ja leikkaushistorian tuotantoajo: **29 hyväksyttyä,
+1 tarkoituksellinen desktop-ohitus**. Shift toimii ennen ensimmäistä liikettä,
+viitepisteen pituus projisoituu lukitulle suunnalle ja lukitus päättyy pisteen
+vahvistukseen. Myös kosketuksen viitepoiminta ja suljetun komponentin erillinen
+Jaa pinta -toiminto säilyvät.
+
+Holdin ja Shiftin lisäajo: **17 hyväksyttyä, 1 epäonnistunut testin odotus**.
+Testi painoi Esc ennen CAD-kumoamisen valmistumista ja jäi Kynä-tilaan.
+Kumoamisen odotus ja Valitse-työkalun tietoinen valinta korjattiin; myös tämä
+desktop-tapaus hyväksyttiin erillisessä lopullisessa tuotantoajossa.
+Varmennettu Holdin periytyminen, materiaalien lukitus renderissä, tavallinen
+linkitetty muokkaus, vinon suunnan Shift-lukko ja X-akselin tietoinen vaihto.
+Holdin pinnan väri tarkistettiin pikselitasolla samaksi ennen/jälkeen lukituksen;
+valinnan lukitusmerkintä tarkistettiin myös kuvasta. Tuplaklikkaus ei avaa
+Hold-osaa muokattavaksi, mutta vapautuksen jälkeen kynän pinnanjako toimii.
+
+```sh
+npm test
+npm run build
+NIVO_PREVIEW=1 npx playwright test tests/pen-split-lock.spec.ts tests/sketch-surface-history.spec.ts tests/paths-groups-opening.spec.ts --output=/private/tmp/nivo-pen-split-v2
+NIVO_PREVIEW=1 npx playwright test tests/pen-split-lock.spec.ts tests/render.spec.ts tests/groups.spec.ts tests/assembly-context.spec.ts tests/qol-v013.spec.ts tests/offset.spec.ts tests/edge-detail.spec.ts tests/click-draw.spec.ts --grep 'Shift can|Hold preserves|render materials|nested group rename|linked editing|assembly copies|held faces|inherited Hold|new-part drawing uses a held' --output=/private/tmp/nivo-pen-hold-final
+NIVO_PREVIEW=1 npx playwright test tests/pen-split-lock.spec.ts --grep 'Hold preserves' --project=desktop --output=/private/tmp/nivo-pen-hold-desktop-fixed
+```
+
 ## V0.17 — kokonaismitat, mitta-arkit ja muokkauskonteksti
 
 **199 yksikkö-/CAD-testiä hyväksytty (40 tiedostoa).** TypeScript,

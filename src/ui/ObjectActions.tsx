@@ -51,11 +51,12 @@ export function ObjectActions({
           aria-label="Kiinnitä paikalleen"
           aria-pressed={body.locked}
           className={body.locked ? 'held' : ''}
+          title={body.locked ? 'Vapauta Hold ennen muokkaamista' : 'Hold estää osan muokkaamisen'}
           onClick={onHold}
           disabled={busy}
         >
           {body.locked ? <LockKeyhole size={16} /> : <Unlock size={16} />}
-          {body.locked ? 'Kiinnitetty' : 'Kiinnitä'} · G
+          {body.locked ? 'Vapauta Hold' : 'Kiinnitä'} · G
         </button>
       </div>
       {count > 1 && (
@@ -71,7 +72,7 @@ export function ObjectActions({
             Ryhmä
             <select
               aria-label="Kappaleen ryhmä"
-              disabled={busy}
+              disabled={busy || body.locked}
               value={body.groupId ?? ''}
               onChange={(e) => onGroup(e.target.value || undefined)}
             >
@@ -94,7 +95,7 @@ export function ObjectActions({
             key={body.id}
             color={body.color}
             mixed={mixedColor}
-            busy={busy}
+            busy={busy || !!body.locked}
             onChange={onColor}
           />
         </div>
