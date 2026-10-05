@@ -1,3 +1,5 @@
+import { GuidePointMenu } from './ui/GuidePointMenu';
+import { guideEndAnchor, moveGuideEndpoint, type GuideEndpoint } from './model/guideEditing';
 import { SheetWorkspace } from './drawing/SheetWorkspace';
 import { SelectionDialog } from './ui/SelectionDialog';
 import { SectionDrawing } from './drawing/SectionDrawing';
@@ -250,7 +252,7 @@ const instructions: Record<Tool, string> = {
   move: 'Korostus näyttää siirrettävät osat. Vedä valitusta osasta; Shift-klikkaus muuttaa valintaa. Tyhjästä veto valitsee laatikolla. X/Y/Z lukitsee akselin, Ctrl vaihtaa kopioinnin.',
   pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc peruu toiminnon; seuraava Esc päättää työkalun.',
   measure:
-    'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc peruu toiminnon; seuraava Esc päättää työkalun. R kiertää 45°, Shift+R vapaasti.',
+    'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc peruu toiminnon; seuraava Esc päättää työkalun. R aloittaa hiirellä kierron 22,5° välein, Shift+R vapaasti.',
   navigate: 'Vedä yhdellä sormella kiertääksesi. Kahdella sormella panoroit ja zoomaat.',
 };
 type Fields = {
@@ -311,8 +313,15 @@ export default function App() {
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>();
   const [measureMode, setMeasureMode] = useState<'guide' | 'free' | 'dimension'>('guide');
+  const [measureStart, setMeasureStart] = useState<Pick<Guide, 'anchor' | 'plane'>>();
   const [dimensionDraft, setDimensionDraft] = useState<PointDimension>();
   const [measureMenu, setMeasureMenu] = useState(false);
+  const [guidePointEdit, setGuidePointEdit] = useState<GuideEndpoint>();
+  const [guidePointMenu, setGuidePointMenu] = useState<{
+    x: number;
+    y: number;
+    targets: GuideEndpoint[];
+  }>();
   const [reference, setReference] = useState<ReferencePoint>();
   const [pickReference, setPickReference] = useState(false);
   const [epoch, setEpoch] = useState(0);
@@ -337,6 +346,7 @@ export default function App() {
   const dragDirection = useRef(1);
   const [selectedGuideId, setSelectedGuideId] = useState<string>();
   const [freeRotate, setFreeRotate] = useState(false);
+  const [guideRotationStep, setGuideRotationStep] = useState(22.5);
   const [shapeFrame, setShapeFrame] = useState<SketchFrame>();
   const shapeFrameRef = useRef<SketchFrame | undefined>(undefined);
   const [sketchTarget, setSketchTarget] = useState<FaceTarget>();
@@ -793,6 +803,9 @@ export default function App() {
     setEpoch((e) => e + 1);
     guideRef.current = undefined;
     setGuideDraft(undefined);
+    setMeasureStart(undefined);
+    setGuidePointEdit(undefined);
+    setGuidePointMenu(undefined);
     penRef.current = [];
     setPenPoints([]);
     hoverRef.current = undefined;
@@ -1035,10 +1048,7 @@ export default function App() {
       editor.setMessage('Päätä osan muokkaus ennen usean kappaleen Cut/Join-toimintoa.');
       return;
     }
-    if (next === 'measure' && tool === 'measure') {
-      setMeasureMenu(!measureMenu);
-      return;
-    }
+    if (next === 'measure' && tool === 'measure') return;
     resetGesture();
     setAwaitingStart(['rectangle', 'circle'].includes(next));
     setTool(next);
@@ -1075,7 +1085,6 @@ export default function App() {
       setPanelOpen(true);
       return;
     }
-    if (next === 'measure') setMeasureMode('guide');
     if (
       ['rectangle', 'circle', 'extrude', 'offset', 'move', 'measure', 'pen', 'rotate'].includes(
         next,
@@ -1507,7 +1516,7 @@ export default function App() {
       if (ownsCommit) committing.current = false;
     }
   };
-  const apply = async (forceClose = false) => {
+  const apply = async (forceClose = false, continueMeasure = false) => {
     if (committing.current || busy) return;
     try {
       if (['extrude', 'offset'].includes(tool) && faceRef.current)
@@ -1676,6 +1685,20 @@ export default function App() {
         committing.current = true;
         await commitShape(candidate);
       } else if (tool === 'measure') {
+        if (
+          measureMode === 'free' &&
+          measureStart &&
+          !continueMeasure &&
+          !lockRef.current.size &&
+          !freeRotate
+        ) {
+          resetGesture();
+          setAwaitingStart(true);
+          editor.setMessage('Mittaviivaketju valmis. Napsauta uuden mittauksen alkupistettä.');
+          return;
+        }
+        if (continueMeasure && measureMode === 'free' && Number(fieldsRef.current.length) === 0)
+          return;
         const candidate = makeGuide();
         if (!candidate) {
           editor.setMessage(
@@ -1685,7 +1708,27 @@ export default function App() {
           );
           return;
         }
+        const ends = guidePoints(project.bodies, candidate);
+        if (measureMode === 'free' && ends && Math.hypot(...sub(ends[1], ends[0])) < 0.1) return;
         committing.current = true;
+        if (guidePointEdit && ends) {
+          const guides = moveGuideEndpoint(
+            project.bodies,
+            project.guides,
+            guidePointEdit,
+            candidate.endAnchor ?? { point: ends[1] },
+          );
+          if (
+            await editor.transact(
+              { ...project, guides },
+              'Mittaviivan pää siirretty. Muut viivat pysyvät paikoillaan.',
+            )
+          ) {
+            finishOperation();
+            setSelectedGuideId(candidate.id);
+          }
+          return;
+        }
         if (
           await editor.transact(
             {
@@ -1700,6 +1743,20 @@ export default function App() {
           finishOperation();
           setSelectedGuideId(candidate.id);
           setTab('guides');
+          if (continueMeasure && measureMode === 'free' && ends) {
+            const next = {
+              anchor: candidate.endAnchor ?? { point: ends[1] },
+              plane: candidate.plane,
+            };
+            setMeasureStart(next);
+            guideRef.current = { ...next, direction: guideVector(candidate) };
+            setGuideDraft(guideRef.current);
+            setSelectedGuideId(undefined);
+            gestureActive.current = true;
+            setAwaitingStart(false);
+            writeFields({ length: '0', angle: '0' });
+            editor.setMessage('Jatka mittaviivaa päätepisteestä. Enter tai Esc päättää ketjun.');
+          }
         }
       } else {
         const candidate = makePreview();
@@ -1766,6 +1823,7 @@ export default function App() {
       gestureActive.current ||
       !!dimensionDraft ||
       !!guideRef.current ||
+      !!measureStart ||
       !!penRef.current.length ||
       (tool === 'offset' && !!faceTarget) ||
       (tool === 'detail' && !!detailTarget?.indices.length) ||
@@ -1826,21 +1884,18 @@ export default function App() {
       if (guide) editGuide(guide);
     }
     if (!guideRef.current) return;
-    if (free) {
-      setAxis(undefined);
-      lockRef.current.delete('angle');
-      setLocked(new Set(lockRef.current));
-      setFreeRotate((v) => !v);
-      return;
-    }
-    try {
-      field('angle', String((parseAngle(fieldsRef.current.angle) + 45) % 360));
-      const draft = guideRef.current;
-      draft.direction = guideDirection(draft.plane, parseAngle(fieldsRef.current.angle));
-      setGuideDraft({ ...draft });
-    } catch (e) {
-      editor.setError((e as Error).message);
-    }
+    setAxis(undefined);
+    constraintRef.current = undefined;
+    setPenConstraint(undefined);
+    lockRef.current.delete('angle');
+    setLocked(new Set(lockRef.current));
+    setGuideRotationStep(free ? 0 : 22.5);
+    setFreeRotate(true);
+    editor.setMessage(
+      free
+        ? 'Kierrä mittaviivaa hiirellä vapaasti. Napsautus tai Enter hyväksyy.'
+        : 'Kierrä mittaviivaa hiirellä · 22,5° askel. Napsautus tai Enter hyväksyy.',
+    );
   };
   const penMove = (point?: Vec3) => {
     if (point && penRef.current.length) {
@@ -2050,6 +2105,33 @@ export default function App() {
       angle: String(guide.angle),
       offset: String(Math.hypot(...(guide.offset ?? [0, 0, 0]))),
     });
+  };
+  const editGuidePoint = (target: GuideEndpoint) => {
+    const guide = project.guides.find((g) => g.id === target.guideId && g.mode === 'free');
+    if (!guide || busy) return;
+    const points = guidePoints(project.bodies, guide);
+    if (!points) return;
+    const fixed = target.end === 0 ? 1 : 0;
+    editGuide(guide);
+    setGuidePointEdit(target);
+    gestureActive.current = true;
+    const delta = sub(points[target.end], points[fixed]);
+    guideRef.current = {
+      ...guideRef.current!,
+      anchor: guideEndAnchor(project.bodies, guide, fixed),
+      endAnchor: guideEndAnchor(project.bodies, guide, target.end),
+      offset: undefined,
+      direction: unit(delta),
+    };
+    setGuideDraft(guideRef.current);
+    writeFields({
+      ...defaults,
+      length: String(Math.hypot(...delta)),
+      angle: String(angleBetween(points[fixed], points[target.end], guide.plane, true)),
+    });
+    editor.setMessage(
+      'Siirrä valitun mittaviivan päätä. Muut viivat jäävät paikoilleen. Klikkaus tai Enter hyväksyy, Esc peruu.',
+    );
   };
   const rotation = useMemo(() => {
     if (!rotationDraft || awaitingStart) return;
@@ -2560,6 +2642,7 @@ export default function App() {
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || cabinetOpen || actionMenu) return;
+      if (measureMenu || guidePointMenu) return;
       if (
         commandOpen ||
         pickList ||
@@ -3404,8 +3487,14 @@ export default function App() {
                 : 'Napsauta reunaa tai kirjoita halkaisija. Enter hyväksyy.'
               : tool === 'detail'
                 ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
-                : tool === 'measure' && measureMode === 'dimension'
-                  ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
+                : tool === 'measure'
+                  ? guidePointEdit
+                    ? 'Siirrä valitun viivan päätä. Muut viivat jäävät paikoilleen. Klikkaus tai Enter hyväksyy, Esc peruu.'
+                    : measureMode === 'dimension'
+                      ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
+                      : measureMode === 'free'
+                        ? 'Napsauta alkupistettä ja jatka pisteestä pisteeseen. Shift pitää suunnan lukittuna ja poimii pituuden toisesta pisteestä. X/Y/Z valitsee akselin. Enter tai Esc päättää ketjun.'
+                        : instructions.measure
                   : instructions[tool];
   const linkTarget =
     editingBody ??
@@ -3865,26 +3954,57 @@ export default function App() {
         data-dock={mode === 'model' ? dock : undefined}
       >
         {mode === 'model' && (
-          <ToolRail
-            dock={dock}
-            onDock={(next) => {
-              setDock(next);
-              localStorage.setItem('nivo-tool-dock', next);
-            }}
-            tools={tools}
-            tool={tool}
-            busy={busy}
-            onTool={begin}
-            onCabinet={() => {
-              resetGesture();
-              setTool('select');
-              setCabinetOpen(true);
-            }}
-            onShape={(shape) => {
-              if (shape !== 'rectangle') setShapeKind(shape);
-              begin(shape === 'rectangle' ? 'rectangle' : 'circle');
-            }}
-          />
+          <>
+            {guidePointMenu && (
+              <GuidePointMenu
+                {...guidePointMenu}
+                choices={guidePointMenu.targets.map((target) => {
+                  const index = project.guides.findIndex((g) => g.id === target.guideId);
+                  return {
+                    target,
+                    label: `Viiva ${index + 1} · ${Number((project.guides[index]?.length ?? 0).toFixed(2)).toLocaleString('fi-FI')} mm`,
+                  };
+                })}
+                onPreview={setSelectedGuideId}
+                onClose={() => setGuidePointMenu(undefined)}
+                onMove={editGuidePoint}
+                onRemove={(target) => {
+                  setGuidePointMenu(undefined);
+                  void removeGuide(target.guideId);
+                }}
+              />
+            )}
+            <ToolRail
+              dock={dock}
+              onDock={(next) => {
+                setDock(next);
+                localStorage.setItem('nivo-tool-dock', next);
+              }}
+              tools={tools}
+              tool={tool}
+              busy={busy}
+              onTool={begin}
+              measureMode={measureMode}
+              measureMenu={measureMenu}
+              onMeasureMenu={setMeasureMenu}
+              onMeasureMode={(mode) => {
+                begin('measure');
+                resetGesture();
+                setAwaitingStart(false);
+                setMeasureMode(mode);
+                setMeasureMenu(false);
+              }}
+              onCabinet={() => {
+                resetGesture();
+                setTool('select');
+                setCabinetOpen(true);
+              }}
+              onShape={(shape) => {
+                if (shape !== 'rectangle') setShapeKind(shape);
+                begin(shape === 'rectangle' ? 'rectangle' : 'circle');
+              }}
+            />
+          </>
         )}
 
         <main className={`canvas-area ${editingBody && mode === 'model' ? 'is-editing' : ''}`}>
@@ -4260,6 +4380,8 @@ export default function App() {
               onPaint={paintBody}
               modalOpen={
                 commandOpen ||
+                measureMenu ||
+                !!guidePointMenu ||
                 !!pickList ||
                 !!groupMove ||
                 !!openingDraft ||
@@ -4332,6 +4454,14 @@ export default function App() {
               guides={project.guides}
               guidePreview={tool === 'measure' ? guidePreview : undefined}
               measureMode={measureMode}
+              measureStart={measureStart}
+              guidePointEditing={!!guidePointEdit}
+              onEditGuidePoint={editGuidePoint}
+              onGuidePointMenu={(menu) => {
+                if (busy) return;
+                setSelectedGuideId(menu.targets[0].guideId);
+                setGuidePointMenu(menu);
+              }}
               penPoints={penPoints}
               penHover={penHover}
               reference={reference}
@@ -4428,6 +4558,7 @@ export default function App() {
               axisLabels={project.settings.axisLabels}
               selectedGuideId={selectedGuideId}
               freeRotate={freeRotate}
+              guideRotationStep={guideRotationStep}
               onFaceHover={(target) => {
                 hoveredFaceRef.current = target;
               }}
@@ -4452,7 +4583,7 @@ export default function App() {
                 setPenConstraint(direction);
                 lockRef.current.delete('length');
               }}
-              onAccept={() => void apply()}
+              onAccept={(continueMeasure) => void apply(false, continueMeasure)}
               onPenHover={penMove}
               onReference={setReference}
               onReferencePicked={() => setPickReference(false)}
@@ -4504,7 +4635,11 @@ export default function App() {
                 <button disabled={busy} onClick={() => editGuide(selectedGuide)}>
                   <Pencil size={15} /> Muokkaa
                 </button>
-                <button disabled={busy} onClick={() => rotateGuide()} title="Kierrä 45° · R">
+                <button
+                  disabled={busy}
+                  onClick={() => rotateGuide()}
+                  title="Kierrä mittaviivaa · R"
+                >
                   <RotateCw size={15} /> Kierrä
                 </button>
                 <button
@@ -4553,51 +4688,6 @@ export default function App() {
                 >
                   <Ruler size={15} />
                   Mittaus/rakennusviiva
-                </button>
-              </div>
-            )}
-            {tool === 'measure' && measureMenu && (
-              <div className="measure-mode-menu" role="menu" aria-label="Mittatyökalun tila">
-                <button
-                  role="menuitemradio"
-                  aria-checked={measureMode === 'dimension'}
-                  onClick={() => {
-                    resetGesture();
-                    setAwaitingStart(false);
-                    setMeasureMode('dimension');
-                    setMeasureMenu(false);
-                  }}
-                >
-                  Dimensio
-                  <small>
-                    Poimi kaksi pistettä ja sijoita mittaviiva sivulle · X/Y/Z valitsee akselin
-                  </small>
-                </button>
-                <button
-                  role="menuitemradio"
-                  aria-checked={measureMode === 'guide'}
-                  onClick={() => {
-                    resetGesture();
-                    setAwaitingStart(false);
-                    setMeasureMode('guide');
-                    setMeasureMenu(false);
-                  }}
-                >
-                  Apuviiva
-                  <small>Verteksistä tai reunasta lähtevä tartuntalinja</small>
-                </button>
-                <button
-                  role="menuitemradio"
-                  aria-checked={measureMode === 'free'}
-                  onClick={() => {
-                    resetGesture();
-                    setAwaitingStart(false);
-                    setMeasureMode('free');
-                    setMeasureMenu(false);
-                  }}
-                >
-                  Vapaa mittaviiva
-                  <small>Piirrä suora viiva mistä tahansa</small>
                 </button>
               </div>
             )}
@@ -5114,16 +5204,18 @@ export default function App() {
                           disabled={!guideDraft}
                         >
                           <RotateCw size={16} />
-                          Kierrä 45° · R
+                          Kierrä mittaviivaa · R
                         </button>
                         <p className="muted">
-                          X/Y/Z lukitsee siirtosuunnan; sama näppäin vapauttaa. Esc peruu vedon;
-                          seuraava Esc päättää työkalun. Shift+R käynnistää vapaan kierron; osoita
-                          suunta ja hyväksy.
+                          {measureMode === 'free' &&
+                            'Shift pitää suunnan lukittuna vain painamisen ajan. Poimi pituus toisesta pisteestä tai reunasta. '}
+                          R käynnistää hiirellä kierron 22,5° välein. X/Y/Z lukitsee siirtosuunnan;
+                          sama näppäin vapauttaa. Esc peruu vedon; seuraava Esc päättää työkalun.
+                          Shift+R käynnistää vapaan kierron; osoita suunta ja hyväksy.
                         </p>
                         <button
                           className="button outlined"
-                          aria-pressed={freeRotate}
+                          aria-pressed={freeRotate && guideRotationStep === 0}
                           disabled={!guideDraft}
                           onClick={() => rotateGuide(true)}
                         >
@@ -5552,7 +5644,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.19.1</span>
+                    <span>v0.19.2</span>
                   </div>
                 </>
               )}
@@ -6090,11 +6182,18 @@ export default function App() {
               Sivupaneelista voit siirtää valinnan origoon, nimetä, piilottaa ja ryhmitellä osia.
             </p>
             <p>
-              <strong>Apuviivat:</strong> mittatyökalun ensimmäinen painallus valitsee apuviivan,
-              toinen avaa tilavalinnan. Reunasta vedetty viiva pysyy reunan suuntaisena. R kiertää
-              45°, Shift+R sallii vapaan kierron. X/Y/Z lukitsee akselin ja sama näppäin vapauttaa.
-              Esc peruu toiminnon; seuraava Esc päättää työkalun. Voit myös kirjoittaa asteluvun.
-              X-ray valitaan Viivat-listasta tai kaikille asetuksista.
+              <strong>Apuviivat:</strong> mittatyökalun painike valitsee viimeksi käytetyn tilan,
+              nuoli avaa tilavalinnan. Reunasta vedetty viiva pysyy reunan suuntaisena. R aloittaa
+              hiirellä kierron 22,5° välein, Shift+R sallii vapaan kierron. X/Y/Z lukitsee akselin
+              ja sama näppäin vapauttaa. Esc peruu toiminnon; seuraava Esc päättää työkalun. Voit
+              myös kirjoittaa asteluvun. X-ray valitaan Viivat-listasta tai kaikille asetuksista.
+            </p>
+            <p>
+              <strong>Vapaa mittaviiva:</strong> napsauta alkupistettä ja jatka pisteestä
+              pisteeseen. Enter tai Esc päättää ketjun. Shift pitää suunnan lukittuna ja poimii
+              pituuden osoitetusta pisteestä. Tuplaklikkaa valmiin viivan päätä siirtääksesi sitä;
+              muut viivat jäävät paikalleen. Yhteisessä päätepisteessä valitse ensin viiva. Oikean
+              napin valikossa voit siirtää päätä tai poistaa kyseisen mittaviivan.
             </p>
             <p>
               <strong>Hae viite:</strong> vie kohdistin kappaleen keskipisteen, reunan keskipisteen

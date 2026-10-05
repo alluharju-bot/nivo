@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.19.2** yhtenäistää mittatyökalun: painike ottaa viimeksi käytetyn
+mittaustilan, nuoli avaa valikon. Vapaa mittaviiva jatkuu pisteestä pisteeseen;
+Enter tai Esc päättää ketjun. Shift pitää suunnan ja poimii pituuden toisesta
+pisteestä. R käynnistää hiirikierron 22,5° välein, Shift+R vapaan kierron.
+Tuplaklikkaa päätepistettä siirtääksesi sitä. Viivat pysyvät erillisinä:
+muut viivat eivät liiku, ja yhteisessä päässä valitaan muokattava viiva.
+Oikean napin valikko poistaa koko valitun mittaviivan. Peru palauttaa muutokset.
+
 Versio **0.19.1** selkeyttää mitta- ja kynäviivojen pisteitä sekä reunatyökalun
 oranssia korostusta. Päätepisteet ja risteykset tarttuvat myös kauempaa;
 ruudukko ohjaa vapaata asettelua, mutta geometriaan tarttuminen säilyttää
@@ -555,8 +563,8 @@ ja valinnan Hold-merkinnästä; materiaalin muuttaminen edellyttää lukituksen 
   vinotasot käyvät, kun kaikki suljettavan muodon pisteet ovat samalla tasolla.
   Numeroilla annetut X/Y/Z-siirtymät ovat suhteessa edelliseen pisteeseen;
   lukitussa suunnassa syötetään yksi pituus. Enter lisää tarkan pisteen tai sulkee muodon.
-- **Mittatyökalu:** ensimmäinen painallus aktivoi apuviivan. Toinen painallus
-  avaa valinnan apuviivan ja vapaan mittaviivan välillä. Apuviiva alkaa kappaleen
+- **Mittatyökalu:** painike aktivoi viimeksi käytetyn tilan. Vieressä oleva nuoli
+  avaa valinnan: Apuviiva, Vapaa mittaviiva tai Dimensio. Apuviiva alkaa kappaleen
   verteksistä, reunasta, toisesta apuviivasta tai apuviivojen 3D-risteyksestä.
   Risteykset tarttuvat myös piirtotyökaluissa. Reunasta tai apuviivasta vetäminen tekee reunan suuntaisen apuviivan
   halutulle etäisyydelle. Koko reuna korostuu ja tartuntapiste seuraa kohdistinta.
@@ -568,7 +576,7 @@ ja valinnan Hold-merkinnästä; materiaalin muuttaminen edellyttää lukituksen 
 - **Apuviivan suunta:** reunasta vedettäessä X/Y/Z lukitsee **siirtosuunnan**;
   viiva säilyttää reunan suunnan. Sama näppäin vapauttaa lukon. Verteksistä
   alkavan viivan X/Y/Z lukitsee viivan suunnan; oletuksena 45° ennakointi.
-  R kiertää 45°, Shift+R käynnistää vapaan kierron. Kulman, pituuden tai reunaetäisyyden
+  R käynnistää hiirellä kierron 22,5° välein, Shift+R vapaan kierron. Kulman, pituuden tai reunaetäisyyden
   voi kirjoittaa. Valmiin viivan napsautus näkymässä tai Viivat-listassa vain
   valitsee sen. Pieni toimintovalikko tarjoaa Muokkaa-, Kierrä-, X-ray- ja
   Poista-toiminnot. Seuraava napsautus ei siirrä viivaa ilman Muokkaa-toimintoa.

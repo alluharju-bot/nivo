@@ -1296,6 +1296,7 @@ export function Viewport(props: Props) {
       props.axis,
       props.penPoints.length,
       props.freeRotate,
+      props.guideRotationStep,
       props.detailTarget,
       props.detailSize,
       props.detailSizeLocked,

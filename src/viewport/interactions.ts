@@ -1,3 +1,4 @@
+import type { GuideEndpoint } from '../model/guideEditing';
 import { pointMarker } from './pointMarker';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -259,9 +260,11 @@ export function installInteractions({
         anchor: Anchor;
         plane: WorkPlane;
         direction?: Vec3;
+        end?: Vec3;
         edgeLength?: number;
         editing?: boolean;
         frame?: SketchFrame;
+        rotationFrame?: SketchFrame;
         adjacent?: BodyMesh['faces'];
         surfaceChosen?: boolean;
       }
@@ -270,6 +273,7 @@ export function installInteractions({
     shiftDirection: Vec3 | undefined,
     lastPenPoint: Vec3 | undefined;
   let penShiftPending = false;
+  let measureShiftPending = false;
   let previousAxis = current().axis,
     previousPenCount = current().penPoints.length;
   let drawingPlane: SketchFrame | undefined;
@@ -1067,6 +1071,38 @@ export function installInteractions({
       } as Anchor,
     };
   };
+  const guideEndpointsAt = (event: PointerEvent): GuideEndpoint[] => {
+    const props = current(),
+      rect = container.getBoundingClientRect();
+    const candidates = props.guides
+      .filter((g) => g.mode === 'free')
+      .flatMap((guide) => {
+        const points = guidePoints(props.bodies, guide);
+        return points
+          ? ([0, 1] as const).flatMap((end) => {
+              const point = points[end],
+                p = screen(point);
+              const distance = Math.hypot(
+                p.x - (event.clientX - rect.left),
+                p.y - (event.clientY - rect.top),
+              );
+              return p.z >= -1 &&
+                p.z <= 1 &&
+                distance <= snapRadius(event, 'point') &&
+                (guide.xray || props.guideXray || visiblePoint(point))
+                ? [{ guideId: guide.id, end, point, distance }]
+                : [];
+            })
+          : [];
+      })
+      .sort((a, b) => a.distance - b.distance);
+    const nearest = candidates[0];
+    return nearest
+      ? candidates
+          .filter((c) => Math.hypot(...sub(c.point, nearest.point)) < 1e-6)
+          .map(({ guideId, end }) => ({ guideId, end }))
+      : [];
+  };
   const guideAt = (
     event: PointerEvent,
     excludedBodies: string[] = [],
@@ -1818,6 +1854,7 @@ export function installInteractions({
       canvas.dataset.depthTarget = '';
       canvas.dataset.depthKind = '';
       measureSession = undefined;
+      measureShiftPending = false;
       dimensionSession = undefined;
       dimensionPress = undefined;
       canvas.dataset.dimensionStage = '';
@@ -1855,6 +1892,11 @@ export function installInteractions({
         edgeLength: current().guidePreview!.offset ? current().guidePreview!.length : undefined,
         editing: !!current().selectedGuideId,
       };
+    if (current().measureStart && !measureSession) {
+      const start = current().measureStart!;
+      measureSession = { ...start, end: resolveAnchor(current().bodies, start.anchor) };
+      measureShiftPending = shift && !current().axis;
+    }
     if (previousPenCount !== current().penPoints.length) {
       if (previousPenCount > 0) penShiftPending = false;
       previousPenCount = current().penPoints.length;
@@ -2013,6 +2055,108 @@ export function installInteractions({
     const existing = props.guidePreview;
     const base = add(start, existing?.offset ?? [0, 0, 0]);
     const isEdge = props.measureMode === 'guide' && measureSession.edgeLength !== undefined;
+    if (props.freeRotate && existing) {
+      const pivot = guidePoints(props.bodies, existing)?.[0];
+      if (!pivot) return;
+      const frame = (measureSession.rotationFrame ??= sketchFrame(
+        pivot,
+        guidePlaneNormal(existing),
+      ));
+      const raw = framePoint(event, frame);
+      if (!raw) return;
+      const uv = toUV(raw, frame);
+      if (Math.hypot(...uv) < 0.01) return;
+      const degrees = (Math.atan2(uv[1], uv[0]) * 180) / Math.PI;
+      const angle = props.guideRotationStep
+        ? Math.round(degrees / props.guideRotationStep) * props.guideRotationStep
+        : degrees;
+      const radians = (angle * Math.PI) / 180;
+      const end = fromUV(
+        [Math.cos(radians) * existing.length, Math.sin(radians) * existing.length],
+        frame,
+      );
+      const direction = unit(sub(end, pivot));
+      measureSession.end = end;
+      show(
+        {
+          point: end,
+          key: 'guide-rotation',
+          label: `Kierto ${formatLength((angle + 360) % 360)}°${props.guideRotationStep ? ' · 22,5° askel' : ' · vapaa'} · Napsauta tai Enter`,
+          line: [pivot, end],
+        },
+        plane,
+      );
+      props.onGesture({
+        type: 'measure',
+        anchor: measureSession.anchor,
+        end,
+        plane,
+        freeAngle: true,
+        direction,
+        offset: existing.offset,
+        edgeLength: existing.length,
+      });
+      return;
+    }
+    if (props.measureMode === 'free' && !props.freeRotate) {
+      if (measureShiftPending && !axis) {
+        const raw = planePoint(event, plane, start);
+        if (raw) {
+          const normal = axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
+          const first = frameSnap(raw, sketchFrame(start, normal), undefined, event);
+          const delta = sub(first, start);
+          if (Math.hypot(...delta) > 0.01) {
+            shiftDirection = unit(delta);
+            measureShiftPending = false;
+            props.onConstraint(shiftDirection);
+          }
+        }
+      }
+      const direction = axis ?? shiftDirection;
+      if (direction) {
+        // The reference may be anywhere in 3D. Only its coordinate along
+        // the held direction is used; never attach the endpoint to the
+        // off-axis source anchor or round its projected distance to the grid.
+        const target = measureTargetAt(event, () => true);
+        const projected = target
+          ? projectOnLine(target.point, start, direction)
+          : linePoint(event, start, direction);
+        const distance = dot(sub(projected, start), direction);
+        const end = target
+          ? projected
+          : add(start, scale(direction, gridLength(distance, props.gridStep, props.gridSnap)));
+        measureSession.end = end;
+        show(
+          {
+            point: end,
+            key: 'measure-constraint',
+            label: `${props.axis ? props.axis.toUpperCase() : 'Suunta lukittu'} · ${target ? `${target.label} · Pituus poimittu` : 'Poimi pituus pisteestä tai reunasta'}`,
+            line: target ? [end, target.point] : [start, end],
+          },
+          plane,
+        );
+        if (target) {
+          referenceMarker.visible = true;
+          referenceMarker.position.set(...target.point);
+          referenceMarker.material.size = 16;
+          render();
+        }
+        props.onGesture({
+          type: 'measure',
+          anchor: measureSession.anchor,
+          end,
+          plane,
+          freeAngle: true,
+          direction: distance < 0 ? scale(direction, -1) : direction,
+          endAnchor: target
+            ? Math.hypot(...sub(end, target.point)) < 1e-6
+              ? target.anchor
+              : { point: end }
+            : undefined,
+        });
+        return;
+      }
+    }
     if (isEdge && !props.freeRotate) {
       const direction = existing?.direction ?? measureSession.direction;
       if (!direction) return;
@@ -2080,8 +2224,6 @@ export function installInteractions({
       return;
     }
     if (axis && !isEdge) plane = planeForDirection(axis, plane);
-    const raw = axis && !isEdge ? linePoint(event, start, axis) : planePoint(event, plane, base);
-    if (!raw) return;
     const target = measureTargetAt(
       event,
       (point) =>
@@ -2089,6 +2231,10 @@ export function installInteractions({
           Math.abs(point[planeAxes[plane][2]] - start[planeAxes[plane][2]]) < 1e-5) &&
         (!axis || Math.hypot(...sub(point, projectOnLine(point, start, axis))) < 1e-5),
     );
+    const raw =
+      target?.point ??
+      (axis && !isEdge ? linePoint(event, start, axis) : planePoint(event, plane, base));
+    if (!raw) return;
     const normal = axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
     const end =
       target?.point ??
@@ -2109,6 +2255,7 @@ export function installInteractions({
         plane,
       );
     const from = props.freeRotate ? base : start;
+    measureSession.end = end;
     const direction =
       (!isEdge && axis) ||
       (props.measureMode === 'free' && target ? unit(sub(end, from)) : undefined) ||
@@ -2393,6 +2540,14 @@ export function installInteractions({
             props.onConstraint(shiftDirection);
           }
           updatePen(event);
+        } else if (props.tool === 'measure' && props.measureMode === 'free' && measureSession) {
+          const start = resolveAnchor(props.bodies, measureSession.anchor);
+          const delta = start && measureSession.end ? sub(measureSession.end, start) : undefined;
+          if (!props.axis && delta && Math.hypot(...delta) > 0.01) {
+            shiftDirection = unit(delta);
+            props.onConstraint(shiftDirection);
+          }
+          updateMeasure(event);
         } else show({ ...p });
       }
       return;
@@ -2617,6 +2772,8 @@ export function installInteractions({
     const second = !!measureSession;
     if (props.tool === 'measure') {
       if (!measureSession) {
+        shiftDirection = undefined;
+        measureShiftPending = props.measureMode === 'free' && event.shiftKey && !props.axis;
         const picked = measureTargetAt(event, () => true);
         const edge = picked?.sourceEdge;
         const guide = picked?.sourceGuide;
@@ -2632,19 +2789,16 @@ export function installInteractions({
             Math.abs(dot(sub(edge.edge.end, f.center), f.normal)) < 1e-5,
         );
         const hit = faceAt(event);
+        const viewDirection = camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3;
+        const facing = (face: BodyMesh['faces'][number]) =>
+          Math.abs(dot(face.normal, viewDirection));
+        const hitFace = adjacent?.find((f) => f === hit?.face);
+        // A ray on a shared edge can numerically hit the edge-on side face.
+        // Use its visible neighbor rather than a plane the pointer ray cannot intersect.
         const face =
-          adjacent?.find((f) => f === hit?.face) ??
-          adjacent
-            ?.slice()
-            .sort(
-              (a, b) =>
-                Math.abs(
-                  dot(b.normal, camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3),
-                ) -
-                Math.abs(
-                  dot(a.normal, camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3),
-                ),
-            )[0];
+          hitFace && facing(hitFace) > 0.05
+            ? hitFace
+            : adjacent?.slice().sort((a, b) => facing(b) - facing(a))[0];
         if (edge)
           plane = face ? normalPlane(face.normal) : planeForDirection(edge.direction, plane);
         if (guide) plane = normalPlane(guidePlaneNormal(guide.guide));
@@ -2943,7 +3097,8 @@ export function installInteractions({
     } else if (!drag && !measureSession) show();
     if (props.pickReference) return;
     if (props.tool === 'measure' && measureSession) {
-      if (!measureSession.editing || drag || props.freeRotate) updateMeasure(event);
+      if (!measureSession.editing || drag || props.freeRotate || props.guidePointEditing)
+        updateMeasure(event);
       return;
     }
     if (props.tool === 'pen') {
@@ -3045,15 +3200,19 @@ export function installInteractions({
         Math.hypot(event.clientX - contextStart.x, event.clientY - contextStart.y) < 5 &&
         !current().busy
       ) {
+        const targets = guideEndpointsAt(event);
         const guide = selectableGuideAt(event);
         const picked = faceAt(event);
-        current().onContextMenu({
-          x: event.clientX,
-          y: event.clientY,
-          bodyId: picked?.target.bodyId,
-          guideId: guide?.object.userData.guideId,
-          candidates: pickCandidatesAt(event),
-        });
+        if (targets.length)
+          current().onGuidePointMenu({ x: event.clientX, y: event.clientY, targets });
+        else
+          current().onContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            bodyId: picked?.target.bodyId,
+            guideId: guide?.object.userData.guideId,
+            candidates: pickCandidatesAt(event),
+          });
       }
       contextStart = undefined;
     }
@@ -3197,7 +3356,9 @@ export function installInteractions({
         }
       } else if (props.tool === 'measure' && (moved || active.second)) {
         updateMeasure(event);
-        props.onAccept();
+        props.onAccept(
+          props.measureMode === 'free' && !measureSession?.editing && !props.guidePointEditing,
+        );
         measureSession = undefined;
       } else if (moved && ['rectangle', 'circle', 'move'].includes(props.tool)) {
         move(event);
@@ -3310,6 +3471,18 @@ export function installInteractions({
         }
         return;
       }
+      if (props.tool === 'measure' && props.measureMode === 'free' && !props.freeRotate) {
+        const start = measureSession && resolveAnchor(props.bodies, measureSession.anchor);
+        const end = measureSession?.end;
+        measureShiftPending = !props.axis;
+        if (!props.axis && start && end && Math.hypot(...sub(end, start)) > 0.01) {
+          shiftDirection = unit(sub(end, start));
+          measureShiftPending = false;
+          props.onConstraint(shiftDirection);
+        }
+        if (lastEvent && measureSession) updateMeasure(lastEvent);
+        return;
+      }
       if (props.tool === 'pen') {
         penShiftPending = !props.axis;
         if (props.penPoints.length && lastPenPoint && !props.axis) {
@@ -3335,12 +3508,20 @@ export function installInteractions({
   const keyup = (event: KeyboardEvent) => {
     if (event.key === 'Control') controlCopyBefore = undefined;
     if (current().modalOpen) {
-      if (event.key === 'Shift') shift = false;
+      if (event.key === 'Shift') {
+        shift = false;
+        measureShiftPending = false;
+        if (current().tool === 'measure' && current().measureMode === 'free') {
+          shiftDirection = undefined;
+          current().onConstraint(current().axis ? axisVector(current().axis!) : undefined);
+        }
+      }
       return;
     }
     if (event.key === 'Shift') {
       shift = false;
       penShiftPending = false;
+      measureShiftPending = false;
       if (current().tool === 'rotate' && rotationDrag && lastEvent) updateRotation(lastEvent);
       if (current().tool === 'extrude') {
         if (extrudeSession && lastEvent) {
@@ -3366,6 +3547,13 @@ export function installInteractions({
         current().onReference(undefined);
         show();
       }
+      if (
+        current().tool === 'measure' &&
+        current().measureMode === 'free' &&
+        measureSession &&
+        lastEvent
+      )
+        updateMeasure(lastEvent);
     }
   };
   const blur = () => {
@@ -3379,6 +3567,7 @@ export function installInteractions({
     emptySelectionClicks = 0;
     shift = false;
     penShiftPending = false;
+    measureShiftPending = false;
     current().onCopyMove(false);
     offsetSession = undefined;
     extrudeSession = undefined;
@@ -3411,8 +3600,9 @@ export function installInteractions({
   };
   const doubleClick = (event: MouseEvent) => {
     if (
-      current().tool !== 'select' ||
+      !['select', 'measure'].includes(current().tool) ||
       current().busy ||
+      current().modalOpen ||
       event.button !== 0 ||
       event.shiftKey ||
       event.ctrlKey ||
@@ -3420,6 +3610,13 @@ export function installInteractions({
       event.altKey
     )
       return;
+    const targets = guideEndpointsAt(event as PointerEvent);
+    if (targets.length) {
+      if (targets.length === 1) current().onEditGuidePoint(targets[0]);
+      else current().onGuidePointMenu({ x: event.clientX, y: event.clientY, targets });
+      return;
+    }
+    if (current().tool !== 'select') return;
     const target = editableFaceAt(event as PointerEvent);
     if (target) current().onEditBody(target.target.bodyId);
     else if ((current().editingBodyId || current().scopeIds) && emptySelectionClicks === 2)

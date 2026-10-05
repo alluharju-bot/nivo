@@ -52,7 +52,7 @@ test('free measurement starting on an edge snaps its other end to an edge and sa
   await ready(page, bodies);
   const p = await view(page, bodies, 'front');
   await page.keyboard.press('t');
-  await page.getByRole('button', { name: 'Mittatyökalu', exact: true }).click();
+  await page.getByRole('button', { name: 'Valitse mittatyökalu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: /Vapaa mittaviiva/ }).click();
   await click(page, p(0, 0, 170));
   const target = p(283, 0, 110);

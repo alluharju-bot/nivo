@@ -21,7 +21,7 @@ const snapped = async (page: Page): Promise<Vec3> =>
   JSON.parse((await page.getByTestId('viewport').getAttribute('data-snap-point')) || 'null');
 async function freeMeasure(page: Page) {
   await page.keyboard.press('t');
-  await page.getByRole('button', { name: 'Mittatyökalu', exact: true }).click();
+  await page.getByRole('button', { name: 'Valitse mittatyökalu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: /Vapaa mittaviiva/ }).click();
 }
 const plan: Guide = {
@@ -110,6 +110,7 @@ test('a perspective measurement keeps exact 48, 98 and 13 mm geometry with the 1
     const ends = guidePoints(result.bodies, result.guides.at(-1)!)!;
     expect(Math.hypot(...ends[0].map((n, i) => n - ends[1][i]))).toBeCloseTo(length, 7);
     expect(result.bodies).toEqual([body]);
+    await page.keyboard.press('Enter');
   }
 });
 

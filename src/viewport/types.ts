@@ -1,3 +1,4 @@
+import type { GuideEndpoint } from '../model/guideEditing';
 import type { Section } from '../model/sections';
 import type { PickCandidate } from '../ui/OverlapPicker';
 import type { ReferenceImage } from '../model/referenceImages';
@@ -146,11 +147,16 @@ export interface ViewportProps {
   axisLabels: boolean;
   selectedGuideId?: string;
   freeRotate: boolean;
+  guideRotationStep: number;
   faceTarget?: FaceTarget;
   faceDistance: number;
   extrusionLocked: boolean;
   faceSpan?: FaceSpan;
   measureMode: 'guide' | 'free' | 'dimension';
+  measureStart?: Pick<Guide, 'anchor' | 'plane'>;
+  guidePointEditing?: boolean;
+  onEditGuidePoint: (target: GuideEndpoint) => void;
+  onGuidePointMenu: (menu: { x: number; y: number; targets: GuideEndpoint[] }) => void;
   onDimensionPreview: (dimension?: PointDimension) => void;
   onDimensionCommit: (dimension: PointDimension) => void;
   penPoints: Vec3[];
@@ -161,7 +167,7 @@ export interface ViewportProps {
   onSelect: (id?: string, face?: FaceRef, additive?: boolean) => void;
   onSelectMany: (ids: string[], additive: boolean) => void;
   onGesture: (gesture: Gesture) => void;
-  onAccept: () => void;
+  onAccept: (continueMeasure?: boolean) => void;
   onPenHover: (point?: Vec3) => void;
   onSnap: (label: string) => void;
   onReference: (point?: ReferencePoint) => void;

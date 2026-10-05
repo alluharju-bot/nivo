@@ -2,6 +2,27 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.19.2 — jatkuva mittaaminen ja erilliset viivanpäät
+
+- Mittatyökalun pääpainike ja T muistavat viimeisimmän tilan. Nuolivalikko
+  tarjoaa Apuviivan, Vapaan mittaviivan ja Dimension. Valikon sulkeminen
+  säilyttää keskeneräisen mittauksen; tilan vaihtaminen aloittaa uuden.
+- Vapaa mittaviiva jatkuu viimeisestä hyväksytystä pisteestä. Enter tai Esc
+  päättää ketjun poistamatta tallennettuja viivoja. Pelkkä keskeneräinen jatke
+  ei tallennu Enterillä ketjun päätteeksi, mutta kirjoitettu mitta tallentuu.
+- Shift pitää aloitetun suunnan vain pohjassaolon ajan. Toisesta 3D-pisteestä
+  poimitaan pituus lukittuun suuntaan; geometriamitta ei pyöristy ruudukkoon.
+  X/Y/Z valitsee suoraan akselin. Kirjoitettu mitta on ensisijainen.
+- R käynnistää hiirikierron 22,5° välein; Shift+R vapaan kierron. Pituus
+  säilyy ja klikkaus tai Enter hyväksyy. Myös valmis viiva voidaan kiertää.
+- Päätepisteen tuplaklikkaus ottaa sen siirtoon. Yhteisessä päätepisteessä
+  valitaan muokattava viiva. Viivoja ei linkitetä: muiden päät jäävät paikoilleen.
+  Oikean napin valikon **Poista mittaviiva** poistaa vain valitun viivan.
+  Päätepisteen muutos ja viivan poisto ovat peruttavia, tallentuvia toimintoja.
+- Reunalta aloittava mittaus ohittaa lähes sivuttain näkyvän naapuripinnan
+  piirtotasoa valitessaan. Tarkkaan 3D-kohteeseen voi tarttua myös silloin,
+  kun aiemman mittaviivan piirtotaso näkyy nykyisestä kamerasta sivuttain.
+
 ## V0.19.1 — selkeät pisteet ja tarkat tartunnat
 
 - Mittaviivojen sekä keskeneräisten ja valmiiden kynäviivojen pisteet näkyvät

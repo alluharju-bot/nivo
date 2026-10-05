@@ -103,7 +103,7 @@ test('hover center, hold Shift and draw aligned to the acquired reference', asyn
   await page.screenshot({ path: info.outputPath('reference-pen.png') });
 });
 
-test('measurement default, second-click mode menu, R rotation, Shift free angle and exact guide entry', async ({
+test('measurement default, mode selector, R rotation, Shift free angle and exact guide entry', async ({
   page,
 }, info) => {
   const body = makeBody(400, 300, 0);
@@ -123,6 +123,7 @@ test('measurement default, second-click mode menu, R rotation, Shift free angle 
   await page.keyboard.up('Shift');
   await page.mouse.move(end.x + 2, end.y);
   await page.keyboard.press('r');
+  await page.mouse.move(point(210, 180).x, point(210, 180).y);
   await expect(page.getByTestId('guide-angle')).toHaveValue('45');
   await page.getByTestId('guide-length').fill('500');
   await page.getByTestId('guide-angle').fill('22,5');
@@ -132,8 +133,8 @@ test('measurement default, second-click mode menu, R rotation, Shift free angle 
   expect(model.guides[0].angle).toBe(22.5);
   expect(model.guides[0].mode).toBe('guide');
   expect(model.guides[0].anchor).toMatchObject({ bodyId: body.id });
-  // The tool remains active after acceptance; one click opens its mode menu.
-  await tool.click();
+  // The separate arrow opens the mode menu without changing the active tool.
+  await page.getByRole('button', { name: 'Valitse mittatyökalu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: /Vapaa mittaviiva/ }).click();
   const a = point(430, 80),
     b = point(530, 220);
@@ -166,7 +167,7 @@ test('construction guide attracts both drawing and moving, follows its source an
   await page.getByRole('button', { name: 'Kynä', exact: true }).click();
   const near = point(273, 270);
   await page.mouse.move(near.x, near.y);
-  await expect(page.getByTestId('snap-hint')).toHaveText('Apuviiva');
+  await expect(page.getByTestId('snap-hint')).toContainText('Apuviiva');
   await clickPoint(page, near);
   await clickPoint(page, point(350, 280));
   // Keep the final vertex below the view controls in the narrower tablet canvas.
@@ -175,6 +176,7 @@ test('construction guide attracts both drawing and moving, follows its source an
   await expect(page.locator('.object-list .object-select')).toHaveCount(3);
   let model = await save(page);
   expect(model.bodies[2].origin[0]).toBeCloseTo(model.bodies[2].origin[1], 3);
+  await page.getByRole('button', { name: 'Näytä mallilista', exact: true }).click();
   await page.locator('.object-list .object-select').nth(1).click();
   await page.getByRole('button', { name: 'Siirrä', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();

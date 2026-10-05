@@ -829,36 +829,6 @@ p {
   background: #e5f2fc;
   border-radius: 6px;
 }
-.measure-mode-menu {
-  position: absolute;
-  top: 112px;
-  left: 22px;
-  z-index: 6;
-  width: 246px;
-  padding: 5px;
-  background: #fbfcf7;
-  border: 1px solid #ccd7ca;
-  border-radius: 10px;
-  box-shadow: 0 8px 28px #243c2f20;
-}
-.measure-mode-menu button {
-  display: block;
-  text-align: left;
-  padding: 12px;
-  width: 100%;
-  border-radius: 6px;
-  font-size: 12px;
-}
-.measure-mode-menu small {
-  display: block;
-  margin-top: 5px;
-  font-size: 10px;
-  color: #76816f;
-}
-.measure-mode-menu button[aria-checked='true'] {
-  background: #e5eee0;
-  color: #1c654f;
-}
 .gesture-help {
   display: grid;
   gap: 12px;
@@ -5544,4 +5514,82 @@ p {
   border-radius: 6px;
   background: var(--paper);
   color: inherit;
+}
+
+/* Remembered measurement tool with a separate menu trigger. */
+.measure-tool {
+  display: flex;
+  width: 68px;
+  max-width: 100%;
+  flex: 0 0 auto;
+  border-radius: 9px;
+}
+.measure-tool .tool-button {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  border-radius: 9px 0 0 9px;
+}
+.tool-menu-trigger {
+  width: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  color: #748271;
+  border-radius: 0 9px 9px 0;
+}
+.measure-tool.active .tool-menu-trigger {
+  background: #e5ebd9;
+  color: #31523e;
+}
+.tool-menu-trigger:hover:not(:disabled),
+.tool-menu-trigger[aria-expanded='true'] {
+  background: #dce7d5;
+}
+.measure-menu {
+  width: 260px;
+}
+.measure-menu small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #637461;
+  line-height: 1.45;
+}
+.measure-menu button[aria-checked='true'] {
+  background: #e5eee0;
+  color: #1c654f;
+}
+
+.guide-point-menu {
+  width: 250px;
+  z-index: 40;
+}
+.guide-point-menu > small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.guide-point-choices {
+  max-height: 165px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 5px;
+}
+.guide-point-choices button[aria-checked='true'] {
+  background: #e4eee7;
+  color: #294a39;
+}
+.guide-point-choices button {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.guide-point-choices button:hover,
+.guide-point-choices button:focus-visible {
+  background: #edf1ea;
 }

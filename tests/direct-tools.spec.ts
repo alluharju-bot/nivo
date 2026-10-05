@@ -124,9 +124,12 @@ test('drag an edge-parallel guide, rotate after creation, lock and unlock a tran
   expect(Math.abs(guide.direction![0])).toBeCloseTo(1, 6);
   expect(guide.direction![1]).toBeCloseTo(0, 6);
   expect(guide.offset![1]).toBeCloseTo(-80, 1);
-  const before = guide.angle;
   await page.keyboard.press('r');
-  await expect(page.getByTestId('guide-angle')).toHaveValue(String((before + 45) % 360));
+  const rotated = point(180, 60);
+  await page.mouse.move(rotated.x, rotated.y);
+  await expect(page.getByTestId('snap-hint')).toContainText('22,5° askel');
+  const snappedAngle = Number(await page.getByTestId('guide-angle').inputValue());
+  expect(snappedAngle / 22.5).toBeCloseTo(Math.round(snappedAngle / 22.5), 6);
   await page.keyboard.press('Enter');
   await expect(page.locator('.guide-list>div')).toHaveCount(1);
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);

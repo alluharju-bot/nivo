@@ -64,7 +64,7 @@ test('two-point dimensions snap, place, drag and export without changing solids'
   await ready(page, [a, b]);
   const p = await view(page, [a, b]);
   await page.keyboard.press('t');
-  await page.getByRole('button', { name: 'Mittatyökalu', exact: true }).click();
+  await page.getByRole('button', { name: 'Valitse mittatyökalu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: /^Dimensio/ }).click();
   await click(page, p(100, 0, 20));
   await page.mouse.move(p(137, 0, 20).x, p(137, 0, 20).y);
@@ -81,7 +81,15 @@ test('two-point dimensions snap, place, drag and export without changing solids'
   expect(d.offset[1]).toBeCloseTo(-40, 2);
   await page.keyboard.press('Escape');
   const label = page.getByTestId('dimension-3d').locator('text');
-  const box = (await label.boundingBox())!;
+  await expect(label).toBeVisible();
+  let box!: NonNullable<Awaited<ReturnType<typeof label.boundingBox>>>;
+  await expect
+    .poll(async () => {
+      const found = await label.boundingBox();
+      if (found) box = found;
+      return !!found;
+    })
+    .toBe(true);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 45, {

@@ -4,6 +4,43 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.19.2 — mittatyökalun jatkuva käyttö ja päätepisteiden muokkaus
+
+**231 yksikkö-/CAD-testiä hyväksytty (45 tiedostoa)**. Uudet mallikokeet
+varmistavat, että yhteisen pisteen kumman tahansa viivanpäätä voi siirtää
+muuttamatta naapuriviivaa, vastakkainen pää säilyy ja geometriaan kiinnitetty
+pää seuraa edelleen kohdettaan. Nollapituiset ja puuttuvat viivat hylätään.
+TypeScript ja tuotantobuild hyväksytty.
+
+Selainkokeet kattavat mittaustilan muistamisen, valikon sulkemisen ilman
+luonnoksen menetystä, valikon kaikki neljä työkalupalkin sijaintia, Shiftin
+painamisen ennen alkupistettä ja kesken viivan, 3D-viitteen tarkan projektion,
+X/Y/Z-akselit ja kirjoitetun mitan etusijan. Jatkuva mittaaminen päättyy
+Enterillä tai Escillä. Kierto testataan XY-, XZ- ja YZ-tasoissa.
+
+Päätepisteen siirto testataan sekä Valitse- että mittaustilasta. Jaetun pisteen
+valikko valitsee vain yhden viivan; muut säilyvät muuttumattomina. Esc peruu
+luonnoksen, Peru/Palauta palauttaa siirron tai poiston, ja selainpäivitys säilyttää
+hyväksytyn tuloksen. Mittaviivan jatkaminen ei luo pysyviä linkkejä viivojen välille.
+
+Tablettiajossa löytyi reunatapaus: aivan kahden pinnan rajaan osunut säde valitsi
+kameralle lähes sivuttain olevan pinnan. Mittatyökalun hiirisäde ei leikannut
+sen piirtotasoa, joten piirtäminen pysähtyi. Aloituksen pintavalinta ohittaa nyt
+lähes sivuttain näkyvän osumapinnan ja käyttää näkyvää naapuripintaa. Tarkka
+kohdepiste poimitaan ennen piirtotasoleikkausta: myös vanhan pystytasoisen
+mittaviivan päätä voi siirtää ylänäkymässä tarkkaan 3D-kohteeseen.
+
+Lopullinen tuotantobuild hyväksyi **50 selaintapausta (25 desktop, 25 tabletti)**.
+Mukana ovat myös aiemmat reunaan, keskipisteeseen ja verteksiin tarttumiset,
+apuviivan siirto ja lähdeviitteen seuranta, x-ray, tarkka perspektiivimittaus,
+pisteiden näkyvyys sekä kahden pisteen dimension sijoitus ja siirto.
+
+```sh
+npm test
+npm run build
+NIVO_PREVIEW=1 npx playwright test tests/measure-reference.spec.ts tests/measure-targets.spec.ts tests/snap-annotations.spec.ts tests/direct-tools.spec.ts tests/interactions.spec.ts tests/overnight.spec.ts --grep 'measure|guide|two-point dimensions|double-click picks|shared endpoints|endpoint can|mouse rotation|saved vertical'
+```
+
 ## V0.19.1 — pisteiden näkyvyys ja mittauksen tartunnat
 
 **227 yksikkö-/CAD-testiä hyväksytty (44 tiedostoa)**. TypeScript ja tuotantobuild
