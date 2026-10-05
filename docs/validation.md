@@ -4,6 +4,52 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.20 — mittaviivat, Bézier, pallo ja veitsi
+
+**258 yksikkö-/CAD-testiä hyväksytty (48 tiedostoa)**. TypeScript,
+tuotantobuild ja riippuvuuksien lisenssiluettelo hyväksytty.
+
+Uudet testit kattavat mittaviivojen päällekkäisyyden 3D-toleranssin,
+vastakkaiset suunnat, vanhojen osuuksien yhdistämisen, täsmälleen samat viivat,
+viitteiden säilymisen ja duplikaatin aiheuttamattoman historiatapahtuman.
+Valintaruutu testataan viivoille, jatkeille, risteämiselle, poikkileikkaustasolle
+ja kameran taakse jääville kohteille. Viivavalinnan historia säilyy tallennettaessa.
+
+CAD-testit tarkistavat pallon tarkan tilavuuden ja projektin edestakaisen
+serialisoinnin, Bézier-käyrän pinnanjaon ja suljetun pinnan, veitsen suoran,
+taitetun ja suljetun leikkauksen sekä perspektiiviprojektion. Analyyttinen
+Bézier-veitsi tekee yhden sileän kaarevan seinämän kummallekin palalle.
+Tilavuuden summa säilyy CAD-integroinnin suhteellisella toleranssilla 1e-7.
+Mittaviitteet säilyvät leikkauksessa ja seuraavat myös pienemmän palan siirtoa.
+296 etäistä osaa ohitetaan suoran veitsen kevyessä esitarkistuksessa.
+
+Selaimessa **100 eri tapausta hyväksytty (50 desktop, 50 tabletti)**.
+Laajan 94 tapauksen kierroksen kaksi tablettivirhettä johtuivat sivun
+päivittämisestä ennen Palauta-toiminnon laskennan valmistumista. Tallennustila
+näyttää nyt keskeneräisen laskennan ja testit odottavat valmista tallennusta.
+Korjattu lopullinen 26 tapauksen kierros meni kokonaan läpi ja sisälsi lisäksi
+suljetun Bézier-muodon sekä perspektiiviveitsen ja kameranvaihdon peruutuksen.
+Lisäksi lopullinen `/nivo/`-julkaisupolku hyväksyi 18 työkalutapausta.
+Käynnissä olevan veitsilaskennan Esc-keskeytys sekä sileä kaarileikkaus
+varmistettiin vielä neljällä testillä. Keskeytys ei muuta mallia tai historiaa.
+
+Mukana olivat vanhan 48 osan siirtovalinnan suojaus, Shift-monivalinta,
+valintaruutu muissa työkaluissa, kynän välitön pinnanjako perspektiivissä,
+Hold, ovipiirros onttoon kaappiin, jatkuva mittaaminen, Shift-viitteet,
+22,5° hiirikierto, yhteiset päätepisteet, duplikaattiviivat, sekavalinnan
+poisto, kumoaminen, uudelleenteko ja selainpäivitys.
+
+```sh
+npm test
+npm run build
+npm run licenses
+NIVO_PREVIEW=1 npx playwright test tests/modeling-night.spec.ts tests/guide-selection.spec.ts tests/measure-merge.spec.ts tests/selection.spec.ts tests/pen-split-lock.spec.ts tests/click-draw.spec.ts tests/measure-reference.spec.ts
+```
+
+Rajat: tabletti on Chromium-emulaatio. Vapaakäsiveitsi käyttää suorista osuuksista
+koostuvaa reittiä; Bézier-leikkaus on analyyttinen. Valmiin käyrän ohjauspisteiden
+jälkimuokkaus ja orgaaninen subdivision eivät sisälly tähän versioon.
+
 ## V0.19.2 — mittatyökalun jatkuva käyttö ja päätepisteiden muokkaus
 
 **231 yksikkö-/CAD-testiä hyväksytty (45 tiedostoa)**. Uudet mallikokeet

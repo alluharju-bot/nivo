@@ -100,3 +100,16 @@ test('opening checkpoints restore the cutter and targets without duplicating CAD
   bounded.commit(cut, info);
   expect(bounded.beforeAction('cut')).toBeUndefined();
 });
+
+test('guide-only and mixed selections are retained in the journal without per-click noise', () => {
+  const log = new ActivityJournal('lines');
+  const a = { ids: [], guideIds: ['a', 'b'] };
+  log.record({ label: 'Valinta', context: a }, 'selection');
+  log.record({ label: 'Valinta', context: { ids: [], guideIds: ['b', 'a'] } }, 'selection');
+  expect(log.entries).toHaveLength(1);
+  log.record({ label: 'Poistettu 2 viivaa', context: a }, 'edit');
+  expect(log.entries).toHaveLength(1);
+  expect(new ActivityJournal('lines', log.serialize()).entries[0].context).toEqual(a);
+  expect(sameSelection(a, { ids: [], guideIds: ['a'] })).toBe(false);
+  expect(sameSelection({ ids: [] }, { ids: [], guideIds: [] })).toBe(true);
+});

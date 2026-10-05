@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { OrthographicCamera, PerspectiveCamera } from 'three';
-import { projectSelectionBounds, insideSelectionRect } from './boxSelection';
+import {
+  projectSelectionBounds,
+  projectGuideSelectionBounds,
+  insideSelectionRect,
+} from './boxSelection';
 import type { BodyMesh } from '../cad/protocol';
 const meshes = [
   { id: 'a', vertices: [-1, -1, 0, 1, 1, 0] },
@@ -87,4 +91,48 @@ describe('rectangle selection', () => {
     expect(projected[0].right).toBeCloseTo(50, 5);
     expect(insideSelectionRect(projected, 29, 39, 51, 61)).toEqual(['crossing']);
   });
+});
+
+it('guide selection contains finite spans and crosses only the actual segment or construction extension', () => {
+  const camera = new OrthographicCamera(-5, 5, 5, -5, 0.1, 100);
+  camera.position.z = 10;
+  camera.lookAt(0, 0, 0);
+  const guides: import('../model/project').Guide[] = [
+    {
+      id: 'free',
+      mode: 'free',
+      anchor: { point: [-2, -2, 0] },
+      endAnchor: { point: [2, 2, 0] },
+      length: Math.sqrt(32),
+      angle: 45,
+      plane: 'XY',
+    },
+    { id: 'guide', mode: 'guide', anchor: { point: [-1, 0, 0] }, length: 2, angle: 0, plane: 'XY' },
+    {
+      id: 'behind',
+      mode: 'free',
+      anchor: { point: [-2, 0, 20] },
+      endAnchor: { point: [2, 0, 20] },
+      length: 4,
+      angle: 0,
+      plane: 'XY',
+    },
+  ];
+  const window = projectGuideSelectionBounds([], guides, camera, 100, 100);
+  expect(insideSelectionRect(window, 29, 29, 71, 71)).toEqual(['free', 'guide']);
+  expect(insideSelectionRect(window, 45, 45, 55, 55)).toEqual([]);
+  const crossing = projectGuideSelectionBounds([], guides, camera, 100, 100, true);
+  expect(insideSelectionRect(crossing, 55, 55, 45, 45, true)).toEqual(['free', 'guide']);
+  expect(insideSelectionRect(crossing, 95, 55, 85, 45, true)).toEqual(['guide']);
+  expect(insideSelectionRect(crossing, 35, 35, 30, 30, true)).toEqual([]);
+  const clipped = projectGuideSelectionBounds(
+    [],
+    guides.slice(0, 1),
+    camera,
+    100,
+    100,
+    false,
+    (p) => p[0],
+  );
+  expect(insideSelectionRect(clipped, 29, 49, 51, 71)).toEqual(['free']);
 });

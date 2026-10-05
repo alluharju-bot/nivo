@@ -4,6 +4,7 @@ import { uid } from './project';
 const id = z.string().min(1).max(100);
 export const selectionContextSchema = z.object({
   ids: z.array(id).max(10000),
+  guideIds: z.array(id).max(3000).optional(),
   primary: id.optional(),
   groupId: id.optional(),
   editingBodyId: id.optional(),
@@ -30,6 +31,19 @@ const activitySchema = actionInfoSchema.extend({
   kind: z.enum(['selection', 'edit', 'undo', 'redo', 'cancel']),
 });
 export type Activity = z.infer<typeof activitySchema>;
+export function selectionDescription(context: SelectionContext) {
+  return (
+    [
+      context.ids.length ? `${context.ids.length} kappaletta` : '',
+      context.guideIds?.length ? `${context.guideIds.length} viivaa` : '',
+    ]
+      .filter(Boolean)
+      .join(' + ') || '0 kohdetta'
+  );
+}
+export function hasSelection(context?: SelectionContext) {
+  return !!(context?.ids.length || context?.guideIds?.length);
+}
 export function sameSelection(a?: SelectionContext, b?: SelectionContext) {
   if (
     !a ||
@@ -41,7 +55,12 @@ export function sameSelection(a?: SelectionContext, b?: SelectionContext) {
   )
     return false;
   const ids = new Set(a.ids);
-  return b.ids.every((id) => ids.has(id));
+  const guides = new Set(a.guideIds ?? []);
+  return (
+    b.ids.every((id) => ids.has(id)) &&
+    guides.size === (b.guideIds?.length ?? 0) &&
+    (b.guideIds ?? []).every((id) => guides.has(id))
+  );
 }
 
 /** This journal retains only labels and selection IDs, never CAD snapshots. */
@@ -65,7 +84,7 @@ export class ActivityJournal {
   record(info: ActionInfo, kind: Activity['kind']) {
     if (
       kind === 'selection' &&
-      (!info.context?.ids.length || sameSelection(this.entries[0]?.context, info.context))
+      (!hasSelection(info.context) || sameSelection(this.entries[0]?.context, info.context))
     )
       return;
     if (

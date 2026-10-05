@@ -1,3 +1,4 @@
+import { sphereBody, bezierPath, knifeBodies } from './modeling';
 import { penPath, splitWithPath, cutOpening, divideSurfaces } from './paths';
 import { translateMesh } from './translateMesh';
 import { sectionBodies } from './sections';
@@ -84,7 +85,13 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
           .map((entry) => entry.mesh);
         syncedBodies = new Map(ordered.map((body) => [body.id, body]));
         sentMeshes = new Map(entries.map((entry) => [entry.mesh.id, entry.mesh]));
-      } else if (request.type === 'pen-path') reply.result = penPath(request.points, request.name);
+      } else if (request.type === 'sphere')
+        reply.result = sphereBody(request.center, request.radius, request.name);
+      else if (request.type === 'bezier')
+        reply.result = bezierPath(request.points, request.name, request.closed);
+      else if (request.type === 'knife')
+        reply.result = knifeBodies(request.targets, request.rays, request.curveNormal);
+      else if (request.type === 'pen-path') reply.result = penPath(request.points, request.name);
       else if (request.type === 'split-path')
         reply.result = splitWithPath(request.body, request.face, request.path);
       else if (request.type === 'cut-opening')

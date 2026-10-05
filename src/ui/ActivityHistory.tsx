@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { History, RotateCcw, X } from 'lucide-react';
-import { sameSelection, type Activity, type SelectionContext } from '../model/activity';
+import {
+  sameSelection,
+  hasSelection,
+  selectionDescription,
+  type Activity,
+  type SelectionContext,
+} from '../model/activity';
 export function ActivityHistory({
   entries,
   current,
@@ -37,7 +43,9 @@ export function ActivityHistory({
       host.current?.removeEventListener('keydown', escape);
     };
   }, [open]);
-  const previous = entries.find((e) => e.context?.ids.length && !sameSelection(e.context, current));
+  const previous = entries.find(
+    (e) => hasSelection(e.context) && !sameSelection(e.context, current),
+  );
   const latest = entries.find((e) => e.kind !== 'selection');
   return (
     <div className="activity-history" ref={host}>
@@ -46,7 +54,7 @@ export function ActivityHistory({
           className="restore-selection"
           disabled={busy}
           aria-label="Palauta edellinen valinta"
-          title={`Palauta edellinen valinta · ${previous.context.ids.length} kappaletta`}
+          title={`Palauta edellinen valinta · ${selectionDescription(previous.context)}`}
           onClick={() => onRestore(previous.context!)}
         >
           <RotateCcw size={14} />
@@ -72,9 +80,9 @@ export function ActivityHistory({
             </button>
           </header>
           <p>
-            Palauta valinta poimii osat. Palaa leikkaukseen palauttaa mallin ennen leikkausta ja
-            avaa muodon sekä kohteet. Yläpalkin Palauta tekee myöhemmät muutokset uudelleen, kunnes
-            teet uuden muutoksen.
+            Palauta valinta poimii osat ja viivat. Palaa leikkaukseen palauttaa mallin ennen
+            leikkausta ja avaa muodon sekä kohteet. Yläpalkin Palauta tekee myöhemmät muutokset
+            uudelleen, kunnes teet uuden muutoksen.
           </p>
           {!entries.length ? (
             <p>Toiminnot ilmestyvät tähän työn edetessä.</p>
@@ -91,12 +99,12 @@ export function ActivityHistory({
                       })}
                     </time>
                   </div>
-                  {!!entry.context?.ids.length && (
+                  {entry.context && hasSelection(entry.context) && (
                     <div>
-                      <span>Valinta: {entry.context.ids.length} kappaletta</span>
+                      <span>Valinta: {selectionDescription(entry.context)}</span>
                       <button
                         disabled={busy}
-                        aria-label={`Palauta valinta: ${entry.context.ids.length} kappaletta · ${entry.label}`}
+                        aria-label={`Palauta valinta: ${selectionDescription(entry.context)} · ${entry.label}`}
                         onClick={() => {
                           onRestore(entry.context!);
                           setOpen(false);

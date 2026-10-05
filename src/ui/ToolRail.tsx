@@ -54,7 +54,7 @@ export function ToolRail({
   tool: Tool;
   busy: boolean;
   onTool: (tool: Tool) => void;
-  onShape: (shape: 'rectangle' | 'circle' | 'ellipse' | 'polygon') => void;
+  onShape: (shape: 'rectangle' | 'circle' | 'ellipse' | 'polygon' | 'sphere' | 'bezier') => void;
   onCabinet: () => void;
   dock: ToolDock;
   onDock: (dock: ToolDock) => void;
@@ -302,11 +302,11 @@ export function ToolRail({
                     ),
                   ),
                   top: Math.min(
-                    window.innerHeight - 310,
+                    window.innerHeight - 410,
                     Math.max(
                       8,
                       trigger.current.getBoundingClientRect().top +
-                        (dock === 'top' ? 64 : dock === 'bottom' ? -300 : 0),
+                        (dock === 'top' ? 64 : dock === 'bottom' ? -400 : 0),
                     ),
                   ),
                 }
@@ -322,6 +322,8 @@ export function ToolRail({
               ['circle', 'Ympyrä', <Circle />, 'C'],
               ['ellipse', 'Ellipsi', <CircleDashed />, ''],
               ['polygon', 'Monikulmio', <Pentagon />, ''],
+              ['sphere', 'Pallo', <Circle />, ''],
+              ['bezier', 'Bézier-käyrä', <CircleDashed />, ''],
             ] as const
           ).map(([id, label, icon, shortcut]) => (
             <button

@@ -7,7 +7,12 @@ import { rotationAngle } from '../model/rotationSnap';
 import { sectionDistance } from '../model/sections';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { contextualFace, moveAxisFromScreen } from './picking';
-import { projectSelectionBounds, insideSelectionRect, type ScreenBounds } from './boxSelection';
+import {
+  projectSelectionBounds,
+  projectGuideSelectionBounds,
+  insideSelectionRect,
+  type ScreenBounds,
+} from './boxSelection';
 import { isPointDimension, uid, type PointDimension } from '../model/project';
 import { anchorBodyId, dimensionBodyIds, pointDimensionGeometry } from '../model/dimensions';
 import { offsetDirection } from '../model/faceBoundary';
@@ -94,12 +99,14 @@ export function installInteractions({
   selectionBox.append(selectionCount);
   container.append(selectionBox);
   let selectionBounds: ScreenBounds[] | undefined;
+  let guideSelectionBounds: { window: ScreenBounds[]; crossing: ScreenBounds[] } | undefined;
   const clearSelectionBox = () => {
     selectionBox.hidden = true;
     selectionBounds = undefined;
+    guideSelectionBounds = undefined;
   };
   const boxSelection = (event: PointerEvent) => {
-    if (!drag) return [];
+    if (!drag) return { ids: [], guideIds: [] };
     const rect = canvas.getBoundingClientRect(),
       x1 = drag.screenX - rect.left,
       y1 = drag.screenY - rect.top,
@@ -119,8 +126,43 @@ export function installInteractions({
         props.section ? (point) => sectionDistance(props.section!, point) : undefined,
       );
     }
+    if (!guideSelectionBounds) {
+      const props = current();
+      const eligible = props.tool === 'boolean' ? [] : props.guides;
+      const section = props.section
+        ? (point: Vec3) => sectionDistance(props.section!, point)
+        : undefined;
+      guideSelectionBounds = {
+        window: projectGuideSelectionBounds(
+          props.bodies,
+          eligible,
+          camera(),
+          rect.width,
+          rect.height,
+          false,
+          section,
+        ),
+        crossing: projectGuideSelectionBounds(
+          props.bodies,
+          eligible,
+          camera(),
+          rect.width,
+          rect.height,
+          true,
+          section,
+        ),
+      };
+    }
     const crossing = x2 < x1;
     const ids = insideSelectionRect(selectionBounds, x1, y1, x2, y2, crossing);
+    const guideIds = insideSelectionRect(
+      guideSelectionBounds[crossing ? 'crossing' : 'window'],
+      x1,
+      y1,
+      x2,
+      y2,
+      crossing,
+    );
     selectionBox.classList.toggle('crossing', crossing);
     selectionBox.dataset.mode = crossing ? 'crossing' : 'window';
     selectionBox.hidden = false;
@@ -130,8 +172,8 @@ export function installInteractions({
       width: `${Math.abs(x2 - x1)}px`,
       height: `${Math.abs(y2 - y1)}px`,
     });
-    selectionCount.textContent = `${ids.length} osaa · ${crossing ? 'alueeseen osuvat' : 'kokonaan sisällä'}${drag.extendSelection || event.shiftKey ? ' · lisää valintaan' : ''}`;
-    return ids;
+    selectionCount.textContent = `${[ids.length ? `${ids.length} osaa` : '', guideIds.length ? `${guideIds.length} viivaa` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} · ${crossing ? 'alueeseen osuvat' : 'kokonaan sisällä'}${drag.extendSelection || event.shiftKey ? ' · lisää valintaan' : ''}`;
+    return { ids, guideIds };
   };
   const overlay = new THREE.Group();
   const moveAxisLine = new THREE.Mesh(
@@ -2458,6 +2500,7 @@ export function installInteractions({
           extendSelection: event.shiftKey,
         };
         selectionBounds = undefined;
+        guideSelectionBounds = undefined;
         canvas.setPointerCapture(event.pointerId);
         canvas.focus({ preventScroll: true });
         return;
@@ -2852,6 +2895,7 @@ export function installInteractions({
     };
     if (props.tool === 'select') {
       selectionBounds = undefined;
+      guideSelectionBounds = undefined;
     }
     if (props.tool === 'rectangle')
       props.onGesture({
@@ -3244,9 +3288,14 @@ export function installInteractions({
         active.moved ||
         Math.hypot(event.clientX - active.screenX, event.clientY - active.screenY) > 4;
       if (active.selection) {
-        if (moved)
-          props.onSelectMany(boxSelection(event), !!active.extendSelection || event.shiftKey);
-        else if (active.extendSelection && active.selectionBodyId)
+        if (moved) {
+          const selected = boxSelection(event);
+          props.onSelectMany(
+            selected.ids,
+            !!active.extendSelection || event.shiftKey,
+            selected.guideIds,
+          );
+        } else if (active.extendSelection && active.selectionBodyId)
           props.onSelect(active.selectionBodyId, undefined, true);
         // An empty click in a tool is not a request to discard a prepared selection.
       } else if (props.tool === 'detail') {
@@ -3300,11 +3349,12 @@ export function installInteractions({
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
       } else if (props.tool === 'select' && moved) {
-        const ids = boxSelection(event);
+        const { ids, guideIds } = boxSelection(event);
         clearSelectionBox();
         props.onSelectMany(
           ids,
           !!active.extendSelection || event.shiftKey || event.ctrlKey || event.metaKey,
+          guideIds,
         );
       } else if (props.tool === 'select' && !moved) {
         // Remember modifiers from press time too: releasing Shift just before the
@@ -3312,7 +3362,7 @@ export function installInteractions({
         const extend = !!active.extendSelection || event.shiftKey || event.ctrlKey || event.metaKey;
         const guideHit = selectableGuideAt(event);
         if (guideHit) {
-          props.onSelectGuide(guideHit.object.userData.guideId);
+          props.onSelectGuide(guideHit.object.userData.guideId, extend);
           pointers.delete(event.pointerId);
           drag = undefined;
           return;

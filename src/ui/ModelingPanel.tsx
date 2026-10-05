@@ -159,8 +159,8 @@ export function ShapeProperties({
   onAccept,
 }: {
   tool: 'rectangle' | 'circle' | 'pen';
-  kind: 'circle' | 'ellipse' | 'polygon';
-  onKind: (kind: 'circle' | 'ellipse' | 'polygon') => void;
+  kind: 'circle' | 'ellipse' | 'polygon' | 'sphere';
+  onKind: (kind: 'circle' | 'ellipse' | 'polygon' | 'sphere') => void;
   thickness: string;
   onField: (key: string, value: string) => void;
   purpose: Body['purpose'];
@@ -201,6 +201,7 @@ export function ShapeProperties({
             onChange={(e) => onKind(e.target.value as typeof kind)}
           >
             <option value="circle">Ympyrä</option>
+            <option value="sphere">Pallo</option>
             <option value="ellipse">Ellipsi</option>
             <option value="polygon">Säännöllinen monikulmio</option>
           </select>
@@ -220,10 +221,12 @@ export function ShapeProperties({
         </label>
       )}
       <label className="modeling-field">
-        Paksuus · mm
+        {tool === 'circle' && kind === 'sphere'
+          ? 'Pallo · koko määritetään halkaisijalla'
+          : 'Paksuus · mm'}
         <input
           aria-label="Muodon paksuus"
-          disabled={constructionLine}
+          disabled={constructionLine || (tool === 'circle' && kind === 'sphere')}
           inputMode="decimal"
           value={thickness}
           onChange={(e) => onField('thickness', e.target.value)}
@@ -246,7 +249,7 @@ export function ShapeProperties({
         Piirtotapa
         <select
           aria-label="Piirtotapa"
-          disabled={constructionLine}
+          disabled={constructionLine || (tool === 'circle' && kind === 'sphere')}
           value={surfaceMode}
           onChange={(e) => onSurfaceMode(e.target.value as typeof surfaceMode)}
         >

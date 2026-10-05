@@ -3,6 +3,19 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.20.0** lisää **Veitsen (N)**, pallon ja Bézier-käyrät. Veitsi paloittelee
+valitut tai näkyvät vapaat kappaleet nykyisestä kamerasta: suora, taitettu reitti,
+suljettu siluetti, sileä Bézier-viilto tai vapaa viilto. Molemmat puolet säilyvät,
+ja yksi Peru palauttaa leikkauksen. **Muodot → Pallo** sijoittaa keskipisteen ja
+halkaisijan; **Bézier-käyrä** käyttää alku- ja loppupistettä sekä kahta ohjauspistettä.
+Osan valikon **Pehmennä reunat…** avaa kaikkien reunojen pyöristyksen esikatselun.
+
+Valintaruutu valitsee myös apu- ja mittaviivat selvästi oranssina. Shift lisää,
+Delete poistaa koko valinnan ja historia palauttaa myös viivavalinnat.
+Samalle suoralle päällekkäin piirretyt mittaviivat yhdistyvät automaattisesti;
+uudelleen piirretty sama osuus ei lisää turhaa kumoamistapahtumaa.
+[Yöpassin toteutukset ja rajat](docs/overnight-2026-10-05-modeling.md).
+
 Versio **0.19.2** yhtenäistää mittatyökalun: painike ottaa viimeksi käytetyn
 mittaustilan, nuoli avaa valikon. Vapaa mittaviiva jatkuu pisteestä pisteeseen;
 Enter tai Esc päättää ketjun. Shift pitää suunnan ja poimii pituuden toisesta

@@ -4674,6 +4674,9 @@ p {
   z-index: 10;
 }
 .context-actions {
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   position: fixed;
   z-index: 70;
   width: 224px;
@@ -5592,4 +5595,100 @@ p {
 .guide-point-choices button:hover,
 .guide-point-choices button:focus-visible {
   background: #edf1ea;
+}
+.guide-label[data-selected='true'] {
+  color: #934310;
+  border-color: #df741f;
+  background: #fff4e7;
+  box-shadow: 0 0 0 1px #df741f40;
+}
+.guide-list > .selected {
+  border-color: #df741f;
+  background: #fff4e7;
+}
+
+.knife-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+}
+.knife-stroke {
+  fill: none;
+  stroke: #e77d30;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px #fff);
+}
+.knife-controls {
+  fill: none;
+  stroke: #856c58;
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+}
+.knife-point,
+.knife-start {
+  fill: #fff7ed;
+  stroke: #d86a17;
+  stroke-width: 2;
+}
+.knife-start {
+  fill: #d86a17;
+}
+.knife-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 38px;
+  transform: translateX(-50%);
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: #fffaf0e8;
+  color: #6b4329;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+}
+.pen-mode {
+  padding: 10px 0;
+}
+.pen-mode button {
+  border: 1px solid #ccd3cb;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+.pen-mode button[aria-pressed='true'] {
+  background: #e1eee7;
+  color: #28624b;
+  border-color: #759a85;
+}
+.pen-mode p,
+.knife-panel p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.knife-panel {
+  padding: 14px 18px 18px;
+}
+.knife-panel .knife-targets {
+  margin: 0 0 14px;
+  color: #566b5e;
+}
+.knife-panel .modeling-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+.knife-panel > p {
+  margin: 10px 0 14px;
+}
+.knife-panel > button {
+  margin-top: 7px;
 }

@@ -106,6 +106,20 @@ export class CadClient {
   boolean(targets: Body[], tools: Body[], operation: 'cut' | 'join') {
     return this.request<Body[]>({ type: 'boolean', targets, tools, operation });
   }
+  sphere(center: Vec3, radius: number, name: string) {
+    return this.request<Body>({ type: 'sphere', center, radius, name });
+  }
+  bezier(points: Vec3[], name: string, closed = false) {
+    return this.request<Body>({ type: 'bezier', points, name, closed });
+  }
+  knife(targets: Body[], rays: import('./modeling').KnifeRay[], curveNormal?: Vec3) {
+    return this.request<import('./modeling').KnifeResult>({
+      type: 'knife',
+      targets,
+      rays,
+      curveNormal,
+    });
+  }
   penPath(points: Vec3[], name: string) {
     return this.request<Body>({ type: 'pen-path', points, name });
   }

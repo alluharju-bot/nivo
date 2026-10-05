@@ -119,6 +119,8 @@ test('offset cabinet accepts a two-click door at its front corners as a separate
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies[1].feature.depth).toBe(0);
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tallenna tiedosto', exact: true })).toBeEnabled();
+  await expect(page.locator('.save-status')).toContainText('Tallessa');
   await page.reload();
   expect((await save(page)).bodies).toEqual(model.bodies);
 });

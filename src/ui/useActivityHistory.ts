@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityJournal,
+  selectionDescription,
   type ActionInfo,
   type Activity,
   type SelectionContext,
@@ -50,7 +51,7 @@ export function useActivityHistory(
     prepare: (context: SelectionContext) => {
       if (ready && loaded.current === projectId) {
         journal.current.record(
-          { label: `Valinta: ${context.ids.length} kappaletta`, context },
+          { label: `Valinta: ${selectionDescription(context)}`, context },
           'selection',
         );
         persist();

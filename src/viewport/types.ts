@@ -29,6 +29,7 @@ import type {
 import type { ReferencePoint } from '../model/snap';
 import type { SketchFrame } from '../model/sketch';
 export type Tool =
+  | 'knife'
   | 'paint'
   | 'detail'
   | 'erase'
@@ -72,6 +73,10 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  knifeMode: 'line' | 'polyline' | 'curve' | 'free';
+  knifeCommand?: { id: number; action: 'finish' | 'clear' };
+  onKnife: (rays: import('../cad/modeling').KnifeRay[], curveNormal?: Vec3) => void;
+  onKnifeExit: () => void;
   section?: Section;
   sectionResult?: SectionResult;
   sectionControls?: boolean;
@@ -146,6 +151,7 @@ export interface ViewportProps {
   axisStyle: 'subtle' | 'strong';
   axisLabels: boolean;
   selectedGuideId?: string;
+  selectedGuideIds: string[];
   freeRotate: boolean;
   guideRotationStep: number;
   faceTarget?: FaceTarget;
@@ -159,13 +165,15 @@ export interface ViewportProps {
   onGuidePointMenu: (menu: { x: number; y: number; targets: GuideEndpoint[] }) => void;
   onDimensionPreview: (dimension?: PointDimension) => void;
   onDimensionCommit: (dimension: PointDimension) => void;
+  penMode: 'line' | 'bezier';
+  spherePreview: boolean;
   penPoints: Vec3[];
   penHover?: Vec3;
   reference?: ReferencePoint;
   pickReference: boolean;
   epoch: number;
   onSelect: (id?: string, face?: FaceRef, additive?: boolean) => void;
-  onSelectMany: (ids: string[], additive: boolean) => void;
+  onSelectMany: (ids: string[], additive: boolean, guideIds?: string[]) => void;
   onGesture: (gesture: Gesture) => void;
   onAccept: (continueMeasure?: boolean) => void;
   onPenHover: (point?: Vec3) => void;
@@ -176,7 +184,7 @@ export interface ViewportProps {
   onMoveTarget: (id: string) => string[] | undefined;
   onFaceTarget: (target: FaceTarget) => void;
   onFaceHover: (target?: FaceTarget) => void;
-  onSelectGuide: (id: string) => void;
+  onSelectGuide: (id: string, additive?: boolean) => void;
   onAxis: (axis?: Axis) => void;
   onConstraint: (direction?: Vec3) => void;
   radialShape: 'circle' | 'ellipse' | 'polygon';

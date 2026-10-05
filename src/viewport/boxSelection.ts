@@ -1,3 +1,5 @@
+import { guidePoints } from '../model/guides';
+import { add, sub, scale, unit } from '../model/geometry';
 import { Matrix4, Vector4, type Camera } from 'three';
 import type { Vec3 } from '../model/project';
 import type { BodyMesh } from '../cad/protocol';
@@ -31,7 +33,7 @@ function clip<T>(
 
 /** Project once when a box gesture begins; pointer moves only query cached 2D polygons. */
 export function projectSelectionBounds(
-  meshes: BodyMesh[],
+  meshes: Pick<BodyMesh, 'id' | 'vertices' | 'edges' | 'triangles'>[],
   camera: Camera,
   width: number,
   height: number,
@@ -167,4 +169,29 @@ export function insideSelectionRect(
       });
     })
     .map((b) => b.id);
+}
+
+/** A guide's reference span can be enclosed; crossing also hits its rendered extension. */
+export function projectGuideSelectionBounds(
+  bodies: import('../model/project').Body[],
+  guides: import('../model/project').Guide[],
+  camera: Camera,
+  width: number,
+  height: number,
+  crossing = false,
+  sectionDistance?: (point: Vec3) => number,
+) {
+  const segments = guides.flatMap((guide) => {
+    const points = guidePoints(bodies, guide);
+    if (!points) return [];
+    let [a, b] = points;
+    if (crossing && guide.mode === 'guide') {
+      const direction = unit(sub(b, a));
+      a = add(a, scale(direction, -20000));
+      b = add(b, scale(direction, 20000));
+    }
+    const edges = [...a, ...b];
+    return [{ id: guide.id, vertices: edges, edges, triangles: [] }];
+  });
+  return projectSelectionBounds(segments, camera, width, height, sectionDistance);
 }

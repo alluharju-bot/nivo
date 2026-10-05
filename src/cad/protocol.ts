@@ -83,6 +83,9 @@ export interface SectionResult {
 }
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
+  | { type: 'sphere'; center: Vec3; radius: number; name: string }
+  | { type: 'bezier'; points: Vec3[]; name: string; closed: boolean }
+  | { type: 'knife'; targets: Body[]; rays: import('./modeling').KnifeRay[]; curveNormal?: Vec3 }
   | { type: 'pen-path'; points: Vec3[]; name: string }
   | { type: 'split-path'; body: Body; face: FaceRef; path: Body }
   | { type: 'cut-opening'; profile: Body; targets: Body[] }
@@ -134,7 +137,8 @@ export interface CadReply {
     | FaceSpan
     | number[]
     | EdgeDetailResult
-    | import('./paths').OpeningResult;
+    | import('./paths').OpeningResult
+    | import('./modeling').KnifeResult;
   meshDelta?: BodyMesh[];
   error?: string;
 }

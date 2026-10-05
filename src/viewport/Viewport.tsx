@@ -1,3 +1,5 @@
+import { installKnife } from './knife';
+import { sampleBezier } from '../model/bezier';
 import { pointMarker } from './pointMarker';
 import { createWorkspaceViews } from './workspaceViews';
 import { prioritizeSurface } from './surfaceDepth';
@@ -521,6 +523,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     workspaceViews?.sync();
     renderer.domElement.dataset.geometryBuilds = String(geometryBuilds);
     const editing = [
+      'knife',
       'erase',
       'detail',
       'rotate',
@@ -581,6 +584,23 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     renderer.domElement.dataset.offsetPreview = current().offsetOutline
       ? String(current().offsetPreviewDistance)
       : '';
+    if (current().spherePreview && current().preview?.feature.type === 'profile-extrusion') {
+      const preview = current().preview!;
+      const feature = preview.feature;
+      if (feature.type === 'profile-extrusion' && feature.profile.kind === 'circle') {
+        const ball = new THREE.Mesh(
+          new THREE.SphereGeometry(feature.profile.radius, 32, 20),
+          new THREE.MeshStandardMaterial({
+            color: '#5d9782',
+            transparent: true,
+            opacity: 0.5,
+            depthWrite: false,
+          }),
+        );
+        ball.position.set(...(preview.origin.map((n, i) => n + feature.frame.origin[i]) as Vec3));
+        ghost.add(ball);
+      }
+    }
     if (current().tool === 'offset' && current().offsetOutline) {
       // meshEdges returns disconnected segment pairs, not a connected polyline.
       const outline = new LineSegments2(
@@ -955,7 +975,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const vectors = points.map((p) => new THREE.Vector3(...p));
       const isGuide = guide.mode === 'guide';
       const xray = props.guideXray || !!guide.xray;
-      const color = props.selectedGuideId === guide.id ? '#265c75' : '#487b91';
+      const selected = props.selectedGuideIds.includes(guide.id);
+      const color = selected ? '#df741f' : '#487b91';
       const makeLine = (points: THREE.Vector3[], dashed: boolean, width: number, opacity = 1) => {
         const geometry = new LineGeometry();
         geometry.setPositions(points.flatMap((p) => p.toArray()));
@@ -977,13 +998,13 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         result.computeLineDistances();
         return result;
       };
-      const line = makeLine(vectors, isGuide, 2);
+      const line = makeLine(vectors, isGuide, selected ? 4 : 2);
       line.computeLineDistances();
       line.renderOrder = 80;
       line.userData = { guideId: guide.id, xray };
       guides.add(line);
       for (const point of points) {
-        const marker = pointMarker(point, color, 12);
+        const marker = pointMarker(point, color, selected ? 14 : 12);
         marker.userData = { annotationPoint: true, xray };
         guides.add(marker);
       }
@@ -995,8 +1016,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
             vectors[1].clone().addScaledVector(direction, 20000),
           ],
           true,
-          1.5,
-          0.8,
+          selected ? 3 : 1.5,
+          selected ? 1 : 0.8,
         );
         extension.computeLineDistances();
         extension.userData = { guideId: guide.id, xray };
@@ -1008,6 +1029,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       element.dataset.xray = String(xray);
       element.dataset.testid = 'guide-label';
       element.dataset.guideId = guide.id;
+      element.dataset.selected = String(selected);
       const measured = guideMeasurement(props.bodies, guide)!.map((p) => new THREE.Vector3(...p));
       element.textContent = `${formatLength(measured[0].distanceTo(measured[1]))} mm${isGuide && !guide.offset ? ' · ' + formatLength(guide.angle) + '°' : ''}`;
       element.title = guide.offset ? 'Etäisyys lähtökohdasta' : 'Pituus';
@@ -1038,7 +1060,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (props.penHover) points.push(props.penHover);
       if (points.length > 1) {
         const geometry = new LineGeometry();
-        geometry.setPositions(points.flat());
+        geometry.setPositions((props.penMode === 'bezier' ? sampleBezier(points) : points).flat());
         const path = new Line2(
           geometry,
           new LineMaterial({
@@ -1051,6 +1073,25 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         );
         path.renderOrder = 90;
         guides.add(path);
+      }
+      if (props.penMode === 'bezier' && points.length > 1) {
+        const geometry = new LineGeometry();
+        geometry.setPositions(points.flat());
+        const handles = new Line2(
+          geometry,
+          new LineMaterial({
+            color: '#df741f',
+            linewidth: 1,
+            dashed: true,
+            dashSize: 8,
+            gapSize: 5,
+            depthTest: false,
+            resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
+          }),
+        );
+        handles.computeLineDistances();
+        handles.renderOrder = 91;
+        guides.add(handles);
       }
       props.penPoints.forEach((p, i) => {
         const marker = pointMarker(p, i === 0 ? '#f0a12c' : '#237b65', i === 0 ? 14 : 12);
@@ -1162,6 +1203,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       renderer.shadowMap.needsUpdate = true;
     },
   );
+  const knife = installKnife(renderer.domElement, container, () => camera, current);
+  controls.addEventListener('change', knife.clear);
   const interactions = installInteractions({
     container,
     canvas: renderer.domElement,
@@ -1178,19 +1221,26 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     sync,
     workspaceViews: workspaceViews.sync,
     annotations,
-    interactionSync: interactions.sync,
+    interactionSync: () => {
+      interactions.sync();
+      knife.sync();
+    },
     dimensionDisplay: render,
     preview: () => {
       preview();
       workspaceViews?.sync();
     },
-    command,
+    command: (next) => {
+      knife.clear();
+      command(next);
+    },
     dispose() {
       disposed = true;
       cancelAnimationFrame(renderFrame);
       observer.disconnect();
       navigation.dispose();
       controls.dispose();
+      knife.dispose();
       interactions.dispose();
       disposeGroup(guides);
       labels.forEach((l) => l.element.remove());
@@ -1274,6 +1324,7 @@ export function Viewport(props: Props) {
     () => api.current?.preview(),
     [
       props.preview,
+      props.spherePreview,
       props.detailPreview,
       props.detailPreviewSize,
       props.faceTarget,
@@ -1292,6 +1343,8 @@ export function Viewport(props: Props) {
   useEffect(
     () => api.current?.interactionSync(),
     [
+      props.knifeMode,
+      props.knifeCommand,
       props.reference,
       props.axis,
       props.penPoints.length,
@@ -1308,11 +1361,13 @@ export function Viewport(props: Props) {
       props.guides,
       props.guidePreview,
       props.penPoints,
+      props.penMode,
       props.penHover,
       props.bodies,
       props.meshes,
       props.guideXray,
       props.selectedGuideId,
+      props.selectedGuideIds,
     ],
   );
   useEffect(() => {

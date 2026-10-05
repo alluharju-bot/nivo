@@ -2,6 +2,32 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.20 — viivat ja monimuotoinen mallintaminen
+
+- Päällekkäiset vapaat mittaviivat yhdistyvät samalla 3D-suoralla. Duplikaatti
+  ei lisää historiaa; risteävät, vierekkäiset ja vain päästään kohtaavat viivat
+  pysyvät erillisinä. Jatko alkaa aina napsautetusta pisteestä.
+- Valintaruutu poimii apu- ja mittaviivat. Oranssi korostus, Shift-lisäys,
+  yhteispoisto osien kanssa sekä historiasta palautettava viivavalinta.
+- Muodot-valikon tarkka CAD-pallo ja kuutiollinen Bézier-käyrä. Avoin käyrä
+  voidaan liittää Jaa pinta -toiminnolla; suljettu käyrä muodostaa tasopinnan.
+- Veitsi (N) paloittelee tilavuuskappaleet kameranäkymästä. Suora, taitettu,
+  suljettu siluetti, analyyttinen Bézier-pinta ja vapaa viilto. Molemmat puolet
+  säilyvät; lukitut ja piilotetut osat ohitetaan. Osista tulee uniikkeja,
+  materiaalit ja ryhmät säilyvät, koko leikkaus kumoutuu yhdellä toiminnolla.
+- Säilyvät mitta- ja apuviitteet seuraavat oikeita paloja. Alkuperäisen osan
+  kokonaismitta kattaa palat yhdessä. Kameraa vaihdettaessa veitsiluonnos peruuntuu.
+- Pehmennä reunat -pikatoiminto avaa koko osan säteellisen reunapyöristyksen.
+- Laskennan aikana tallennustila ei enää näytä edellisen tilan Tallessa-tekstiä.
+  Pitkä toimintovalikko pysyy ruudulla myös tabletilla.
+
+[Toteutus, auditointi ja rajat](overnight-2026-10-05-modeling.md).
+
+Seuraava luonteva käyräkokonaisuus: valmiiden Bézier-ohjauspisteiden muokkaus,
+tangenttijatkuvuus ja profiilin pyyhkäisy reittiä pitkin (listat, putket ja kaiteet).
+Sen jälkeen pyörähdys ja poikkileikkauksia yhdistävä loft. Orgaaninen subdivision
+säilyy erillisenä myöhempänä verkkotyönkulkuna, ei piilotettuna CAD-muunnoksena.
+
 ## V0.19.2 — jatkuva mittaaminen ja erilliset viivanpäät
 
 - Mittatyökalun pääpainike ja T muistavat viimeisimmän tilan. Nuolivalikko

@@ -1,3 +1,7 @@
+import { applySplitResult } from './model/splitReferences';
+import { selectionDescription } from './model/activity';
+import { bezierInstruction } from './model/bezier';
+import { upsertGuide } from './model/guideMerge';
 import { GuidePointMenu } from './ui/GuidePointMenu';
 import { guideEndAnchor, moveGuideEndpoint, type GuideEndpoint } from './model/guideEditing';
 import { SheetWorkspace } from './drawing/SheetWorkspace';
@@ -40,6 +44,7 @@ import {
   Camera,
   Circle,
   Scissors,
+  Slice,
   Copy,
   Download,
   FilePlus2,
@@ -192,6 +197,7 @@ const faceNames: Record<FaceRef, string> = {
   'z:max': 'Yläpinta',
 };
 const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = [
+  { id: 'knife', label: 'Veitsi', icon: <Slice />, shortcut: 'N' },
   { id: 'paint', label: 'Maalipensseli', icon: <Paintbrush />, shortcut: 'P' },
   { id: 'select', label: 'Valitse', icon: <MousePointer2 />, shortcut: 'V' },
   { id: 'rectangle', label: 'Suorakulmio', icon: <Square />, shortcut: 'S' },
@@ -223,6 +229,7 @@ const toolOrder: Tool[] = [
   'detail',
   'paint',
   'boolean',
+  'knife',
   'measure',
   'navigate',
   'rectangle',
@@ -230,6 +237,8 @@ const toolOrder: Tool[] = [
 ];
 tools.sort((a, b) => toolOrder.indexOf(a.id) - toolOrder.indexOf(b.id));
 const instructions: Record<Tool, string> = {
+  knife:
+    'Piirrä leikkaus nykyisestä näkymästä. Molemmat puolet säilyvät. Esc peruu reitin; seuraava Esc päättää työkalun.',
   paint:
     'P · Valitse materiaali ja napsauta osia maalataksesi. Kohdevalinta kertoo, maalataanko koko valinta. Esc päättää.',
   detail:
@@ -328,6 +337,9 @@ export default function App() {
   const [rotationDraft, setRotationDraft] = useState<Omit<Rotation, 'angle'>>();
   const rotationRef = useRef<Omit<Rotation, 'angle'> | undefined>(undefined);
   const [popup, setPopup] = useState<[number, number]>();
+  const [knifeMode, setKnifeMode] = useState<'line' | 'polyline' | 'curve' | 'free'>('line');
+  const [knifeCommand, setKnifeCommand] = useState<{ id: number; action: 'finish' | 'clear' }>();
+  const [penMode, setPenMode] = useState<'line' | 'bezier'>('line');
   const [penPoints, setPenPoints] = useState<Vec3[]>([]);
   const penRef = useRef<Vec3[]>([]);
   const penSplitRequest = useRef(0);
@@ -344,7 +356,10 @@ export default function App() {
   const [extrusionMode, setExtrusionMode] = useState<ExtrusionMode>('height');
   const extrusionModeRef = useRef<ExtrusionMode>('height');
   const dragDirection = useRef(1);
-  const [selectedGuideId, setSelectedGuideId] = useState<string>();
+  const [selectedGuideIds, setSelectedGuideIds] = useState<string[]>([]);
+  const selectedGuideId = selectedGuideIds.length === 1 ? selectedGuideIds[0] : undefined;
+  const setSelectedGuideId = (id?: string) => setSelectedGuideIds(id ? [id] : []);
+  const selectedGuideSet = useMemo(() => new Set(selectedGuideIds), [selectedGuideIds]);
   const [freeRotate, setFreeRotate] = useState(false);
   const [guideRotationStep, setGuideRotationStep] = useState(22.5);
   const [shapeFrame, setShapeFrame] = useState<SketchFrame>();
@@ -368,7 +383,7 @@ export default function App() {
   const [editingBodyId, setEditingBodyId] = useState<string>();
   const [editNotice, setEditNotice] = useState<{ x?: number; y?: number }>();
   const gestureActive = useRef(false);
-  const [shapeKind, setShapeKind] = useState<'circle' | 'ellipse' | 'polygon'>('circle');
+  const [shapeKind, setShapeKind] = useState<'circle' | 'ellipse' | 'polygon' | 'sphere'>('circle');
   const [shapeSides, setShapeSides] = useState(6);
   const [shapePurpose, setShapePurpose] = useState<Body['purpose']>('model');
   const [shapeName, setShapeName] = useState('');
@@ -443,6 +458,7 @@ export default function App() {
   const [openedAssembly, setOpenedAssembly] = useState<string>();
   const actionContext: SelectionContext = {
     ids: selectedIds,
+    guideIds: selectedGuideIds,
     primary: selected,
     groupId: selectedGroupId,
     editingBodyId,
@@ -877,7 +893,8 @@ export default function App() {
       id && !force
         ? selectionUnit(project, id, openedAssembly)
         : { ids: id ? [id] : [], groupId: undefined };
-    if (!extend && selectedIds.length > 1) activityHistory.prepare(actionContext);
+    if (!extend && selectedIds.length + selectedGuideIds.length > 1)
+      activityHistory.prepare(actionContext);
     const ids = id
       ? extend
         ? unit.ids.every((key) => selectedIdSet.has(key))
@@ -901,6 +918,7 @@ export default function App() {
     setAwaitingStart(true);
     setMeasureMenu(false);
     resetGesture();
+    if (extend) setSelectedGuideIds(selectedGuideIds);
     if (tool === 'rotate' && id && !force) startRotation(ids);
   };
   const finishOperation = (id?: string, face?: FaceRef) => {
@@ -1081,7 +1099,7 @@ export default function App() {
         });
       return;
     }
-    if (next === 'paint') {
+    if (next === 'knife' || next === 'paint') {
       setPanelOpen(true);
       return;
     }
@@ -1162,7 +1180,7 @@ export default function App() {
         distance = parseLength(fields.thickness, true, true);
       if (tool === 'circle') {
         const profile: Profile =
-          shapeKind === 'circle'
+          shapeKind === 'circle' || shapeKind === 'sphere'
             ? { kind: 'circle', radius: width / 2 }
             : shapeKind === 'ellipse'
               ? { kind: 'ellipse', radiusX: width / 2, radiusY: depth / 2 }
@@ -1451,7 +1469,7 @@ export default function App() {
   const finishPenPath = async (final: boolean) => {
     const points = penRef.current;
     const surface = penSurface();
-    if (points.length < 2 || (!final && !surface)) return;
+    if (points.length < 2 || (!final && (!surface || penMode === 'bezier'))) return;
     const request = ++penSplitRequest.current,
       revision = editor.revision();
     const current = () =>
@@ -1461,10 +1479,9 @@ export default function App() {
     let ownsCommit = false;
     try {
       const path = {
-        ...(await editor.cad.penPath(
-          points,
-          shapeName || `Kynäviiva ${project.bodies.length + 1}`,
-        )),
+        ...(await (penMode === 'bezier'
+          ? editor.cad.bezier(points, shapeName || `Bézier ${project.bodies.length + 1}`)
+          : editor.cad.penPath(points, shapeName || `Kynäviiva ${project.bodies.length + 1}`))),
         groupId: openedAssembly,
       };
       if (!current()) return;
@@ -1654,6 +1671,20 @@ export default function App() {
           await finishPenPath(true);
           return;
         }
+        if (penMode === 'bezier') {
+          const originalPoints = penRef.current,
+            revision = editor.revision();
+          const first = penRef.current[0];
+          const points = [...penRef.current];
+          if (points.length % 3 === 0) points.push(first);
+          let curve = await editor.cad.bezier(points, shapeName || 'Bézier-muoto', true);
+          const thickness = parseLength(fieldsRef.current.thickness, true, true);
+          if (thickness) curve = await editor.cad.pushPull(curve, 'surface:0', thickness);
+          if (revision !== editor.revision() || originalPoints !== penRef.current) return;
+          committing.current = true;
+          await commitShape({ ...curve, purpose: shapePurpose });
+          return;
+        }
         let candidate = {
           ...makePolygonBody(penRef.current, shapeName || `Kynämuoto ${project.bodies.length + 1}`),
           purpose: shapePurpose,
@@ -1711,39 +1742,34 @@ export default function App() {
         const ends = guidePoints(project.bodies, candidate);
         if (measureMode === 'free' && ends && Math.hypot(...sub(ends[1], ends[0])) < 0.1) return;
         committing.current = true;
-        if (guidePointEdit && ends) {
-          const guides = moveGuideEndpoint(
-            project.bodies,
-            project.guides,
-            guidePointEdit,
-            candidate.endAnchor ?? { point: ends[1] },
-          );
-          if (
-            await editor.transact(
-              { ...project, guides },
-              'Mittaviivan pää siirretty. Muut viivat pysyvät paikoillaan.',
-            )
-          ) {
-            finishOperation();
-            setSelectedGuideId(candidate.id);
-          }
-          return;
-        }
+        const committed =
+          guidePointEdit && ends
+            ? moveGuideEndpoint(
+                project.bodies,
+                project.guides,
+                guidePointEdit,
+                candidate.endAnchor ?? { point: ends[1] },
+              ).find((g) => g.id === candidate.id)!
+            : candidate;
+        const result = upsertGuide(project.bodies, project.guides, committed);
+        const label = result.unchanged
+          ? 'Osuus on jo mittaviivassa.'
+          : result.merged
+            ? 'Päällekkäiset mittaviivat yhdistetty.'
+            : guidePointEdit
+              ? 'Mittaviivan pää siirretty. Muut viivat pysyvät paikoillaan.'
+              : measureMode === 'guide'
+                ? 'Apuviiva lisätty. Piirtäminen ja siirtäminen tarttuvat siihen.'
+                : 'Mittaviiva lisätty.';
         if (
-          await editor.transact(
-            {
-              ...project,
-              guides: [...project.guides.filter((g) => g.id !== candidate.id), candidate],
-            },
-            measureMode === 'guide'
-              ? 'Apuviiva lisätty. Piirtäminen ja siirtäminen tarttuvat siihen.'
-              : 'Mittaviiva lisätty.',
-          )
+          result.unchanged ||
+          (await editor.transact({ ...project, guides: result.guides }, label))
         ) {
+          if (result.unchanged) editor.setMessage(label);
           finishOperation();
-          setSelectedGuideId(candidate.id);
+          setSelectedGuideId(result.guide.id);
           setTab('guides');
-          if (continueMeasure && measureMode === 'free' && ends) {
+          if (continueMeasure && !guidePointEdit && measureMode === 'free' && ends) {
             const next = {
               anchor: candidate.endAnchor ?? { point: ends[1] },
               plane: candidate.plane,
@@ -1755,13 +1781,35 @@ export default function App() {
             gestureActive.current = true;
             setAwaitingStart(false);
             writeFields({ length: '0', angle: '0' });
-            editor.setMessage('Jatka mittaviivaa päätepisteestä. Enter tai Esc päättää ketjun.');
+            editor.setMessage(`${label} Jatka päätepisteestä. Enter tai Esc päättää ketjun.`);
           }
         }
       } else {
         const candidate = makePreview();
         if (!candidate) return;
         committing.current = true;
+        if (tool === 'circle' && shapeKind === 'sphere') {
+          const center = shapeFrameRef.current?.origin ?? candidate.origin;
+          const radius = parseLength(fieldsRef.current.width) / 2;
+          let id: string | undefined;
+          if (
+            await editor.transact(async () => {
+              const sphere = {
+                ...(await editor.cad.sphere(
+                  center,
+                  radius,
+                  shapeName || `Pallo ${project.bodies.length + 1}`,
+                )),
+                groupId: openedAssembly,
+                purpose: shapePurpose,
+              };
+              id = sphere.id;
+              return { ...project, bodies: [...project.bodies, sphere] };
+            }, 'Pallo lisätty. Halkaisija määrää pallon koon.')
+          )
+            finishOperation(id);
+          return;
+        }
         if (tool === 'rectangle' || tool === 'circle') {
           await commitShape(candidate);
           return;
@@ -2040,6 +2088,59 @@ export default function App() {
       void finishPenPath(false);
     }
   };
+  const knifeTargets = visibleBodies.filter(
+    (b) =>
+      featureIsSolid(b.feature) &&
+      !bodyLocked(b, project.groups) &&
+      (!selectedIds.length || selectedIdSet.has(b.id)) &&
+      (!editingBodyId || b.id === editingBodyId) &&
+      inAssembly(project, b.id, openedAssembly),
+  );
+  const applyKnife = async (rays: import('./cad/modeling').KnifeRay[], curveNormal?: Vec3) => {
+    if (busy || committing.current) return;
+    if (!knifeTargets.length) {
+      editor.setMessage('Valitse muokattava tilavuuskappale tai vapauta sen lukitus.');
+      return;
+    }
+    committing.current = true;
+    try {
+      let pieces: string[] = [];
+      const ok = await editor.transact(async () => {
+        requireMovable(knifeTargets, project.groups);
+        const result = await editor.cad.knife(knifeTargets, rays, curveNormal);
+        if (!result.affected.length)
+          throw new Error(
+            'Viiva ei halkaissut kappaletta. Vedä reitti kappaleen reunasta reunaan tai sulje siluetti sen sisällä.',
+          );
+        pieces = result.pieces;
+        return applySplitResult(project, result);
+      }, 'Veitsi · osat paloiteltu. Molemmat puolet säilyvät; Peru palauttaa alkuperäiset osat.');
+      if (ok) {
+        finishOperation(pieces[0]);
+        setEditingBodyId(undefined);
+        setSurfaceMode('new');
+        setSelected(pieces[0]);
+        setSelectedIds(pieces);
+      }
+    } finally {
+      committing.current = false;
+    }
+  };
+  const softenSelected = () => {
+    if (!body || bodyLocked(body, project.groups)) return;
+    begin('detail');
+    setDetailOperation('fillet');
+    const mesh = editor.meshes.find((m) => m.id === body.id);
+    setDetailTarget({
+      bodyId: body.id,
+      indices: (mesh?.sourceDetailEdges ?? mesh?.detailEdges ?? []).map((e) => e.index),
+    });
+    setAwaitingStart(false);
+    gestureActive.current = true;
+    editor.setMessage(
+      'Pehmennä reunat: säädä pyöristyksen säde ja hyväksy Enterillä. Esikatselu näyttää mittoihin tulevan muutoksen.',
+    );
+  };
   const mergeSelected = async () => {
     try {
       const candidate = mergeBodies(project.bodies.filter((b) => selectedIdSet.has(b.id)));
@@ -2057,14 +2158,23 @@ export default function App() {
       editor.setError((e as Error).message);
     }
   };
-  const selectGuide = (id: string) => {
+  const selectGuide = (id: string, additive = false) => {
     if (busy) return;
     resetGesture();
     setTool('select');
-    setSelected(undefined);
-    setSelectedIds([]);
+    if (!additive) {
+      setSelected(undefined);
+      setSelectedIds([]);
+      setSelectedGroupId(undefined);
+    }
     setSelectedFace(undefined);
-    setSelectedGuideId(id);
+    setSelectedGuideIds(
+      additive
+        ? selectedGuideSet.has(id)
+          ? selectedGuideIds.filter((key) => key !== id)
+          : [...selectedGuideIds, id]
+        : [id],
+    );
     setAwaitingStart(true);
     setTab('guides');
     editor.setMessage('Viiva valittu. Valitse toiminto viivan valikosta.');
@@ -2282,15 +2392,16 @@ export default function App() {
   const removeBody = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
     if (busy) return;
-    if (!ids.length) {
+    if (!ids.length && !selectedGuideIds.length) {
       if (selectedGroup) await removeGroup(selectedGroup.id);
       return;
     }
     try {
+      const cleaned = ids.length ? removeSelection(project, ids) : project;
       if (
         await editor.transact(
-          removeSelection(project, ids),
-          `${ids.length} osaa poistettu. Peru palauttaa koko valinnan.`,
+          { ...cleaned, guides: cleaned.guides.filter((g) => !selectedGuideSet.has(g.id)) },
+          `${[ids.length ? `${ids.length} osaa` : '', selectedGuideIds.length ? `${selectedGuideIds.length} viivaa` : ''].filter(Boolean).join(' + ')} poistettu. Peru palauttaa koko valinnan.`,
         )
       )
         select(undefined, undefined, false, true);
@@ -2750,13 +2861,15 @@ export default function App() {
         return;
       }
       const chosen = tools.find((t) => t.shortcut.toLowerCase() === key);
-      if (chosen) begin(chosen.id);
+      if (chosen) {
+        if (chosen.id === 'pen') setPenMode('line');
+        begin(chosen.id);
+      }
       if (tool === 'move' && ['x', 'y', 'z'].includes(key))
         setAxis(axis === key ? undefined : (key as Axis));
       if (key === 'delete' || key === 'backspace' || (key === 'x' && tool === 'select')) {
         event.preventDefault();
-        if (selectedGuideId) void removeGuide(selectedGuideId);
-        else void removeBody();
+        void removeBody();
       }
     };
     window.addEventListener('keydown', keydown);
@@ -3130,104 +3243,129 @@ export default function App() {
       finishOperation(draft.included.find((id) => results.has(id)));
     }
   };
-  const quickActions: QuickAction[] = selectedGuide
-    ? [
-        { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
-        { label: 'Poista apuviiva', run: () => void removeGuide(selectedGuide.id), disabled: busy },
-      ]
-    : [
-        {
-          label: selectedGroup?.kind === 'assembly' ? 'Muokkaa osia' : 'Muokkaa osaa',
-          run: () =>
-            selectedGroup?.kind === 'assembly'
-              ? openAssembly(selectedGroup.id)
-              : body && openBodyEdit(body.id),
-          disabled: busy || !body,
-        },
-        { label: 'Eristä valinta', run: isolateSelection, disabled: busy || !selectedIds.length },
-        {
-          label: 'Siirrä · M',
-          run: () => begin('move'),
-          reason: movementBlocked,
-          disabled: busy || !body,
-        },
-        {
-          label: 'Kopioi ja siirrä',
-          run: copyBody,
-          reason: movementBlocked,
-          disabled: busy || !body,
-        },
-        {
-          label: 'Kierrä · R',
-          run: () => begin('rotate'),
-          reason: movementBlocked,
-          disabled: busy || !body,
-        },
-        ...(canDivideSurface
-          ? [{ label: 'Jaa pinta', run: () => void prepareSurfaceSplit() }]
-          : []),
-        ...(canCutOpening
-          ? [
-              {
-                label: 'Leikkaa aukko…',
-                run: () => void prepareOpening(),
-                disabled: busy || openingBusy,
+  const quickActions: QuickAction[] =
+    selectedGuideIds.length && (selectedGuideIds.length > 1 || selectedIds.length)
+      ? [{ label: 'Poista valinta', run: () => void removeBody(), disabled: busy }]
+      : selectedGuide
+        ? [
+            { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
+            {
+              label: 'Poista apuviiva',
+              run: () => void removeGuide(selectedGuide.id),
+              disabled: busy,
+            },
+          ]
+        : [
+            {
+              label: selectedGroup?.kind === 'assembly' ? 'Muokkaa osia' : 'Muokkaa osaa',
+              run: () =>
+                selectedGroup?.kind === 'assembly'
+                  ? openAssembly(selectedGroup.id)
+                  : body && openBodyEdit(body.id),
+              disabled: busy || !body,
+            },
+            {
+              label: 'Eristä valinta',
+              run: isolateSelection,
+              disabled: busy || !selectedIds.length,
+            },
+            {
+              label: 'Siirrä · M',
+              run: () => begin('move'),
+              reason: movementBlocked,
+              disabled: busy || !body,
+            },
+            {
+              label: 'Kopioi ja siirrä',
+              run: copyBody,
+              reason: movementBlocked,
+              disabled: busy || !body,
+            },
+            {
+              label: 'Kierrä · R',
+              run: () => begin('rotate'),
+              reason: movementBlocked,
+              disabled: busy || !body,
+            },
+            ...(canDivideSurface
+              ? [{ label: 'Jaa pinta', run: () => void prepareSurfaceSplit() }]
+              : []),
+            ...(canCutOpening
+              ? [
+                  {
+                    label: 'Leikkaa aukko…',
+                    run: () => void prepareOpening(),
+                    disabled: busy || openingBusy,
+                  },
+                ]
+              : []),
+            {
+              label: 'Pehmennä reunat…',
+              run: softenSelected,
+              reason: movementBlocked,
+              disabled: busy || !body || selectedIds.length !== 1 || !featureIsSolid(body.feature),
+            },
+            {
+              label: 'Veitsi · N',
+              run: () => begin('knife'),
+              reason: movementBlocked,
+              disabled: busy || !body,
+            },
+            { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
+            { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
+            {
+              label: 'Piilota valinta',
+              run: () =>
+                selectedGroup
+                  ? void patchGroup(selectedGroup.id, { hidden: true })
+                  : void patchBodies(selectedIds, { hidden: true }),
+              disabled: busy || !body,
+            },
+            ...(selectedIds.length > 1 && !selectedGroup
+              ? [
+                  {
+                    label: 'Luo kokoonpano',
+                    run: () => void createGroup(openedAssembly, true),
+                    disabled: busy,
+                  },
+                ]
+              : []),
+            {
+              label: 'Siirrä ryhmään…',
+              run: () => {
+                setGroupDestination(selectedGroup?.parentId ?? body?.groupId ?? '');
+                setGroupMove(
+                  selectedGroup
+                    ? { kind: 'group', id: selectedGroup.id }
+                    : { kind: 'bodies', ids: [...selectedIds] },
+                );
               },
-            ]
-          : []),
-        { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
-        { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
-        {
-          label: 'Piilota valinta',
-          run: () =>
-            selectedGroup
-              ? void patchGroup(selectedGroup.id, { hidden: true })
-              : void patchBodies(selectedIds, { hidden: true }),
-          disabled: busy || !body,
-        },
-        ...(selectedIds.length > 1 && !selectedGroup
-          ? [
-              {
-                label: 'Luo kokoonpano',
-                run: () => void createGroup(openedAssembly, true),
-                disabled: busy,
-              },
-            ]
-          : []),
-        {
-          label: 'Siirrä ryhmään…',
-          run: () => {
-            setGroupDestination(selectedGroup?.parentId ?? body?.groupId ?? '');
-            setGroupMove(
-              selectedGroup
-                ? { kind: 'group', id: selectedGroup.id }
-                : { kind: 'bodies', ids: [...selectedIds] },
-            );
-          },
-          disabled:
-            busy ||
-            editing ||
-            !!editingBodyId ||
-            !!openedAssembly ||
-            (!selectedGroup && !selectedIds.length),
-        },
-        ...(selectedGroup
-          ? [
-              {
-                label: 'Poista ryhmä',
-                run: () => void removeGroup(selectedGroup.id),
-                disabled: busy,
-              },
-            ]
-          : []),
-        ...(body?.component ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }] : []),
-        {
-          label: `Poista valinta (${selectedIds.length})`,
-          run: () => void removeBody(),
-          reason: movementBlocked,
-          disabled: busy || !selectedIds.length,
-        },
-      ];
+              disabled:
+                busy ||
+                editing ||
+                !!editingBodyId ||
+                !!openedAssembly ||
+                (!selectedGroup && !selectedIds.length),
+            },
+            ...(selectedGroup
+              ? [
+                  {
+                    label: 'Poista ryhmä',
+                    run: () => void removeGroup(selectedGroup.id),
+                    disabled: busy,
+                  },
+                ]
+              : []),
+            ...(body?.component
+              ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }]
+              : []),
+            {
+              label: `Poista valinta (${selectedIds.length})`,
+              run: () => void removeBody(),
+              reason: movementBlocked,
+              disabled: busy || !selectedIds.length,
+            },
+          ];
   const chooseOther = () => {
     if (actionMenu?.candidates?.length) {
       setPickList({ ...actionMenu, candidates: actionMenu.candidates });
@@ -3441,29 +3579,36 @@ export default function App() {
   const activeTool = !['select', 'navigate'].includes(tool);
   const shapeTool = ['rectangle', 'circle', 'pen'].includes(tool);
   const toolTitle =
-    tool === 'circle'
-      ? { circle: 'Ympyrä', ellipse: 'Ellipsi', polygon: 'Monikulmio' }[shapeKind]
-      : tool === 'measure'
-        ? { dimension: 'Dimensio', guide: 'Apuviiva', free: 'Vapaa mittaviiva' }[measureMode]
-        : tool === 'boolean'
-          ? booleanOperation === 'cut'
-            ? 'Leikkaa'
-            : 'Yhdistä'
-          : (tools.find((t) => t.id === tool)?.label ?? '');
+    tool === 'pen' && penMode === 'bezier'
+      ? 'Bézier-käyrä'
+      : tool === 'circle'
+        ? { circle: 'Ympyrä', ellipse: 'Ellipsi', polygon: 'Monikulmio', sphere: 'Pallo' }[
+            shapeKind
+          ]
+        : tool === 'measure'
+          ? { dimension: 'Dimensio', guide: 'Apuviiva', free: 'Vapaa mittaviiva' }[measureMode]
+          : tool === 'boolean'
+            ? booleanOperation === 'cut'
+              ? 'Leikkaa'
+              : 'Yhdistä'
+            : (tools.find((t) => t.id === tool)?.label ?? '');
   const targetName = selectedIds.length > 1 ? `${selectedIds.length} kappaletta` : body?.name;
   const shapeTarget =
     sketchTarget && project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name;
-  const toolContext = shapeTool
-    ? constructionLine
-      ? 'Rakennusviiva · ei muuta pintaa'
-      : editingBody && surfaceMode === 'region'
-        ? `Muokkaa osaa · ${editingBody.name}`
-        : tool === 'pen' && penSurface()
-          ? `Viiva jakaa pinnan · ${shapeTarget}`
-          : `Uusi osa${shapeTarget ? ` · ${shapeTarget} / pinta` : ''}`
-    : editingBody
-      ? `Muokkaa osaa · ${editingBody.name}`
-      : targetName;
+  const toolContext =
+    tool === 'circle' && shapeKind === 'sphere'
+      ? 'Uusi pallo · keskipiste ja halkaisija'
+      : shapeTool
+        ? constructionLine
+          ? 'Rakennusviiva · ei muuta pintaa'
+          : editingBody && surfaceMode === 'region'
+            ? `Muokkaa osaa · ${editingBody.name}`
+            : tool === 'pen' && penSurface()
+              ? `Viiva jakaa pinnan · ${shapeTarget}`
+              : `Uusi osa${shapeTarget ? ` · ${shapeTarget} / pinta` : ''}`
+        : editingBody
+          ? `Muokkaa osaa · ${editingBody.name}`
+          : targetName;
   const toolStep =
     tool === 'move'
       ? selectedIds.length
@@ -3497,14 +3642,16 @@ export default function App() {
                         : instructions.measure
                   : instructions[tool];
   const linkTarget =
-    editingBody ??
-    (tool === 'detail'
-      ? detailSource
-      : ['extrude', 'offset'].includes(tool)
-        ? project.bodies.find((b) => b.id === faceTarget?.bodyId)
-        : !activeTool && selectedIds.length === 1
-          ? body
-          : undefined);
+    tool === 'knife' || (tool === 'circle' && shapeKind === 'sphere')
+      ? undefined
+      : (editingBody ??
+        (tool === 'detail'
+          ? detailSource
+          : ['extrude', 'offset'].includes(tool)
+            ? project.bodies.find((b) => b.id === faceTarget?.bodyId)
+            : !activeTool && selectedIds.length === 1
+              ? body
+              : undefined));
   const linkedCount = linkTarget?.component
     ? project.bodies.filter((b) => b.component?.id === linkTarget.component!.id).length
     : 0;
@@ -3625,11 +3772,13 @@ export default function App() {
                   : tool === 'rectangle'
                     ? 'Suorakulmio'
                     : tool === 'circle'
-                      ? shapeKind === 'circle'
-                        ? 'Ympyrä'
-                        : shapeKind === 'ellipse'
-                          ? 'Ellipsi'
-                          : 'Monikulmio'
+                      ? shapeKind === 'sphere'
+                        ? 'Pallo'
+                        : shapeKind === 'circle'
+                          ? 'Ympyrä'
+                          : shapeKind === 'ellipse'
+                            ? 'Ellipsi'
+                            : 'Monikulmio'
                       : tool === 'measure'
                         ? measureMode === 'guide'
                           ? 'Apuviiva'
@@ -3715,7 +3864,7 @@ export default function App() {
                 editor.saveStatus.includes('epäonnistui') ? 'status-dot error' : 'status-dot'
               }
             />
-            {editor.saveStatus || 'Valmistellaan…'}
+            {editor.busy ? 'Lasketaan muutosta…' : editor.saveStatus || 'Valmistellaan…'}
           </span>
         </div>
         <button
@@ -3983,7 +4132,10 @@ export default function App() {
               tools={tools}
               tool={tool}
               busy={busy}
-              onTool={begin}
+              onTool={(next) => {
+                if (next === 'pen') setPenMode('line');
+                begin(next);
+              }}
               measureMode={measureMode}
               measureMenu={measureMenu}
               onMeasureMenu={setMeasureMenu}
@@ -4000,8 +4152,15 @@ export default function App() {
                 setCabinetOpen(true);
               }}
               onShape={(shape) => {
+                if (shape === 'bezier') {
+                  setPenMode('bezier');
+                  begin('pen');
+                  setShapeName(`Bézier ${project.bodies.length + 1}`);
+                  return;
+                }
                 if (shape !== 'rectangle') setShapeKind(shape);
                 begin(shape === 'rectangle' ? 'rectangle' : 'circle');
+                if (shape === 'sphere') setShapeName(`Pallo ${project.bodies.length + 1}`);
               }}
             />
           </>
@@ -4129,10 +4288,10 @@ export default function App() {
                         <div
                           key={g.id}
                           className={
-                            !points ? 'broken' : selectedGuideId === g.id ? 'selected' : ''
+                            !points ? 'broken' : selectedGuideSet.has(g.id) ? 'selected' : ''
                           }
                         >
-                          <button onClick={() => selectGuide(g.id)}>
+                          <button onClick={(event) => selectGuide(g.id, event.shiftKey)}>
                             <Ruler size={15} />
                             <span>
                               {points
@@ -4302,6 +4461,10 @@ export default function App() {
               </div>
             )}
             <Viewport
+              knifeMode={knifeMode}
+              knifeCommand={knifeCommand}
+              onKnife={(rays, normal) => void applyKnife(rays, normal)}
+              onKnifeExit={() => begin('select')}
               section={workspace.section}
               sectionResult={workspace.sectionResult}
               sectionControls={workspace.sectionControls}
@@ -4405,7 +4568,7 @@ export default function App() {
                   return;
                 }
                 if (guideId) {
-                  setSelectedGuideId(guideId);
+                  if (!selectedGuideSet.has(guideId)) selectGuide(guideId);
                 } else {
                   setSelectedGuideId(undefined);
                   if (bodyId && !selectedIdSet.has(bodyId)) select(bodyId);
@@ -4463,12 +4626,13 @@ export default function App() {
                 setGuidePointMenu(menu);
               }}
               penPoints={penPoints}
+              penMode={penMode}
               penHover={penHover}
               reference={reference}
               pickReference={pickReference}
               epoch={epoch}
               onSelect={select}
-              onSelectMany={(ids, additive) => {
+              onSelectMany={(ids, additive, guideIds = []) => {
                 if (tool === 'boolean') {
                   const solid = new Set(
                     project.bodies.filter((b) => featureIsSolid(b.feature)).map((b) => b.id),
@@ -4493,7 +4657,8 @@ export default function App() {
                   }
                   return;
                 }
-                if (!additive && selectedIds.length > 1) activityHistory.prepare(actionContext);
+                if (!additive && selectedIds.length + selectedGuideIds.length > 1)
+                  activityHistory.prepare(actionContext);
                 const visible = new Set(visibleBodies.map((b) => b.id));
                 const allowed = ids
                   .filter(
@@ -4514,10 +4679,18 @@ export default function App() {
                 setAwaitingStart(true);
                 setMeasureMenu(false);
                 resetGesture();
+                const chosenGuides = additive
+                  ? [...new Set([...selectedGuideIds, ...guideIds])]
+                  : guideIds;
+                setSelectedGuideIds(chosenGuides);
+                if (chosenGuides.length && !next.length) setTab('guides');
                 if (tool === 'rotate' && next.length) startRotation(next);
-                editor.setMessage(`${next.length} osaa valittu. M siirtää valinnan.`);
+                editor.setMessage(
+                  `${[next.length ? `${next.length} osaa` : '', chosenGuides.length ? `${chosenGuides.length} viivaa` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} valittu.${next.length && !chosenGuides.length ? ' M siirtää valinnan.' : ''}`,
+                );
               }}
-              radialShape={shapeKind}
+              radialShape={shapeKind === 'sphere' ? 'circle' : shapeKind}
+              spherePreview={tool === 'circle' && shapeKind === 'sphere'}
               sketchFrame={shapeFrame}
               sketchTarget={sketchTarget}
               booleanTargets={booleanTargets}
@@ -4557,6 +4730,7 @@ export default function App() {
               axisStyle={project.settings.axisStyle}
               axisLabels={project.settings.axisLabels}
               selectedGuideId={selectedGuideId}
+              selectedGuideIds={selectedGuideIds}
               freeRotate={freeRotate}
               guideRotationStep={guideRotationStep}
               onFaceHover={(target) => {
@@ -4626,7 +4800,7 @@ export default function App() {
               }}
             />
             {!panelOpen && numericInput}
-            {tool === 'select' && selectedGuide && (
+            {tool === 'select' && selectedGuide && !selectedIds.length && (
               <div className="guide-actions" role="toolbar" aria-label="Viivan toiminnot">
                 <span>
                   <Ruler size={16} />
@@ -4664,6 +4838,24 @@ export default function App() {
                 </button>
               </div>
             )}
+            {['select', 'move'].includes(tool) &&
+              selectedGuideIds.length > 0 &&
+              (selectedGuideIds.length > 1 || selectedIds.length > 0) && (
+                <div className="guide-actions" role="toolbar" aria-label="Viivojen valinta">
+                  <span>
+                    <Ruler size={16} />
+                    {selectedGuideIds.length} viivaa
+                    {selectedIds.length ? ` + ${selectedIds.length} osaa` : ''}
+                  </span>
+                  <button disabled={busy} onClick={() => void removeBody()}>
+                    <Trash2 size={15} />
+                    Poista valinta
+                  </button>
+                  <button disabled={busy} onClick={() => setSelectedGuideIds([])}>
+                    Vapauta viivat
+                  </button>
+                </div>
+              )}
             {['rectangle', 'circle', 'pen'].includes(tool) && (
               <div
                 className="guide-actions shape-mode-actions"
@@ -4933,6 +5125,56 @@ export default function App() {
                     Vaihda mittaustilaa
                   </button>
                 </section>
+              ) : tool === 'knife' ? (
+                <section className="knife-panel" aria-label="Veitsen asetukset">
+                  <p className="knife-targets">
+                    {selectedIds.length ? 'Valitut osat' : 'Näkyvät osat'} · {knifeTargets.length}{' '}
+                    muokattavaa kohdetta
+                  </p>
+                  <label className="modeling-field">
+                    Reitti
+                    <select
+                      aria-label="Veitsen reitti"
+                      value={knifeMode}
+                      onChange={(e) => setKnifeMode(e.target.value as typeof knifeMode)}
+                    >
+                      <option value="line">Suora</option>
+                      <option value="polyline">Taitettu / siluetti</option>
+                      <option value="curve">Bézier-kaari</option>
+                      <option value="free">Vapaa viilto</option>
+                    </select>
+                  </label>
+                  <p>
+                    {knifeMode === 'line'
+                      ? 'Vedä viiva osien yli tai napsauta alku ja loppu.'
+                      : knifeMode === 'curve'
+                        ? 'Napsauta alku, kaksi ohjauspistettä ja loppu.'
+                        : knifeMode === 'free'
+                          ? 'Pidä painike pohjassa ja piirrä viilto. Vapautus leikkaa.'
+                          : 'Napsauta reitin pisteet ja paina Enter. Alkupisteeseen palaaminen sulkee siluetin ja leikkaa.'}
+                  </p>
+                  <p>
+                    Molemmat puolet jäävät erillisiksi osiksi. Lukitut osat säilyvät. Paloista tulee
+                    uniikkeja; muut linkitetyt kopiot säilyvät.
+                  </p>
+                  <button
+                    className="button dark full"
+                    disabled={busy}
+                    onClick={() => setKnifeCommand({ id: performance.now(), action: 'finish' })}
+                  >
+                    Leikkaa reitti · Enter
+                  </button>
+                  <button
+                    className="button outlined full"
+                    disabled={busy}
+                    onClick={() => setKnifeCommand({ id: performance.now(), action: 'clear' })}
+                  >
+                    Tyhjennä reitti
+                  </button>
+                  <button className="button outlined full" onClick={() => begin('select')}>
+                    Lopeta veitsi · Esc
+                  </button>
+                </section>
               ) : tool === 'detail' ? (
                 <EdgeDetailPanel
                   operation={detailOperation}
@@ -5101,6 +5343,34 @@ export default function App() {
                         </select>
                       </label>
                     )}
+                    {tool === 'pen' && (
+                      <div className="pen-mode" role="group" aria-label="Kynän tyyli">
+                        <button
+                          aria-pressed={penMode === 'line'}
+                          onClick={() => {
+                            resetGesture();
+                            setPenMode('line');
+                          }}
+                        >
+                          Suorat
+                        </button>
+                        <button
+                          aria-pressed={penMode === 'bezier'}
+                          onClick={() => {
+                            resetGesture();
+                            setPenMode('bezier');
+                          }}
+                        >
+                          Bézier
+                        </button>
+                        {penMode === 'bezier' && (
+                          <p>
+                            {bezierInstruction(penPoints.length)} Valmis kaari: 4 pistettä, jatko: 3
+                            pistettä. Enter viimeistelee, Backspace poistaa viimeisen pisteen.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {['rectangle', 'circle', 'pen'].includes(tool) && (
                       <ShapeProperties
                         tool={tool as 'rectangle' | 'circle' | 'pen'}
@@ -5252,14 +5522,22 @@ export default function App() {
                         </p>
                         <button
                           className="button outlined"
-                          disabled={penPoints.length < 3 || busy}
+                          disabled={
+                            (penMode === 'bezier'
+                              ? penPoints.length < 3 || penPoints.length % 3 !== 0
+                              : penPoints.length < 3) || busy
+                          }
                           onClick={() => void apply(true)}
                         >
                           Sulje muoto
                         </button>
                         <button
                           className="button outlined"
-                          disabled={penPoints.length < 2 || busy}
+                          disabled={
+                            (penMode === 'bezier'
+                              ? penPoints.length < 4 || (penPoints.length - 1) % 3 !== 0
+                              : penPoints.length < 2) || busy
+                          }
                           onClick={() => {
                             clearLocks();
                             void apply();
@@ -5644,7 +5922,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.19.2</span>
+                    <span>v0.20.0</span>
                   </div>
                 </>
               )}
@@ -5964,8 +6242,11 @@ export default function App() {
               project.bodies.filter((b) => bodyVisible(b, project.groups)).map((b) => b.id),
             );
             const ids = context.ids.filter((id) => existing.has(id));
-            if (!ids.length) {
-              editor.setMessage('Valinnan osat on poistettu tai piilotettu.');
+            const guideIds = (context.guideIds ?? []).filter((id) =>
+              project.guides.some((g) => g.id === id),
+            );
+            if (!ids.length && !guideIds.length) {
+              editor.setMessage('Valinnan kohteet on poistettu tai piilotettu.');
               return;
             }
             resetGesture();
@@ -5991,11 +6272,10 @@ export default function App() {
                 : undefined,
             );
             setSelectedFace(undefined);
-            setSelectedGuideId(undefined);
+            setSelectedGuideIds(guideIds);
+            if (guideIds.length && !ids.length) setTab('guides');
             setAwaitingStart(true);
-            editor.setMessage(
-              `Valinta palautettu · ${ids.length} kappaletta${ids.length < context.ids.length ? ' · poistetut tai piilotetut osat ohitettu' : ''}.`,
-            );
+            editor.setMessage(`Valinta palautettu · ${selectionDescription({ ids, guideIds })}.`);
           }}
         />
         <span className="status-right">
@@ -6033,7 +6313,7 @@ export default function App() {
                 <strong>Piirrä.</strong> Valitse Suorakulmio, Ympyrä (C) tai Kynä. Aloita kappaleen
                 tasopinnalta käyttääksesi sitä piirtotasona. Klikkaa alkupistettä, siirrä osoitinta
                 ja klikkaa loppupistettä. Muotovalikosta löytyvät myös ellipsi ja säännöllinen
-                monikulmio. Myös veto tai Enter hyväksyy.
+                monikulmio, pallo ja Bézier-käyrä. Myös veto tai Enter hyväksyy.
               </li>
               <li>
                 <strong>Muotoile.</strong> Paina E, osoita pintaa ja vedä. Positiivinen siirtymä
@@ -6045,6 +6325,25 @@ export default function App() {
                 ja vie SVG.
               </li>
             </ol>
+            <p>
+              <strong>Veitsi · N:</strong> vedä leikkaus nykyisestä näkymästä valittujen osien yli.
+              Ilman valintaa käsitellään näkyviä vapaita osia. Suora, taitettu reitti, suljettu
+              siluetti, Bézier-kaari ja vapaa viilto säilyttävät molemmat puolet. Enter viimeistelee
+              taitetun reitin. Esc peruu luonnoksen; Peru palauttaa koko leikkauksen.
+            </p>
+            <p>
+              <strong>Bézier ja pallo:</strong> Muodot-valikon Bézier-käyrä piirretään neljällä
+              pisteellä: alku, kaksi ohjauspistettä ja loppu. Jatko tarvitsee kolme pistettä. Enter
+              tallentaa viivan, alkupisteeseen palaaminen sulkee pinnan. Pallo sijoitetaan
+              keskipisteestä; kirjoitettava mitta on halkaisija. Osan valikosta Pehmennä reunat avaa
+              kaikkien reunojen pyöristyksen esikatselun ja säteen säädön.
+            </p>
+            <p>
+              <strong>Viivojen valinta:</strong> valintaruutu poimii myös apu- ja mittaviivat;
+              valitut viivat näkyvät oranssina. Shift lisää valintaan. Delete poistaa valinnan
+              yhtenä peruttavana toimintona. Historia palauttaa myös viivavalinnat. Samalla suoralla
+              päällekkäin piirretyt mittaosuudet yhdistyvät automaattisesti.
+            </p>
             <p>
               <strong>Hae ja Valitse toinen:</strong> Hae-painike tai Ctrl/⌘ K löytää työkalut ja
               valinnan toiminnot. Esc sulkee haun säilyttäen keskeneräisen muodon. Valitse toinen
