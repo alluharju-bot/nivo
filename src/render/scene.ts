@@ -1,15 +1,16 @@
+import { createPartLights, previewLightLimit } from './lights';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { progressiveRenderer, type TraceStatus } from './progressive';
 import { captureRenderScene } from './snapshot';
 import {
   createMaterialLibrary,
-  texturePlacement,
+  updateMaterialPlacement,
   materialUV,
   textureFrameMatrix,
   disposeMaterial,
 } from './materials';
 import {
   defaultAppearance,
-  emissionSettings,
   type Appearance,
   type TexturePlacement,
   type TextureAsset,
@@ -43,7 +44,13 @@ type Props = {
   partNumbers?: Record<string, number>;
 };
 
+let areaLightingInitialized = false;
+
 export function createRenderScene(host: HTMLDivElement, current: () => Props) {
+  if (!areaLightingInitialized) {
+    RectAreaLightUniformsLib.init();
+    areaLightingInitialized = true;
+  }
   const scene = new THREE.Scene();
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -169,8 +176,11 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   const sync = () => {
     clearModel();
     const { bodies, meshes } = current();
+    const areaLights: THREE.Group[] = [];
+    let shadowSpots = 0;
+    const bodiesById = new Map(bodies.map((body) => [body.id, body]));
     for (const data of meshes) {
-      const body = bodies.find((b) => b.id === data.id);
+      const body = bodiesById.get(data.id);
       if (!body) continue;
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
@@ -183,44 +193,21 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       mesh.castShadow = surface.transmission < 0.5;
       mesh.receiveShadow = true;
       model.add(mesh);
-      const emission = emissionSettings(
-        body.appearance ?? defaultAppearance(body.material),
-        body.color,
-      );
-      if (emission.enabled && emission.type === 'spot') {
-        const index = { x: 0, y: 1, z: 2 }[emission.direction.slice(-1)]!,
-          direction = new THREE.Vector3();
-        direction.setComponent(index, emission.direction.startsWith('-') ? -1 : 1);
-        direction.applyQuaternion(
-          new THREE.Quaternion(...(body.textureFrame?.rotation ?? [0, 0, 0, 1])),
-        );
-        geometry.computeBoundingBox();
-        const box = geometry.boundingBox!,
-          center = box.getCenter(new THREE.Vector3()),
-          size = box.getSize(new THREE.Vector3());
-        const distance =
-          (Math.abs(direction.x) * size.x) / 2 +
-          (Math.abs(direction.y) * size.y) / 2 +
-          (Math.abs(direction.z) * size.z) / 2 +
-          1;
-        const spot = new THREE.SpotLight(
-          emission.color,
-          emission.intensity * 1_000_000,
-          0,
-          THREE.MathUtils.degToRad(emission.angle / 2),
-          0.35,
-          2,
-        );
-        spot.position.copy(center).addScaledVector(direction, distance);
-        spot.target.position.copy(spot.position).add(direction);
-        spot.castShadow = lights.children.length < 8;
-        spot.shadow.mapSize.set(512, 512);
-        spot.shadow.bias = -0.0001;
-        spot.shadow.camera.near = 0.1;
-        spot.shadow.camera.far = 100000;
-        lights.add(spot, spot.target);
+      const partLights = createPartLights(body, geometry);
+      if (partLights.userData.previewOnly) areaLights.push(partLights);
+      else {
+        partLights.traverse((object) => {
+          if (object instanceof THREE.SpotLight)
+            object.castShadow = shadowSpots++ < previewLightLimit;
+        });
+        if (partLights.children.length) lights.add(partLights);
       }
     }
+    areaLights.sort((a, b) => b.userData.power - a.userData.power);
+    for (const light of areaLights.slice(0, previewLightLimit)) lights.add(light);
+    canvas.dataset.surfaceLights = String(areaLights.length);
+    canvas.dataset.previewSurfaceLights = String(Math.min(areaLights.length, previewLightLimit));
+    canvas.dataset.spotLights = String(shadowSpots);
     navigation.sync(bodies, current().selectedIds ?? []);
     const box = bounds(bodies),
       a = new THREE.Vector3(...box.min),
@@ -496,8 +483,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       for (const object of model.children)
         if (object instanceof THREE.Mesh && ids.includes(object.userData.bodyId)) {
           const material = object.material as THREE.MeshPhysicalMaterial;
-          for (const value of Object.values(material))
-            if (value instanceof THREE.Texture) texturePlacement(value, appearance.texture);
+          updateMaterialPlacement(material, appearance.texture);
         }
       updateHandles();
       draw();
@@ -553,6 +539,12 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       key.shadow.dispose();
       env.dispose();
       library.dispose();
+      // These lookup textures are shared by Three, but their GPU disposal listeners belong
+      // to each renderer. Release them before closing this context; another view can reupload.
+      for (const name of ['LTC_FLOAT_1', 'LTC_FLOAT_2', 'LTC_HALF_1', 'LTC_HALF_2']) {
+        const texture: unknown = Reflect.get(THREE.UniformsLib, name);
+        if (texture instanceof THREE.Texture) texture.dispose();
+      }
       renderer.dispose();
       renderer.forceContextLoss();
       canvas.remove();

@@ -4,6 +4,51 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.18 — PBR-pinnat ja valaistuksen työnkulku
+
+**213 yksikkö-/CAD-testiä hyväksytty (43 tiedostoa)**. TypeScript, tuotantobuild
+ja muotoilu hyväksytty. Mukana epäneliön kuvan
+fyysiset normal-gradientit, nollasyvyys, yksivärinen/yhden pikselin kartta,
+kartan reunojen kierto, värikuvan kuvasuhde, DirectX-asetuksen tallennus,
+vanhan bumpin voimakkuus, reliefin säilyminen reaaliaikaisessa skaalauksessa,
+kierretyn spotin paikallinen lähtöpiste ja esikatselun LED-apuvalojen poistaminen
+renderitilannekuvasta. Tyhjä viivageometria ei muodosta äärettömiä valokoordinaatteja.
+
+Selaimessa testataan kuvan 256 × 64 tuonti, 300 × 75 mm oletussijoittelu,
+0,35 mm reliefi, Peru/Palauta, oma normal-kartta ja OpenGL/DirectX-vaihdon
+vaikutus kuvan pikseleihin. Molemmat normal-työnkulut lasketaan myös
+path tracerilla; generoidussa kuvassa vaaditaan vähintään 500 värillistä
+pintapikseliä. LED-testissä studion ja ympäristön valot ovat nollassa:
+viereisen levyn 5 × 5 pikselin alueen kirkkauden on noustava vähintään 20/255.
+Spotti säädetään mallissa ja sen asetukset tarkistetaan projektitiedostosta.
+
+Tuotantopakettia vasten hyväksyttiin yhteensä **22 eri selaintapausta**
+(desktop + tablettiemulointi). Laaja renderöinti-/PBR-ajo: 12 hyväksyttyä ja
+2 uuden testin kohdistusvirhettä. Korjatut kokeet sekä katalogi, tekstuurikahvat,
+sijoittelun hyväksyminen/peruminen, kopion riippumattomuus ja Hold:
+**14/14 hyväksyttyä**. Ajot sisältävät päällekkäisiä LED- ja Hold-kokeita.
+Kehitysvaiheen testikorjaukset koskivat Palauta-painikkeen nimeä ja piilotetun
+mallipaneelin erottamista renderipaneelista. Värillinen tekstuuri varmennettiin
+myös taustalla lasketusta PNG-tiedostosta. Kaikki 40 presettiä renderöitiin yhdessä.
+Viivageometrian viimeinen suojatarkistus varmennettiin erillisellä yksikkökokeella.
+
+```sh
+npm test
+npm run build
+npm run format:check
+NIVO_PREVIEW=1 npx playwright test tests/material-light-v018.spec.ts tests/pbr-v011.spec.ts tests/render.spec.ts tests/material-import-v011.spec.ts --output=/private/tmp/nivo-render-v018-suite
+NIVO_PREVIEW=1 npx playwright test tests/material-light-v018.spec.ts tests/material-catalog.spec.ts tests/precision.spec.ts tests/overnight.spec.ts tests/render.spec.ts --grep 'rectangular color|LED presets|all 40|an imported texture|texture editor|texture handles|render materials' --output=/private/tmp/nivo-render-v018-final
+```
+
+![LED valaisee viereistä tasoa nopeassa esikatselussa](images/nivo-led-preview.png)
+
+Rajaukset: värikuvasta johdettu rakenne on vaaleusarvio, ei mitattu PBR-skannaus.
+Nopea LED-esikatselu käyttää kahdeksan voimakkaimman osan kahden laajan pinnan
+approksimaatiota ilman peittymisvarjoja. Path tracer käyttää kaikkia todellisia
+emissiivisiä pintoja; pienillä näytemäärillä niiden valaistus on edelleen kohinainen.
+Kaarevien pintojen UV-saumat, HDRI/IES-tuonti ja kohinanpoisto ovat backlogissa.
+Tablettitulos koskee Chromium-kosketusemulointia, ei fyysistä Safaria.
+
 ## V0.17.1 — kynän pinnanjako, Shift ja Hold
 
 **201 yksikkö-/CAD-testiä hyväksytty (41 tiedostoa)**. TypeScript,

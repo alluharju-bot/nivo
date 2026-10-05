@@ -3,7 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.17.1** kokoaa mallista luotettavan työkuvan. **Mittakuva → Luo mitta-arkki**
+Versio **0.18.0** parantaa materiaaleja ja valaistusta. Värikuvasta voi luoda
+normal- ja karheusrakenteen, kohokuvion syvyys säädetään millimetreinä ja
+LED-/spottiasetukset löytyvät myös mallin Materiaali-kohdasta. Renderipaneelin
+kohde ja välilehdet pysyvät näkyvissä asetuksia selatessa.
+
+Mallista työkuvaksi: **Mittakuva → Luo mitta-arkki**
 asettaa 1–6 näkymää, myös tallennetut poikkileikkaukset, samalle A4-arkille yhteisessä
 mittakaavassa. Tallenna arkin kohde ja näkymät projektiin; vie PDF tai SVG.
 Kokonaismitat seuraavat osajoukon tai ryhmän nykyisiä ulkorajoja myös osien
@@ -328,9 +333,22 @@ etäisyys lähtöreunasta; vapaa mittaviiva mittaa päätepisteiden välin.
 
 ## Renderöinti ja kuvavienti
 
-Materiaalit löytyvät jo **Malli → valitse osa → Materiaali**. Valitse preset, tuo värikuva tai tee osasta valaiseva pinta. **Pinnan rakenne · PBR** tarjoaa normal-, bump-/korkeus-, karheus- ja metallisuuskartat. Ne käyttävät samaa sijoittelua kuin värikuva. Normal-kartta käyttää OpenGL (+Y) -suuntaa; bump muunnetaan normal-kartaksi. Datakuvat tallennetaan häviöttöminä PNG-kuvina enintään 1024 pikselin kokoon. Valmiit kuviot ovat paikallisesti tuotettuja, eivät valokuvattuja materiaaliskannauksia. Niiden mukana syntyvät normal- ja karheuskartat.
+Materiaalit löytyvät jo **Malli → valitse osa → Materiaali**. Valitse preset, tuo värikuva tai tee osasta valaiseva pinta. **Pinnan rakenne · PBR** tarjoaa normal-, bump-/korkeus-, karheus- ja metallisuuskartat. Ne käyttävät samaa sijoittelua kuin värikuva. Normal-kartan suunnaksi voi valita OpenGL (+Y) tai DirectX (−Y). Bump muunnetaan normal-kartaksi alkuperäisessä kuvasuhteessa; **Kohokuvion syvyys** annetaan millimetreinä ja säilyy myös tekstuuria skaalattaessa. Datakuvat tallennetaan häviöttöminä PNG-kuvina enintään 1024 pikselin kokoon. Valmiit kuviot ovat paikallisesti tuotettuja, eivät valokuvattuja materiaaliskannauksia. Niiden mukana syntyvät normal- ja karheuskartat.
 
-Renderin **Materiaali**-välilehti sisältää osan tarkemmat valosäädöt ja erikseen avattavan Studion valaistus -kohdan. **Kuva** sisältää esikatselun ja viennin. Tarkentuva esikatselu päivittää koko kuvaa jokaisella näytteellä; erillinen PNG-työ voi jatkua mallinnuksen aikana.
+**Luo rakenne värikuvasta** muodostaa kuvan vaaleuseroista normal- ja karheuskartan.
+Se on arvio pintarakenteesta; valokuvasta ei voi päätellä oikeaa korkeutta tai karheutta.
+Tuotu PBR-kanava korvaa vastaavan generoidun kanavan. Kuvia ei monisteta projektitiedostoon.
+Melamiinin puukuvion reliefi on hillitympi kuin massiivipuussa. Normal/bump muuttaa
+valaistusta, ei CAD-geometriaa tai leikkausmittoja.
+
+Sekä mallin **Materiaali** että renderin **Osa valonlähteenä** tarjoavat samat LED-,
+taustavalo- ja spottiesiasetukset, värin, voimakkuuden ja spotin suunnan/keilan.
+Suunta seuraa osan kiertoa. Nopea esikatselu arvioi kahdeksan voimakkaimman
+LED-osan kahden laajan pinnan valaisun ilman niiden varjoja. Tarkentuva renderöinti
+laskee kaikkien todellisten pintojen valon, peittymisen ja heijastukset; esikatselun
+apuvalot poistetaan sekä tarkentuvasta kuvasta että taustalaskennasta.
+
+Renderin **Materiaali**-välilehti sisältää erikseen avattavan Studion valaistus -kohdan. **Kuva** sisältää esikatselun ja viennin. Tarkentuva esikatselu päivittää koko kuvaa jokaisella näytteellä; erillinen PNG-työ voi jatkua mallinnuksen aikana.
 
 **Renderöi** avaa esitysnäkymän. Valitse yksi osa, mallin valinta tai kaikki
 näkyvät osat. Materiaaliryhmistä löytyvät kuusi puuta, neljä metallia, kolme
@@ -358,7 +376,8 @@ rakennusmuodot, apuviivat ja valintakahvat eivät tule esityskuvaan.
 
 Nopea esikatselu ja valinnainen tarkentuva path tracing käyttävät WebGL2:ta. Omat valaistusympäristöt ja erillinen
 UV-saarekkeiden editori ovat jatkotyötä. Kuviointi käyttää kappaleen omaan
-koordinaatistoon sidottua kolmen suunnan projektiota ja pehmeää saumasekoitusta.
+koordinaatistoon sidottua tasoprojektiota pinnan normaalin mukaan. Kaarevien
+pintojen projektiosaumojen parantaminen on backlogissa.
 
 ## Avoin kynäviiva ja nopea aukko
 
@@ -668,9 +687,9 @@ ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testatt
   napsautuksella. Mitan suunnaksi voi valita vaaka-, pysty- tai pistevälimitan.
   Itse lisättyä mittaviivaa voi siirtää vetämällä; Esc peruu ja Peru palauttaa. Vie PDF tai SVG. Arkin asetuksissa automaattinen/manuaalinen
   mittakaava ja piiloviivat. Tulosta 100 % koossa.
-- **Renderöi**: Materiaali, Valo ja Kuva jakavat asetukset. Valot-materiaaliryhmässä
-  on kolme LED-presettiä. Valo-välilehdessä osan voi muuttaa valaisevaksi pinnaksi
-  tai suunnatuksi spotiksi. Pinnan valo valaisee ympäristöä Tarkentuvassa tilassa.
+- **Renderöi**: Materiaali ja Kuva jakavat asetukset. Materiaali → Osa valonlähteenä
+  muuttaa osan LED-pinnaksi tai suunnatuksi spotiksi. Samat säädöt ovat mallissa.
+  LED valaisee ympäristöä myös nopeassa esikatselussa; tarkentuva kuva huomioi varjot.
   Kuva-välilehden Tarkentuva laskee lisää näytteitä paikallaan pysyvään kuvaan;
   laskennan voi tauottaa. Kuvakulman/materiaalin muutos aloittaa kertymän alusta.
   Esikatselun Kevyt/Täysi ja näytetavoite säätelevät kuormaa. Tavoitteen saavuttaminen
@@ -679,7 +698,7 @@ ja Chromiumin kosketusemuloinnin. Fyysistä iPadia/Safaria ei ole vielä testatt
   mallista, materiaaleista ja kamerasta. Valitse 800/1 600/2 400 px ja 8–1 024 näytettä.
   Voit palata malliin kuvan valmistuessa. Tilakortista näet etenemisen, keskeytät
   tai lataat valmiin PNG:n. Työ ei säily sivun päivityksen tai sulkemisen yli.
-  Nopea esikatselu tallentuu heti. Valo → Studion säädöt: suunta, valo- ja
+  Nopea esikatselu tallentuu heti. Materiaali → Studion valaistus: suunta, valo- ja
   ympäristövoimakkuus sekä lattian näkyvyys.
 - **Osat**: automaattinen osaluettelo ja numeroitu räjäytyskuva. Valitse kokoonpano,
   säädä räjäytystä, vie CSV/PNG. Yksi mallinnettu kiinteä kappale on yksi osa.

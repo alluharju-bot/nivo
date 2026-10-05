@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { omitPreviewLights } from './lights';
 import type { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import { configureTraceEnvironment } from './traceJob';
 
@@ -53,6 +54,7 @@ export function progressiveRenderer(
   };
   const rebuild = () => {
     const snapshot = scene.clone();
+    omitPreviewLights(snapshot);
     configureTraceEnvironment(environment!, scene);
     snapshot.environment = environment!;
     snapshot.environmentIntensity = scene.environmentIntensity;

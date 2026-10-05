@@ -1,8 +1,11 @@
 import * as THREE from 'three';
+import { derivedCanvas } from './surfaceMaps';
 import {
   findPreset,
   defaultAppearance,
   emissionSettings,
+  surfaceDepth,
+  surfaceStrength,
   type MaterialPreset,
   type TexturePlacement,
   type TextureAsset,
@@ -153,35 +156,6 @@ export function materialUV(geometry: THREE.BufferGeometry, body: Body) {
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
 }
 
-/** Height -> tangent-space normal. Data stays linear; no color-space conversion. */
-export function heightNormal(source: CanvasImageSource, width = 512, height = 512) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(source, 0, 0, width, height);
-  const pixels = ctx.getImageData(0, 0, width, height),
-    out = ctx.createImageData(width, height);
-  const value = (x: number, y: number) => {
-    const i = (((y + height) % height) * width + ((x + width) % width)) * 4;
-    return (pixels.data[i] + pixels.data[i + 1] + pixels.data[i + 2]) / (3 * 255);
-  };
-  for (let y = 0; y < height; y++)
-    for (let x = 0; x < width; x++) {
-      const n = new THREE.Vector3(
-        (value(x - 1, y) - value(x + 1, y)) * 2,
-        (value(x, y + 1) - value(x, y - 1)) * 2,
-        1,
-      ).normalize();
-      const i = (y * width + x) * 4;
-      out.data[i] = (n.x * 0.5 + 0.5) * 255;
-      out.data[i + 1] = (n.y * 0.5 + 0.5) * 255;
-      out.data[i + 2] = (n.z * 0.5 + 0.5) * 255;
-      out.data[i + 3] = 255;
-    }
-  ctx.putImageData(out, 0, 0);
-  return canvas;
-}
 export function disposeMaterial(material: THREE.Material) {
   for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
   material.dispose();
@@ -209,7 +183,8 @@ export function createMaterialLibrary(draw: () => void) {
   const load = (id: string, asset: TextureAsset) => {
     let image = images.get(id);
     if (!image || image.src !== asset.dataUrl) {
-      normals.delete(`asset:${id}`);
+      normals.clear();
+      roughness.clear();
       image = new Image();
       images.set(id, image);
       image.src = asset.dataUrl;
@@ -241,23 +216,43 @@ export function createMaterialLibrary(draw: () => void) {
       const appearance = body.appearance ?? defaultAppearance(body.material),
         preset = findPreset(appearance.preset);
       const placement = appearance.texture;
+      const physical = {
+        width: placement.width,
+        height: placement.height,
+        depth: appearance.bumpDepth ?? surfaceDepth(preset),
+      };
+      const cached = (
+        key: string,
+        source: CanvasImageSource,
+        kind: 'normal' | 'roughness',
+        legacy = false,
+      ) => {
+        const cache = kind === 'normal' ? normals : roughness;
+        const cacheKey = `${key}:${kind}:${kind === 'normal' ? JSON.stringify(legacy ? null : physical) : ''}`;
+        let result = cache.get(cacheKey);
+        if (!result) {
+          result = derivedCanvas(source, kind, legacy ? undefined : physical);
+          // Live texture scaling must not retain every intermediate full-size canvas.
+          if (cache.size >= 12) cache.delete(cache.keys().next().value!);
+          cache.set(cacheKey, result);
+        }
+        return result;
+      };
       let map: THREE.Texture | null = null,
         pattern: HTMLCanvasElement | undefined;
-      const imageMap = (id: string | undefined, color = false, bump = false) => {
+      const imageMap = (
+        id: string | undefined,
+        color = false,
+        derived?: 'normal' | 'roughness',
+        legacy = false,
+      ) => {
         if (!id || !assets[id]) return null;
         const image = load(id, assets[id]);
         const result = texture(image, color, placement);
         activeImages.set(result, image);
         result.addEventListener('dispose', () => activeImages.delete(result));
         wait(image, () => {
-          if (bump) {
-            let converted = normals.get(`asset:${id}`);
-            if (!converted) {
-              converted = heightNormal(image);
-              normals.set(`asset:${id}`, converted);
-            }
-            result.image = converted;
-          }
+          if (derived) result.image = cached(`asset:${id}`, image, derived, legacy);
           result.needsUpdate = true;
         });
         return result;
@@ -276,29 +271,22 @@ export function createMaterialLibrary(draw: () => void) {
       if (appearance.surfaceDetail !== false) {
         normalMap = appearance.maps?.normal
           ? imageMap(appearance.maps.normal)
-          : imageMap(appearance.maps?.bump, false, true);
+          : imageMap(appearance.maps?.bump, false, 'normal', appearance.bumpDepth === undefined);
         roughnessMap = imageMap(appearance.maps?.roughness);
+        if (appearance.generatedSurface && appearance.assetId) {
+          normalMap ??= imageMap(appearance.assetId, false, 'normal');
+          roughnessMap ??= imageMap(appearance.assetId, false, 'roughness');
+        }
         if (pattern) {
-          if (!normals.has(`preset:${preset.id}`))
-            normals.set(`preset:${preset.id}`, heightNormal(pattern));
-          if (!roughness.has(preset.id)) {
-            const c = document.createElement('canvas');
-            c.width = c.height = 512;
-            const ctx = c.getContext('2d')!;
-            ctx.drawImage(pattern, 0, 0);
-            const pixels = ctx.getImageData(0, 0, 512, 512);
-            for (let i = 0; i < pixels.data.length; i += 4) {
-              const value = 190 + (255 - pixels.data[i]) * 0.25;
-              pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
-            }
-            ctx.putImageData(pixels, 0, 0);
-            roughness.set(preset.id, c);
-          }
-          normalMap ??= texture(normals.get(`preset:${preset.id}`)!, false, placement);
-          roughnessMap ??= texture(roughness.get(preset.id)!, false, placement);
+          normalMap ??= texture(cached(`preset:${preset.id}`, pattern, 'normal'), false, placement);
+          roughnessMap ??= texture(
+            cached(`preset:${preset.id}`, pattern, 'roughness'),
+            false,
+            placement,
+          );
         }
       }
-      const strength = appearance.normalStrength ?? (preset.pattern === 'micro' ? 0.2 : 0.6);
+      const strength = surfaceStrength(appearance);
       const material = new THREE.MeshPhysicalMaterial({
         color: body.color,
         side: THREE.DoubleSide,
@@ -314,9 +302,23 @@ export function createMaterialLibrary(draw: () => void) {
         map,
         normalMap,
         roughnessMap,
-        normalScale: new THREE.Vector2(strength, strength),
+        normalScale: new THREE.Vector2(
+          strength,
+          appearance.maps?.normal && appearance.normalFormat === 'directx' ? -strength : strength,
+        ),
         metalnessMap: imageMap(appearance.maps?.metalness),
       });
+      if (
+        !appearance.maps?.normal &&
+        (appearance.maps?.bump
+          ? appearance.bumpDepth !== undefined
+          : !!pattern || (appearance.generatedSurface && appearance.assetId))
+      )
+        material.userData.physicalSurface = {
+          width: placement.width,
+          height: placement.height,
+          strength,
+        };
       const emission = emissionSettings(appearance, body.color);
       material.emissive.set(emission.color);
       material.emissiveIntensity = emission.enabled ? emission.intensity : 0;
@@ -337,4 +339,19 @@ export function createMaterialLibrary(draw: () => void) {
       failed.clear();
     },
   };
+}
+
+/** Keep physical relief constant while the texture is scaled interactively, without regenerating images per frame. */
+export function updateMaterialPlacement(
+  material: THREE.MeshPhysicalMaterial,
+  placement: TexturePlacement,
+) {
+  for (const value of Object.values(material))
+    if (value instanceof THREE.Texture) texturePlacement(value, placement);
+  const physical = material.userData.physicalSurface;
+  if (physical)
+    material.normalScale.set(
+      (physical.strength * physical.width) / placement.width,
+      (physical.strength * physical.height) / placement.height,
+    );
 }

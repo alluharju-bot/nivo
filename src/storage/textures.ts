@@ -1,4 +1,4 @@
-import type { TextureAsset } from '../model/materials';
+import type { Appearance, TextureAsset } from '../model/materials';
 
 export async function importTexture(
   file: File,
@@ -29,4 +29,18 @@ export async function importTexture(
   } finally {
     bitmap.close();
   }
+}
+
+/** A new color image keeps its native aspect unless the user explicitly unlocked it. */
+export function withColorTexture(appearance: Appearance, id: string, asset: TextureAsset) {
+  return {
+    ...appearance,
+    assetId: id,
+    texture: {
+      ...appearance.texture,
+      height: appearance.texture.lockAspect
+        ? Math.max(0.1, Math.min(100000, (appearance.texture.width * asset.height) / asset.width))
+        : appearance.texture.height,
+    },
+  };
 }

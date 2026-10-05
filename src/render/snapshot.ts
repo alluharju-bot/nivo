@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { omitPreviewLights } from './lights';
 
 export type RenderSnapshot = {
   scene: THREE.Scene;
@@ -18,6 +19,7 @@ export function captureRenderScene(
   camera.updateMatrixWorld(true);
   const snapshot = scene.clone(),
     resources = new Set<{ dispose: () => void }>();
+  omitPreviewLights(snapshot);
   const textures = new Map<THREE.Texture, THREE.Texture>();
   const copyTexture = (original: THREE.Texture) => {
     let texture = textures.get(original);

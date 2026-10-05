@@ -1,16 +1,18 @@
 import { useRef, useState } from 'react';
+import { EmissionControls } from './EmissionControls';
 import { CommitCheckbox } from './CommitCheckbox';
 import {
   defaultAppearance,
   findPreset,
-  emissionSettings,
+  surfaceDepth,
+  surfaceStrength,
   materialPresets,
   type Appearance,
   type CustomMaterial,
   type TextureAsset,
 } from '../model/materials';
 import type { Body } from '../model/project';
-import { importTexture } from '../storage/textures';
+import { importTexture, withColorTexture } from '../storage/textures';
 
 type Asset = { id: string; asset: TextureAsset };
 export type MaterialChange = (
@@ -35,7 +37,10 @@ export function SurfaceMaps({
   busy: boolean;
   onChange: MaterialChange;
 }) {
-  const defaultStrength = findPreset(appearance.preset).pattern === 'micro' ? 0.2 : 0.6;
+  const preset = findPreset(appearance.preset);
+  const defaultStrength = surfaceStrength(appearance);
+  const depth = appearance.bumpDepth ?? surfaceDepth(preset);
+  const legacyBump = !!appearance.maps?.bump && appearance.bumpDepth === undefined;
   const input = useRef<HTMLInputElement>(null),
     channel = useRef<(typeof channels)[number][0]>('normal');
   const [error, setError] = useState(''),
@@ -52,31 +57,90 @@ export function SurfaceMaps({
         />
         Kohokuvio ja karheuskartta
       </label>
-      <label>
-        Kohokuvion voimakkuus
-        <input
-          type="number"
-          aria-label="Kohokuvion voimakkuus"
-          min="0"
-          max="5"
-          step="0.1"
-          defaultValue={appearance.normalStrength ?? defaultStrength}
-          key={appearance.normalStrength ?? 'default'}
+      {appearance.assetId && (
+        <div className="surface-generate">
+          <label className="checkbox-label">
+            <CommitCheckbox
+              label="Luo rakenne värikuvasta"
+              checked={appearance.generatedSurface ?? false}
+              disabled={busy}
+              onChange={(generatedSurface) =>
+                onChange({ ...appearance, generatedSurface, surfaceDetail: true })
+              }
+            />
+            Luo rakenne värikuvasta
+          </label>
+          <p className="muted">
+            Luo normal- ja karheuskartan kuvan vaaleuseroista. Arvio pintarakenteesta; omat
+            PBR-kartat korvaavat sen.
+          </p>
+        </div>
+      )}
+      {legacyBump && (
+        <button
+          className="button outlined"
           disabled={busy}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-          }}
-          onBlur={(e) => {
-            const n = Number(e.target.value);
-            if (e.target.value && n >= 0 && n <= 5)
-              void onChange({ ...appearance, normalStrength: n });
-            else e.target.value = String(appearance.normalStrength ?? defaultStrength);
-          }}
-        />
-      </label>
+          onClick={() => void onChange({ ...appearance, bumpDepth: depth, normalStrength: 1 })}
+        >
+          Aseta kohokuvion syvyys millimetreinä
+        </button>
+      )}
+      {!legacyBump &&
+        !appearance.maps?.normal &&
+        (appearance.maps?.bump || appearance.generatedSurface || preset.pattern) && (
+          <label>
+            Kohokuvion syvyys (mm)
+            <input
+              aria-label="Kohokuvion syvyys"
+              type="number"
+              min="0"
+              max="20"
+              step="0.01"
+              disabled={busy}
+              key={depth}
+              defaultValue={depth}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              onBlur={(e) => {
+                const n = Number(e.target.value);
+                if (e.target.value && Number.isFinite(n) && n >= 0 && n <= 20)
+                  void onChange({ ...appearance, bumpDepth: n, normalStrength: 1 });
+                else e.target.value = String(depth);
+              }}
+            />
+          </label>
+        )}
+      {(appearance.maps?.normal ||
+        legacyBump ||
+        (appearance.normalStrength !== undefined && appearance.normalStrength !== 1)) && (
+        <label>
+          Kohokuvion voimakkuus
+          <input
+            type="number"
+            aria-label="Kohokuvion voimakkuus"
+            min="0"
+            max="5"
+            step="0.1"
+            defaultValue={appearance.normalStrength ?? defaultStrength}
+            key={appearance.normalStrength ?? 'default'}
+            disabled={busy}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
+            onBlur={(e) => {
+              const n = Number(e.target.value);
+              if (e.target.value && n >= 0 && n <= 5)
+                void onChange({ ...appearance, normalStrength: n });
+              else e.target.value = String(appearance.normalStrength ?? defaultStrength);
+            }}
+          />
+        </label>
+      )}
       <p className="muted">
         Valmiissa kuvioissa on normal- ja karheuskartat. Omat PBR-kuvat käyttävät samaa kokoa,
-        kiertoa ja sijaintia kuin värikuva. Normal-kartta: OpenGL (+Y). Valkoinen karheus on matta.
+        kiertoa ja sijaintia kuin värikuva. Valkoinen korkeuskartta on koholla; valkoinen karheus on
+        matta.
       </p>
       <input
         ref={input}
@@ -97,6 +161,11 @@ export function SurfaceMaps({
               {
                 ...appearance,
                 surfaceDetail: true,
+                ...(key === 'bump'
+                  ? { bumpDepth: depth, normalStrength: 1 }
+                  : key === 'normal'
+                    ? { normalFormat: 'opengl' as const, normalStrength: 1 }
+                    : {}),
                 maps: {
                   ...appearance.maps,
                   [key]: asset.id,
@@ -131,6 +200,13 @@ export function SurfaceMaps({
           </button>
           {appearance.maps?.[key] && (
             <>
+              {assets?.[appearance.maps[key]!] && (
+                <img
+                  className="surface-map-thumb"
+                  src={assets[appearance.maps[key]!].dataUrl}
+                  alt=""
+                />
+              )}
               <span title={assets?.[appearance.maps[key]!]?.name}>
                 {assets?.[appearance.maps[key]!]?.name}
               </span>
@@ -148,6 +224,22 @@ export function SurfaceMaps({
           )}
         </div>
       ))}
+      {appearance.maps?.normal && (
+        <label>
+          Normal-kartan suunta
+          <select
+            aria-label="Normal-kartan suunta"
+            value={appearance.normalFormat ?? 'opengl'}
+            disabled={busy}
+            onChange={(e) =>
+              void onChange({ ...appearance, normalFormat: e.target.value as 'opengl' | 'directx' })
+            }
+          >
+            <option value="opengl">OpenGL · +Y</option>
+            <option value="directx">DirectX · −Y</option>
+          </select>
+        </label>
+      )}
       {error && <p role="alert">{error}</p>}
     </details>
   );
@@ -171,7 +263,6 @@ export function ModelMaterials({
   const mixed = bodies.some(
     (b) => (b.appearance?.preset ?? b.material ?? 'matte') !== appearance.preset,
   );
-  const emission = emissionSettings(appearance, source.color);
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   return (
@@ -238,7 +329,7 @@ export function ModelMaterials({
             if (!file) return;
             try {
               const asset = await importTexture(file);
-              await onChange({ ...appearance, assetId: asset.id }, '#ffffff', asset);
+              await onChange(withColorTexture(appearance, asset.id, asset.asset), '#ffffff', asset);
               setError('');
             } catch (err) {
               setError((err as Error).message);
@@ -246,61 +337,12 @@ export function ModelMaterials({
           }}
         />
         {appearance.assetId && <span className="muted">{assets?.[appearance.assetId]?.name}</span>}
-        <label className="checkbox-label">
-          <CommitCheckbox
-            label="Valaiseva materiaali"
-            checked={emission.enabled}
-            disabled={busy}
-            onChange={(enabled) => onChange({ ...appearance, emission: { ...emission, enabled } })}
-          />
-          Valaiseva materiaali
-        </label>
-        {emission.enabled && (
-          <>
-            <label>
-              Valon tyyppi
-              <select
-                aria-label="Valon tyyppi"
-                value={emission.type}
-                disabled={busy}
-                onChange={(e) =>
-                  void onChange({
-                    ...appearance,
-                    emission: { ...emission, type: e.target.value as 'surface' | 'spot' },
-                  })
-                }
-              >
-                <option value="surface">Valaiseva pinta · LED</option>
-                <option value="spot">Kohdevalo · spotti</option>
-              </select>
-            </label>
-            <label>
-              Valon voimakkuus
-              <input
-                aria-label="Valon voimakkuus"
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                key={emission.intensity}
-                defaultValue={emission.intensity}
-                disabled={busy}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                }}
-                onBlur={(e) => {
-                  const n = Number(e.target.value);
-                  if (e.target.value && n >= 0 && n <= 100)
-                    void onChange({ ...appearance, emission: { ...emission, intensity: n } });
-                }}
-              />
-            </label>
-            <p className="muted">
-              Valon väriä, suuntaa ja keilaa voi viimeistellä Renderöi → Materiaali → Osa
-              valonlähteenä.
-            </p>
-          </>
-        )}
+        <EmissionControls
+          appearance={appearance}
+          color={source.color}
+          busy={busy}
+          onChange={onChange}
+        />
         <SurfaceMaps appearance={appearance} assets={assets} busy={busy} onChange={onChange} />
         {error && <p role="alert">{error}</p>}
       </div>

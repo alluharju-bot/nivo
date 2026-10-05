@@ -20,6 +20,9 @@ export const appearanceSchema = z.object({
     .optional(),
   normalStrength: z.number().min(0).max(5).optional(),
   surfaceDetail: z.boolean().optional(),
+  generatedSurface: z.boolean().optional(),
+  bumpDepth: z.number().min(0).max(20).optional(),
+  normalFormat: z.enum(['opengl', 'directx']).optional(),
   roughness: z.number().min(0).max(1).optional(),
   metalness: z.number().min(0).max(1).optional(),
   transmission: z.number().min(0).max(1).optional(),
@@ -467,5 +470,67 @@ export function emissionSettings(appearance: Appearance, color: string) {
       angle: 45,
       direction: '-z' as const,
     }
+  );
+}
+
+/** Millimetres from black to white; printed wood decor stays much flatter than solid wood. */
+export function surfaceDepth(preset: MaterialPreset) {
+  if (preset.category === 'Melamiinit' || preset.id.startsWith('melamine')) return 0.04;
+  if (preset.pattern === 'micro' || preset.pattern === 'brushed') return 0.025;
+  if (preset.pattern === 'marble' || preset.pattern === 'granite') return 0.04;
+  if (preset.pattern === 'slate' || preset.pattern === 'travertine') return 0.6;
+  if (preset.pattern === 'fiber') return 0.25;
+  return 0.2;
+}
+
+export const lightPresets = [
+  {
+    id: 'led-warm',
+    name: 'LED · lämmin 2700 K',
+    color: '#ffe0b1',
+    type: 'surface',
+    intensity: 8,
+    angle: 45,
+  },
+  {
+    id: 'led-neutral',
+    name: 'LED · neutraali 4000 K',
+    color: '#fff1df',
+    type: 'surface',
+    intensity: 8,
+    angle: 45,
+  },
+  {
+    id: 'backlight',
+    name: 'Taustavalo · pehmeä',
+    color: '#ffe7c7',
+    type: 'surface',
+    intensity: 4,
+    angle: 60,
+  },
+  {
+    id: 'spot-warm',
+    name: 'Spotti · lämmin 3000 K',
+    color: '#ffe6c5',
+    type: 'spot',
+    intensity: 12,
+    angle: 36,
+  },
+  {
+    id: 'spot-neutral',
+    name: 'Spotti · neutraali 4000 K',
+    color: '#fff1df',
+    type: 'spot',
+    intensity: 12,
+    angle: 60,
+  },
+] as const;
+
+export function surfaceStrength(appearance: Appearance) {
+  const legacy =
+    appearance.maps?.normal || (appearance.maps?.bump && appearance.bumpDepth === undefined);
+  return (
+    appearance.normalStrength ??
+    (legacy ? (findPreset(appearance.preset).pattern === 'micro' ? 0.2 : 0.6) : 1)
   );
 }

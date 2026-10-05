@@ -2,6 +2,31 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.18 — pintarakenteet ja valot saman työnkulun osina
+
+- Värikuvasta johdetut normal- ja karheuskartat ilman ylimääräisiä projektin
+  kuvatiedostoja. Tuodut PBR-kanavat ovat ensisijaisia, ja kuvasta johdetun
+  rakenteen arvioitu luonne kerrotaan käyttäjälle.
+- Bumpin alkuperäinen kuvasuhde, fyysinen kohokuvion syvyys millimetreinä,
+  tekstuurin skaalauksen aikainen reliefin säilyminen ja DirectX/OpenGL-valinta.
+  Värikuvan tuonti käyttää natiivia kuvasuhdetta sekä mallissa että renderissä.
+  Vanhan korkeuskartan voimakkuus säilyy, kunnes käyttäjä asettaa syvyyden.
+- Hillityt melamiini-, kalustelevy-, puu-, kivi- ja metallirakenteet. Kuva- ja
+  datakanavien väriavaruudet pysyvät erillisinä; omien karttojen pienet esikatselut.
+- Sama valaisineditori mallissa ja renderissä: lämmin/neutraali LED, taustavalo,
+  lämmin/neutraali spotti, väri, voimakkuus ja osan mukana kääntyvä suunta/keila.
+- LED valaisee nopeassa esikatselussa kahden laajan pinnan approksimaatiolla.
+  Esikatselussa kahdeksan voimakkainta LED-osaa, spotin varjot enintään kahdeksalle
+  spotille. Tarkentuva kuva ja taustalaskenta käyttävät kaikkia todellisia
+  emissiivisiä pintoja ilman esikatselun apuvalojen tuplalaskentaa.
+- Kierretyn spotin lähtöpiste lasketaan osan paikalliselta pinnalta.
+  Renderipaneelin kohde ja Materiaali/Kuva-vaihto pysyvät näkyvissä selattaessa.
+
+Jatkossa: lisensoidut valokuvatut PBR-materiaalipaketit, saumattoman kuvan valmistelu,
+kaarevien pintojen UV-saumat, emissiivisten pintojen tehokkaampi näytteistys ja kohinanpoisto, HDRI-ympäristöjen tuonti ja fotometriset
+IES-valoprofiilit. Nopean LED-esikatselun peittymisvarjot vaativat erillisen toteutuksen.
+Nykyinen bump/normal on valaistusdetalji; se ei ole geometrian displacement.
+
 ## V0.17.1 — kynän suora pinnanjako ja yhtenäinen Hold
 
 Tavallisen kappaleen tai avatun osan reunasta reunaan kulkeva kynäviiva

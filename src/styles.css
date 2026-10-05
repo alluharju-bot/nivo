@@ -2713,20 +2713,35 @@ p {
   pointer-events: none;
 }
 .render-panel {
-  overflow: auto;
-  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
   border-left: 1px solid var(--line);
   background: var(--paper);
 }
-.render-panel h2 {
-  font-size: 20px;
-  margin: 8px 0 24px;
+.render-panel-header {
+  flex-shrink: 0;
+  padding: 20px 20px 0;
+  border-bottom: 1px solid var(--line);
 }
-.render-panel > label {
+.render-panel-header > label[hidden] {
+  display: none;
+}
+.render-panel-scroll {
+  overflow: auto;
+  min-height: 0;
+  padding: 18px 20px 24px;
+}
+.render-panel h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+}
+.render-panel-header > label {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  margin: 16px 0;
+  margin: 12px 0;
 }
 .render-panel select {
   display: block;
@@ -2781,8 +2796,11 @@ p {
   .render-workspace {
     grid-template-columns: minmax(0, 1fr) 245px;
   }
-  .render-panel {
-    padding: 18px 14px;
+  .render-panel-header {
+    padding: 18px 14px 0;
+  }
+  .render-panel-scroll {
+    padding: 14px;
   }
   .render-toolbar {
     top: 10px;
@@ -5439,4 +5457,51 @@ p {
 }
 .selection-backdrop.side .selection-dialog {
   max-height: calc(100dvh - 100px);
+}
+
+.light-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.light-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+.light-editor .checkbox-label {
+  flex-direction: row;
+  align-items: center;
+}
+.light-editor select,
+.light-editor input {
+  width: 100%;
+  min-width: 0;
+}
+.light-editor input[type='checkbox'] {
+  width: auto;
+}
+.light-properties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.light-properties input[type='color'] {
+  height: 34px;
+}
+.surface-generate {
+  background: var(--panel-soft, #f3f5f1);
+  border-radius: 8px;
+  padding: 10px;
+}
+.surface-generate p {
+  margin-bottom: 0;
+}
+.surface-map-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 5px;
+  flex-shrink: 0;
 }
