@@ -10,14 +10,16 @@ import {
 import { guidePoints, lineIntersection, planeAxes } from './guides';
 import type { BodyMesh } from '../cad/protocol';
 import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
-import { dot, sub, projectOnLine } from './geometry';
+import { dot, sub } from './geometry';
 /** Lower is stronger: explicit vertices, midpoints, edges, then inference/grid. */
 export const snapPriority = (point: { key: string; label: string }) =>
-  /:mid:|:center$/.test(point.key) || /keskipiste/i.test(point.label)
-    ? 1
-    : /edge|:line/.test(point.key) || point.label === 'Reuna'
-      ? 2
-      : 0;
+  /^pen:/.test(point.key) || point.label === 'Viivan piste'
+    ? -1
+    : /:mid:|:center$/.test(point.key) || /keskipiste/i.test(point.label)
+      ? 1
+      : /edge|:line/.test(point.key) || point.label === 'Reuna'
+        ? 2
+        : 0;
 export const gridLength = (value: number, step: number, enabled = true) =>
   enabled ? Number((Math.round(value / step) * step).toPrecision(14)) : value;
 export interface Snap {
@@ -31,33 +33,55 @@ export interface ReferencePoint {
   label: string;
   key: string;
 }
-export function guideSnapCandidates(
-  raw: Vec3,
-  lines: { id: string; points: [Vec3, Vec3] }[],
-  threshold: number,
-) {
+export type SnapLine = { id: string; points: [Vec3, Vec3]; mode?: Guide['mode'] };
+/** Free measurements are finite segments; construction guides extend indefinitely. */
+export function onSnapLine(point: Vec3, line: SnapLine) {
+  if (line.mode !== 'free') return true;
+  const delta = sub(line.points[1], line.points[0]);
+  const t = dot(sub(point, line.points[0]), delta) / dot(delta, delta);
+  return t >= -1e-7 && t <= 1 + 1e-7;
+}
+export function closestOnSnapLine(raw: Vec3, line: SnapLine): Vec3 {
+  const delta = sub(line.points[1], line.points[0]);
+  const length2 = dot(delta, delta);
+  if (length2 < 1e-14) return line.points[0];
+  const t = dot(sub(raw, line.points[0]), delta) / length2;
+  const along = line.mode === 'free' ? Math.max(0, Math.min(1, t)) : t;
+  return line.points[0].map((n, i) => n + delta[i] * along) as Vec3;
+}
+export function guideSnapCandidates(raw: Vec3, lines: SnapLine[], threshold: number) {
   const candidates: (Snap & { priority: number })[] = [];
-  const nearby = lines.filter(({ id, points }) => {
-    const direction = sub(points[1], points[0]);
-    if (Math.hypot(...direction) < 1e-8) return false;
-    const point = projectOnLine(raw, points[0], direction);
+  const nearby = lines.filter((line) => {
+    const { id, points } = line;
+    if (Math.hypot(...sub(points[1], points[0])) < 1e-8) return false;
+    const point = closestOnSnapLine(raw, line);
     if (Math.hypot(...sub(point, raw)) > threshold * 1.5) return false;
+    const name = line.mode === 'free' ? 'Mittaviiva' : 'Apuviiva';
     candidates.push(
-      { point: points[0], key: `${id}:start`, label: 'Apuviivan alku', priority: 0 },
-      { point: points[1], key: `${id}:end`, label: 'Apuviivan pää', priority: 0 },
-      { point, key: `${id}:line`, label: 'Apuviiva', line: points, priority: 1 },
+      { point: points[0], key: `${id}:start`, label: `${name} · alku`, priority: -1 },
+      { point: points[1], key: `${id}:end`, label: `${name} · pää`, priority: -1 },
+      {
+        point: points[0].map((n, i) => (n + points[1][i]) / 2) as Vec3,
+        key: `${id}:mid`,
+        label: `${name} · keskipiste`,
+        priority: 0.5,
+      },
+      { point, key: `${id}:line`, label: name, line: points, priority: 1.5 },
     );
     return true;
   });
   for (let i = 0; i < nearby.length; i++)
     for (let j = i + 1; j < nearby.length; j++) {
       const point = lineIntersection(nearby[i].points, nearby[j].points);
-      if (point)
+      if (point && onSnapLine(point, nearby[i]) && onSnapLine(point, nearby[j]))
         candidates.push({
           point,
           key: `${nearby[i].id}:${nearby[j].id}:intersection`,
-          label: 'Apuviivojen risteys',
-          priority: 0,
+          label:
+            nearby[i].mode === 'free' || nearby[j].mode === 'free'
+              ? 'Mittaviivojen risteys'
+              : 'Apuviivojen risteys',
+          priority: -1,
         });
     }
   return candidates;
@@ -81,12 +105,11 @@ export function snapOnSketchPlane(
   const candidates: (Snap & { priority: number })[] = [...geometryPoints, ...extra]
     .filter((p) => onPlane(p.point))
     .map((p) => ({ ...p, priority: snapPriority(p) }));
-  const lines: { id: string; points: [Vec3, Vec3] }[] = [];
+  const lines: SnapLine[] = [];
   for (const guide of guides) {
-    if (guide.mode !== 'guide') continue;
     const ends = guidePoints(bodies, guide);
     if (!ends || !ends.every(onPlane)) continue;
-    lines.push({ id: guide.id, points: ends });
+    lines.push({ id: guide.id, points: ends, mode: guide.mode });
   }
   candidates.push(...guideSnapCandidates(raw, lines, threshold));
   const uv = toUV(raw, frame);
@@ -186,7 +209,7 @@ export function modelSnapPoints(bodies: Body[], meshes?: BodyMesh[]): ReferenceP
     const points: ReferencePoint[] = mesh
       ? mesh.verticesCAD.map((v) => ({
           point: v.point,
-          label: 'Verteksi',
+          label: mesh.faces?.length === 0 ? 'Viivan piste' : 'Verteksi',
           key: `${body.id}:${v.anchor.key}`,
         }))
       : body.feature.type === 'rectangle-extrusion'
@@ -245,9 +268,8 @@ export function snapPoint(
       options.meshes,
     ).map((p) => ({ ...p, priority: snapPriority(p) })),
   ];
-  const lines: { id: string; points: [Vec3, Vec3] }[] = [];
+  const lines: SnapLine[] = [];
   for (const guide of options.guides ?? []) {
-    if (guide.mode !== 'guide') continue;
     const pts = guidePoints(bodies, guide);
     if (!pts) continue;
     const [a, b] = pts.map((p) => [...p] as Vec3);
@@ -263,7 +285,7 @@ export function snapPoint(
       Math.abs(b[normal] - point[normal]) > 1e-5
     )
       continue;
-    lines.push({ id: guide.id, points: [a, b] });
+    lines.push({ id: guide.id, points: [a, b], mode: guide.mode });
   }
   candidates.push(...guideSnapCandidates(point, lines, threshold));
   const reference = options.reference;

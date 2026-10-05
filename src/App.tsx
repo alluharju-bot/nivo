@@ -163,6 +163,7 @@ import {
   guidePoints,
   guideMeasurement,
   guideVector,
+  guidePlaneNormal,
   guideDirection,
   parseAngle,
   resolveAnchor,
@@ -1242,7 +1243,7 @@ export default function App() {
   const makeGuide = (): Guide | undefined => {
     const draft = guideRef.current;
     if (!draft || measureMode === 'dimension') return;
-    return {
+    const guide: Guide = {
       id: draft.id ?? draftId,
       anchor: draft.anchor,
       plane: draft.plane,
@@ -1251,11 +1252,20 @@ export default function App() {
       length: parseLength(fieldsRef.current.length),
       angle: parseAngle(fieldsRef.current.angle),
       direction: draft.direction,
-      offset: draft.offset
-        ? scaleVector(unit(draft.offset), parseLength(fieldsRef.current.offset, true, true))
-        : undefined,
       xray: draft.xray,
     };
+    if (draft.offset) {
+      // Typing an offset immediately after picking an edge must work even
+      // while the pointer is still exactly on that edge (zero-length offset).
+      const direction =
+        Math.hypot(...draft.offset) > 1e-8
+          ? unit(draft.offset)
+          : axis
+            ? axisVector(axis)
+            : unit(cross(guidePlaneNormal(guide), guideVector(guide)));
+      guide.offset = scaleVector(direction, parseLength(fieldsRef.current.offset, true, true));
+    }
+    return guide;
   };
   const guidePreview = useMemo(() => {
     try {
@@ -1263,7 +1273,7 @@ export default function App() {
     } catch {
       return undefined;
     }
-  }, [guideDraft, fields, measureMode, draftId]);
+  }, [guideDraft, fields, measureMode, draftId, axis]);
   const precisePenPoint = (point: Vec3): Vec3 => {
     const start = penRef.current.at(-1);
     if (!start) return point;
@@ -5542,7 +5552,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.19.0</span>
+                    <span>v0.19.1</span>
                   </div>
                 </>
               )}

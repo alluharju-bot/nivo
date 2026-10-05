@@ -130,7 +130,7 @@ describe('guide measurements and intersections', () => {
     expect(tilted.point[1]).toBeCloseTo(100);
     expect(tilted.point[2]).toBeCloseTo(200);
   });
-  it('does not invent crossings for skew, parallel, or free measurement lines', () => {
+  it('rejects skew and parallel crossings and includes finite measurement crossings', () => {
     expect(
       lineIntersection(
         [
@@ -159,6 +159,68 @@ describe('guide measurements and intersections', () => {
       plane: 'XZ',
       guides: [vertical, { ...horizontal, mode: 'free' }],
     });
-    expect(result.label).toBe('Apuviiva');
+    expect(result.label).toBe('Mittaviivojen risteys');
+  });
+});
+
+describe('exact construction sizes with a 10 mm grid', () => {
+  it.each([13, 38, 48, 66, 92, 98, 123, 148, 173, 198])(
+    'retains the exact %s mm endpoint before considering grid steps',
+    (size) => {
+      const line: Guide = {
+        ...horizontal,
+        mode: 'free',
+        anchor: { point: [size, 0, 13] },
+        direction: [0, 1, 0],
+        plane: 'XY',
+      };
+      const snap = snapOnSketchPlane(
+        [size + 2, 1, 13],
+        sketchFrame([0, 0, 13]),
+        [],
+        [],
+        [line],
+        8,
+        true,
+      );
+      expect(snap.point).toEqual([size, 0, 13]);
+      expect(snap.label).toBe('Mittaviiva · alku');
+    },
+  );
+  it('keeps finite measurement segments finite, including intersections', () => {
+    const segment: Guide = {
+      ...horizontal,
+      mode: 'free',
+      anchor: { point: [0, 0, 0] },
+      length: 98,
+      plane: 'XY',
+    };
+    const crossing: Guide = {
+      ...vertical,
+      anchor: { point: [148, 0, 0] },
+      direction: [0, 1, 0],
+      plane: 'XY',
+    };
+    const result = snapOnSketchPlane(
+      [148, 1, 0],
+      sketchFrame([0, 0, 0]),
+      [],
+      [],
+      [segment, crossing],
+      8,
+      true,
+    );
+    expect(result.key).not.toContain('intersection');
+    const beyond = snapOnSketchPlane(
+      [123, 1, 0],
+      sketchFrame([0, 0, 0]),
+      [],
+      [],
+      [segment],
+      8,
+      true,
+    );
+    expect(beyond.key).toBe('grid');
+    expect(beyond.point).toEqual([120, 0, 0]);
   });
 });

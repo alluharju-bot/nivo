@@ -49,6 +49,9 @@ test('a floor extruded below zero offers its top and bottom edges to constructio
       y: rect.y + ((1 - p.y) * rect.height) / 2,
     };
     await page.mouse.move(at.x, at.y);
+    await expect
+      .poll(async () => JSON.parse((await canvas.getAttribute('data-snap-point'))!)[2])
+      .toBeCloseTo(point[2], 7);
     await expect(page.getByTestId('snap-hint')).toContainText('Reuna');
     const snapped = JSON.parse((await canvas.getAttribute('data-snap-point'))!);
     point.forEach((n, i) => expect(snapped[i]).toBeCloseTo(n, i === 0 ? 2 : 7));
@@ -82,7 +85,7 @@ test('rectangle acquires a guide and its plane in open space, with no phantom gr
   await page.keyboard.press('s');
   const at = p(520, 37.125, 400);
   await page.mouse.move(at.x, at.y + 3);
-  await expect(page.getByTestId('snap-hint')).toHaveText('Apuviiva');
+  await expect(page.getByTestId('snap-hint')).toContainText('Apuviiva');
   const start = JSON.parse((await page.getByTestId('viewport').getAttribute('data-snap-point'))!);
   expect(start[1]).toBeCloseTo(37.125, 7);
   expect(start[2]).toBeCloseTo(400, 7);
@@ -113,7 +116,7 @@ test('a guide raised 800 mm from a floor can be offset another 1000 mm and start
   const p = await view(page, [wall, floor], 'front');
   await page.keyboard.press('t');
   await page.mouse.move(p(1400, 37.125, 800).x, p(1400, 37.125, 800).y);
-  await expect(page.getByTestId('snap-hint')).toHaveText('Apuviiva');
+  await expect(page.getByTestId('snap-hint')).toContainText('Apuviiva');
   await click(page, p(1400, 37.125, 800));
   await page.mouse.move(p(1400, 37.125, 1800).x, p(1400, 37.125, 1800).y);
   await expect(page.getByTestId('guide-length')).toHaveValue('1000');
@@ -122,7 +125,7 @@ test('a guide raised 800 mm from a floor can be offset another 1000 mm and start
   await page.keyboard.press('s');
   const at = p(1200, 37.125, 1800);
   await page.mouse.move(at.x, at.y + 2);
-  await expect(page.getByTestId('snap-hint')).toHaveText('Apuviiva');
+  await expect(page.getByTestId('snap-hint')).toContainText('Apuviiva');
   await click(page, { x: at.x, y: at.y + 2 });
   await click(page, p(1800, 37.125, 800));
   const result = await save(page);
@@ -165,8 +168,9 @@ test('negative floor edges also acquire in perspective including the bottom silh
       rect.y + ((1 - p.y) * rect.height) / 2,
     );
     await expect(page.getByTestId('snap-hint')).toContainText('Reuna');
-    const hit = JSON.parse((await canvas.getAttribute('data-snap-point'))!);
-    expect(hit[2]).toBeCloseTo(point[2], 6);
+    await expect
+      .poll(async () => JSON.parse((await canvas.getAttribute('data-snap-point'))!)[2])
+      .toBeCloseTo(point[2], 6);
   }
 });
 

@@ -1,3 +1,4 @@
+import { pointMarker } from './pointMarker';
 import { createWorkspaceViews } from './workspaceViews';
 import { prioritizeSurface } from './surfaceDepth';
 import { createMaterialLibrary, materialUV, disposeMaterial } from '../render/materials';
@@ -116,6 +117,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     );
     bodyBatches.updateVisibility();
     moveBatches.updateVisibility();
+    for (const marker of guides.children) {
+      if (!marker.userData.annotationPoint) continue;
+      const p = marker.position.clone().project(camera);
+      marker.visible =
+        Math.abs(p.z) <= 1 && (marker.userData.xray || !labelOccluded?.(marker.position));
+    }
     renderer.render(scene, camera);
     renderer.domElement.dataset.triangles = String(renderer.info.render.triangles);
     renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls);
@@ -210,7 +217,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   const disposeGroup = (group: THREE.Group) => {
     group.traverse((obj) => {
-      if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.Line || obj instanceof THREE.Points) {
         if (!obj.userData.sharedGeometry) obj.geometry.dispose();
         (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(disposeMaterial);
       }
@@ -975,6 +982,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       line.renderOrder = 80;
       line.userData = { guideId: guide.id, xray };
       guides.add(line);
+      for (const point of points) {
+        const marker = pointMarker(point, color, 12);
+        marker.userData = { annotationPoint: true, xray };
+        guides.add(marker);
+      }
       if (isGuide) {
         const direction = vectors[1].clone().sub(vectors[0]).normalize();
         const extension = makeLine(
@@ -1011,21 +1023,38 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         xray,
       });
     }
+    // Finished open pen paths keep their actual CAD vertices visible too.
+    // Avoid tessellation points on circles, fillets and solid model edges.
+    for (const mesh of props.meshes) {
+      if (mesh.faces.length) continue;
+      for (const vertex of mesh.verticesCAD) {
+        const marker = pointMarker(vertex.point, '#237b65', 12);
+        marker.userData = { annotationPoint: true, xray: false };
+        guides.add(marker);
+      }
+    }
     if (props.penPoints.length) {
       const points = [...props.penPoints];
       if (props.penHover) points.push(props.penHover);
-      guides.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(points.map((p) => new THREE.Vector3(...p))),
-          new THREE.LineBasicMaterial({ color: '#237b65', depthTest: false }),
-        ),
-      );
-      props.penPoints.forEach((p, i) => {
-        const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(i === 0 ? 6 : 4, 12, 8),
-          new THREE.MeshBasicMaterial({ color: i === 0 ? '#ca883e' : '#237b65', depthTest: false }),
+      if (points.length > 1) {
+        const geometry = new LineGeometry();
+        geometry.setPositions(points.flat());
+        const path = new Line2(
+          geometry,
+          new LineMaterial({
+            color: '#237b65',
+            linewidth: 2.5,
+            depthTest: false,
+            depthWrite: false,
+            resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
+          }),
         );
-        marker.position.set(...p);
+        path.renderOrder = 90;
+        guides.add(path);
+      }
+      props.penPoints.forEach((p, i) => {
+        const marker = pointMarker(p, i === 0 ? '#f0a12c' : '#237b65', i === 0 ? 14 : 12);
+        marker.userData = { annotationPoint: true, xray: true };
         guides.add(marker);
       });
     }
@@ -1176,7 +1205,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       modelDimensions.dispose();
       pointDimensions.dispose();
       scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Line || obj instanceof THREE.Points) {
           obj.geometry.dispose();
           (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
         }
@@ -1280,6 +1309,7 @@ export function Viewport(props: Props) {
       props.penPoints,
       props.penHover,
       props.bodies,
+      props.meshes,
       props.guideXray,
       props.selectedGuideId,
     ],

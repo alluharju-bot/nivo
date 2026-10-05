@@ -4,6 +4,47 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.19.1 — pisteiden näkyvyys ja mittauksen tartunnat
+
+**227 yksikkö-/CAD-testiä hyväksytty (44 tiedostoa)**. TypeScript ja tuotantobuild
+hyväksytty. Uudet mallikokeet tarkistavat 13, 38, 48, 66, 92, 98, 123, 148, 173
+ja 198 mm:n tarkat mittaviivan päätepisteet 10 mm:n ruudukosta riippumatta.
+Vapaiden mittaviivojen todelliset risteykset tarttuvat; kuvitteelliset jatkeet eivät.
+
+Selainkokeet tarkistavat mittaviivan pään etusijan läheiseen mallin kulmaan,
+17 px:n päässä olevan kohdistimen tartunnan, mittaamisen viivojen risteykseen,
+kynäviivan tarkan aloituksen ja valmiin viivan pisteen tartunnan. Perspektiivissä
+mitataan 98 × 48 × 13 mm:n kappaleen kaikki kolme mittaa 10 mm:n ruudukolla.
+Kuvatarkistukset laskevat päätepisteen vaalean kehän pikselit ennen zoomausta
+ja sen jälkeen sekä Fillet-reunan oranssit pikselit.
+
+Regressiotarkistuksessa löydettiin ja korjattiin myös kaksi reunatapausta:
+suurempi tartunta-alue poimi viereisen, ohuen levyn eri reunalla olevan keskipisteen;
+ja välittömästi reunaan tarttumisen jälkeen kirjoitettu apuviivan etäisyys jäi
+nollaksi, koska siirtymävektorilla ei vielä ollut suuntaa. Ensimmäinen tarkistus
+suojaa täsmällisesti osoitettua reunaa. Toinen käyttää valittua akselia tai
+piirtotason kohtisuoraa suuntaa, kun hiiri ei ole vielä liikkunut reunasta.
+
+Shift-push/pullin kulma-, keskipiste-, reuna- ja keskipistetavoitteet tarkistettiin
+kolmesta pääsuunnasta. Kynän välitön pinnanjako, Shift-suuntalukko, Hold,
+apuviivojen ketjutus ja siirrettävään osaan kiinnitettyjen apuviivojen ohitus
+läpäisivät regressioajon. Muutokset ovat paikallisessa versiossa 0.19.1.
+
+Lopullinen tuotantobuild hyväksyi **35 selaintapausta (17 desktop, 18 tabletti)**.
+Yksi vain kosketukselle tarkoitettu tapaus ohitettiin desktopilla. Mukana ovat
+suorat ja kaarevat Fillet-reunat, hyväksyntä, Peru/Palauta, monivalinta, Hold,
+pointercancel/blur, kahden sormen peruminen sekä kaikki uudet piste- ja mittakokeet.
+Muotoilutarkistus hyväksytty, paikallinen palvelin vastaa osoitteessa 127.0.0.1:5173.
+
+```sh
+npm test
+npm run build
+npm run format:check
+NIVO_PREVIEW=1 npx playwright test tests/snap-annotations.spec.ts tests/measure-targets.spec.ts tests/guide-surface-start.spec.ts tests/edge-detail.spec.ts --grep-invert 'all-edge|reopening|reopen|repeated|four|three|invalid|oversized' --output=/private/tmp/nivo-snap-v0191-final
+```
+
+![Oranssi osoitus ja erottuva reunavalinta](images/nivo-edge-highlight-v0191.png)
+
 ## V0.19 — jaetut tekstuurit ja pintatyökalut
 
 **216 yksikkö-/CAD-testiä hyväksytty (44 tiedostoa)**. TypeScript,

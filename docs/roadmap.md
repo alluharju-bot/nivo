@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.19.1 — selkeät pisteet ja tarkat tartunnat
+
+- Mittaviivojen sekä keskeneräisten ja valmiiden kynäviivojen pisteet näkyvät
+  reunustettuina merkkeinä, joiden koko säilyy zoomatessa. Kynän viiva on aiempaa paksumpi.
+- Tartunta perustuu näytön pikseleihin: kulma/päätepiste 20 px, keskipiste 16 px
+  ja viiva 12 px; kosketuksella 28/22/18 px. Lähennys erottaa lähekkäiset kohteet.
+- Myös vapaan mittaviivan päät, keskipiste, viiva ja risteykset ovat tartuntakohteita.
+  Apuviivat jatkuvat, mutta vapaan mittaviivan kuvitteelliseen jatkeeseen ei tartuta.
+  Viivojen päät ja risteykset ovat ensisijaisia suhteessa mallin pisteisiin.
+- Tarkasti osoitettu levyn reuna ei vaihdu ohuen levyn vastakkaisen reunan
+  keskipisteeksi. Apuviivan etäisyyden voi kirjoittaa myös heti reunaan tartuttua.
+- Reunatyökalun osoitettu reuna on oranssi 4,5 px:n viiva; valitut reunat näkyvät
+  tummempana 3,5 px:n viivana. Korostus kattaa myös kaarevat CAD-reunat.
+- Ruudukko porrastaa vapaan sijoittelun. Geometrian, apuviivan tai mittaviivan
+  tarkkaa kohdetta ei pyöristetä. Numerosyöttö säilyy tarkkana; zoom ei muuta
+  ruudukon askelta, jonka voi säätää asetuksista tai kytkeä pois.
+
 ## V0.19 — rakennuspinnat ja jatkuva pintojen käsittely
 
 - 53 materiaalia: uutena sileä/karkea maalattu kipsi, tasoitettu seinä,

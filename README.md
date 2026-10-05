@@ -3,7 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.19.0** lisää maalatut kipsipinnat, tasoitetun seinän, raa'an ja
+Versio **0.19.1** selkeyttää mitta- ja kynäviivojen pisteitä sekä reunatyökalun
+oranssia korostusta. Päätepisteet ja risteykset tarttuvat myös kauempaa;
+ruudukko ohjaa vapaata asettelua, mutta geometriaan tarttuminen säilyttää
+esimerkiksi 13, 48 ja 98 mm:n tarkat mitat. Ruudukon askelta voi muuttaa asetuksista.
+
+Versio **0.19.0** lisäsi maalatut kipsipinnat, tasoitetun seinän, raa'an ja
 liipatun betonin, lisää kiviä, kolme laattapintaa ja öljytyn pähkinän: yhteensä
 53 materiaalia. Materiaalihaku ja renderin jatkuvat **Valitse / Tekstuuri / Maalaa**
 -työkalut nopeuttavat pintojen käsittelyä. Samat materiaalikuvat jaetaan osien

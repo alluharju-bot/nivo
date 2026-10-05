@@ -1,3 +1,7 @@
+import { pointMarker } from './pointMarker';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { rotationAngle } from '../model/rotationSnap';
 import { sectionDistance } from '../model/sections';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
@@ -42,6 +46,8 @@ import {
 import {
   modelSnapPoints,
   snapPriority,
+  onSnapLine,
+  closestOnSnapLine,
   gridLength,
   snapPoint,
   snapOnSketchPlane,
@@ -169,10 +175,7 @@ export function installInteractions({
   overlay.name = 'interaction-overlays';
   scene.add(overlay);
   const makeMarker = (color: string) => {
-    const marker = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 12, 8),
-      new THREE.MeshBasicMaterial({ color, depthTest: false }),
-    );
+    const marker = pointMarker([0, 0, 0], color, 14);
     marker.renderOrder = 100;
     marker.visible = false;
     overlay.add(marker);
@@ -206,6 +209,26 @@ export function installInteractions({
   boundaryHighlight.renderOrder = 100;
   boundaryHighlight.visible = false;
   overlay.add(boundaryHighlight);
+  const makeDetailLine = (color: string, width: number) => {
+    const line = new LineSegments2(
+      new LineSegmentsGeometry(),
+      new LineMaterial({
+        color,
+        linewidth: width,
+        toneMapped: false,
+        depthTest: false,
+        depthWrite: false,
+        resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
+      }),
+    );
+    line.visible = false;
+    line.renderOrder = 100;
+    overlay.add(line);
+    return line;
+  };
+  const detailSelected = makeDetailLine('#b87424', 3.5);
+  const detailHover = makeDetailLine('#f0a12c', 4.5);
+  detailHover.renderOrder = 101;
   const highlightEdge = (edge?: { start: Vec3; end: Vec3 }) => {
     edgeHighlight.visible = !!edge;
     canvas.dataset.hoverEdge = edge ? JSON.stringify([edge.start, edge.end]) : '';
@@ -435,12 +458,12 @@ export function installInteractions({
       frame,
       p.bodies,
       p.meshes,
-      p.guides,
+      event ? [] : p.guides,
       worldPerPixel(point) * 12,
       p.gridSnap,
       reference(),
       start,
-      extra,
+      event ? [] : extra,
       p.gridStep,
       p.tool === 'rectangle' ? 'coordinates' : 'length',
       event ? [] : undefined,
@@ -513,6 +536,10 @@ export function installInteractions({
       );
     }
   };
+  const snapRadius = (event: PointerEvent, kind: 'point' | 'mid' | 'line') =>
+    (event.pointerType === 'touch'
+      ? { point: 28, mid: 22, line: 18 }
+      : { point: 20, mid: 16, line: 12 })[kind];
   const nearby = (event: PointerEvent) => {
     refreshLookup();
     const rect = canvas.getBoundingClientRect();
@@ -521,8 +548,8 @@ export function installInteractions({
       camera(),
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       1 - ((event.clientY - rect.top) / rect.height) * 2,
-      30 / rect.width,
-      30 / rect.height,
+      (2 * snapRadius(event, 'point')) / rect.width,
+      (2 * snapRadius(event, 'point')) / rect.height,
     );
     return ids
       ? ids.map((id) => meshById.get(id)).filter((m): m is NonNullable<typeof m> => !!m)
@@ -572,7 +599,12 @@ export function installInteractions({
         depth: screen(p.point).z,
         priority: snapPriority(p),
       }))
-      .filter((p) => p.distance < (p.priority === 0 ? 13 : 10) && p.depth >= -1 && p.depth <= 1)
+      .filter(
+        (p) =>
+          p.distance < snapRadius(event, p.priority <= 0 ? 'point' : 'mid') &&
+          p.depth >= -1 &&
+          p.depth <= 1,
+      )
       .sort(
         (a, b) =>
           a.priority - b.priority ||
@@ -722,7 +754,7 @@ export function installInteractions({
   const sketchStartAt = (event: PointerEvent) => {
     const props = current(),
       target = sketchSurfaceAt(event);
-    const guide = nearest(event, false, () => true, true) ? undefined : guideAt(event);
+    const guide = pickReference(event, () => true, true).guide;
     const guideOwnsPlane =
       guide && (!target || Math.abs(dot(sub(guide.point, target.point), target.normal)) > 1e-5);
     const image = target || guide ? undefined : referenceImageAt(event);
@@ -914,7 +946,7 @@ export function installInteractions({
           );
           const distance = Math.hypot(x - p.x - t * dx, y - p.y - t * dy),
             depth = p.z + t * (q.z - p.z);
-          if (distance < 12 && depth >= -1 && depth <= 1)
+          if (distance < snapRadius(event, 'line') && depth >= -1 && depth <= 1)
             candidates.push({
               bodyId: mesh.id,
               index: edge.index,
@@ -938,20 +970,23 @@ export function installInteractions({
   };
   const highlightDetail = (hover?: { bodyId: string; index: number }) => {
     const selected = current().detailTarget;
-    const lines = current().meshes.flatMap((m) =>
-      (m.sourceDetailEdges ?? m.detailEdges ?? [])
-        .filter(
-          (e) =>
-            (m.id === selected?.bodyId && selected.indices.includes(e.index)) ||
-            (m.id === hover?.bodyId && hover.index === e.index),
-        )
-        .flatMap((e) => e.lines),
-    );
-    boundaryHighlight.geometry.dispose();
-    boundaryHighlight.geometry = new THREE.BufferGeometry();
-    boundaryHighlight.geometry.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
-    (boundaryHighlight.material as THREE.LineBasicMaterial).color.set('#267aa8');
-    boundaryHighlight.visible = lines.length > 0;
+    for (const [line, matches] of [
+      [
+        detailSelected,
+        (id: string, index: number) => id === selected?.bodyId && selected.indices.includes(index),
+      ],
+      [detailHover, (id: string, index: number) => id === hover?.bodyId && hover.index === index],
+    ] as const) {
+      const positions = current().meshes.flatMap((m) =>
+        (m.sourceDetailEdges ?? m.detailEdges ?? [])
+          .filter((e) => matches(m.id, e.index))
+          .flatMap((e) => e.lines),
+      );
+      line.geometry.dispose();
+      line.geometry = new LineSegmentsGeometry();
+      if (positions.length) line.geometry.setPositions(positions);
+      line.visible = positions.length > 0;
+    }
     canvas.dataset.detailHover = hover ? `${hover.bodyId}:${hover.index}` : '';
     render();
   };
@@ -1010,7 +1045,7 @@ export function installInteractions({
           };
         }),
       )
-      .filter((e) => e.distance < 12 && e.depth >= -1 && e.depth <= 1)
+      .filter((e) => e.distance < snapRadius(event, 'line') && e.depth >= -1 && e.depth <= 1)
       .sort((a, b) =>
         Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
       );
@@ -1054,65 +1089,140 @@ export function installInteractions({
       const hit = intersectModel(ray, bodies).find((h) => h.object instanceof THREE.Mesh);
       return !hit || hit.distance >= ray.ray.origin.distanceTo(p) - worldPerPixel(point) * 0.5;
     };
+    type Candidate = {
+      guide: (typeof props.guides)[number];
+      point: Vec3;
+      key: string;
+      label: string;
+      kind: 'start' | 'end' | 'mid' | 'line' | 'intersection';
+      priority: number;
+      intersection: boolean;
+      anchor: Anchor;
+      line?: [Vec3, Vec3];
+    };
+    const candidates: Candidate[] = [];
     const near = props.guides
       .filter(
         (g) =>
-          g.mode === 'guide' &&
           g.id !== props.guidePreview?.id &&
           !excludedBodies.includes(anchorBodyId(g.anchor) ?? '') &&
           (!g.endAnchor || !excludedBodies.includes(anchorBodyId(g.endAnchor) ?? '')),
       )
       .flatMap((guide) => {
         const points = guidePoints(props.bodies, guide);
-        if (!points) return [];
-        const point = linePoint(event, points[0], guideVector(guide));
-        return distance(point) < 12 && visible(point, !!guide.xray)
-          ? [{ guide, points, point }]
-          : [];
+        if (!points || Math.hypot(...sub(points[1], points[0])) < 1e-8) return [];
+        const source = { id: guide.id, points, mode: guide.mode };
+        const point = closestOnSnapLine(
+          linePoint(event, points[0], unit(sub(points[1], points[0]))),
+          source,
+        );
+        if (distance(point) > snapRadius(event, 'point')) return [];
+        const name = guide.mode === 'free' ? 'Mittaviiva' : 'Apuviiva';
+        const append = (
+          point: Vec3,
+          kind: 'start' | 'end' | 'mid' | 'line',
+          priority: number,
+          label: string,
+        ) => {
+          if (
+            accepts(point) &&
+            distance(point) <=
+              snapRadius(event, kind === 'line' ? 'line' : kind === 'mid' ? 'mid' : 'point') &&
+            visible(point, !!guide.xray)
+          )
+            candidates.push({
+              guide,
+              point,
+              kind,
+              priority,
+              key: `${guide.id}:${kind}`,
+              label,
+              intersection: false,
+              anchor: { point },
+              line: kind === 'line' ? points : undefined,
+            });
+        };
+        append(points[0], 'start', -1, `${name} · alku`);
+        append(points[1], 'end', -1, `${name} · pää`);
+        append(scale(add(points[0], points[1]), 0.5), 'mid', 0.5, `${name} · keskipiste`);
+        append(point, 'line', 1.5, name);
+        return [{ guide, points, source }];
       });
-    const candidates = near
-      .filter(({ point }) => accepts(point))
-      .map(({ guide, point }) => ({
-        guide,
-        point,
-        key: `${guide.id}:line`,
-        label: 'Apuviiva',
-        intersection: false,
-      }));
     for (let i = 0; i < near.length; i++)
       for (let j = i + 1; j < near.length; j++) {
         const point = lineIntersection(near[i].points, near[j].points);
         if (
           point &&
+          onSnapLine(point, near[i].source) &&
+          onSnapLine(point, near[j].source) &&
           accepts(point) &&
-          distance(point) < 12 &&
+          distance(point) <= snapRadius(event, 'point') &&
           visible(point, !!near[i].guide.xray && !!near[j].guide.xray)
         )
           candidates.push({
             guide: near[i].guide,
             point,
             key: `${near[i].guide.id}:${near[j].guide.id}:intersection`,
-            label: 'Apuviivojen risteys',
+            label:
+              near[i].guide.mode === 'free' || near[j].guide.mode === 'free'
+                ? 'Mittaviivojen risteys'
+                : 'Apuviivojen risteys',
+            kind: 'intersection',
+            priority: -1,
             intersection: true,
+            anchor: { point },
           });
       }
     return candidates
       .sort(
         (a, b) =>
-          Number(b.intersection) - Number(a.intersection) || distance(a.point) - distance(b.point),
+          a.priority - b.priority ||
+          (Math.hypot(...sub(a.point, b.point)) < 1e-5
+            ? Number(b.intersection) - Number(a.intersection)
+            : distance(a.point) - distance(b.point)),
       )
       .at(0);
+  };
+  const pickReference = (
+    event: PointerEvent,
+    accepts: (point: Vec3) => boolean,
+    surfaceOnly = false,
+  ) => {
+    const edge = edgeAt(event, accepts);
+    // A larger acquisition radius must not pull an exactly aimed edge onto
+    // the other side of a thin board. Prefer points on that edge in this case.
+    const onAimedEdge = (point: Vec3) =>
+      !edge ||
+      edge.distance > 2 ||
+      Math.hypot(...sub(point, projectOnLine(point, edge.edge.start, edge.direction))) < 1e-5;
+    let point = nearest(event, false, accepts, surfaceOnly);
+    if (point && point.priority >= 0 && point.distance > 6 && !onAimedEdge(point.point))
+      point = nearest(event, false, (p) => accepts(p) && onAimedEdge(p), surfaceOnly);
+    const guide = guideAt(event, [], accepts);
+    if (guide && (!point || guide.priority < point.priority)) {
+      highlightEdge();
+      return { guide };
+    }
+    if (point) {
+      highlightEdge();
+      return { point };
+    }
+    highlightEdge(edge?.edge);
+    return { edge };
   };
   // Both endpoints use the same screen-space candidates. Filter before choosing
   // the nearest point so an off-plane corner cannot mask an eligible midpoint.
   const measureTargetAt = (
     event: PointerEvent,
     accepts: (point: Vec3) => boolean,
-  ): (Snap & { anchor?: Anchor }) | undefined => {
-    const point = nearest(event, false, accepts);
-    const edge = point ? undefined : edgeAt(event, accepts);
-    const guide = !point && !edge ? guideAt(event, [], accepts) : undefined;
-    highlightEdge(edge?.edge);
+  ):
+    | (Snap & {
+        anchor?: Anchor;
+        sourceEdge?: ReturnType<typeof edgeAt>;
+        sourceGuide?: ReturnType<typeof guideAt>;
+      })
+    | undefined => {
+    const { point, edge, guide } = pickReference(event, accepts);
     if (point) {
       const vertex = current()
         .meshes.flatMap((m) => m.verticesCAD)
@@ -1144,7 +1254,19 @@ export function installInteractions({
           : body
             ? referenceAnchor(body, point.point)
             : { point: point.point });
-      return { ...point, anchor };
+      const sourceEdge =
+        point.priority > 0 && !point.key.endsWith(':center')
+          ? edgeAt(
+              event,
+              (p) =>
+                Math.hypot(...sub(p, point.point)) < worldPerPixel(p) * snapRadius(event, 'mid'),
+            )
+          : undefined;
+      return {
+        ...point,
+        anchor,
+        sourceEdge: sourceEdge ? { ...sourceEdge, point: point.point } : undefined,
+      };
     }
     if (edge)
       return {
@@ -1152,8 +1274,9 @@ export function installInteractions({
         key: 'edge-target',
         label: 'Reuna',
         anchor: edge.anchor,
+        sourceEdge: edge,
       };
-    if (guide && accepts(guide.point)) return guide;
+    if (guide) return { ...guide, sourceGuide: guide };
   };
   // Drawing and reference picking share the same visible, screen-space targets.
   // A guide intersection wins over an arbitrary point on a nearby edge.
@@ -1162,22 +1285,18 @@ export function installInteractions({
     accepts: (point: Vec3) => boolean = () => true,
     surfaceOnly = false,
   ): Snap | undefined => {
-    const point = nearest(event, false, accepts, surfaceOnly);
-    const guide = point ? undefined : guideAt(event, [], accepts);
-    const edge = point || guide?.intersection ? undefined : edgeAt(event, accepts);
-    highlightEdge(edge?.edge);
+    const { point, guide, edge } = pickReference(event, accepts, surfaceOnly);
     return (
       point ??
-      (guide?.intersection
-        ? guide
-        : edge
-          ? {
-              point: edge.point,
-              key: 'edge-target',
-              label: 'Reuna',
-              line: [edge.edge.start, edge.edge.end],
-            }
-          : guide)
+      guide ??
+      (edge
+        ? {
+            point: edge.point,
+            key: 'edge-target',
+            label: 'Reuna',
+            line: [edge.edge.start, edge.edge.end],
+          }
+        : undefined)
     );
   };
   let dimensionSession:
@@ -1234,7 +1353,7 @@ export function installInteractions({
           center = p.key.endsWith(':center');
         const priority = p.label === 'Verteksi' || p.label === 'Kulmapiste' ? 0 : 1;
         if (
-          distance < (priority === 0 ? 13 : 10) &&
+          distance < snapRadius(event, priority === 0 ? 'point' : 'mid') &&
           Math.abs(q.z) <= 1 &&
           visible(p.point, center, body.id)
         )
@@ -1279,10 +1398,10 @@ export function installInteractions({
       if (guide) {
         const p = screen(guide.point),
           distance = Math.hypot(p.x - x, p.y - y);
-        if (distance < 10)
+        if (distance <= snapRadius(event, guide.kind === 'line' ? 'line' : 'point'))
           candidates.push({
             ...guide,
-            priority: guide.intersection ? 0 : 2,
+            priority: guide.priority,
             distance,
             depth: p.z,
           });
@@ -1492,7 +1611,7 @@ export function installInteractions({
     hoverMarker.visible = !!hovered;
     if (hovered) {
       hoverMarker.position.set(...hovered.point);
-      hoverMarker.scale.setScalar(worldPerPixel(hovered.point) * 6);
+      hoverMarker.material.size = 16;
     }
     marker.visible = !!snap;
     if (!snap) canvas.dataset.snapPoint = '';
@@ -1500,7 +1619,7 @@ export function installInteractions({
     if (snap) {
       canvas.dataset.snapPoint = JSON.stringify(snap.point);
       marker.position.set(...snap.point);
-      marker.scale.setScalar(worldPerPixel(snap.point) * 4);
+      marker.material.size = snap.key === 'grid' || snap.key === 'free' ? 8 : 14;
       const p = screen(snap.point);
       hint.hidden = false;
       hint.textContent = snap.label;
@@ -1519,7 +1638,7 @@ export function installInteractions({
     const segments: number[] = [];
     if (ref) {
       referenceMarker.position.set(...ref.point);
-      referenceMarker.scale.setScalar(worldPerPixel(ref.point) * 6);
+      referenceMarker.material.size = 16;
       const p = [...ref.point] as Vec3;
       if (snap) p[planeAxes[plane][2]] = snap.point[planeAxes[plane][2]];
       for (const axis of planeAxes[plane].slice(0, 2)) {
@@ -1538,17 +1657,23 @@ export function installInteractions({
     render();
   };
   const depthTargetAt = (event: PointerEvent, source: FaceTarget) => {
-    const point = nearest(event, false, (p, key) => {
+    let point = nearest(event, false, (p, key) => {
       const bodyId = current().bodies.find((b) => key.startsWith(`${b.id}:`))?.id;
       return (
         !(bodyId === source.bodyId && key.endsWith(':center')) &&
         !!pointDepthSnap(source, p, bodyId)
       );
     });
-    const edge = point
-      ? undefined
-      : edgeAt(event, (p, bodyId) => !!pointDepthSnap(source, p, bodyId));
-    const guide = !point && !edge ? guideAt(event, [source.bodyId]) : undefined;
+    const guideCandidate = guideAt(event, [source.bodyId], (p) => !!pointDepthSnap(source, p));
+    const guide =
+      guideCandidate && (!point || guideCandidate.priority < point.priority)
+        ? guideCandidate
+        : undefined;
+    if (guide) point = undefined;
+    const edge =
+      point || guide
+        ? undefined
+        : edgeAt(event, (p, bodyId) => !!pointDepthSnap(source, p, bodyId));
     const anchor: Snap | undefined =
       point ?? (edge ? { point: edge.point, key: `${edge.mesh.id}:edge`, label: 'Reuna' } : guide);
     const picked = anchor ? undefined : faceAt(event);
@@ -1669,6 +1794,10 @@ export function installInteractions({
   };
   const sync = () => {
     if (current().tool !== 'move' || !drag) showMoveAxis();
+    if (current().tool !== 'detail') {
+      detailHover.visible = false;
+      detailSelected.visible = false;
+    }
     if (externalReference !== current().reference) {
       externalReference = current().reference;
       if (!externalReference) heldReference = undefined;
@@ -1847,7 +1976,7 @@ export function installInteractions({
       if (picked) {
         referenceMarker.visible = true;
         referenceMarker.position.set(...picked);
-        referenceMarker.scale.setScalar(worldPerPixel(picked) * 5);
+        referenceMarker.material.size = 16;
         render();
       }
       props.onPenHover(point);
@@ -1956,10 +2085,19 @@ export function installInteractions({
     const target = measureTargetAt(
       event,
       (point) =>
-        Math.abs(point[planeAxes[plane][2]] - start[planeAxes[plane][2]]) < 1e-5 &&
+        (props.measureMode === 'free' ||
+          Math.abs(point[planeAxes[plane][2]] - start[planeAxes[plane][2]]) < 1e-5) &&
         (!axis || Math.hypot(...sub(point, projectOnLine(point, start, axis))) < 1e-5),
     );
-    const end = target?.point ?? (axis ? raw : snap(raw, plane));
+    const normal = axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
+    const end =
+      target?.point ??
+      (axis
+        ? add(
+            start,
+            scale(axis, gridLength(dot(sub(raw, start), axis), props.gridStep, props.gridSnap)),
+          )
+        : frameSnap(raw, sketchFrame(start, normal), undefined, event));
     if (target) show(target, plane);
     else if (axis)
       show(
@@ -1973,6 +2111,7 @@ export function installInteractions({
     const from = props.freeRotate ? base : start;
     const direction =
       (!isEdge && axis) ||
+      (props.measureMode === 'free' && target ? unit(sub(end, from)) : undefined) ||
       guideDirection(
         plane,
         angleBetween(
@@ -2478,14 +2617,14 @@ export function installInteractions({
     const second = !!measureSession;
     if (props.tool === 'measure') {
       if (!measureSession) {
-        const vertex = vertexAt(event);
-        const edge = !vertex ? edgeAt(event) : undefined;
-        const guide = !vertex && !edge ? guideAt(event) : undefined;
-        if (props.measureMode === 'guide' && !vertex && !edge && !guide) {
+        const picked = measureTargetAt(event, () => true);
+        const edge = picked?.sourceEdge;
+        const guide = picked?.sourceGuide;
+        if (props.measureMode === 'guide' && !picked) {
           props.onSnap('Valitse kappaleen piste, reuna, apuviiva tai niiden risteys.');
           return;
         }
-        if (!vertex && !point && !guide) return;
+        if (!picked && !point) return;
         const adjacent = edge?.mesh.faces.filter(
           (f) =>
             f.planar &&
@@ -2509,9 +2648,10 @@ export function installInteractions({
         if (edge)
           plane = face ? normalPlane(face.normal) : planeForDirection(edge.direction, plane);
         if (guide) plane = normalPlane(guidePlaneNormal(guide.guide));
-        const parallelGuide = props.measureMode === 'guide' && guide && !guide.intersection;
+        const parallelGuide =
+          props.measureMode === 'guide' && guide && (guide.kind === 'line' || guide.kind === 'mid');
         measureSession = {
-          anchor: vertex?.anchor ?? edge?.anchor ?? { point: guide?.point ?? snap(point!, plane) },
+          anchor: picked?.anchor ?? { point: picked?.point ?? snap(point!, plane) },
           plane,
           direction: edge?.direction ?? (parallelGuide ? guideVector(guide.guide) : undefined),
           edgeLength:
@@ -2786,19 +2926,12 @@ export function installInteractions({
       return;
     }
     if (props.tool === 'measure' && !measureSession && !props.pickReference) {
-      const vertex = vertexAt(event),
-        edge = vertex ? undefined : edgeAt(event),
-        guide = !vertex && !edge ? guideAt(event) : undefined;
-      highlightEdge(edge?.edge);
-      if (edge)
-        show({
-          point: edge.point,
-          key: 'edge',
-          label: 'Reuna · vedä rinnakkainen apuviiva',
-        });
-      else if (vertex) show({ point: vertex.point, key: 'vertex', label: 'Verteksi' });
-      else if (guide) show(guide);
-      else show();
+      const target = measureTargetAt(event, () => true);
+      show(
+        target?.key === 'edge-target'
+          ? { ...target, label: 'Reuna · vedä rinnakkainen apuviiva' }
+          : target,
+      );
       return;
     }
     const hovered = referenceAt(event);
@@ -3321,8 +3454,9 @@ export function installInteractions({
       selectionBox.remove();
       scene.remove(overlay);
       overlay.traverse((o) => {
-        if (o instanceof THREE.Mesh || o instanceof THREE.Line) {
+        if (o instanceof THREE.Mesh || o instanceof THREE.Line || o instanceof THREE.Points) {
           o.geometry.dispose();
+          if (o instanceof THREE.Points) (o.material as THREE.PointsMaterial).map?.dispose();
           (o.material as THREE.Material).dispose();
         }
       });
