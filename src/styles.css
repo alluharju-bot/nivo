@@ -3171,6 +3171,14 @@ p {
   display: grid;
   gap: 10px;
 }
+.texture-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.texture-fields label {
+  min-width: 0;
+}
 .texture-editor p {
   font-size: 12px;
   line-height: 1.5;
@@ -5504,4 +5512,36 @@ p {
   object-fit: cover;
   border-radius: 5px;
   flex-shrink: 0;
+}
+
+.render-material-tools {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 12px;
+}
+.render-material-tools button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 5px;
+  padding: 9px 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+.render-material-tools button[aria-pressed='true'] {
+  background: #e2e9e0;
+  border-color: #879a82;
+  color: #263c2c;
+}
+.render-panel input[type='search'] {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: inherit;
 }

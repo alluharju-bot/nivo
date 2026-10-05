@@ -16,7 +16,7 @@ import {
 import { patternCanvas } from './materials';
 import { importTexture, withColorTexture } from '../storage/textures';
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { ArrowLeft, Download, Maximize } from 'lucide-react';
+import { ArrowLeft, Download, Maximize, MousePointer2, Paintbrush, Move } from 'lucide-react';
 import type { BodyMesh } from '../cad/protocol';
 import type { Body } from '../model/project';
 import { CommitCheckbox } from '../ui/CommitCheckbox';
@@ -98,16 +98,30 @@ export function RenderStage(props: Props) {
   const [renderTab, setRenderTab] = useState<'material' | 'image'>('material');
   const [traceOptions, setTraceOptions] = useState<TraceOptions>(traceDefaults);
   const [trace, setTrace] = useState<TraceStatus>({ state: 'off', samples: 0 });
+  const [tool, setTool] = useState<'select' | 'texture' | 'paint'>('select');
+  const [brush, setBrush] = useState({
+    appearance: defaultAppearance('oak'),
+    color: findPreset('oak').color,
+  });
+  const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Massiivipuut');
   const [textureDraft, setTextureDraft] = useState<{
     id: string;
     appearance: Appearance;
   }>();
   const textureSource = useRef<string>('');
+  const draftRef = useRef(textureDraft);
+  draftRef.current = textureDraft;
+  const committing = useRef(false);
   const [materialName, setMaterialName] = useState('');
   const imageInput = useRef<HTMLInputElement>(null);
-  const changeTexture = (texture: TexturePlacement) =>
-    setTextureDraft((old) => (old ? { ...old, appearance: { ...old.appearance, texture } } : old));
+  const changeTexture = (texture: TexturePlacement) => {
+    const old = draftRef.current;
+    if (!old) return;
+    const next = { ...old, appearance: { ...old.appearance, texture } };
+    draftRef.current = next;
+    setTextureDraft(next);
+  };
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<ReturnType<typeof createRenderScene>>(undefined);
   const latest = useRef<Parameters<typeof createRenderScene>[1] extends () => infer P ? P : never>({
@@ -123,11 +137,21 @@ export function RenderStage(props: Props) {
     meshes,
     settings: { ...settings, exposure },
     onPick: (id) => {
-      if (!textureDraft) setTarget(id);
+      if (busy) return;
+      if (tool === 'paint') {
+        if (bodies.find((b) => b.id === id)?.locked) {
+          setError('Osa on Hold-lukittu. Vapauta lukitus mallissa ennen maalaamista.');
+          return;
+        }
+        setError('');
+        void props.onAppearance([id], brush.appearance, brush.color);
+      } else void selectTarget(id);
     },
     assets: props.assets,
     selectedIds: target === 'all' ? [] : target === 'selection' ? selectedIds : [target],
-    editingTexture: textureDraft,
+    editingTexture: busy ? undefined : textureDraft,
+    materialTool: tool,
+    onTextureCommit: () => void acceptTexture(),
     onTexture: changeTexture,
     onTraceStatus: setTrace,
   };
@@ -145,11 +169,6 @@ export function RenderStage(props: Props) {
   }, []);
   useEffect(() => {
     api.current?.sync();
-    if (
-      textureDraft &&
-      textureSource.current !== JSON.stringify(bodies.find((b) => b.id === textureDraft.id))
-    )
-      setTextureDraft(undefined);
   }, [bodies, meshes, props.assets]);
   useEffect(() => setExposure(settings.exposure), [settings.exposure]);
   useEffect(() => {
@@ -163,25 +182,71 @@ export function RenderStage(props: Props) {
       setTarget('all');
   }, [bodies, target, selectedIds]);
   const cancelTexture = () => {
+    setTool('select');
+    draftRef.current = undefined;
     setTextureDraft(undefined);
     api.current?.sync();
   };
   const acceptTexture = async () => {
-    if (textureDraft && (await props.onAppearance([textureDraft.id], textureDraft.appearance)))
-      setTextureDraft(undefined);
+    const draft = draftRef.current;
+    if (!draft) return true;
+    const body = bodies.find((b) => b.id === draft.id);
+    if (
+      JSON.stringify(body?.appearance ?? defaultAppearance(body?.material)) ===
+      JSON.stringify(draft.appearance)
+    )
+      return true;
+    if (busy || committing.current) return false;
+    committing.current = true;
+    try {
+      return await props.onAppearance([draft.id], draft.appearance);
+    } finally {
+      committing.current = false;
+    }
   };
+  const selectTarget = async (id: string) => {
+    if (await acceptTexture()) setTarget(id);
+  };
+  const chooseTool = async (next: typeof tool) => {
+    if (!(await acceptTexture())) return;
+    if (next === 'paint') setBrush({ appearance: structuredClone(appearance), color });
+    setTool(next);
+    setRenderTab('material');
+  };
+  // A tool outlives its selected surface, committed gestures and material changes.
+  useEffect(() => {
+    const candidates = bodies.filter(
+      (b) =>
+        target === 'all' || (target === 'selection' ? selectedIds.includes(b.id) : b.id === target),
+    );
+    const body = candidates.length === 1 ? candidates[0] : undefined;
+    const a = body?.appearance ?? defaultAppearance(body?.material);
+    const editable =
+      tool === 'texture' && body && !body.locked && (a.assetId || findPreset(a.preset).pattern);
+    const source = JSON.stringify(body);
+    if (!editable) {
+      draftRef.current = undefined;
+      setTextureDraft(undefined);
+      textureSource.current = '';
+    } else if (draftRef.current?.id !== body.id || textureSource.current !== source) {
+      textureSource.current = source;
+      const next = { id: body.id, appearance: structuredClone(a) };
+      draftRef.current = next;
+      setTextureDraft(next);
+    }
+  }, [tool, target, bodies, selectedIds]);
   useEffect(() => {
     if (textureDraft) api.current?.appearance([textureDraft.id], textureDraft.appearance);
     api.current?.selection();
-  }, [textureDraft, target, selectedIds]);
+  }, [textureDraft, target, selectedIds, tool, busy]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (!textureDraft) return;
+      if (tool === 'select') return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
         cancelTexture();
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' && textureDraft) {
         e.preventDefault();
         e.stopImmediatePropagation();
         void acceptTexture();
@@ -189,36 +254,61 @@ export function RenderStage(props: Props) {
     };
     window.addEventListener('keydown', key, true);
     return () => window.removeEventListener('keydown', key, true);
-  }, [textureDraft, busy]);
+  }, [textureDraft, busy, tool]);
   const targets = bodies.filter(
     (b) =>
       target === 'all' || (target === 'selection' ? selectedIds.includes(b.id) : b.id === target),
   );
   const ids = targets.map((b) => b.id);
-  const material = targets[0]?.appearance?.preset ?? targets[0]?.material ?? 'matte';
-  const mixed = targets.some((b) => (b.appearance?.preset ?? b.material ?? 'matte') !== material);
-  const color = targets[0]?.color ?? '#d8c8a7';
-  const appearance = targets[0]?.appearance ?? defaultAppearance(targets[0]?.material);
+  const material =
+    tool === 'paint'
+      ? brush.appearance.preset
+      : (targets[0]?.appearance?.preset ?? targets[0]?.material ?? 'matte');
+  const mixed =
+    tool !== 'paint' &&
+    targets.some((b) => (b.appearance?.preset ?? b.material ?? 'matte') !== material);
+  const color = tool === 'paint' ? brush.color : (targets[0]?.color ?? '#d8c8a7');
+  const appearance =
+    tool === 'paint'
+      ? brush.appearance
+      : (targets[0]?.appearance ?? defaultAppearance(targets[0]?.material));
+  const applyAppearance = (value: Appearance, nextColor = color) => {
+    if (tool === 'paint') {
+      setBrush({ appearance: value, color: nextColor });
+      return Promise.resolve(true);
+    }
+    return props.onAppearance(ids, value, nextColor);
+  };
   const preset = findPreset(appearance.preset);
-  const choosePreset = (id: string) => {
+  const choosePreset = async (id: string) => {
+    if (!(await acceptTexture())) return;
     if (id.startsWith('custom:')) {
       const saved = props.materials?.find((m) => m.id === id.slice(7));
-      if (saved) void props.onAppearance(ids, saved.appearance, saved.color);
+      if (saved) applyAppearance(saved.appearance, saved.color);
     } else if (materialPresets.some((p) => p.id === id)) {
       const p = findPreset(id);
-      void props.onAppearance(ids, defaultAppearance(id), p.color);
+      applyAppearance(defaultAppearance(id), p.color);
       setCategory(p.category);
-    } else props.onMaterial(ids, id as NonNullable<Body['material']>);
+    } else if (tool === 'paint') setBrush({ appearance: defaultAppearance(id), color });
+    else props.onMaterial(ids, id as NonNullable<Body['material']>);
   };
+  const thumbnailCache = useRef(new Map<string, string>());
   const thumbnails = useMemo(
     () =>
       materialPresets
-        .filter((p) => p.category === category)
-        .map((p) => ({
-          ...p,
-          image: p.pattern ? patternCanvas(p).toDataURL() : undefined,
-        })),
-    [category],
+        .filter((p) =>
+          search.trim()
+            ? `${p.name} ${p.category}`
+                .toLocaleLowerCase('fi')
+                .includes(search.trim().toLocaleLowerCase('fi'))
+            : p.category === category,
+        )
+        .map((p) => {
+          if (p.pattern && !thumbnailCache.current.has(p.id))
+            thumbnailCache.current.set(p.id, patternCanvas(p).toDataURL());
+          return { ...p, image: thumbnailCache.current.get(p.id) };
+        }),
+    [category, search],
   );
   const upload = async (file?: File) => {
     if (!file) return;
@@ -255,7 +345,12 @@ export function RenderStage(props: Props) {
       <div className="render-view">
         <div ref={host} className="render-host" />
         <div className="render-toolbar">
-          <button className="button subtle" onClick={props.onClose}>
+          <button
+            className="button subtle"
+            onClick={async () => {
+              if (await acceptTexture()) props.onClose();
+            }}
+          >
             <ArrowLeft size={16} />
             Takaisin malliin
           </button>
@@ -279,12 +374,48 @@ export function RenderStage(props: Props) {
           </div>
         )}
         <p className="render-caption">
-          Vedä kiertääksesi · rulla zoomaa · klikkaa osaa valitaksesi sen materiaalin
+          {tool === 'texture'
+            ? 'Tekstuuri: vedä kuviota tai säätimiä · klikkaa toista osaa vaihtaaksesi kohdetta · Esc lopettaa'
+            : tool === 'paint'
+              ? 'Maalaa: valitse materiaali ja klikkaa osia · oikea painike kiertää · Esc lopettaa'
+              : 'Vedä kiertääksesi · rulla zoomaa · klikkaa osaa valitaksesi sen materiaalin'}
         </p>
       </div>
       <aside className="render-panel" aria-label="Renderöinnin asetukset">
         <div className="render-panel-header">
           <h2>Esityskuva</h2>
+          <div className="render-material-tools" role="toolbar" aria-label="Pintatyökalut">
+            <button
+              aria-label="Valitse pinta"
+              title="Valitse pinta"
+              aria-pressed={tool === 'select'}
+              disabled={busy}
+              onClick={() => void chooseTool('select')}
+            >
+              <MousePointer2 size={16} />
+              Valitse
+            </button>
+            <button
+              aria-label="Muokkaa tekstuuria"
+              title="Siirrä, kierrä ja skaalaa kuviota"
+              aria-pressed={tool === 'texture'}
+              disabled={busy}
+              onClick={() => void chooseTool('texture')}
+            >
+              <Move size={16} />
+              Tekstuuri
+            </button>
+            <button
+              aria-label="Maalaa"
+              title="Maalaa materiaali osia klikkaamalla"
+              aria-pressed={tool === 'paint'}
+              disabled={busy}
+              onClick={() => void chooseTool('paint')}
+            >
+              <Paintbrush size={16} />
+              Maalaa
+            </button>
+          </div>
           <div className="render-tabs" aria-label="Esityskuvan toiminnot">
             {(
               [
@@ -295,20 +426,25 @@ export function RenderStage(props: Props) {
               <button
                 key={id}
                 aria-pressed={renderTab === id}
-                disabled={!!textureDraft && id !== 'material'}
-                onClick={() => setRenderTab(id)}
+                onClick={async () => {
+                  if (id === 'image') {
+                    if (!(await acceptTexture())) return;
+                    setTool('select');
+                  }
+                  setRenderTab(id);
+                }}
               >
                 {label}
               </button>
             ))}
           </div>
-          <label hidden={renderTab !== 'material'}>
+          <label hidden={renderTab !== 'material' || tool === 'paint'}>
             Käsiteltävät osat
             <select
               aria-label="Materiaalin kohde"
               value={target}
-              disabled={!!textureDraft}
-              onChange={(e) => setTarget(e.target.value)}
+              disabled={busy}
+              onChange={(e) => void selectTarget(e.target.value)}
             >
               <option value="all">Kaikki näkyvät osat ({bodies.length})</option>
               {selectedIds.some((id) => bodies.some((b) => b.id === id)) && (
@@ -326,18 +462,32 @@ export function RenderStage(props: Props) {
         </div>
         <div className="render-panel-scroll">
           <div className="render-tab-content" hidden={renderTab !== 'material'}>
-            {targets.some((b) => b.locked) && (
+            {tool !== 'paint' && targets.some((b) => b.locked) && (
               <p className="muted" role="status">
                 Valinnassa on Hold-lukittu osa. Vapauta lukitus mallissa ennen materiaalin
                 muokkaamista.
               </p>
             )}
-            <fieldset className="render-material-fields" disabled={targets.some((b) => b.locked)}>
+            {tool === 'texture' && !textureDraft && (
+              <p className="muted" role="status">
+                Klikkaa yhtä teksturoitua osaa. Voit myös valita osan ja lisätä sille materiaalin
+                alla.
+              </p>
+            )}
+            {tool === 'paint' && (
+              <p className="muted" role="status">
+                Valitse siveltimen materiaali ja klikkaa maalattavia osia. Esc lopettaa maalaamisen.
+              </p>
+            )}
+            <fieldset
+              className="render-material-fields"
+              disabled={tool !== 'paint' && targets.some((b) => b.locked)}
+            >
               <label>
                 Materiaali
                 <select
                   aria-label="Materiaali"
-                  disabled={busy || !ids.length || !!textureDraft}
+                  disabled={busy || !ids.length}
                   value={mixed ? '' : material}
                   onChange={(e) => choosePreset(e.target.value)}
                 >
@@ -376,11 +526,24 @@ export function RenderStage(props: Props) {
               {!textureDraft && (
                 <>
                   <label>
+                    Etsi materiaalia
+                    <input
+                      type="search"
+                      aria-label="Etsi materiaalia"
+                      placeholder="Esim. betoni, laatta tai pähkinä"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </label>
+                  <label>
                     Materiaaliryhmä
                     <select
                       aria-label="Materiaaliryhmä"
                       value={category}
-                      onChange={(e) => setCategory(e.target.value)}
+                      onChange={(e) => {
+                        setCategory(e.target.value);
+                        setSearch('');
+                      }}
                     >
                       {[...new Set(materialPresets.map((p) => p.category))].map((c) => (
                         <option key={c}>{c}</option>
@@ -410,12 +573,18 @@ export function RenderStage(props: Props) {
                   </div>
                 </>
               )}
-              <BodyColor
-                color={color}
-                mixed={targets.some((b) => b.color !== color)}
-                busy={busy || !ids.length || !!textureDraft}
-                onChange={(value) => props.onColor(ids, value)}
-              />
+              {!textureDraft && (
+                <BodyColor
+                  color={color}
+                  mixed={tool !== 'paint' && targets.some((b) => b.color !== color)}
+                  busy={busy || !ids.length || !!textureDraft}
+                  onChange={(value) =>
+                    tool === 'paint'
+                      ? setBrush({ ...brush, color: value })
+                      : props.onColor(ids, value)
+                  }
+                />
+              )}
               {!textureDraft && (
                 <>
                   <div className="surface-properties">
@@ -454,7 +623,7 @@ export function RenderStage(props: Props) {
                                 n <= 1 &&
                                 n !== (appearance[key] ?? preset[key] ?? 0)
                               )
-                                void props.onAppearance(ids, {
+                                applyAppearance({
                                   ...appearance,
                                   [key]: n,
                                 });
@@ -476,7 +645,7 @@ export function RenderStage(props: Props) {
                   />
                   <button
                     className="button outlined full"
-                    disabled={busy || !ids.length}
+                    disabled={busy || !ids.length || tool === 'paint'}
                     onClick={() => imageInput.current?.click()}
                   >
                     Lisää kuva
@@ -485,22 +654,6 @@ export function RenderStage(props: Props) {
                     <p className="muted">
                       {props.assets?.[appearance.assetId]?.name ?? 'Kuva puuttuu'}
                     </p>
-                  )}
-                  <button
-                    className="button outlined full"
-                    disabled={busy || ids.length !== 1 || (!appearance.assetId && !preset.pattern)}
-                    onClick={() => {
-                      textureSource.current = JSON.stringify(targets[0]);
-                      setTextureDraft({
-                        id: ids[0],
-                        appearance: structuredClone(appearance),
-                      });
-                    }}
-                  >
-                    Muokkaa tekstuuria
-                  </button>
-                  {ids.length !== 1 && (
-                    <p className="muted">Valitse yksi osa tekstuurin sijoitteluun.</p>
                   )}
                   <details>
                     <summary>Tallenna oma materiaali</summary>
@@ -533,58 +686,60 @@ export function RenderStage(props: Props) {
                 <section className="texture-editor" aria-label="Tekstuurin sijoittelu">
                   <h3>Tekstuurin sijoittelu</h3>
                   <p>
-                    Vedä pintaa siirtääksesi kuviota. ↗ säätää kokoa, ↻ kiertää. Oikea painike
-                    kiertää kameraa.
+                    Vedä kuviota tai kahvoja: ↗ koko, ↻ kierto. Veto tallentuu heti; Enter hyväksyy
+                    luvut. Oikea painike kiertää kameraa.
                   </p>
-                  {(['width', 'height', 'offsetX', 'offsetY', 'rotation'] as const).map((key) => (
-                    <label key={key}>
-                      {
+                  <div className="texture-fields">
+                    {(['width', 'height', 'offsetX', 'offsetY', 'rotation'] as const).map((key) => (
+                      <label key={key}>
                         {
-                          width: 'Kuvion leveys (mm)',
-                          height: 'Kuvion korkeus (mm)',
-                          offsetX: 'Siirtymä U (mm)',
-                          offsetY: 'Siirtymä V (mm)',
-                          rotation: 'Kierto (°)',
-                        }[key]
-                      }
-                      <TextureNumber
-                        label={
                           {
-                            width: 'Kuvion leveys',
-                            height: 'Kuvion korkeus',
-                            offsetX: 'Siirtymä U',
-                            offsetY: 'Siirtymä V',
-                            rotation: 'Tekstuurin kierto',
+                            width: 'Leveys (mm)',
+                            height: 'Korkeus (mm)',
+                            offsetX: 'Siirtymä U (mm)',
+                            offsetY: 'Siirtymä V (mm)',
+                            rotation: 'Kierto (°)',
                           }[key]
                         }
-                        value={textureDraft.appearance.texture[key]}
-                        min={
-                          key === 'width' || key === 'height'
-                            ? 0.1
-                            : key === 'rotation'
-                              ? -360000
-                              : -100000
-                        }
-                        max={key === 'rotation' ? 360000 : 100000}
-                        onValue={(n) => {
-                          const old = textureDraft.appearance.texture,
-                            next = { ...old, [key]: n };
-                          if (old.lockAspect && key === 'width')
-                            next.height = (old.height * n) / old.width;
-                          if (old.lockAspect && key === 'height')
-                            next.width = (old.width * n) / old.height;
-                          if (
-                            next.width < 0.1 ||
-                            next.width > 100000 ||
-                            next.height < 0.1 ||
-                            next.height > 100000
-                          )
-                            return;
-                          changeTexture(next);
-                        }}
-                      />
-                    </label>
-                  ))}
+                        <TextureNumber
+                          label={
+                            {
+                              width: 'Kuvion leveys',
+                              height: 'Kuvion korkeus',
+                              offsetX: 'Siirtymä U',
+                              offsetY: 'Siirtymä V',
+                              rotation: 'Tekstuurin kierto',
+                            }[key]
+                          }
+                          value={textureDraft.appearance.texture[key]}
+                          min={
+                            key === 'width' || key === 'height'
+                              ? 0.1
+                              : key === 'rotation'
+                                ? -360000
+                                : -100000
+                          }
+                          max={key === 'rotation' ? 360000 : 100000}
+                          onValue={(n) => {
+                            const old = textureDraft.appearance.texture,
+                              next = { ...old, [key]: n };
+                            if (old.lockAspect && key === 'width')
+                              next.height = (old.height * n) / old.width;
+                            if (old.lockAspect && key === 'height')
+                              next.width = (old.width * n) / old.height;
+                            if (
+                              next.width < 0.1 ||
+                              next.width > 100000 ||
+                              next.height < 0.1 ||
+                              next.height > 100000
+                            )
+                              return;
+                            changeTexture(next);
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
                   <label className="render-check">
                     <input
                       type="checkbox"
@@ -605,10 +760,12 @@ export function RenderStage(props: Props) {
                         ? props.assets?.[textureDraft.appearance.assetId]
                         : undefined;
                       changeTexture({
-                        ...textureDefaults,
+                        ...(asset
+                          ? textureDefaults
+                          : defaultAppearance(textureDraft.appearance.preset).texture),
                         height: asset
                           ? (textureDefaults.width * asset.height) / asset.width
-                          : textureDefaults.height,
+                          : defaultAppearance(textureDraft.appearance.preset).texture.height,
                       });
                     }}
                   >
@@ -621,12 +778,16 @@ export function RenderStage(props: Props) {
                   >
                     Hyväksy tekstuuri · Enter
                   </button>
-                  <button className="button outlined full" onClick={cancelTexture}>
-                    Peru tekstuuri · Esc
+                  <button
+                    className="button outlined full"
+                    title="Peruu keskeneräiset numeroarvot; tallennetut hiirivedot säilyvät"
+                    onClick={cancelTexture}
+                  >
+                    Lopeta tekstuurityökalu · Esc
                   </button>
                 </section>
               )}
-              {!textureDraft && (
+              {!textureDraft && tool !== 'paint' && (
                 <SurfaceMaps
                   appearance={appearance}
                   assets={props.assets}
@@ -639,8 +800,8 @@ export function RenderStage(props: Props) {
                 <EmissionControls
                   appearance={appearance}
                   color={color}
-                  busy={busy || !ids.length}
-                  onChange={(value) => props.onAppearance(ids, value)}
+                  busy={busy || !ids.length || !!textureDraft}
+                  onChange={(value) => applyAppearance(value)}
                 />
               </details>
             </fieldset>

@@ -5542,7 +5542,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.18.0</span>
+                    <span>v0.19.0</span>
                   </div>
                 </>
               )}
@@ -6054,16 +6054,19 @@ export default function App() {
               tallennuksessa.
             </p>
             <p>
-              <strong>Materiaalit ja tekstuurit:</strong> mallin osan Materiaali-valikossa on 40
-              presettiä, myös melamiinit, kalustelevyt ja valaisevat materiaalit. Pinnan rakenne
-              -kohdassa voit tuoda normal-, bump-, karheus- ja metallisuuskartat tai luoda rakenteen
-              värikuvasta. Kohokuvion syvyys annetaan millimetreinä ja normal-kartan suunnaksi voi
-              valita OpenGL/DirectX. Valaisimen esiasetukset, väri, voimakkuus ja spotin suunta
-              löytyvät myös mallista. Renderöi-näkymässä säädät studion valoja. Lisää kuva tuo oman
-              PNG-, JPEG- tai WebP-värikuvan. Valitse yksi osa ja Muokkaa tekstuuria. Vedä pintaa
-              siirtääksesi kuviota; kahvat säätävät kokoa ja kiertoa. Mitat voi syöttää myös
-              millimetreinä. Enter hyväksyy yhden muutosaskeleen, Esc peruu. Oikea painike kiertää
-              kameraa. Oman materiaalin voi tallentaa projektin kirjastoon.
+              <strong>Materiaalit ja tekstuurit:</strong> mallin osan Materiaali-valikossa on 53
+              presettiä: myös maalatut seinät, betonit, laatat, kivet, melamiinit, kalustelevyt ja
+              valaisevat materiaalit. Pinnan rakenne -kohdassa voit tuoda normal-, bump-, karheus-
+              ja metallisuuskartat tai luoda rakenteen värikuvasta. Kohokuvion syvyys annetaan
+              millimetreinä ja normal-kartan suunnaksi voi valita OpenGL/DirectX. Valaisimen
+              esiasetukset, väri, voimakkuus ja spotin suunta löytyvät myös mallista.
+              Renderöi-näkymässä säädät studion valoja. Lisää kuva tuo oman PNG-, JPEG- tai
+              WebP-värikuvan. Valitse yksi osa ja Muokkaa tekstuuria. Vedä pintaa siirtääksesi
+              kuviota; kahvat säätävät kokoa ja kiertoa. Mitat voi syöttää myös millimetreinä.
+              Hiiriveto tallentuu heti ja Enter hyväksyy numeroarvot. Työkalu pysyy päällä osaa
+              vaihtaessakin. Esc peruu keskeneräiset numeroarvot ja lopettaa työkalun. Valitse tai
+              Maalaa vaihtaa työkalua. Oikea painike kiertää kameraa. Oman materiaalin voi tallentaa
+              projektin kirjastoon.
             </p>
             <p>
               <strong>Koko näyttö:</strong> yläpalkin Siirry koko näyttöön -painike piilottaa

@@ -137,6 +137,7 @@ test('an imported texture resets its aspect, accepts negative typing and stays i
   await shift.pressSequentially('-25.5');
   await expect(shift).toHaveValue('-25.5');
   await page.getByRole('button', { name: 'Hyväksy tekstuuri · Enter', exact: true }).click();
+  await page.keyboard.press('Escape');
   await page
     .locator('summary')
     .filter({ hasText: /^Tallenna oma materiaali$/ })

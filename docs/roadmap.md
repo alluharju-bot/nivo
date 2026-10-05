@@ -2,6 +2,31 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.19 — rakennuspinnat ja jatkuva pintojen käsittely
+
+- 53 materiaalia: uutena sileä/karkea maalattu kipsi, tasoitettu seinä,
+  raaka/liipattu betoni, kalkki- ja hiekkakivi, musta marmori, terrazzo,
+  kiiltävä valkoinen / harmaa matta / terrakottalaatta ja öljytty pähkinä.
+  Pinnoilla on fyysinen toistokoko, normal- ja karheuskartta. Laatan toisto
+  sisältää noin 2 mm sauman; kyseessä on pintakuvio, ei erillinen laattageometria.
+- Materiaalihaku ja aina näkyvät Valitse-, Tekstuuri- ja Maalaa-työkalut.
+  Tekstuurin veto tallentaa yhden kumottavan muutoksen. Enter hyväksyy
+  numeroarvot; työkalun tai kohteen vaihto säilyttää muutokset. Esc peruu
+  keskeneräiset numeroarvot ja päättää työkalun, tallennetut vedot säilyvät.
+  Osaa voi vaihtaa suoraan näkymästä työkalua sulkematta. Maalaa käyttää
+  valittua sivellinmateriaalia vasta osaa klikattaessa; Hold estää maalauksen.
+- Materiaalikirjasto jakaa saman kuvadatan Source-tunnisteen osien välillä.
+  Tekstuurimuunnokset säilyvät esiintymäkohtaisina. Myös taustakuvan tilannekuva
+  säilyttää jakamisen. Aktiivisten materiaalien johdetut kartat säilyvät välimuistissa.
+- Tracerin kuvataulukko käyttää enintään 128 MiB, korkeintaan 1024 px per kerros,
+  eikä ylitä näytönohjaimen kerrosrajaa. Suuri erilaisten kuvien määrä pienentää
+  kuvataulukon resoluutiota; tämä ei muuta projektin alkuperäisiä kuvatiedostoja.
+  Muistin tai kerrosrajan virhe palauttaa nopean esikatselun ja näyttää syyn.
+
+Jatkossa: valokuvatut PBR-paketit, kuvioiden saumojen kohdistus eri osien välillä,
+suoraan renderissä tuotavien kuvien sivellinpaletti ja materiaalien arviointi
+fyysisellä iPadilla/Safarissa. Nykyiset uudet pinnat ovat proseduraalisia.
+
 ## V0.18 — pintarakenteet ja valot saman työnkulun osina
 
 - Värikuvasta johdetut normal- ja karheuskartat ilman ylimääräisiä projektin

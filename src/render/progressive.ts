@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import { omitPreviewLights } from './lights';
 import type { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import { configureTraceEnvironment } from './traceJob';
@@ -41,6 +42,8 @@ export function progressiveRenderer(
   const fail = (error: unknown) => {
     enabled = false;
     cancelAnimationFrame(frame);
+    renderer.setRenderTarget(null);
+    if (!renderer.getContext().isContextLost()) renderer.render(scene, camera);
     status('error', error instanceof Error ? error.message : String(error));
   };
   const quality = () => {
@@ -61,7 +64,9 @@ export function progressiveRenderer(
     snapshot.traverse((object) => {
       if ((object as THREE.Sprite).isSprite) object.visible = false;
     });
+    configureTraceTextures(snapshot, renderer, tracer!);
     tracer!.setScene(snapshot, camera);
+    checkTraceUpload(renderer);
     dirty = false;
   };
   const loop = () => {
@@ -90,6 +95,7 @@ export function progressiveRenderer(
       if (renderer.getContext().isContextLost())
         throw new Error('Näytönohjaimen yhteys katkesi. Kokeile nopeaa esikatselua.');
       tracer.renderSample();
+      if (tracer.samples === 1) checkTraceUpload(renderer);
       renderer.domElement.dataset.traceSamples = String(Math.floor(tracer.samples));
       if (options.maxSamples > 0 && tracer.samples >= options.maxSamples) {
         complete = true;

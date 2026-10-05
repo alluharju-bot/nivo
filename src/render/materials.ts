@@ -43,6 +43,44 @@ export function patternCanvas(preset: MaterialPreset) {
     let value = 240;
     const warp = x + 18 * Math.sin(y / 170 + seed) + 28 * (noise(x / 100, y / 240) - 0.5);
     switch (preset.pattern) {
+      case 'plaster':
+        value = 244 + 8 * noise(x / 3, y / 3) - 9 * noise(x / 95, y / 95) - fine * 3;
+        break;
+      case 'concrete': {
+        const pores = noise(x / 2.7, y / 2.7);
+        value = 217 + 24 * noise(x / 90, y / 90) - 12 * n - fine * 5;
+        if (preset.id === 'concrete-raw') value -= Math.max(0, pores - 0.7) * 220;
+        else value += 7 * noise(x / 160, y / 24);
+        break;
+      }
+      case 'limestone':
+        value = 228 + 18 * n - 14 * noise(x / 5, y / 3) - (fine > 0.985 ? 35 : 0);
+        break;
+      case 'sandstone':
+        value = 215 + 20 * noise(x / 150, y / 12) + fine * 24 - 12 * n;
+        break;
+      case 'terrazzo': {
+        const cellX = Math.floor(x / 16),
+          cellY = Math.floor(y / 16);
+        const dx = x / 16 - cellX - 0.5,
+          dy = y / 16 - cellY - 0.5;
+        const chip = Math.abs(dx) + Math.abs(dy * 1.3) < 0.22 + hash(cellX, cellY) * 0.24;
+        value = chip ? 130 + hash(cellX + 8, cellY + 7) * 120 : 242 - fine * 4;
+        break;
+      }
+      case 'tile': {
+        // A repeat is one tile including its joint; real-world joint width stays 2 mm.
+        const px = ((x % 512) + 512) % 512,
+          py = ((y % 512) + 512) % 512;
+        const edge = Math.min(
+          (Math.min(px, 512 - px) * (preset.size?.[0] ?? 300)) / 512,
+          (Math.min(py, 512 - py) * (preset.size?.[1] ?? 600)) / 512,
+        );
+        const grout = 155 + fine * 15;
+        const face = preset.id === 'tile-terracotta' ? 228 + n * 20 - fine * 9 : 253 - n * 3;
+        value = THREE.MathUtils.lerp(grout, face, THREE.MathUtils.smoothstep(edge, 0.7, 1.7));
+        break;
+      }
       case 'micro':
         value = 248 + fine * 7;
         break;
@@ -165,15 +203,27 @@ export function createMaterialLibrary(draw: () => void) {
     images = new Map<string, HTMLImageElement>();
   const normals = new Map<string, HTMLCanvasElement>(),
     roughness = new Map<string, HTMLCanvasElement>();
+  const sources = new WeakMap<object, THREE.Source<CanvasImageSource>>();
+  const activeDerived = new Set<string>();
+  const sourceFor = (image: CanvasImageSource) => {
+    let source = sources.get(image);
+    if (!source) {
+      source = new THREE.Source(image);
+      sources.set(image, source);
+    }
+    return source;
+  };
   const pending = new Set<Promise<void>>();
   const failed = new Set<HTMLImageElement>();
   const activeImages = new Map<THREE.Texture, HTMLImageElement>();
   let disposed = false;
   const texture = (source: CanvasImageSource, color: boolean, placement: TexturePlacement) => {
-    const map =
+    const map: THREE.Texture<CanvasImageSource> =
       source instanceof HTMLCanvasElement
         ? new THREE.CanvasTexture(source)
         : new THREE.Texture(source);
+    map.source = sourceFor(source);
+    map.needsUpdate = true;
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
     map.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     map.anisotropy = 8;
@@ -183,8 +233,6 @@ export function createMaterialLibrary(draw: () => void) {
   const load = (id: string, asset: TextureAsset) => {
     let image = images.get(id);
     if (!image || image.src !== asset.dataUrl) {
-      normals.clear();
-      roughness.clear();
       image = new Image();
       images.set(id, image);
       image.src = asset.dataUrl;
@@ -212,6 +260,13 @@ export function createMaterialLibrary(draw: () => void) {
     void promise.finally(() => pending.delete(promise)).catch(() => {});
   };
   return {
+    beginFrame() {
+      activeDerived.clear();
+    },
+    endFrame() {
+      for (const cache of [normals, roughness])
+        for (const key of cache.keys()) if (!activeDerived.has(key)) cache.delete(key);
+    },
     create(body: Body, assets: Record<string, TextureAsset> = {}) {
       const appearance = body.appearance ?? defaultAppearance(body.material),
         preset = findPreset(appearance.preset);
@@ -229,11 +284,10 @@ export function createMaterialLibrary(draw: () => void) {
       ) => {
         const cache = kind === 'normal' ? normals : roughness;
         const cacheKey = `${key}:${kind}:${kind === 'normal' ? JSON.stringify(legacy ? null : physical) : ''}`;
+        activeDerived.add(cacheKey);
         let result = cache.get(cacheKey);
         if (!result) {
           result = derivedCanvas(source, kind, legacy ? undefined : physical);
-          // Live texture scaling must not retain every intermediate full-size canvas.
-          if (cache.size >= 12) cache.delete(cache.keys().next().value!);
           cache.set(cacheKey, result);
         }
         return result;
@@ -252,7 +306,10 @@ export function createMaterialLibrary(draw: () => void) {
         activeImages.set(result, image);
         result.addEventListener('dispose', () => activeImages.delete(result));
         wait(image, () => {
-          if (derived) result.image = cached(`asset:${id}`, image, derived, legacy);
+          if (derived)
+            result.source = sourceFor(
+              cached(`asset:${id}:${sourceFor(image).uuid}`, image, derived, legacy),
+            );
           result.needsUpdate = true;
         });
         return result;

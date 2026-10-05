@@ -39,7 +39,9 @@ type Props = {
   assets?: Record<string, TextureAsset>;
   selectedIds?: string[];
   editingTexture?: { id: string; appearance: Appearance };
+  materialTool?: 'select' | 'texture' | 'paint';
   onTexture: (texture: TexturePlacement) => void;
+  onTextureCommit?: () => void;
   onTraceStatus?: (status: TraceStatus) => void;
   partNumbers?: Record<string, number>;
 };
@@ -175,6 +177,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   };
   const sync = () => {
     clearModel();
+    library.beginFrame();
     const { bodies, meshes } = current();
     const areaLights: THREE.Group[] = [];
     let shadowSpots = 0;
@@ -203,6 +206,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         if (partLights.children.length) lights.add(partLights);
       }
     }
+    library.endFrame();
     areaLights.sort((a, b) => b.userData.power - a.userData.power);
     for (const light of areaLights.slice(0, previewLightLimit)) lights.add(light);
     canvas.dataset.surfaceLights = String(areaLights.length);
@@ -317,7 +321,10 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     const editing = current().editingTexture,
       body = current().bodies.find((b) => b.id === editing?.id);
     handles.hidden = !body;
-    if (!body) return;
+    if (!body) {
+      canvas.dataset.textureEditing = '';
+      return;
+    }
     const point = new THREE.Vector3(...body.origin)
       .add(
         new THREE.Vector3(body.feature.width / 2, body.feature.depth / 2, body.feature.height / 2),
@@ -360,8 +367,9 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     const body = current().bodies.find((b) => b.id === editing.id);
     if (!body) return;
     const ray = rayAt(event),
-      hit = ray.intersectObjects(model.children).find((h) => h.object.userData.bodyId === body.id);
-    if (mode === 'move' && !hit) return;
+      hit = ray.intersectObjects(model.children)[0];
+    // Only edit the visible surface. A foreground part must remain selectable.
+    if (mode === 'move' && hit?.object.userData.bodyId !== body.id) return;
     start = undefined;
     const point =
       hit?.point ??
@@ -425,8 +433,10 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     canvas.dataset.textureDragging = '';
     controls.enabled = true;
     event.stopImmediatePropagation();
+    current().onTextureCommit?.();
   };
   const cancelTextureDrag = () => {
+    if (textureDrag) current().onTexture(textureDrag.initial);
     textureDrag = undefined;
     canvas.dataset.textureDragging = '';
     controls.enabled = true;
@@ -489,7 +499,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       draw();
     },
     selection() {
-      controls.mouseButtons.LEFT = current().editingTexture ? null! : THREE.MOUSE.ROTATE;
+      controls.mouseButtons.LEFT =
+        current().materialTool && current().materialTool !== 'select' ? null! : THREE.MOUSE.ROTATE;
       navigation.sync(current().bodies, current().selectedIds ?? []);
       if (!current().editingTexture) cancelTextureDrag();
       updateHandles();

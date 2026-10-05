@@ -86,7 +86,16 @@ export type MaterialPreset = {
     | 'slate'
     | 'travertine'
     | 'micro'
-    | 'fiber';
+    | 'fiber'
+    | 'plaster'
+    | 'concrete'
+    | 'limestone'
+    | 'sandstone'
+    | 'terrazzo'
+    | 'tile';
+  /** Physical repeat size and relief in millimetres. */
+  size?: [number, number];
+  relief?: number;
   seed?: number;
   emission?: number;
 };
@@ -431,6 +440,168 @@ materialPresets.push(
   },
 );
 
+materialPresets.push(
+  {
+    id: 'gypsum-smooth',
+    name: 'Maalattu kipsi · sileä',
+    category: 'Seinäpinnat',
+    color: '#efede7',
+    roughness: 0.68,
+    metalness: 0,
+    pattern: 'plaster',
+    seed: 61,
+    relief: 0.06,
+    size: [1000, 1000],
+  },
+  {
+    id: 'gypsum-rough',
+    name: 'Maalattu kipsi · karkea',
+    category: 'Seinäpinnat',
+    color: '#e9e6de',
+    roughness: 0.9,
+    metalness: 0,
+    pattern: 'plaster',
+    seed: 62,
+    relief: 0.65,
+    size: [1000, 1000],
+  },
+  {
+    id: 'skimcoat',
+    name: 'Tasoitettu seinä',
+    category: 'Seinäpinnat',
+    color: '#e3dfd4',
+    roughness: 0.94,
+    metalness: 0,
+    pattern: 'plaster',
+    seed: 63,
+    relief: 0.18,
+    size: [1000, 1000],
+  },
+  {
+    id: 'concrete-raw',
+    name: 'Raaka betoni',
+    category: 'Betonit',
+    color: '#a9a59c',
+    roughness: 0.95,
+    metalness: 0,
+    pattern: 'concrete',
+    seed: 64,
+    relief: 2,
+    size: [1000, 1000],
+  },
+  {
+    id: 'concrete-troweled',
+    name: 'Liipattu betoni',
+    category: 'Betonit',
+    color: '#b1afa7',
+    roughness: 0.32,
+    metalness: 0,
+    pattern: 'concrete',
+    seed: 65,
+    relief: 0.08,
+    size: [1000, 1000],
+  },
+  {
+    id: 'limestone',
+    name: 'Kalkkikivi',
+    category: 'Kivet',
+    color: '#dbd0b8',
+    roughness: 0.75,
+    metalness: 0,
+    pattern: 'limestone',
+    seed: 66,
+    relief: 0.35,
+    size: [600, 600],
+  },
+  {
+    id: 'sandstone',
+    name: 'Hiekkakivi',
+    category: 'Kivet',
+    color: '#c6aa7d',
+    roughness: 0.9,
+    metalness: 0,
+    pattern: 'sandstone',
+    seed: 67,
+    relief: 0.6,
+    size: [600, 600],
+  },
+  {
+    id: 'black-marble',
+    name: 'Musta marmori',
+    category: 'Kivet',
+    color: '#3b3e40',
+    roughness: 0.16,
+    metalness: 0,
+    pattern: 'marble',
+    seed: 68,
+    relief: 0.025,
+    size: [600, 600],
+    clearcoat: 0.4,
+  },
+  {
+    id: 'terrazzo',
+    name: 'Terrazzo · vaalea',
+    category: 'Kivet',
+    color: '#d4cfc3',
+    roughness: 0.32,
+    metalness: 0,
+    pattern: 'terrazzo',
+    seed: 69,
+    relief: 0.025,
+    size: [600, 600],
+  },
+  {
+    id: 'tile-white-gloss',
+    name: 'Laatta · valkoinen kiiltävä',
+    category: 'Laatat',
+    color: '#f5f2e9',
+    roughness: 0.15,
+    metalness: 0,
+    pattern: 'tile',
+    seed: 70,
+    relief: 1.2,
+    size: [300, 600],
+    clearcoat: 0.4,
+  },
+  {
+    id: 'tile-grey-matte',
+    name: 'Laatta · harmaa matta',
+    category: 'Laatat',
+    color: '#aaa9a3',
+    roughness: 0.76,
+    metalness: 0,
+    pattern: 'tile',
+    seed: 71,
+    relief: 1.2,
+    size: [600, 600],
+  },
+  {
+    id: 'tile-terracotta',
+    name: 'Laatta · terrakotta',
+    category: 'Laatat',
+    color: '#bd7957',
+    roughness: 0.85,
+    metalness: 0,
+    pattern: 'tile',
+    seed: 72,
+    relief: 1.8,
+    size: [200, 200],
+  },
+  {
+    id: 'walnut-oiled',
+    name: 'Pähkinä · öljytty',
+    category: 'Massiivipuut',
+    color: '#886345',
+    roughness: 0.32,
+    metalness: 0,
+    pattern: 'walnut',
+    seed: 73,
+    relief: 0.08,
+    size: [300, 600],
+    clearcoat: 0.4,
+  },
+);
+
 export const legacyPresets: MaterialPreset[] = [
   {
     id: 'matte',
@@ -457,7 +628,11 @@ export const findPreset = (id: string) =>
   [...materialPresets, ...legacyPresets].find((p) => p.id === id) ?? legacyPresets[0];
 export const defaultAppearance = (preset = 'matte'): Appearance => ({
   preset,
-  texture: { ...textureDefaults },
+  texture: {
+    ...textureDefaults,
+    width: findPreset(preset).size?.[0] ?? textureDefaults.width,
+    height: findPreset(preset).size?.[1] ?? textureDefaults.height,
+  },
 });
 export function emissionSettings(appearance: Appearance, color: string) {
   const preset = findPreset(appearance.preset);
@@ -475,6 +650,7 @@ export function emissionSettings(appearance: Appearance, color: string) {
 
 /** Millimetres from black to white; printed wood decor stays much flatter than solid wood. */
 export function surfaceDepth(preset: MaterialPreset) {
+  if (preset.relief !== undefined) return preset.relief;
   if (preset.category === 'Melamiinit' || preset.id.startsWith('melamine')) return 0.04;
   if (preset.pattern === 'micro' || preset.pattern === 'brushed') return 0.025;
   if (preset.pattern === 'marble' || preset.pattern === 'granite') return 0.04;

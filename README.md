@@ -3,10 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.18.0** parantaa materiaaleja ja valaistusta. Värikuvasta voi luoda
-normal- ja karheusrakenteen, kohokuvion syvyys säädetään millimetreinä ja
-LED-/spottiasetukset löytyvät myös mallin Materiaali-kohdasta. Renderipaneelin
-kohde ja välilehdet pysyvät näkyvissä asetuksia selatessa.
+Versio **0.19.0** lisää maalatut kipsipinnat, tasoitetun seinän, raa'an ja
+liipatun betonin, lisää kiviä, kolme laattapintaa ja öljytyn pähkinän: yhteensä
+53 materiaalia. Materiaalihaku ja renderin jatkuvat **Valitse / Tekstuuri / Maalaa**
+-työkalut nopeuttavat pintojen käsittelyä. Samat materiaalikuvat jaetaan osien
+kesken myös tarkentuvassa renderöinnissä, mikä pienentää ison mallin muistinkulutusta.
+
+Värikuvasta voi luoda normal- ja karheusrakenteen, kohokuvion syvyys säädetään
+millimetreinä ja LED-/spottiasetukset löytyvät myös mallin Materiaali-kohdasta.
 
 Mallista työkuvaksi: **Mittakuva → Luo mitta-arkki**
 asettaa 1–6 näkymää, myös tallennetut poikkileikkaukset, samalle A4-arkille yhteisessä
@@ -351,8 +355,10 @@ apuvalot poistetaan sekä tarkentuvasta kuvasta että taustalaskennasta.
 Renderin **Materiaali**-välilehti sisältää erikseen avattavan Studion valaistus -kohdan. **Kuva** sisältää esikatselun ja viennin. Tarkentuva esikatselu päivittää koko kuvaa jokaisella näytteellä; erillinen PNG-työ voi jatkua mallinnuksen aikana.
 
 **Renderöi** avaa esitysnäkymän. Valitse yksi osa, mallin valinta tai kaikki
-näkyvät osat. Materiaaliryhmistä löytyvät kuusi puuta, neljä metallia, kolme
-lasia, neljä muovia, neljä kiveä, kolme posliinia, kolme kalustepintaa ja kolme LED-valoa sekä viisi melamiinia ja viisi kalustelevymateriaalia.
+näkyvät osat. Materiaaliryhmistä löytyvät seitsemän puuta, neljä metallia, kolme
+lasia, neljä muovia, kahdeksan kiveä, kolme posliinia, kolme kalustepintaa,
+kolme seinäpintaa, kaksi betonia, kolme laattaa ja kolme LED-valoa sekä
+viisi melamiinia ja viisi kalustelevymateriaalia. Haku etsii kaikista ryhmistä.
 Kuviot toimitetaan paikallisesti; eri puu- ja kivilajeilla on omat kuviot.
 Väri, karheus, metallisuus, läpäisevyys ja pinnoite ovat säädettävissä.
 Oman materiaalin voi tallentaa projektin materiaalikirjastoon.
@@ -362,7 +368,11 @@ Kuva pienennetään tarvittaessa 2048 pikseliin ja tallennetaan projektin mukaan
 **Muokkaa tekstuuria** avaa yhden osan sijoittelun: vedä pintaa siirtääksesi,
 ↗-kahvaa skaalataksesi ja ↻-kahvaa kiertääksesi. Leveys/korkeus ja siirtymät
 syötetään millimetreinä, kierto asteina. Kuvasuhde on oletuksena lukittu.
-Enter hyväksyy koko sijoittelun yhdellä Peru-askeleella; Esc palauttaa edellisen.
+Hiiriveto tallentaa yhden Peru-askeleen; Enter hyväksyy numeroarvot. Työkalu
+pysyy päällä ja voit klikata toista osaa jatkaaksesi sen tekstuurin käsittelyä.
+Esc peruu keskeneräiset numeroarvot ja lopettaa työkalun. Jo tallennetut vedot
+säilyvät. **Valitse** tai **Maalaa** vaihtaa työkalua. Maalaa-tilassa valitse
+siveltimen materiaali ja klikkaa osia; materiaalin valinta ei itsessään maalaa.
 Kuvio seuraa kappaleen siirtoa, kiertoa ja kopiota. Kuvan sisältö jaetaan,
 mutta osien sijoittelut ovat itsenäisiä.
 
@@ -372,7 +382,7 @@ valaistus sekä valotus ja varjot. **Tallenna PNG** vie nykyisen kameran kuvan
 800, 1600 tai 2400 pikselin levyisenä. Hold säilyy mallissa, mutta sen korostus,
 rakennusmuodot, apuviivat ja valintakahvat eivät tule esityskuvaan.
 
-![Paikalliset materiaalinäytteet](docs/images/nivo-material-catalog.png)
+![Paikalliset materiaalinäytteet](docs/images/nivo-material-catalog-v019.png)
 
 Nopea esikatselu ja valinnainen tarkentuva path tracing käyttävät WebGL2:ta. Omat valaistusympäristöt ja erillinen
 UV-saarekkeiden editori ovat jatkotyötä. Kuviointi käyttää kappaleen omaan

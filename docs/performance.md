@@ -1,5 +1,30 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.19 — tarkentuvan renderöinnin tekstuurimuisti, 5.10.2026
+
+296 mäntyosaa käytti aiemmin samoille kolmelle kuvalle 888 eri Three.js Source
+-tunnistetta. Path tracer poistaa kaksoiskuvat Source-tunnisteen ja väriavaruuden
+perusteella, joten yhteinen canvas ei yksin vähentänyt tekstuuritaulukon kerroksia.
+Vanha 1024 × 1024 RGBA8 -taulukko vaati laskennallisesti 3 552 MiB (3,47 GiB).
+
+Materiaalikirjasto jakaa nyt kuvien Source-oliot ja säilyttää erilliset Texture-oliot
+osien siirroille/kierroille. Samassa 296 osan kokeessa on kolme kerrosta natiivissa
+512 × 512 -koossa: **3 MiB**. Tämä on tekstuuritaulukon laskennallinen tilantarve,
+ei koko sovelluksen tai näytönohjaimen mitattu muisti. Myös normaalien ja karheuden
+lähdekuvat käyttävät tätä jakamista. Eri kohokuviokoko/syvyys voi vaatia eri kartan.
+
+Tuotantotesti laski 8 näytteen kuvan 296 mäntyosasta. PNG:stä tarkistettiin
+värilliset pintapikselit; testin kokonaiskesto oli noin minuutti. Se sisältää
+projektin avaamisen, CAD-rakentamisen ja shaderin valmistelun eikä ole
+ruudunpäivitysnopeuden mittaus. Pienen mallin mänty/pähkinä-vaihdot ja kameran
+kierto palautuivat myös värilliseksi tarkentuvaksi kuvaksi.
+
+Kuvataulukon uusi enimmäisbudjetti on 128 MiB. Suuret kuvamäärät pienentävät
+kerrosten resoluutiota, eivät alkuperäisiä projektikuvia. Laitteen kerrosrajan
+ylitys palauttaa nopean esikatselun selityksineen; tämä varmennettiin myös
+simuloidulla pienellä kerrosrajalla. Käyttäjän alkuperäistä projektia ja
+selain/näytönohjain-yhdistelmää ei ollut tässä kokeessa käytössä.
+
 ## V0.17 — kokonaismittojen regressio, 5.10.2026
 
 Sama 1 184 levyn tuotantotesti M1 Pro / ANGLE Metal -kokoonpanolla,

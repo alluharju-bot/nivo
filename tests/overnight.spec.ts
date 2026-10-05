@@ -174,6 +174,7 @@ test('texture editor previews, cancels, commits one step and restores imported i
   expect((await save(page)).bodies[0].appearance?.texture.width).toBe(300);
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
   expect((await save(page)).bodies[0]).toEqual(accepted);
+  await page.keyboard.press('Escape');
   const image = await page.evaluate(() => {
     const c = document.createElement('canvas');
     c.width = 32;
@@ -314,7 +315,7 @@ test('texture handles resize and rotate, and right-button surface orbit remains 
     String(width),
   );
   await page.keyboard.press('Escape');
-  expect((await save(page)).bodies[0].appearance?.texture.width).toBe(300);
+  expect((await save(page)).bodies[0].appearance?.texture.width).toBeCloseTo(width, 2);
 });
 
 test('finished cabinet opens with editable rounds, dimensions, materials and an embedded image', async ({

@@ -4,6 +4,63 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.19 — jaetut tekstuurit ja pintatyökalut
+
+**216 yksikkö-/CAD-testiä hyväksytty (44 tiedostoa)**. TypeScript,
+tuotantobuild, muotoilu ja riippuvuuksien lisenssitarkistus hyväksytty.
+
+Mustan tarkentuvan kuvan selvityksessä löytyi toistettava muistiongelma:
+296 mäntyosaa tuotti 888 Source-tunnistetta samalle kolmelle kuvalle.
+Kirjastotesti epäonnistui ennen korjausta (888 odotetun 3:n sijaan) ja
+läpäisi korjauksen jälkeen. Tekstuurien omat oliot ja siirtymät pysyvät erillisinä.
+Tarkentuvan kuvan taulukko käyttää nyt 3 MiB vanhan laskennallisen 3 552 MiB:n
+sijaan. Luvut kuvaavat RGBA8-kuvataulukkoa, eivät koko GPU:n muistia.
+
+296 osan tuotantokoe tarkistaa kolme 512 × 512 -kerrosta, 8 valmistunutta
+näytettä ja vähintään 3 000 lämpimänväristä pintapikseliä PNG:stä. Pienen mallin
+mänty/pähkinä/mänty-vaihto kesken tarkennuksen sekä kameran kierto läpäisivät
+kuvantarkistuksen. Simuloitu kahden kerroksen laiteraja näyttää selityksen ja
+palauttaa näkyvän nopean esikatselun. Alkuperäistä käyttäjän projektia ja sen
+selain/näytönohjain-yhdistelmää ei ollut käytettävissä.
+
+Laaja lopputarkistus hyväksyi **10/10 desktopin tuotantoselaintapausta**:
+kuvasta johdettu reliefi ja DirectX/OpenGL-normalit, LED/spotit, tekstuurin
+esikatselu/peruminen/hyväksyntä, skaalaus- ja kiertokahvat, värikuvan säilyminen
+esikatselussa ja tausta-PNG:ssä, kopion sijoittelun riippumattomuus, jäädytetty
+renderitilannekuva projektin vaihtuessa, laskennan keskeytys, jatkuvat pintatyökalut
+sekä materiaalin/valon tallennus ja Hold. Työkalutesti käyttää kahta muokattavaa
+osaa ja yhtä lukittua: peräkkäiset vedot, Enter, Peru/Palauta, kohteen vaihto,
+Esc sekä betonin maalaaminen vain klikattuun osaan. Siveltimen valinta ei vielä
+muuta mallia. Vanhan kahvatestin odotus päivitettiin: Esc säilyttää tallennetun
+hiirivedon, vaikka se peruu keskeneräisen numerosyötön.
+
+Tiivistetyn paneelin lopputarkistus hyväksyi **6/6 tapausta**: samat kolme
+tekstuurityönkulkua desktopilla ja tablettiemuloinnissa. Uusi työkaluvarmennus
+vaatii kiertokentän näkyvän näkymässä ennen paneelin vierittämistä. Yhteensä
+passissa hyväksyttiin 17 eri tuotantoselaintapausta (14 desktop, 3 tabletti)
+sekä yksi materiaalikirjaston lähdemoduuleja tarkistava kehityspalvelintesti.
+
+![Jatkuva tekstuurityökalu](images/nivo-surface-tools-v019.png)
+
+Katalogikokeessa kaikki 53 materiaalia renderöityvät yhdessä ilman GPU-virheitä.
+Uudet pinnat ovat proseduraalisia kuvioita ja niistä johdettuja normal-/karheuskarttoja,
+eivät valokuvattuja PBR-skannauksia. Laattasauma on pintakuvio.
+
+```sh
+npm test
+npm run build
+npm run format:check
+npm run licenses
+npx playwright test tests/texture-sources.spec.ts --project=desktop --output=/private/tmp/nivo-texture-sources-final
+NIVO_PREVIEW=1 npx playwright test tests/pine-trace.spec.ts --project=desktop --output=/private/tmp/nivo-pine-shared
+NIVO_PREVIEW=1 npx playwright test tests/render-tools.spec.ts tests/overnight.spec.ts tests/precision.spec.ts tests/material-light-v018.spec.ts tests/pbr-v011.spec.ts tests/render-job.spec.ts tests/render.spec.ts --grep 'texture|rectangular color|LED presets|render materials|finite render|render cancellation' --project=desktop --output=/private/tmp/nivo-v019-render-final
+NIVO_PREVIEW=1 npx playwright test tests/render-tools.spec.ts tests/overnight.spec.ts --grep 'texture' --output=/private/tmp/nivo-v019-tools-final
+```
+
+Julkaisu: edellinen versio **0.18.0 / 45217dd** vietiin GitHub Pagesiin.
+Workflow 37338268348 valmistui onnistuneesti ja julkisen sivun JavaScriptistä
+varmennettiin v0.18.0. Tämän passin 0.19.0 pysyy paikallisena julkaisuna.
+
 ## V0.18 — PBR-pinnat ja valaistuksen työnkulku
 
 **213 yksikkö-/CAD-testiä hyväksytty (43 tiedostoa)**. TypeScript, tuotantobuild

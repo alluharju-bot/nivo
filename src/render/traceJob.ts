@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import type { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
 
@@ -122,7 +123,9 @@ export async function renderSnapshot(
       ),
     );
     check();
+    configureTraceTextures(snapshot.scene, renderer, tracer);
     tracer.setScene(snapshot.scene, snapshot.camera);
+    checkTraceUpload(renderer);
     let lastReport = 0;
     while (tracer.samples < target) {
       await animationFrame(signal);
@@ -131,6 +134,7 @@ export async function renderSnapshot(
       if (renderer.getContext().isContextLost())
         throw new Error('Näytönohjaimen yhteys katkesi. Kokeile pienempää kuvakokoa.');
       tracer.renderSample();
+      if (tracer.samples === 1) checkTraceUpload(renderer);
       if (performance.now() - lastReport > 400) {
         report('rendering');
         lastReport = performance.now();
