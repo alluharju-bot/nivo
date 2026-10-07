@@ -3,6 +3,7 @@ import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import { omitPreviewLights } from './lights';
 import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import { configureTraceEnvironment } from './traceJob';
+import { configureEmitterSampling } from './emitterSampling';
 
 export type TraceStatus = {
   state: 'off' | 'loading' | 'rendering' | 'paused' | 'complete' | 'error';
@@ -31,6 +32,10 @@ export function progressiveRenderer(
     lastStatus = 0;
   let preparing = false,
     sceneVersion = 0;
+  let interacting = false,
+    settleAt = 0,
+    materialsDirty = false;
+  let materialUploads = 0;
   let options = { ...traceDefaults };
   const status = (state: TraceStatus['state'], message?: string) =>
     onStatus({
@@ -50,7 +55,7 @@ export function progressiveRenderer(
     if (!tracer) return;
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
     tracer.renderScale =
-      options.quality === 'full' ? 1 : Math.min(0.65, 1000 / Math.max(size.x, size.y));
+      options.quality === 'full' ? 1 : Math.min(0.65, 800 / Math.max(size.x, size.y));
     tracer.bounces = options.quality === 'full' ? 10 : 6;
     tracer.transmissiveBounces = options.quality === 'full' ? 12 : 8;
     tracer.filterGlossyFactor = 0.5;
@@ -66,13 +71,18 @@ export function progressiveRenderer(
     });
     configureTraceTextures(snapshot, renderer, tracer!);
     tracer!.setScene(snapshot, camera);
+    renderer.domElement.dataset.traceMaterialUploads = String(++materialUploads);
     checkTraceUpload(renderer);
     dirty = false;
+    materialsDirty = false;
   };
   const loop = () => {
     if (disposed || !enabled || !tracer) return;
     frame = requestAnimationFrame(loop);
     if (document.hidden || paused || complete) return;
+    // Never enqueue expensive GPU work while dragging or during a wheel burst.
+    // Camera events draw the live raster scene; refinement resumes after settling.
+    if (interacting || performance.now() < settleAt) return;
     try {
       if (dirty) {
         if (!preparing) {
@@ -94,6 +104,11 @@ export function progressiveRenderer(
       }
       if (renderer.getContext().isContextLost())
         throw new Error('Näytönohjaimen yhteys katkesi. Kokeile nopeaa esikatselua.');
+      if (materialsDirty) {
+        tracer.updateMaterials();
+        renderer.domElement.dataset.traceMaterialUploads = String(++materialUploads);
+        materialsDirty = false;
+      }
       tracer.renderSample();
       if (tracer.samples === 1) checkTraceUpload(renderer);
       renderer.domElement.dataset.traceSamples = String(Math.floor(tracer.samples));
@@ -117,6 +132,10 @@ export function progressiveRenderer(
   return {
     get active() {
       return enabled;
+    },
+    resize() {
+      quality();
+      reset();
     },
     configure(next: TraceOptions) {
       options = next;
@@ -143,11 +162,15 @@ export function progressiveRenderer(
           // a deleted lazy chunk; GPU resources are still created only on request.
           environment = new GradientEquirectTexture(128);
           tracer = new WebGLPathTracer(renderer);
+          configureEmitterSampling(tracer);
           tracer.tiles.set(1, 1);
           renderer.domElement.dataset.traceTiles = '1';
           tracer.minSamples = 1;
-          tracer.renderDelay = 150;
-          tracer.fadeDuration = 0;
+          tracer.renderDelay = 100;
+          tracer.fadeDuration = 180;
+          // The trace scene excludes preview lights. Its raster fallback would
+          // otherwise turn off LED illumination whenever the camera moves.
+          tracer.rasterizeSceneCallback = () => renderer.render(scene, camera);
           tracer.textureSize.set(1024, 1024);
         }
         enabled = true;
@@ -173,15 +196,20 @@ export function progressiveRenderer(
       paused = value;
       status(complete ? 'complete' : value ? 'paused' : 'rendering');
     },
-    invalidate(rebuildScene = false) {
+    interaction(value: boolean) {
+      interacting = value;
+      renderer.domElement.dataset.traceInteractive = String(value);
+      if (!value) settleAt = performance.now() + 180;
+    },
+    invalidate(rebuildScene = false, updateMaterials = false) {
       if (rebuildScene) {
         dirty = true;
         sceneVersion++;
       }
       if (enabled && tracer) {
-        quality();
         tracer.updateCamera();
-        if (!dirty) tracer.updateMaterials();
+        materialsDirty ||= updateMaterials;
+        settleAt = performance.now() + 180;
         if (paused) renderer.render(scene, camera);
         reset();
       }

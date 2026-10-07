@@ -2,13 +2,19 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { decode } from 'fast-png';
 import { makeBody } from '../src/model/project';
+import { defaultAppearance } from '../src/model/materials';
 import { ready, save } from './helpers';
 
 test('a finite render continues in Model using its frozen scene and downloads a real PNG', async ({
   page,
 }, info) => {
   test.setTimeout(180_000);
-  const source = makeBody(300, 200, 300, [0, 0, 0], 'Renderöitävä osa');
+  // A mirror exercises multiple face materials in the frozen trace scene.
+  const source = {
+    ...makeBody(300, 6, 300, [0, 0, 0], 'Renderöitävä peili'),
+    color: '#f4f4f4',
+    appearance: defaultAppearance('mirror'),
+  };
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await ready(page, [source]);

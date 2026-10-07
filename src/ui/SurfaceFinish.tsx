@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { findPreset, type Appearance } from '../model/materials';
 
 const finishes = [
-  { id: 'matte', label: 'Matta', roughness: 0.85, clearcoat: 0 },
+  { id: 'matte', label: 'Matta', roughness: 1, clearcoat: 0 },
   { id: 'satin', label: 'Silkinhimmeä', roughness: 0.55, clearcoat: 0.05 },
   { id: 'semi', label: 'Puolikiiltävä', roughness: 0.3, clearcoat: 0.15 },
   { id: 'gloss', label: 'Kiiltävä', roughness: 0.12, clearcoat: 0.35 },
@@ -29,17 +29,52 @@ export function SurfaceFinish({
     committed.current = percent;
   }, [percent, appearance]);
   const selected =
-    finishes.find(
-      (f) => Math.abs(f.roughness - roughness) < 1e-8 && Math.abs(f.clearcoat - clearcoat) < 1e-8,
-    )?.id ?? 'custom';
+    appearance.roughness === undefined && appearance.clearcoat === undefined
+      ? 'native'
+      : (finishes.find(
+          (f) =>
+            Math.abs(f.roughness - roughness) < 1e-8 && Math.abs(f.clearcoat - clearcoat) < 1e-8,
+        )?.id ?? 'custom');
   const commit = () => {
     if (gloss !== committed.current && !busy) {
       committed.current = gloss;
-      void onChange({ ...appearance, roughness: (100 - gloss) / 100 });
+      // The finish slider controls the coating too: a glossy preset must not
+      // retain a mirror-like clearcoat when the user requests zero gloss.
+      void onChange({
+        ...appearance,
+        roughness: (100 - gloss) / 100,
+        clearcoat: Math.min(clearcoat, gloss / 100),
+      });
     }
   };
   return (
     <div className="surface-finish">
+      {appearance.preset === 'mirror' && (
+        <>
+          <label>
+            Peilipinta
+            <select
+              aria-label="Peilin puoli"
+              disabled={busy}
+              value={appearance.mirrorSide ?? 'front'}
+              onChange={(e) =>
+                void onChange({
+                  ...appearance,
+                  mirrorSide: e.target.value as Appearance['mirrorSide'],
+                })
+              }
+            >
+              <option value="front">Etupuoli</option>
+              <option value="back">Kääntöpuoli</option>
+              <option value="both">Molemmat puolet</option>
+            </select>
+          </label>
+          <small>
+            Peilipinta tulee levyn leveälle tahkolle. Mallin heijastukset näkyvät
+            Tarkentuva-tilassa.
+          </small>
+        </>
+      )}
       <label>
         Pintakäsittely
         <select
@@ -47,6 +82,11 @@ export function SurfaceFinish({
           disabled={busy}
           value={selected}
           onChange={(e) => {
+            if (e.target.value === 'native') {
+              const { roughness: _roughness, clearcoat: _clearcoat, ...native } = appearance;
+              void onChange(native);
+              return;
+            }
             const finish = finishes.find((f) => f.id === e.target.value);
             if (finish)
               void onChange({
@@ -56,8 +96,9 @@ export function SurfaceFinish({
               });
           }}
         >
+          <option value="native">Materiaalin oma</option>
           <option value="custom" disabled>
-            Materiaalin oma / säädetty
+            Säädetty
           </option>
           {finishes.map((f) => (
             <option key={f.id} value={f.id}>

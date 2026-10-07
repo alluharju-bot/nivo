@@ -344,13 +344,21 @@ export function createMaterialLibrary(draw: () => void) {
         }
       }
       const strength = surfaceStrength(appearance);
+      // An explicit finish overrides the roughness texture. Multiplying a matte
+      // finish by a dark map silently reintroduced gloss. Keep color and relief.
+      if (appearance.roughness !== undefined && roughnessMap) {
+        roughnessMap.dispose();
+        roughnessMap = null;
+      }
+      const finishRoughness = appearance.roughness ?? preset.roughness;
       const material = new THREE.MeshPhysicalMaterial({
         color: body.color,
         side: THREE.DoubleSide,
-        roughness: appearance.roughness ?? preset.roughness,
+        roughness: finishRoughness,
         metalness: appearance.metalness ?? preset.metalness,
         transmission: appearance.transmission ?? preset.transmission ?? 0,
-        clearcoat: appearance.clearcoat ?? preset.clearcoat ?? 0,
+        clearcoat: finishRoughness === 1 ? 0 : (appearance.clearcoat ?? preset.clearcoat ?? 0),
+        clearcoatRoughness: finishRoughness,
         thickness: Math.max(
           1,
           Math.min(body.feature.width, body.feature.depth, body.feature.height) * 0.1,

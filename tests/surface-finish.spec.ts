@@ -3,6 +3,34 @@ import { ready, save, view, click } from './helpers';
 import { makeBody } from '../src/model/project';
 import { defaultAppearance, findPreset } from '../src/model/materials';
 
+test('mirror side is explicit, undoable and preserved between modeling and rendering', async ({
+  page,
+}) => {
+  const body = {
+    ...makeBody(600, 6, 900),
+    color: findPreset('mirror').color,
+    appearance: defaultAppearance('mirror'),
+  };
+  await ready(page, [body]);
+  await page.getByTestId(`body-${body.id}`).click();
+  await page.locator('.model-materials > summary').click();
+  await expect(page.getByLabel('Peilin puoli')).toHaveValue('front');
+  await page.getByLabel('Peilin puoli').selectOption('back');
+  expect((await save(page)).bodies[0].appearance?.mirrorSide).toBe('back');
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await expect(page.getByLabel('Peilin puoli')).toHaveValue('front');
+  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await page.getByLabel('Peilin puoli').selectOption('both');
+  await expect(page.getByText('Tallessa selaimessa', { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
+  await expect(page.getByLabel('Peilin puoli')).toHaveValue('both');
+  expect((await save(page)).bodies[0]).toMatchObject({
+    feature: body.feature,
+    appearance: { preset: 'mirror', mirrorSide: 'both' },
+  });
+});
+
 test('texture tint and finish preserve the texture, undo as individual actions and persist in both workspaces', async ({
   page,
 }, info) => {
@@ -46,7 +74,19 @@ test('texture tint and finish preserve the texture, undo as individual actions a
   await page.getByLabel('Pintakäsittely', { exact: true }).selectOption('matte');
   await expect.poll(pixels).not.toBe(glossy);
   result = await save(page);
-  expect(result.bodies[0].appearance).toEqual({ ...appearance, roughness: 0.85, clearcoat: 0 });
+  expect(result.bodies[0].appearance).toEqual({ ...appearance, roughness: 1, clearcoat: 0 });
+  await expect(page.getByRole('slider', { name: 'Kiilto', exact: true })).toHaveValue('0');
+  await page.getByLabel('Pintakäsittely', { exact: true }).selectOption('gloss');
+  await page.getByRole('slider', { name: 'Kiilto', exact: true }).press('Home');
+  expect((await save(page)).bodies[0].appearance).toEqual({
+    ...appearance,
+    roughness: 1,
+    clearcoat: 0,
+  });
+  await page.getByLabel('Pintakäsittely', { exact: true }).selectOption('native');
+  expect((await save(page)).bodies[0].appearance).toEqual(appearance);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await expect(page.getByLabel('Pintakäsittely', { exact: true })).toHaveValue('matte');
   await page.getByLabel('Pintakäsittely', { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('surface-finish.png') });
   expect(errors).toEqual([]);

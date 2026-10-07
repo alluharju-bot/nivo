@@ -4,6 +4,52 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.21.4 — piirron aloitus ja renderin korjaukset
+
+**293 yksikkö-/CAD-testiä hyväksytty (56 tiedostoa)**. Mukana peilin tahkojen
+valinta myös kierretyssä kappaleessa ja projektin uudelleenluvussa, himmeä tausta,
+vanhan kiiltävän materiaalin nollakiilto, 56 materiaalipresetiä, 100 × 200 mm
+laatan fyysinen koko sekä suorakulmaisen LED:n tunnistus kaukana origosta.
+Renderin yksityiseen shaderiin kytkeytyvä sovitin tarkistetaan asennettua
+three-gpu-pathtracer 0.0.26:ta vasten; riippuvuuspäivitys vaatii tämän tarkistuksen.
+
+**88 selaintapausta hyväksytty desktopilla ja tablettiemuloinnissa**:
+piirron aloitus, kynän mittasyöttö ja suunta, mittaviivan akselit ja Shift-viite,
+pinta-/apuviivatartunta, jatkuva mittaus, kierto ja päätepisteiden muokkaus,
+materiaalikatalogi, peilin puolet, pintakäsittely sekä LED:n varjo myös lasin läpi.
+Uudet aloituskokeet käyttävät tavallista viistoa perspektiiviä: 137/213 mm:n
+osoitus näyttää ja tallentaa 140/210/0 mm ruudukon mukaan. X/Y/Z-lukituksen jälkeen
+48 mm hyväksytään miinussuuntaan ilman välissä tapahtuvaa hiiren liikettä.
+
+Ensimmäisessä laajassa ajossa löytyi kuution näppäimistövirhe: Enter hyväksyi
+keskeneräisen piirron ja esti painikkeen aktivoitumisen. Korjauksen jälkeen kynä
+jatkaa myös kun alkutaso käännetään reunalta katsottavaksi. Yksi tabletin testi
+osoitti kuution peittämää näytön kohtaa; testin vastakulma siirrettiin saman
+apuviivatason esteettömään kohtaan ja CAD:n valmistumista odotetaan ennen vientiä.
+Korjatut tapaukset hyväksyttiin uudelleen molemmilla profiileilla.
+
+**Kolme renderin lisätapausta hyväksytty desktopilla**:
+
+- Tarkennus valmistuu kahdeksaan näytteeseen; kameravedon aikana näytteitä ei
+  lasketa ja materiaalien GPU-latausten määrä pysyy ennallaan. Liikkeen jälkeen
+  tarkennus jatkuu ja uusi tekstuurisävy näkyy hyväksymistä odottamatta. Myöhemmät
+  JavaScript-haut on testissä estetty, joten käynnistys käyttää sovelluksen mukana
+  ladattua renderöintikoodia.
+- Peitetty suorakulmainen LED 50 mm valoaukon vieressä valaisee vastaanottavaa
+  lattiapintaa heijastusten kautta 64 näytteellä. Studion ja ympäristön tehot ovat
+  nollassa. Nopean kuvan näytealue jää alle 3/255, tarkentuva ylittää sen vähintään
+  8/255. Kun aukko suljetaan ja valaisin jää kokonaan suljettuun koteloon,
+  tarkentuvan näytealue jää alle 1/255. Valo ei vuoda suljettujen levyjen läpi.
+- Yksipuolisen peilin sisältävä taustarenderi jatkuu mallityötilassa myös uuden
+  projektin avaamisen jälkeen ja tuottaa oikean 800 px PNG-kuvan.
+
+**Rajaukset:** valon voimakkuus on suhteellinen. Koe ei kalibroi lumeneita eikä
+osoita käyttäjän saunan lopullista kirkkautta. Kapea valoaukko on edelleen
+voimakkaasti kohinainen 64 näytteellä; syvemmällä valokotelossa oleva LED jäi
+ensimmäisessä kokeessa hyvin himmeäksi. Kohinanpoisto, epäsuoran valon tehokkaampi
+näytteistys ja fysikaalisten yksiköiden kalibrointi ovat backlogissa. Nopea-tila
+ei laske epäsuoraa valaistusta. Peilin malliheijastukset vaativat Tarkentuva-tilan.
+
 ## V0.21.3 — horisontin säilyttävä orbit, maali ja renderin korjaukset
 
 **288 yksikkö-/CAD-testiä hyväksytty (54 tiedostoa)**. TypeScript, `/nivo/`-build,

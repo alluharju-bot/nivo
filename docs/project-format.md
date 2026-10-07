@@ -196,6 +196,13 @@ Kuvion mitat ja siirtymät ovat millimetrejä, kierto asteina.
 koordinaatistoon; kvaternioni on [x,y,z,w]. Puuttuva kehys on origoon
 sidottu identiteettikierto. `color` sävyttää pintaa.
 
+V0.21.4 lisää valinnaisen `appearance.mirrorSide`: `front` (oletus), `back` tai
+`both`. Se vaikuttaa `mirror`-presetiin ja valitsee osan paikallisen ohuimman akselin
+leveän tahkon: etupuoli on −Y, +X tai +Z. Muut tahkot ovat himmeää taustaa.
+Uudet preset-tunnisteet ovat `mirror` ja `tile-wall-small` (100 × 200 mm).
+Eksplisiittinen `roughness` ohittaa karheuskartan; arvo 1 poistaa myös pintalakan.
+Materiaalin oma pintakäsittely poistaa `roughness`- ja `clearcoat`-ylikirjoitukset.
+
 `assets` on tunnisteella indeksoitu kartta: `{name,dataUrl,width,height}`.
 Data-URL hyväksyy vain PNG/JPEG/WebP-base64-kuvan. Yhden kuvan kenttä on
 korkeintaan 6 Mt ja kuvien yhteiskoko 32 Mt; suurin esikatselusivu on

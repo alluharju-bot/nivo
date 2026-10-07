@@ -79,7 +79,7 @@ export function EmissionControls({
               />
             </label>
             <label>
-              Voimakkuus
+              Voimakkuus · suhteellinen
               <input
                 aria-label="Valon voimakkuus"
                 type="number"
@@ -158,8 +158,8 @@ export function EmissionControls({
           )}
           {emission.type === 'surface' && (
             <p className="muted">
-              Esikatselu näyttää kahdeksan voimakkaimman LED-pinnan valaisun. Tarkentuva kuva laskee
-              kaikkien pintojen peittymisen, heijastukset ja valon leviämisen pinnasta.
+              Nopea esikatselu näyttää rajatun määrän suoria valoja. Tarkentuva laskee myös katosta
+              ja seinistä heijastuvan valon. Voimakkuus on toistaiseksi kerroin, ei lumenarvo.
             </p>
           )}
         </>

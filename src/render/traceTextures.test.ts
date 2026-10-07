@@ -23,5 +23,6 @@ it('gives building finishes physical scale and distinguishable relief and sheen'
   );
   expect(defaultAppearance('tile-white-gloss').texture).toMatchObject({ width: 300, height: 600 });
   expect(defaultAppearance('tile-terracotta').texture).toMatchObject({ width: 200, height: 200 });
-  expect(materialPresets.filter((p) => p.category === 'Laatat')).toHaveLength(3);
+  expect(materialPresets.filter((p) => p.category === 'Laatat')).toHaveLength(4);
+  expect(defaultAppearance('tile-wall-small').texture).toMatchObject({ width: 100, height: 200 });
 });

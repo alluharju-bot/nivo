@@ -90,10 +90,13 @@ test('rectangle acquires a guide and its plane in open space, with no phantom gr
   expect(start[1]).toBeCloseTo(37.125, 7);
   expect(start[2]).toBeCloseTo(400, 7);
   await click(page, { x: at.x, y: at.y + 3 });
-  await click(page, p(640, 37.125, 520));
+  // Draw below the guide: the upper-right endpoint is covered by the view
+  // cube in the narrower tablet viewport.
+  await click(page, p(640, 37.125, 280));
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '2');
   const result = (await save(page)).bodies[1];
   expect(result.origin[1]).toBeCloseTo(37.125, 7);
-  expect(result.origin[2]).toBeCloseTo(400, 7);
+  expect(result.origin[2]).toBeCloseTo(280, 7);
   expect(result.feature.height).toBeCloseTo(120, 7);
 });
 

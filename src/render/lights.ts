@@ -85,7 +85,7 @@ export function createPartLights(body: Body, geometry: THREE.BufferGeometry) {
     const axis = size.indexOf(Math.min(...size));
     // RectAreaLight has no occlusion in the raster renderer, even in its glass
     // highlights. Sample both emitting faces with shadowed lights instead. The
-    // tracer still uses only the actual emissive geometry.
+    // tracer uses the real emissive geometry and its matching sampled faces.
     group.userData.previewOnly = true;
     for (const sign of [-1, 1]) {
       const frame = emitterFrame(body, geometry, axis, sign);
@@ -114,6 +114,64 @@ export function createPartLights(body: Body, geometry: THREE.BufferGeometry) {
       }
       group.userData.power = frame.width * frame.height * emission.intensity;
     }
+  }
+  return group;
+}
+
+/** Rectangular LED faces participate in next-event estimation. Tiny emissive
+ * meshes alone are almost never found by diffuse rays in a sheltered recess. */
+export function createTraceLights(body: Body, geometry: THREE.BufferGeometry) {
+  const group = new THREE.Group();
+  group.visible = false;
+  group.userData.traceOnly = true;
+  const emission = emissionSettings(
+    body.appearance ?? defaultAppearance(body.material),
+    body.color,
+  );
+  if (!emission.enabled || emission.intensity <= 0 || emission.type !== 'surface') return group;
+  const positions = geometry.getAttribute('position');
+  if (!positions?.count || (geometry.index !== null && geometry.index.count < 3)) return group;
+  const inverse = textureFrameMatrix(body).invert();
+  const box = new THREE.Box3(),
+    point = new THREE.Vector3();
+  let tolerance = 1e-4;
+  for (let i = 0; i < positions.count; i++) {
+    point.fromBufferAttribute(positions, i);
+    // CAD positions become float32 in the renderer. Allow that precision loss
+    // when recognizing a rotated rectangle far from the origin.
+    tolerance = Math.max(
+      tolerance,
+      Math.max(Math.abs(point.x), Math.abs(point.y), Math.abs(point.z)) * 2 ** -22,
+    );
+    box.expandByPoint(point.applyMatrix4(inverse));
+  }
+  // Do not invent a rectangular emitter across a hole or a curved outline.
+  const corners = new Set<string>();
+  for (let i = 0; i < positions.count; i++) {
+    point.fromBufferAttribute(positions, i).applyMatrix4(inverse);
+    const key: number[] = [];
+    for (let axis = 0; axis < 3; axis++) {
+      const value = point.getComponent(axis);
+      if (Math.abs(value - box.min.getComponent(axis)) < tolerance) key.push(0);
+      else if (Math.abs(value - box.max.getComponent(axis)) < tolerance) key.push(1);
+      else return group;
+    }
+    corners.add(key.join(''));
+  }
+  const size = box.getSize(new THREE.Vector3()).toArray();
+  const axis = size.indexOf(Math.min(...size));
+  if (corners.size !== (size[axis] < tolerance ? 4 : 8)) return group;
+  for (const sign of [-1, 1]) {
+    const frame = emitterFrame(body, geometry, axis, sign);
+    const light = new THREE.RectAreaLight(
+      emission.color,
+      emission.intensity,
+      frame.width,
+      frame.height,
+    );
+    light.position.copy(frame.position);
+    light.quaternion.copy(frame.rotation);
+    group.add(light);
   }
   return group;
 }

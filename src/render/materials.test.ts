@@ -1,10 +1,24 @@
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
-import { texturePlacement, textureFrameMatrix } from './materials';
+import { texturePlacement, textureFrameMatrix, createMaterialLibrary } from './materials';
 import { defaultAppearance, materialPresets } from '../model/materials';
 import { makeBody, freshProject, parseProject } from '../model/project';
 import { snapOnSketchPlane, snapPoint } from '../model/snap';
 import { sketchFrame } from '../model/sketch';
+
+it('respects zero gloss in an old coated material and roughens satin clearcoat', () => {
+  const library = createMaterialLibrary(() => {});
+  const appearance = { ...defaultAppearance('paint-solid'), roughness: 1, clearcoat: 0.35 };
+  const matte = library.create({ ...makeBody(), appearance });
+  expect(matte.roughness).toBe(1);
+  expect(matte.clearcoat).toBe(0);
+  const satin = library.create({ ...makeBody(), appearance: { ...appearance, roughness: 0.55 } });
+  expect(satin.clearcoatRoughness).toBe(0.55);
+  expect(satin.clearcoat).toBe(0.35);
+  matte.dispose();
+  satin.dispose();
+  library.dispose();
+});
 
 it('keeps millimeter offsets independent of rotation and per-object texture scale', () => {
   const a = new THREE.Texture(),
@@ -41,9 +55,9 @@ it('keeps millimeter offsets independent of rotation and per-object texture scal
   a.dispose();
   b.dispose();
 });
-it('ships 54 distinct presets and rejects a missing imported image', () => {
-  expect(materialPresets).toHaveLength(54);
-  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(54);
+it('ships 56 distinct presets and rejects a missing imported image', () => {
+  expect(materialPresets).toHaveLength(56);
+  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(56);
   expect(
     new Set(materialPresets.filter((p) => p.category === 'Massiivipuut').map((p) => p.pattern))
       .size,

@@ -3041,6 +3041,10 @@ export default function App() {
       }
       const target = event.target as HTMLElement;
       if (target.closest('input, textarea, select, [contenteditable]')) return;
+      // Enter/Space belong to the focused control, e.g. a view-cube face while
+      // drawing. Do not accept geometry instead of activating that control.
+      if (['Enter', ' '].includes(event.key) && target.closest('button, a, summary, [role=button]'))
+        return;
       const key = event.key.toLowerCase();
       if ((event.ctrlKey || event.metaKey) && key === 's') {
         event.preventDefault();
@@ -3144,7 +3148,12 @@ export default function App() {
   useEffect(() => {
     if (tool === 'measure' && axis && guideRef.current && !guideRef.current.offset) {
       const draft = guideRef.current;
-      draft.direction = axisVector(axis);
+      const prior =
+        draft.direction ?? guideDirection(draft.plane, Number(fieldsRef.current.angle) || 0);
+      draft.direction = scaleVector(
+        axisVector(axis),
+        prior[{ x: 0, y: 1, z: 2 }[axis]] < 0 ? -1 : 1,
+      );
       draft.plane = planeForDirection(draft.direction, draft.plane);
       lockRef.current.delete('angle');
       writeFields({
@@ -6283,7 +6292,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.21.3</span>
+                    <span>v0.21.4</span>
                   </div>
                 </>
               )}

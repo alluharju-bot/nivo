@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
+import { configureEmitterSampling } from './emitterSampling';
 
 export type RenderJobOptions = { width: number; samples: number };
 export type RenderJobProgress = {
@@ -96,6 +97,7 @@ export async function renderSnapshot(
     configureTraceEnvironment(environment, snapshot.scene);
     snapshot.scene.environment = environment;
     tracer = new WebGLPathTracer(renderer);
+    configureEmitterSampling(tracer);
     tracer.tiles.set(Math.ceil(width / 256), Math.ceil(height / 256));
     tracer.bounces = 10;
     tracer.transmissiveBounces = 12;

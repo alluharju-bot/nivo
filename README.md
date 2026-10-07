@@ -3,6 +3,16 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.21.4** korjaa kynän ja vapaan mittaviivan aloituksen perspektiivissä:
+tyhjässä tilassa piste seuraa näkyvää z=0-ruudukkoa, ja akselilukitus säilyttää
+mittaviivan etenemissuunnan. **Peili** tarjoaa yhden tai kaksi heijastavaa puolta,
+**100 × 200 mm seinälaatta** täydentää materiaalit 56 vaihtoehtoon. Matta-asetus
+ohittaa kiiltoa palauttaneet pintalakan ja karheuskartan. Renderin kameraliike
+ei enää lataa tekstuureja uudelleen; tarkennus jatkuu liikkeen päätyttyä.
+Suorakulmaisia LED-valopintoja näytteistetään kohdennetusti myös heijastuneen
+valon laskennassa. Nopea-tila ei laske epäsuoraa valaistusta; valon voimakkuus
+on edelleen suhteellinen, ei lumenluku. Pienten valoaukkojen kohina vaatii jatkotyötä.
+
 Versio **0.21.3** palauttaa 3D-orbitin aiemman liikelogiikan: pysty- ja vaakakierto
 toimivat samalla vedolla ilman kertyvää sivuttaiskallistusta. Ylänäkymästä pääsee
 kiertämään kumpaankin vetosuuntaan. **Maali · tasainen väri** lisää pelkän sävyn ja

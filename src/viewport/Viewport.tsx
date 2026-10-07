@@ -34,6 +34,7 @@ import { createBodyBatches, type ModelMaterial } from './bodyBatches';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { createModelDimensions } from './modelDimensions';
 import { installCameraNavigation, rebuildOrbitControls, rotateInView } from './cameraNavigation';
+import { mirrorFaceGroups, mirrorBacking } from '../render/mirror';
 import { createViewCube } from './viewCube';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
@@ -387,13 +388,25 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           ? materialLibrary.create(body, props.assets)
           : new THREE.MeshBasicMaterial({ toneMapped: false });
       // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
-      const materialFaces =
-        selected && props.selectedFace
+      const mirror = body.appearance?.preset === 'mirror' && display === 'solid';
+      const faceRanges =
+        (selected && props.selectedFace) || mirror
           ? data.faces
           : [{ ref: undefined, start: 0, count: data.triangles.length }];
+      const materialFaces = mirror
+        ? faceRanges.flatMap((face) =>
+            mirrorFaceGroups(geometry, body, face.start, face.count).map((group) => ({
+              ...group,
+              ref: face.ref,
+            })),
+          )
+        : faceRanges.map((face) => ({ ...face, reflective: true }));
       const materials = materialFaces.map((face, index) => {
         geometry.addGroup(face.start, face.count, index);
         const material = baseMaterial.clone();
+        if (mirror && !face.reflective && material instanceof THREE.MeshPhysicalMaterial)
+          mirrorBacking(material);
+        const color = material.userData.mirrorBacking ? '#69706e' : body.color;
         material.setValues({
           color: reference
             ? new THREE.Color(body.color).lerp(new THREE.Color('#eaece6'), 0.45)
@@ -414,7 +427,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                             new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
                             0.3,
                           )
-                        : body.color,
+                        : color,
           side: THREE.DoubleSide,
           polygonOffset: true,
           polygonOffsetFactor: surfacePriority ? -1 : 1,
@@ -1363,7 +1376,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     for (const [id, node] of bodyNodes) {
       for (const material of node.mesh.material) {
         // Show the actual tint while editing; keep selection visible in the outline.
-        if (ids.has(id)) material.color.set(preview!.color);
+        if (ids.has(id) && !material.userData.mirrorBacking) material.color.set(preview!.color);
         else material.color.setHex(material.userData.originalColor);
       }
     }

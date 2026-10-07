@@ -102,6 +102,21 @@ test('progressive rendering refines the live tint without waiting for Apply', as
   await panel.getByRole('button', { name: 'Materiaali', exact: true }).click();
   const canvas = page.getByTestId('render-canvas');
   const original = await canvas.screenshot();
+  const uploads = await canvas.getAttribute('data-trace-material-uploads');
+  const beforeCamera = await canvas.getAttribute('data-camera');
+  const rect = (await canvas.boundingBox())!;
+  await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  await page.mouse.down({ button: 'right' });
+  for (let i = 1; i <= 10; i++)
+    await page.mouse.move(rect.x + rect.width / 2 + i * 8, rect.y + rect.height / 2 + i * 3);
+  await expect(canvas).toHaveAttribute('data-trace-interactive', 'true');
+  await expect(canvas).not.toHaveAttribute('data-camera', beforeCamera!);
+  await expect(canvas).toHaveAttribute('data-trace-samples', '0');
+  await page.mouse.up({ button: 'right' });
+  await expect(canvas).toHaveAttribute('data-trace-material-uploads', uploads!);
+  await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
+    timeout: 120000,
+  });
   await page.getByLabel('Oma osaväri', { exact: true }).fill('#2277bb');
   await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
     timeout: 120000,

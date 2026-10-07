@@ -1,7 +1,8 @@
 import { installTextureEditing } from '../viewport/textureEditing';
 import type { ColorPreview } from '../model/colorPreview';
-import { createPartLights, previewLightLimit } from './lights';
+import { createPartLights, createTraceLights, previewLightLimit } from './lights';
 import { progressiveRenderer, type TraceStatus } from './progressive';
+import { mirrorFaceGroups, mirrorBacking } from './mirror';
 import { captureRenderScene } from './snapshot';
 import {
   createMaterialLibrary,
@@ -53,6 +54,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   const canvas = renderer.domElement;
   canvas.dataset.testid = 'render-canvas';
   canvas.setAttribute('aria-label', 'Renderöintinäkymä');
@@ -91,9 +94,9 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   let disposed = false;
   let extent = 100,
     initialized = false;
-  const draw = () => {
+  const draw = (materials = false) => {
     renderer.render(scene, camera);
-    progressive.invalidate();
+    progressive.invalidate(false, materials);
     canvas.dataset.camera = JSON.stringify({
       position: camera.position.toArray(),
       quaternion: camera.quaternion.toArray(),
@@ -118,7 +121,19 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   const labels = new THREE.Group();
   scene.add(labels);
   const navigation = installCameraNavigation(controls, canvas, () => model.children);
-  controls.addEventListener('change', draw);
+  let cameraFrame = 0;
+  const cameraDraw = () => {
+    if (!cameraFrame)
+      cameraFrame = requestAnimationFrame(() => {
+        cameraFrame = 0;
+        if (!disposed) draw();
+      });
+  };
+  const cameraStart = () => progressive.interaction(true);
+  const cameraEnd = () => progressive.interaction(false);
+  controls.addEventListener('change', cameraDraw);
+  controls.addEventListener('start', cameraStart);
+  controls.addEventListener('end', cameraEnd);
   const resize = () => {
     const width = host.clientWidth,
       height = host.clientHeight;
@@ -126,6 +141,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     renderer.setSize(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    progressive.resize();
     draw();
   };
   const observer = new ResizeObserver(resize);
@@ -154,7 +170,9 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     for (const object of model.children)
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
-        disposeMaterial(object.material as THREE.Material);
+        (Array.isArray(object.material) ? object.material : [object.material]).forEach(
+          disposeMaterial,
+        );
       }
     model.clear();
     lights.traverse((o) => {
@@ -170,6 +188,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     labels.clear();
   };
   const sync = () => {
+    renderer.shadowMap.needsUpdate = true;
     clearModel();
     library.beginFrame();
     const { bodies, meshes } = current();
@@ -185,12 +204,23 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       geometry.setIndex(data.triangles);
       materialUV(geometry, body);
       const surface = library.create(body, current().assets);
-      const mesh = new THREE.Mesh(geometry, surface);
+      let materials: THREE.MeshPhysicalMaterial | THREE.MeshPhysicalMaterial[] = surface;
+      if (body.appearance?.preset === 'mirror') {
+        const backing = surface.clone();
+        mirrorBacking(backing);
+        materials = [surface, backing];
+        geometry.clearGroups();
+        for (const group of mirrorFaceGroups(geometry, body))
+          geometry.addGroup(group.start, group.count, group.reflective ? 0 : 1);
+      }
+      const mesh = new THREE.Mesh(geometry, materials);
       mesh.userData.bodyId = body.id;
       mesh.castShadow = surface.transmission < 0.5;
       mesh.receiveShadow = true;
       model.add(mesh);
       const partLights = createPartLights(body, geometry);
+      const traceLights = createTraceLights(body, geometry);
+      if (traceLights.children.length) lights.add(traceLights);
       if (partLights.userData.previewOnly) areaLights.push(partLights);
       else {
         if (partLights.children.length) {
@@ -286,6 +316,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     canvas.dataset.bodyCount = String(model.children.length);
   };
   const settingsOnly = () => {
+    renderer.shadowMap.needsUpdate = true;
     const settings = current().settings;
     const color = { studio: '#e8ece9', warm: '#eee3d2', dark: '#25313a' }[settings.environment];
     scene.background = new THREE.Color(color);
@@ -389,11 +420,13 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     appearance(ids: string[], appearance: Appearance) {
       for (const object of model.children)
         if (object instanceof THREE.Mesh && ids.includes(object.userData.bodyId)) {
-          const material = object.material as THREE.MeshPhysicalMaterial;
-          updateMaterialPlacement(material, appearance.texture);
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach((material) =>
+            updateMaterialPlacement(material as THREE.MeshPhysicalMaterial, appearance.texture),
+          );
         }
       textureEditor.update();
-      draw();
+      draw(true);
     },
     color(preview?: ColorPreview) {
       const ids = new Set(preview?.ids);
@@ -402,11 +435,14 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         if (!(object instanceof THREE.Mesh)) continue;
         const body = bodies.get(object.userData.bodyId);
         if (!body) continue;
-        (object.material as THREE.MeshPhysicalMaterial).color.set(
-          ids.has(body.id) ? preview!.color : body.color,
-        );
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials)
+          if (!material.userData.mirrorBacking)
+            (material as THREE.MeshPhysicalMaterial).color.set(
+              ids.has(body.id) ? preview!.color : body.color,
+            );
       }
-      draw();
+      draw(true);
     },
     selection() {
       controls.mouseButtons.LEFT =
@@ -440,7 +476,10 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       disposed = true;
       progressive.dispose();
       observer.disconnect();
-      controls.removeEventListener('change', draw);
+      cancelAnimationFrame(cameraFrame);
+      controls.removeEventListener('change', cameraDraw);
+      controls.removeEventListener('start', cameraStart);
+      controls.removeEventListener('end', cameraEnd);
       navigation.dispose();
       controls.dispose();
       textureEditor.dispose();

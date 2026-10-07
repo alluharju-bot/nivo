@@ -8,6 +8,7 @@ export const texturePlacementSchema = z.object({
   lockAspect: z.boolean(),
 });
 export const appearanceSchema = z.object({
+  mirrorSide: z.enum(['front', 'back', 'both']).optional(),
   preset: z.string().min(1).max(100),
   assetId: z.string().max(100).optional(),
   maps: z
@@ -125,6 +126,14 @@ export const materialPresets: MaterialPreset[] = [
     roughness: 0.55,
     metalness: 0,
     clearcoat: 0.05,
+  },
+  {
+    id: 'mirror',
+    name: 'Peili',
+    category: 'Lasit ja peilit',
+    color: '#f4f4f4',
+    roughness: 0.005,
+    metalness: 1,
   },
   wood('oak', 'Luonnontammi', '#bc915f', 'oak', 1),
   wood('oak-light', 'Vaalea tammi', '#e1c8a2', 'oak', 2),
@@ -571,6 +580,19 @@ materialPresets.push(
     relief: 1.2,
     size: [300, 600],
     clearcoat: 0.4,
+  },
+  {
+    id: 'tile-wall-small',
+    name: 'Seinälaatta · valkoinen 100 × 200 mm',
+    category: 'Laatat',
+    color: '#f4f1ea',
+    roughness: 0.35,
+    metalness: 0,
+    pattern: 'tile',
+    seed: 74,
+    relief: 0.8,
+    size: [100, 200],
+    clearcoat: 0.12,
   },
   {
     id: 'tile-grey-matte',

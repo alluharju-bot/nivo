@@ -1,10 +1,41 @@
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
-import { createPartLights, emitterFrame, omitPreviewLights } from './lights';
+import { createPartLights, createTraceLights, emitterFrame, omitPreviewLights } from './lights';
 import { captureRenderScene } from './snapshot';
 import { defaultAppearance } from '../model/materials';
 import { makeBody } from '../model/project';
 import { textureFrameMatrix } from './materials';
+
+it('samples rotated rectangular emitters only in tracing and does not bridge a curved outline', () => {
+  const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.5, 0.7, 0.9));
+  const body = {
+    ...makeBody(800, 20, 5, [10000, 30000, 2000]),
+    appearance: defaultAppearance('led-warm'),
+    textureFrame: { offset: [0, 0, 0] as [number, number, number], rotation: rotation.toArray() },
+  };
+  const geometry = new THREE.BoxGeometry(800, 20, 5)
+    .translate(400, 10, 2.5)
+    .applyMatrix4(textureFrameMatrix(body));
+  const lights = createTraceLights(body, geometry);
+  expect(lights.visible).toBe(false);
+  expect(lights.children).toHaveLength(2);
+  const scene = new THREE.Scene();
+  scene.add(lights);
+  const clone = scene.clone();
+  omitPreviewLights(clone);
+  expect(clone.children[0].visible).toBe(true);
+  expect(lights.visible).toBe(false);
+  for (const child of lights.children) {
+    const light = child as THREE.RectAreaLight;
+    expect(light.width).toBeCloseTo(800, 2);
+    expect(light.height).toBeCloseTo(20, 2);
+    expect(light.intensity).toBe(8);
+  }
+  const curved = new THREE.CylinderGeometry(10, 10, 200, 32);
+  expect(createTraceLights(body, curved).children).toHaveLength(0);
+  geometry.dispose();
+  curved.dispose();
+});
 
 it('places a rotated spotlight on its actual local emitting face', () => {
   const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.6, 0.4, 0.8));

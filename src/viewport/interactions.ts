@@ -473,6 +473,12 @@ export function installInteractions({
     const d = camera().getWorldDirection(new THREE.Vector3());
     return Math.abs(d.z) > 0.5 ? 'XY' : Math.abs(d.y) > Math.abs(d.x) ? 'XZ' : 'YZ';
   };
+  const emptyDrawingPlane = (): WorkPlane => {
+    const direction = camera().getWorldDirection(new THREE.Vector3());
+    // A tilted perspective view does not imply a vertical plane through the
+    // origin. Start in the visible ground grid; exact side views use their plane.
+    return Math.abs(direction.z) < 1e-6 ? workPlane() : 'XY';
+  };
   const planePoint = (event: PointerEvent, plane: WorkPlane, origin: Vec3): Vec3 | undefined => {
     setRay(event);
     const normal = new THREE.Vector3();
@@ -900,12 +906,19 @@ export function installInteractions({
       ? axisVector(explicit)
       : ((guideOwnsPlane ? guidePlaneNormal(guide.guide) : target?.normal) ??
         image?.normal ??
-        axisVector((['x', 'y', 'z'] as const)[planeAxes[workPlane()][2]]));
+        axisVector((['x', 'y', 'z'] as const)[planeAxes[emptyDrawingPlane()][2]]));
     const anchor = guide?.point ??
       target?.point ??
       nearest(event, false, () => true, true)?.point ??
       image?.point ?? [0, 0, 0];
     const frame = sketchFrame(scale(normal, dot(normal, anchor)), normal);
+    if (!target && !guide && !image) {
+      setRay(event);
+      if (Math.abs(dot(raycaster.ray.direction.toArray() as Vec3, normal)) < 0.02) {
+        show();
+        return;
+      }
+    }
     const raw = framePoint(event, frame);
     if (!raw) return;
     const point = frameSnap(raw, frame, undefined, event);
@@ -1839,12 +1852,13 @@ export function installInteractions({
       hoverMarker.material.size = 16;
     }
     marker.visible = !!snap;
+    canvas.dataset.snapVisible = String(!!snap);
     if (!snap) canvas.dataset.snapPoint = '';
     canvas.dataset.snapKey = snap?.key ?? '';
     if (snap) {
       canvas.dataset.snapPoint = JSON.stringify(snap.point);
       marker.position.set(...snap.point);
-      marker.material.size = snap.key === 'grid' || snap.key === 'free' ? 8 : 14;
+      marker.material.size = snap.key === 'grid' || snap.key === 'free' ? 12 : 16;
       const p = screen(snap.point);
       hint.hidden = false;
       hint.textContent = snap.label;
@@ -2019,6 +2033,9 @@ export function installInteractions({
   };
   let displayState = current().modelDisplay;
   const sync = () => {
+    canvas.style.cursor = ['pen', 'measure', 'rectangle', 'circle'].includes(current().tool)
+      ? 'crosshair'
+      : '';
     if (displayState !== current().modelDisplay) {
       displayState = current().modelDisplay;
       clearSelectionBox();
@@ -2080,6 +2097,14 @@ export function installInteractions({
       pointers.clear();
       blocked = false;
       show();
+      if (selectionPointerInside && lastEvent && tool === 'pen') updatePen(lastEvent);
+      if (
+        selectionPointerInside &&
+        lastEvent &&
+        tool === 'measure' &&
+        current().measureMode === 'free'
+      )
+        sketchStartAt(lastEvent);
     }
     if (current().tool === 'offset' && current().faceTarget && !offsetSession)
       startOffset(current().faceTarget!);
@@ -2324,10 +2349,17 @@ export function installInteractions({
     }
     if (props.measureMode === 'free' && !props.freeRotate) {
       if (measureShiftPending && !axis) {
-        const raw = planePoint(event, plane, start);
+        const raw = measureSession.frame
+          ? framePoint(event, measureSession.frame)
+          : planePoint(event, plane, start);
         if (raw) {
           const normal = axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
-          const first = frameSnap(raw, sketchFrame(start, normal), undefined, event);
+          const first = frameSnap(
+            raw,
+            measureSession.frame ?? sketchFrame(start, normal),
+            undefined,
+            event,
+          );
           const delta = sub(first, start);
           if (Math.hypot(...delta) > 0.01) {
             shiftDirection = unit(delta);
@@ -2457,7 +2489,11 @@ export function installInteractions({
     );
     const raw =
       target?.point ??
-      (axis && !isEdge ? linePoint(event, start, axis) : planePoint(event, plane, base));
+      (axis && !isEdge
+        ? linePoint(event, start, axis)
+        : props.measureMode === 'free' && measureSession.frame
+          ? framePoint(event, measureSession.frame)
+          : planePoint(event, plane, base));
     if (!raw) return;
     const normal = axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
     const end =
@@ -2467,7 +2503,14 @@ export function installInteractions({
             start,
             scale(axis, gridLength(dot(sub(raw, start), axis), props.gridStep, props.gridSnap)),
           )
-        : frameSnap(raw, sketchFrame(start, normal), undefined, event));
+        : frameSnap(
+            raw,
+            props.measureMode === 'free' && measureSession.frame
+              ? measureSession.frame
+              : sketchFrame(start, normal),
+            undefined,
+            event,
+          ));
     if (target) show(target, plane);
     else if (axis)
       show(
@@ -2482,7 +2525,7 @@ export function installInteractions({
     measureSession.end = end;
     const direction =
       (!isEdge && axis) ||
-      (props.measureMode === 'free' && target ? unit(sub(end, from)) : undefined) ||
+      (props.measureMode === 'free' ? unit(sub(end, from)) : undefined) ||
       guideDirection(
         plane,
         angleBetween(
@@ -3000,13 +3043,15 @@ export function installInteractions({
         shiftDirection = undefined;
         measureShiftPending = props.measureMode === 'free' && event.shiftKey && !props.axis;
         const picked = measureTargetAt(event, () => true);
+        const freeStart = props.measureMode === 'free' ? sketchStartAt(event) : undefined;
         const edge = picked?.sourceEdge;
         const guide = picked?.sourceGuide;
         if (props.measureMode === 'guide' && !picked) {
           props.onSnap('Valitse kappaleen piste, reuna, apuviiva tai niiden risteys.');
           return;
         }
-        if (!picked && !point) return;
+        if (!picked && !(freeStart?.point ?? point)) return;
+        if (props.measureMode === 'free' && !picked && !freeStart) return;
         const adjacent = edge?.mesh.faces.filter(
           (f) =>
             f.planar &&
@@ -3027,18 +3072,22 @@ export function installInteractions({
         if (edge)
           plane = face ? normalPlane(face.normal) : planeForDirection(edge.direction, plane);
         if (guide) plane = normalPlane(guidePlaneNormal(guide.guide));
+        if (freeStart) plane = normalPlane(freeStart.frame.normal);
         const parallelGuide =
           props.measureMode === 'guide' && guide && (guide.kind === 'line' || guide.kind === 'mid');
         measureSession = {
-          anchor: picked?.anchor ?? { point: picked?.point ?? snap(point!, plane) },
+          anchor: picked?.anchor ?? {
+            point: picked?.point ?? freeStart?.point ?? snap(point!, plane),
+          },
           plane,
           direction: edge?.direction ?? (parallelGuide ? guideVector(guide.guide) : undefined),
           edgeLength:
             props.measureMode === 'guide'
               ? (edge?.length ?? (parallelGuide ? guide.guide.length : undefined))
               : undefined,
-          frame:
-            edge && face
+          frame: freeStart
+            ? { ...freeStart.frame, origin: picked?.point ?? freeStart.point }
+            : edge && face
               ? sketchFrame(edge.point, face.normal)
               : parallelGuide
                 ? sketchFrame(guide.point, guidePlaneNormal(guide.guide))
@@ -3327,6 +3376,11 @@ export function installInteractions({
     }
     if (props.tool === 'measure' && !measureSession && !props.pickReference) {
       const target = measureTargetAt(event, () => true);
+      if (!target && props.measureMode === 'free') {
+        const picked = sketchStartAt(event);
+        highlightFace(picked?.target, true);
+        return;
+      }
       show(
         target?.key === 'edge-target'
           ? { ...target, label: 'Reuna · vedä rinnakkainen apuviiva' }

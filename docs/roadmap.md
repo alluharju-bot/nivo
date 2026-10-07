@@ -2,6 +2,63 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.21.4 — piirron aloitustaso, pintakäsittely ja renderin sujuvuus
+
+- Kynän ja vapaan mittaviivan näkyvä aloituspiste seuraa ruudukkoa jo ennen
+  napsautusta. Perspektiivissä tyhjän tilan oletus on z=0; kameran kallistus ei
+  vaihda sitä pystytasoksi. Kappaleiden ja apuviivojen tarkat tasot sekä sivunäkymät
+  säilyvät. Lähes horisontin suuntainen säde ei aloita piirrosta kaukaisuuteen.
+- Vapaan mittaviivan X/Y/Z-lukitus säilyttää etenemissuunnan myös ilman seuraavaa
+  hiiren liikettä. Pinnan oma piirroskehys säilyy vapaassa mittauksessa.
+- Matta ja Kiilto 0 % poistavat kirkkaan pintalakan. Käyttäjän karheusasetus
+  ohittaa tekstuurin karheuskartan, joka aiemmin saattoi palauttaa kiillon.
+  Materiaalin oma pintakäsittely palauttaa myös sen karheuskartan.
+- **Peili**: levyn yksi leveä tahko oletuksena; Peilin puoli vaihtaa kääntöpuoleen
+  tai molempiin. Sivureunat ja tausta ovat himmeät. Paikallinen suunta seuraa
+  kappaleen kiertoa. Mallin todelliset heijastukset lasketaan Tarkentuva-tilassa.
+- **Seinälaatta · valkoinen 100 × 200 mm**, skaalattava ja kierrettävä kuten muut
+  materiaalit. Materiaalipresetit yhteensä 56.
+- Kameran liike ei lataa kaikkia tekstuureja uudelleen näytönohjaimelle. Liikkeen
+  aikana näytetään nopea esikatselu ja tarkennus jatkuu lyhyen asettumisen jälkeen.
+  Paikallaan pysyvän mallin varjokartat säilyvät orbitin aikana. Luonnostarkennuksen
+  pisin sivu on enintään 800 pikseliä; täysi laatu ja erillinen kuvanlaskenta säilyvät.
+- Suorakulmaiset LED-valopinnat osallistuvat tarkentuvan renderin kohdennettuun
+  valon näytteistykseen. Fyysinen valopinta näkyy edelleen kamerassa ja lasin läpi;
+  saman heijastuneen säteen valo lasketaan vain kerran. Kaarevat valopinnat käyttävät
+  edelleen geometrian emissiota. Nopea-tila ei laske epäsuoraa huonevalaistusta.
+
+## Backlog — valaistuksen yksiköt ja kuvan laatu
+
+- Valon nykyinen voimakkuus on suhteellinen kerroin, **ei lumenluku**. LED-nauhalle
+  ehdotetaan lm/m ja valaisimelle lm. Toteutus tarvitsee pituuden/pinta-alan,
+  säteilyjakauman, värin ja millimetreissä toimivan kohtauksen yhteisen kalibroinnin.
+  Vanhojen arvojen säilytys ja siirtymä on ratkaistava; arvoa 50 ei nimetä uudelleen
+  50 lumeniksi. Mittaus referenssikohtauksella ennen fysikaalisia lupauksia.
+- Epäsuoran valon kohinan vähentäminen, peilausten laatutesti ja vaativan sisätilan
+  suorituskykykoe. Suorakulmaisen LED:n kohdennettu näytteistys auttaa, mutta pieni
+  valoaukko voi edelleen vaatia paljon näytteitä. Kohinanpoisto on erillinen työ.
+- Kalibroidut valokuviin perustuvat PBR-materiaalit, laadukas HDRI-valaistus sekä
+  selkeät sisätilan valo- ja kameran valotusasetukset asiakkaalle vietäviin kuviin.
+
+## Suunnitteluehdotus — kaatopinnat ja paikalliset korkeudet
+
+Käyttäjän esimerkki: suurempi kylpyhuoneen lattia laskee 1 × 1 m suihkualueelle,
+joka laskee jyrkemmin pyöreälle kaivolle. Tämä ei vielä ole toteutettu ominaisuus.
+
+- Ylänäkymässä lattian ulkoraja, suihkualueen raja ja pyöreä kaivo. Reunoille ja
+  pisteille korkeudet tai kaadot; pinta ja poikkileikkaus päivittyvät 3D:nä.
+- Kaivon kehällä yksi yhteinen korkeus. Taiteviivat säilyvät täsmällisinä ja
+  korkeuspisteitä/reunoja voi myöhemmin nostaa hiirellä tai millimetreinä.
+- Pinnan topologia rakennetaan korkeusehdoista: yleisesti neljä nostettua pistettä
+  eivät ole samassa tasossa. Tarvitaan hallittu jako tasopintoihin tai nimenomainen
+  kaareva pinta; pelkkä näyttöverkon pisteiden siirto rikkoisi CAD-geometrian.
+- Tasakorkuiselta neliöreunalta pyöreään kaivoon ei saada joka suuntaan samaa
+  kaatoprosenttia, koska matkat vaihtelevat. Näytetään todelliset kaadot ja
+  vastakaadot; ristiriitaisia ehtoja ei korjata huomaamatta.
+- Ensimmäisen version rajaus ehdotuksena: yksi alue ja kaivo, sisempi suihkualue,
+  korkeussäädöt, ehjä lattian paksuus, Peru/Palauta ja tallennus. Yleinen vertex-/
+  reunamuokkaus sekä usean kaivon ja epäsäännöllisten alueiden ratkaisu jatkotyöksi.
+
 ## V0.21.3 — vakaa orbit, maali ja renderin korjaukset
 
 - Orbit säilyttää vaakasuoran horisontin. Samanaikainen pysty- ja vaakakierto
