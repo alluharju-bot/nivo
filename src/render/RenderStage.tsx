@@ -1,7 +1,12 @@
 import { EmissionControls } from '../ui/EmissionControls';
 import { SurfaceMaps } from '../ui/MaterialSurface';
 import { SurfaceFinish } from '../ui/SurfaceFinish';
-import { traceDefaults, type TraceStatus, type TraceOptions } from './progressive';
+import {
+  traceDefaults,
+  traceStatusLabel,
+  type TraceStatus,
+  type TraceOptions,
+} from './progressive';
 import type { RenderSnapshot } from './snapshot';
 import type { RenderJobOptions } from './traceJob';
 import {
@@ -376,9 +381,7 @@ export function RenderStage(props: Props) {
         )}
         {['rendering', 'paused', 'complete', 'loading'].includes(trace.state) && (
           <div className="trace-badge" role="status">
-            {trace.state === 'loading'
-              ? 'Valmistellaan kuvaa…'
-              : `${trace.state === 'complete' ? 'Tavoite saavutettu' : trace.state === 'paused' ? 'Tauolla' : 'Kuva tarkentuu'} · ${trace.samples} näytettä`}
+            {traceStatusLabel(trace)}
           </div>
         )}
         <p className="render-caption">
@@ -1010,12 +1013,14 @@ export function RenderStage(props: Props) {
               {trace.state !== 'off' && (
                 <>
                   <p role="status" data-testid="trace-status">
-                    {trace.state === 'loading'
-                      ? 'Valmistellaan renderöintiä…'
-                      : trace.state === 'error'
-                        ? trace.message
-                        : `${trace.state === 'complete' ? 'Tavoite saavutettu' : trace.state === 'paused' ? 'Tauolla' : 'Kuva tarkentuu'} · ${trace.samples} näytettä`}
+                    {traceStatusLabel(trace)}
                   </p>
+                  {trace.state === 'loading' && (
+                    <p className="muted">
+                      Näytetään vielä nopea esikatselu. Tarkennus käynnistyy automaattisesti
+                      valmistelun jälkeen; ensimmäinen käynnistys voi kestää hetken.
+                    </p>
+                  )}
                   {['rendering', 'paused', 'complete'].includes(trace.state) && (
                     <>
                       <button

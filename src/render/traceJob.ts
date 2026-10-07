@@ -97,7 +97,6 @@ export async function renderSnapshot(
     configureTraceEnvironment(environment, snapshot.scene);
     snapshot.scene.environment = environment;
     tracer = new WebGLPathTracer(renderer);
-    configureEmitterSampling(tracer);
     tracer.tiles.set(Math.ceil(width / 256), Math.ceil(height / 256));
     tracer.bounces = 10;
     tracer.transmissiveBounces = 12;
@@ -125,6 +124,7 @@ export async function renderSnapshot(
     check();
     configureTraceTextures(snapshot.scene, renderer, tracer);
     tracer.setScene(snapshot.scene, snapshot.camera);
+    configureEmitterSampling(tracer);
     checkTraceUpload(renderer);
     let lastReport = 0;
     while (tracer.samples < target) {

@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.21.5** erottaa ensimmäisen renderinäytteen valmistelun varsinaisesta
+tarkentumisesta ja poistaa tarpeettomien shader-versioiden valmistelua aloituksesta.
+Katkennut kameraveto ei jätä tarkennusta tauolle, ja tavoitteen
+saavuttanut kuva näytetään kokonaan tarkentuvana myös pienellä näytemäärällä.
+Täysi tarkkuus toimii myös jo valmistuneen esikatselun jälkeen. Tarkentuva-painike
+jatkaa myös käyttäjän tauottamaa laskentaa.
+
 Versio **0.21.4** korjaa kynän ja vapaan mittaviivan aloituksen perspektiivissä:
 tyhjässä tilassa piste seuraa näkyvää z=0-ruudukkoa, ja akselilukitus säilyttää
 mittaviivan etenemissuunnan. **Peili** tarjoaa yhden tai kaksi heijastavaa puolta,

@@ -7,7 +7,7 @@ import { defaultAppearance } from '../src/model/materials';
 test('a sheltered LED illuminates the room by reflected light rather than leaking through its panel', async ({
   page,
 }, info) => {
-  test.setTimeout(300000);
+  test.setTimeout(480000);
   const white = (w: number, d: number, h: number, origin: [number, number, number]) => ({
     ...makeBody(w, d, h, origin),
     color: '#ffffff',
@@ -42,14 +42,29 @@ test('a sheltered LED illuminates the room by reflected light rather than leakin
     if (m.type() === 'error') errors.push(m.text());
   });
   await ready(page);
-  const load = async (sealed = false) => {
+  const load = async (sealed = false, intensity = 50, darkCove = false) => {
     await page.getByTestId('project-file').setInputFiles({
       name: 'epasuora.nivo',
       mimeType: 'application/json',
       buffer: Buffer.from(
         JSON.stringify({
           ...freshProject(),
-          bodies: [...bodies, ...(sealed ? [white(800, 50, 20, [-400, 230, 320])] : [])],
+          bodies: [
+            ...bodies.map((body, i) =>
+              i === 7
+                ? {
+                    ...body,
+                    appearance: {
+                      ...body.appearance,
+                      emission: { ...body.appearance.emission!, intensity },
+                    },
+                  }
+                : darkCove && [1, 2, 3, 4, 5, 6].includes(i)
+                  ? { ...body, color: '#554433' }
+                  : body,
+            ),
+            ...(sealed ? [white(800, 50, 20, [-400, 230, 320])] : []),
+          ],
           settings: {
             guideXray: false,
             render: {
@@ -69,6 +84,14 @@ test('a sheltered LED illuminates the room by reflected light rather than leakin
       String(bodies.length + Number(sealed)),
     );
     await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
+  };
+  const refine = async () => {
+    await page.getByRole('button', { name: 'Kuva', exact: true }).click();
+    await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
+    await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('256');
+    await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
+      timeout: 150000,
+    });
   };
   await load();
   const canvas = page.getByTestId('render-canvas');
@@ -103,30 +126,28 @@ test('a sheltered LED illuminates the room by reflected light rather than leakin
     );
   };
   const direct = await sample();
-  await page.getByRole('button', { name: 'Kuva', exact: true }).click();
-  await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
-  await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('64');
-  await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
-    timeout: 150000,
-  });
+  await refine();
   const indirect = await sample();
   await page.screenshot({ path: info.outputPath('sheltered-led.png') });
-  await page.getByRole('button', { name: 'Takaisin malliin', exact: true }).click();
+  await load(false, 100);
+  await refine();
+  const brighter = await sample();
+  await load(false, 100, true);
+  await refine();
+  const dark = await sample();
+  await page.screenshot({ path: info.outputPath('dark-cove.png') });
   await load(true);
-  await page.getByRole('button', { name: 'Kuva', exact: true }).click();
-  await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
-  await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('64');
-  await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
-    timeout: 150000,
-  });
+  await refine();
   const sealed = await sample();
   await info.attach('receiver.json', {
-    body: JSON.stringify({ direct, indirect, sealed }),
+    body: JSON.stringify({ direct, indirect, brighter, dark, sealed }),
     contentType: 'application/json',
   });
   await page.screenshot({ path: info.outputPath('sealed-led.png') });
   expect(sealed).toBeLessThan(1);
   expect(direct).toBeLessThan(3);
   expect(indirect).toBeGreaterThan(direct + 8);
+  expect(brighter).toBeGreaterThan(indirect);
+  expect(dark).toBeLessThan(brighter);
   expect(errors).toEqual([]);
 });

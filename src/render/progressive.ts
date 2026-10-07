@@ -13,6 +13,11 @@ export type TraceStatus = {
 };
 export type TraceOptions = { quality: 'draft' | 'full'; maxSamples: number };
 export const traceDefaults: TraceOptions = { quality: 'draft', maxSamples: 256 };
+export function traceStatusLabel(trace: TraceStatus) {
+  if (trace.message) return trace.message;
+  if (trace.state === 'loading') return 'Valmistellaan ensimmäistä näytettä…';
+  return `${trace.state === 'complete' ? 'Tavoite saavutettu' : trace.state === 'paused' ? 'Tauolla' : 'Kuva tarkentuu'} · ${trace.samples} näytettä`;
+}
 /** Opt-in preview. Finite image jobs have their own renderer and lifecycle. */
 export function progressiveRenderer(
   renderer: THREE.WebGLRenderer,
@@ -36,6 +41,8 @@ export function progressiveRenderer(
     settleAt = 0,
     materialsDirty = false;
   let materialUploads = 0;
+  let displayedOpacity = 0;
+  let samplingConfigured = false;
   let options = { ...traceDefaults };
   const status = (state: TraceStatus['state'], message?: string) =>
     onStatus({
@@ -71,6 +78,10 @@ export function progressiveRenderer(
     });
     configureTraceTextures(snapshot, renderer, tracer!);
     tracer!.setScene(snapshot, camera);
+    if (!samplingConfigured) {
+      configureEmitterSampling(tracer!);
+      samplingConfigured = true;
+    }
     renderer.domElement.dataset.traceMaterialUploads = String(++materialUploads);
     checkTraceUpload(renderer);
     dirty = false;
@@ -112,11 +123,17 @@ export function progressiveRenderer(
       tracer.renderSample();
       if (tracer.samples === 1) checkTraceUpload(renderer);
       renderer.domElement.dataset.traceSamples = String(Math.floor(tracer.samples));
+      renderer.domElement.dataset.traceSize = `${tracer.target.width}x${tracer.target.height}`;
       if (options.maxSamples > 0 && tracer.samples >= options.maxSamples) {
-        complete = true;
-        status('complete');
+        // Finish compositing even when a small sample target is reached before
+        // the fade has finished. Otherwise the frozen image is partly raster.
+        tracer.pausePathTracing = true;
+        if (displayedOpacity >= 1) {
+          complete = true;
+          status('complete');
+        }
       } else if (performance.now() - lastStatus > 400) {
-        status('rendering');
+        status(tracer.samples < 1 ? 'loading' : 'rendering');
         lastStatus = performance.now();
       }
     } catch (e) {
@@ -125,9 +142,16 @@ export function progressiveRenderer(
   };
   const reset = () => {
     complete = false;
+    displayedOpacity = 0;
+    if (tracer) tracer.pausePathTracing = false;
     tracer?.reset();
     renderer.domElement.dataset.traceSamples = '0';
-    if (enabled) status(paused ? 'paused' : 'rendering');
+    renderer.domElement.dataset.traceOpacity = '0';
+    if (enabled)
+      status(
+        paused ? 'paused' : interacting ? 'rendering' : 'loading',
+        !paused && interacting ? 'Kamera liikkuu · tarkennus jatkuu pysähdyttyä' : undefined,
+      );
   };
   return {
     get active() {
@@ -147,7 +171,13 @@ export function progressiveRenderer(
       reset();
     },
     async start() {
-      if (enabled) return;
+      if (enabled) {
+        if (paused) {
+          paused = false;
+          status(tracer!.samples < 1 ? 'loading' : 'rendering');
+        }
+        return;
+      }
       const token = ++request;
       status('loading');
       try {
@@ -162,12 +192,17 @@ export function progressiveRenderer(
           // a deleted lazy chunk; GPU resources are still created only on request.
           environment = new GradientEquirectTexture(128);
           tracer = new WebGLPathTracer(renderer);
-          configureEmitterSampling(tracer);
           tracer.tiles.set(1, 1);
           renderer.domElement.dataset.traceTiles = '1';
           tracer.minSamples = 1;
           tracer.renderDelay = 100;
           tracer.fadeDuration = 180;
+          const composite = tracer.renderToCanvasCallback;
+          tracer.renderToCanvasCallback = (target, output, quad) => {
+            composite(target, output, quad);
+            displayedOpacity = quad.material.opacity;
+            renderer.domElement.dataset.traceOpacity = String(displayedOpacity);
+          };
           // The trace scene excludes preview lights. Its raster fallback would
           // otherwise turn off LED illumination whenever the camera moves.
           tracer.rasterizeSceneCallback = () => renderer.render(scene, camera);
@@ -200,6 +235,11 @@ export function progressiveRenderer(
       interacting = value;
       renderer.domElement.dataset.traceInteractive = String(value);
       if (!value) settleAt = performance.now() + 180;
+      if (enabled && !paused && !complete)
+        status(
+          value ? 'rendering' : 'loading',
+          value ? 'Kamera liikkuu · tarkennus jatkuu pysähdyttyä' : undefined,
+        );
     },
     invalidate(rebuildScene = false, updateMaterials = false) {
       if (rebuildScene) {

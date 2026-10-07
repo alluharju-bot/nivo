@@ -20,5 +20,12 @@ export function configureEmitterSampling(tracer: WebGLPathTracer) {
     .replace(trace, `${trace}\n bool nivoSampledEmitter = false;`)
     .replace(mis, `nivoSampledEmitter = true;\n ${mis}`)
     .replace(emit, `if ( ! nivoSampledEmitter ) { ${emit} }`);
+  // Call after setScene: initialize the three scene-dependent feature switches
+  // together. Each setDefine in the library's onBeforeRender otherwise launches
+  // a separate compilation, including costly fog/DOF shaders we don't use.
+  const uniforms = material.uniforms;
+  material.defines.FEATURE_DOF = uniforms.physicalCamera.value.bokehSize === 0 ? 0 : 1;
+  material.defines.FEATURE_BACKGROUND_MAP = uniforms.backgroundMap.value ? 1 : 0;
+  material.defines.FEATURE_FOG = uniforms.materials.value.features.isUsed('FOG') ? 1 : 0;
   material.needsUpdate = true;
 }

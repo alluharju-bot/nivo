@@ -134,6 +134,10 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   controls.addEventListener('change', cameraDraw);
   controls.addEventListener('start', cameraStart);
   controls.addEventListener('end', cameraEnd);
+  // A drag may end outside the window or lose capture without OrbitControls
+  // receiving pointerup. Never leave the refinement gate latched in that case.
+  canvas.addEventListener('lostpointercapture', cameraEnd);
+  window.addEventListener('blur', cameraEnd);
   const resize = () => {
     const width = host.clientWidth,
       height = host.clientHeight;
@@ -480,6 +484,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       controls.removeEventListener('change', cameraDraw);
       controls.removeEventListener('start', cameraStart);
       controls.removeEventListener('end', cameraEnd);
+      canvas.removeEventListener('lostpointercapture', cameraEnd);
+      window.removeEventListener('blur', cameraEnd);
       navigation.dispose();
       controls.dispose();
       textureEditor.dispose();

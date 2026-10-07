@@ -69,7 +69,7 @@ test('render cancellation releases the job and preview reaches a sample target a
   });
   await expect(page.getByTestId('render-canvas')).toHaveAttribute('data-trace-samples', '8');
   await page.getByRole('button', { name: 'Sovita malli', exact: true }).click();
-  await expect(page.getByTestId('trace-status')).toContainText('Kuva tarkentuu');
+  await expect(page.getByTestId('render-canvas')).toHaveAttribute('data-trace-samples', '0');
   await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
     timeout: 75_000,
   });

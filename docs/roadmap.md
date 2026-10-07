@@ -2,6 +2,24 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.21.5 — tarkennuksen käynnistyminen ja valmistuminen
+
+- Ensimmäisen näytteen valmistelu näkyy omana tilanaan. Nopea esikatselu säilyy
+  näkyvissä valmistelun ajan; kameran ylimääräistä liikuttamista ei tarvita.
+- Kohtauksen valolaskennan shader valmistellaan vasta sen asetusten selvittyä.
+  Sumun, syväterävyyden ja taustakuvan kytkimet asetetaan yhdessä, jotta aloitus
+  ei käännä tarpeettomia väliversioita. Sama koskee erillistä kuvanlaskentaa.
+- Ikkunan menettäessä fokuksen tai kameravedon menettäessä osoittimen kaappauksen
+  tarkennuksen odotus vapautuu. Tavallinen kameraveto pitää laskennan tauolla.
+- Pieni näytemäärätavoite ei pysäytä kuvan siirtymää puoliväliin: lopputulos on
+  kokonaan tarkentuva kuva. Näytteiden kertyminen pysähtyy asetettuun tavoitteeseen.
+- Täysi-laatu käyttää näkymän kokoista laskentapuskuria myös aiemman tavoitteen
+  valmistuttua. Tarkentuva-painikkeella voi jatkaa käyttäjän tauottamaa laskentaa.
+- Valaistuksen voimakkuuskertoimia ei muuteta. Valkoinen valokotelo heijastaa
+  tummaa koteloa enemmän; nykyinen suhteellinen kerroin ei ole lumenkalibrointi.
+  Ensimmäisen GPU-ohjelman valmistelun nopeus riippuu edelleen selaimesta ja
+  näytönohjaimesta; asynkroninen valmistelu ja kuvan kohinanpoisto ovat jatkotyötä.
+
 ## V0.21.4 — piirron aloitustaso, pintakäsittely ja renderin sujuvuus
 
 - Kynän ja vapaan mittaviivan näkyvä aloituspiste seuraa ruudukkoa jo ennen
@@ -29,6 +47,11 @@
 
 ## Backlog — valaistuksen yksiköt ja kuvan laatu
 
+- **Korkea prioriteetti: ensimmäisen tarkentuvan kuvan viive.** Testiselaimessa
+  ensimmäiset näytteet odottavat GPU-ohjelmaa noin 50 sekuntia. Ylimääräisten
+  shader-versioiden poisto ei yksin lyhentänyt mitattua odotusta. Profiloi
+  varsinainen ajurikäännös ja selvitä kevyempi aloitus sekä valmistelu, joka
+  säilyttää kameran ja käyttöliittymän toiminnan myös ilman rinnakkaiskäännöstukea.
 - Valon nykyinen voimakkuus on suhteellinen kerroin, **ei lumenluku**. LED-nauhalle
   ehdotetaan lm/m ja valaisimelle lm. Toteutus tarvitsee pituuden/pinta-alan,
   säteilyjakauman, värin ja millimetreissä toimivan kohtauksen yhteisen kalibroinnin.

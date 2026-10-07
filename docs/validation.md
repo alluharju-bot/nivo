@@ -1,8 +1,54 @@
-# Validointi — 7.10.2026
+# Validointi — 8.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.21.5 — tarkennuksen elinkaari ja valaistuksen vertailu
+
+**293 yksikkö-/CAD-testiä hyväksytty (56 tiedostoa)**. TypeScript ja `/nivo/`-build
+hyväksytty. Asennettua renderöintikirjastoa käyttävä shader-testi varmistaa nyt
+myös, ettei ensimmäinen näyte käynnistä erillisiä tarpeettomia sumu- ja
+syväterävyysversioiden valmisteluja kohtauksen alustuksen jälkeen.
+
+Neljän tuotantobundlen selaintapauksen ajo hyväksytty desktopilla:
+
+- Tarkennus valmistuu paikallaan ilman kameraliikettä. Nopea kuva ja tarkentuva
+  kuva eroavat myös pikseleiltään. Täysi-laatu vaihtaa jo valmistuneen esikatselun
+  laskentapuskurin vastaamaan canvasin pikselikokoa. Valmiin kuvan peittävyys on 1.
+- Kameran vedon keskeyttäminen ikkunan blur-tapahtumalla vapauttaa tarkennuksen
+  odotuksen. Tavallisen vedon aikana näytemäärä pysyy nollassa. Tarkentuva-painike
+  jatkaa myös käyttäjän tauottamaa laskentaa.
+- Tekstuurisävy päivittyy ennen hyväksymistä ja tarkentuu uudelleen. Kameraliike
+  ei lisää materiaalien GPU-latauksia; sovelluksen jälkeiset moduulihaut estetty.
+- Erillisen kuvatyön keskeyttäminen vapauttaa esikatselun. Kameran sovittaminen
+  aloittaa valmistuneen tarkennuksen uudelleen.
+
+LED-koe sisältyy ajoon: 256 näytettä, ympäristö ja studiovalot pois, 50 mm aukko
+peitetyn valaisimen vieressä. Lattian pikselialue vaalenee kertoimen vaihtuessa
+50 → 100 ja tummenee valokotelon seinien muuttuessa valkoisista ruskeiksi.
+Kokonaan suljettu kotelo jää alle 1/255: valo ei vuoda levyjen läpi.
+Koe ei kalibroi lumeneita tai käyttäjän saunan materiaaleja. Kapea valoaukko
+on edelleen kohinainen 256 näytteellä.
+
+Erillisessä 320 × 240 px GPU-diagnostiikassa näytteen paino vastaa 1/n:ää,
+värien sekoitus on käytössä ja satunnaisnäytteet vaihtuvat. Lattian lineaaristen
+pikseliarvojen hajonta pieneni yhdessä ajossa 32 näytteen 1,00:sta 256 näytteen
+0,60:een; kuva kertyy, mutta tällä vaikealla valaistuksella hitaasti.
+Ensimmäiset näytteet viivästyivät testiselaimessa noin 49–52 sekuntia. Kolmen
+asetuskytkimen yhdistäminen yhdeksi shader-alustukseksi ei tässä ympäristössä
+lyhentänyt viivettä mitattavasti. Sitä ei pidä raportoida osoitettuna
+käynnistysajan nopeutuksena. KHR_parallel_shader_compile ei ollut käytettävissä.
+
+Kehityspalvelimen yksi LED-koe keskeytettiin lähdekoodin kuumapäivityksen jälkeen;
+varsinainen vertailu ajettiin muuttumattomasta tuotantobundlesta.
+
+Lopullisen shader-alustuksen jälkeen **3/3 selaintapausta hyväksytty**:
+esikatselun koko käynnistys-/tarkkuus-/tauko-/blur-polku, kuvatyön keskeytys ja
+kameran palautuminen sekä taustalla valmistuva 800 px PNG myös uuden mallin
+avaamisen jälkeen. Tämä pass sisältää yhteensä **5 erillistä selaintapausta**
+sekä kohdennetut uusinta-ajot. Näitä GPU-kokeita ei toistettu tabletilla eikä
+fyysisessä Safarissa/iPadissa.
 
 ## V0.21.4 — piirron aloitus ja renderin korjaukset
 
