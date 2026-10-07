@@ -31,7 +31,7 @@ it('places a rotated spotlight on its actual local emitting face', () => {
   }
   geometry.dispose();
 });
-it('uses area lights only for the preview, retaining real emitters and spotlights in render snapshots', () => {
+it('uses shadowed surface proxies only for preview, retaining real emitters and spotlights in snapshots', () => {
   const scene = new THREE.Scene(),
     geometry = new THREE.BoxGeometry(300, 20, 5);
   const body = { ...makeBody(), appearance: defaultAppearance('led-warm') };
@@ -51,23 +51,30 @@ it('uses area lights only for the preview, retaining real emitters and spotlight
     },
   };
   const spot = createPartLights(spotBody, geometry);
+  const deferredSpot = createPartLights(spotBody, geometry);
+  deferredSpot.visible = false;
+  deferredSpot.userData.traceOnly = true;
   scene.add(
     area,
     spot,
+    deferredSpot,
     new THREE.Mesh(
       geometry,
       new THREE.MeshPhysicalMaterial({ emissive: 'white', emissiveIntensity: 8 }),
     ),
   );
-  expect(area.children).toHaveLength(2);
-  expect((area.children[0] as THREE.RectAreaLight).isRectAreaLight).toBe(true);
+  const proxies = area.children.filter((light) => light instanceof THREE.SpotLight);
+  expect(proxies).toHaveLength(4);
+  expect(proxies.every((light) => light.castShadow)).toBe(true);
   const snapshot = captureRenderScene(scene, new THREE.PerspectiveCamera(), 1, 1);
-  expect(snapshot.scene.children).toHaveLength(2);
-  expect(scene.children).toHaveLength(3);
+  expect(snapshot.scene.children).toHaveLength(3);
+  expect(scene.children).toHaveLength(4);
+  expect(snapshot.scene.children[1].visible).toBe(true);
+  expect(deferredSpot.visible).toBe(false);
   expect(snapshot.scene.children[0].children[0]).toBeInstanceOf(THREE.SpotLight);
   const previewCopy = scene.clone();
   omitPreviewLights(previewCopy);
-  expect(previewCopy.children).toHaveLength(2);
+  expect(previewCopy.children).toHaveLength(3);
   snapshot.dispose();
   geometry.dispose();
 });

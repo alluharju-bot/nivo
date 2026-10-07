@@ -10,16 +10,35 @@ import {
   rotateInView,
 } from './cameraNavigation';
 
+it('matches the original Z-up OrbitControls when dragging horizontally and vertically together', () => {
+  const original = new THREE.PerspectiveCamera(40, 1.5, 0.1, 1e6);
+  original.up.set(0, 0, 1);
+  original.position.set(450, -800, 600);
+  const reference = new OrbitControls(original);
+  const camera = original.clone();
+  const controls = new OrbitControls(camera);
+  for (let i = 0; i < 100; i++) {
+    const dx = 0.08,
+      dy = i % 2 ? -0.03 : 0.03;
+    reference.rotateLeft(dx);
+    reference.rotateUp(dy);
+    rotateInView(controls, dx, dy);
+    expect(camera.position.distanceTo(original.position)).toBeLessThan(1e-6);
+    expect(camera.quaternion.angleTo(original.quaternion)).toBeLessThan(1e-6);
+  }
+});
+
 it.each(['perspective', 'orthographic'])(
-  'free orbit crosses both poles without stopping or losing the pivot (%s)',
+  'turntable orbit preserves the horizon and pivot through repeated curved strokes (%s)',
   (type) => {
     const camera =
       type === 'perspective'
         ? new THREE.PerspectiveCamera(40, 1.5, 0.1, 1e6)
         : new THREE.OrthographicCamera(-600, 600, 400, -400, 0.1, 1e6);
-    camera.up.set(0, 1, 0);
-    camera.position.set(0, 0, 1000);
+    camera.up.set(0, 0, 1);
+    camera.position.set(450, -800, 600);
     const controls = new OrbitControls(camera);
+    camera.updateMatrixWorld();
     const pivot = new THREE.Vector3(150, 60, 0);
     const local = pivot
       .clone()
@@ -34,9 +53,10 @@ it.each(['perspective', 'orthographic'])(
       [0.1, -0.2],
     ]) {
       for (let i = 0; i < 80; i++) {
-        const before = camera.getWorldDirection(new THREE.Vector3());
         rotateInView(controls, dx, dy);
-        expect(camera.getWorldDirection(new THREE.Vector3()).angleTo(before)).toBeGreaterThan(0.19);
+        expect(
+          Math.abs(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).z),
+        ).toBeLessThan(1e-9);
         expect(camera.position.distanceTo(pivot)).toBeCloseTo(radius, 5);
         const projected = pivot.clone().project(camera);
         expect(projected.x).toBeCloseTo(screen.x, 5);

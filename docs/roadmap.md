@@ -2,6 +2,29 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.21.3 — vakaa orbit, maali ja renderin korjaukset
+
+- Orbit säilyttää vaakasuoran horisontin. Samanaikainen pysty- ja vaakakierto
+  vastaa aiempaa tavallista 3D-orbitia; kaarevat hiirenvedot eivät kerrytä
+  sivuttaiskallistusta. Ylä-/alanäkymän ensimmäinen pystyliike poistuu navalta
+  kummallakin vetosuunnalla. Kohdistimen orbit-keskus, kuutio ja zoomi säilyvät.
+- Tarkentuvan ja taustalla laskettavan renderin ohjelmakoodi ladataan sovelluksen
+  mukana. Käynnistys ei tarvitse myöhempää moduulihakua, joka voisi epäonnistua
+  vanhaan selainvälilehteen Pages-julkaisun jälkeen. GPU-resurssit luodaan
+  edelleen vasta renderöinnin käynnistyessä.
+- Nopean esikatselun LED-valo käyttää varjostettuja valonäytteitä: peittävä
+  geometria estää valon myös lasin läpi katsottaessa. Esikatselu käyttää
+  rajattua, yhteistä kahdeksan paikallisen varjovalon budjettia. Tarkentuva
+  renderi käyttää kaikkia todellisia valopintoja ja spotteja ilman tätä rajaa.
+
+- **Maali · tasainen väri** materiaalilistan alussa, myös osan materiaaleissa
+  ja renderöinnissä. Ei tekstuuria, kohokuviota, metallisuutta tai läpäisevyyttä.
+  Uuden pensselin lähtökohta on valkoinen, silkinhimmeä maali.
+- Valitse pensseliin sävy ja pintakäsittely (Matta / Silkinhimmeä / Puolikiiltävä /
+  Kiiltävä tai Kiilto-säädin), sitten napsauta maalattavia osia. Maali korvaa
+  aiemman materiaalin kuvioineen; osien geometria ja sijainti säilyvät.
+  Vanhojen projektien materiaalit eivät muutu itsestään.
+
 ## V0.21.2 — selkeä näkymäpalkki, vapaa kierto ja valinnan korostus
 
 - Kuutio hoitaa suunnanvaihdot zoomia säilyttäen. Päällekkäiset 3D / Edestä /
@@ -10,6 +33,8 @@
   **Sovita näkymään** säilyttää suunnan ja sovittaa valinnan tai koko mallin.
 - Kameran kierto käyttää näytön akseleita eikä pysähdy ylänäkymän jälkeen
   maailmankoordinaatiston napaan. Kohdistimen orbit-keskus ja zoomaus säilyvät.
+  **Korjaus v0.21.3:** tämä vapaa kierto kerrytti sivuttaiskallistusta; orbit
+  palautettiin horisontin säilyttävään liikelogiikkaan.
 - Valitse-työkalun Shift korostaa koko osoitettavan osan tai suljetun kokoonpanon,
   samoin kuin napsautus valitsisi. Korostus vaihtuu myös ilman hiiren liikettä.
   Push/pullin Shift-viitehaku säilyy ennallaan.

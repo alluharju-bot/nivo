@@ -3,9 +3,16 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.21.3** palauttaa 3D-orbitin aiemman liikelogiikan: pysty- ja vaakakierto
+toimivat samalla vedolla ilman kertyvää sivuttaiskallistusta. Ylänäkymästä pääsee
+kiertämään kumpaankin vetosuuntaan. **Maali · tasainen väri** lisää pelkän sävyn ja
+kiillon ilman tekstuuria. Tarkentuva renderi lataa ohjelmakoodinsa sovelluksen
+mukana, ja nopean esikatselun LED-valot huomioivat peittävän geometrian varjot.
+
 Versio **0.21.2** kokoaa näkymän pikatoiminnot: kuutio vaihtaa katselusuuntaa
 säilyttäen zoomin, ja näyttötilojen vieressä oleva **Yleisnäkymä** palauttaa koko
-mallin näkyviin viistosta. Kamera kiertää vapaasti myös ylänäkymän jälkeen.
+mallin näkyviin viistosta. Tämän version vapaan orbitin sivuttaiskallistus
+korjattiin versiossa 0.21.3.
 Valitse-työkalun Shift korostaa koko osan tai suljetun kokoonpanon ennen valintaa.
 Push/pullin Shift säilyy viitehakuna.
 

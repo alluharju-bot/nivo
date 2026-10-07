@@ -1206,8 +1206,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     controls.update();
   };
   const setCameraUp = (up: Vec3) => {
-    // Free orbit changes the camera's up vector; refresh OrbitControls' cached frame
-    // even when a named view happens to use the same up vector.
+    // Named views use a different up vector at the poles. Refresh the cached
+    // controls frame whenever changing view; orbit itself keeps world Z upright.
     camera.up.set(...up);
     navigation.dispose();
     controls = rebuildOrbitControls(controls, camera);
@@ -1333,6 +1333,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     },
   );
   const knife = installKnife(renderer.domElement, container, () => camera, current);
+  let cubePole = 0,
+    cubePitchSign: number | undefined;
   viewCube = createViewCube(
     container,
     () => camera,
@@ -1341,8 +1343,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       orientCamera(normal, up);
       current().onCameraProjection?.('orthographic');
     },
-    (dx, dy) => {
-      rotateInView(controls, dx, dy);
+    (dx, dy, first) => {
+      if (first) {
+        const facing = camera.getWorldDirection(new THREE.Vector3()).z;
+        cubePole = Math.abs(facing) > 1 - 1e-8 ? -Math.sign(facing) : 0;
+        cubePitchSign = undefined;
+      }
+      if (cubePitchSign === undefined && Math.abs(dy) > 1e-9)
+        cubePitchSign = cubePole ? -cubePole * Math.sign(dy) : 1;
+      rotateInView(controls, dx, dy * (cubePitchSign ?? 1));
       render();
     },
   );

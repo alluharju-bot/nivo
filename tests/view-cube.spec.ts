@@ -8,23 +8,39 @@ const state = async (page: Page) =>
 const direction = (s: Awaited<ReturnType<typeof state>>) =>
   new Vector3(0, 0, 1).applyQuaternion(new Quaternion(...s.quaternion));
 
-test('orbit keeps rotating through the former pole after choosing the top view', async ({
+test('curved orbit strokes and lifting the mouse preserve the horizon in perspective and from top', async ({
   page,
 }) => {
   const body = makeBody(400, 300, 100);
   await ready(page, [body]);
-  await view(page, [body]);
-  const canvas = page.getByTestId('viewport');
-  const rect = (await canvas.boundingBox())!;
-  const x = rect.x + rect.width * 0.6,
-    y = rect.y + rect.height * 0.65;
-  for (let i = 0; i < 4; i++) {
-    const before = await state(page);
-    await page.mouse.move(x, y);
-    await page.mouse.down({ button: 'right' });
-    await page.mouse.move(x, y - 170, { steps: 12 });
-    await page.mouse.up({ button: 'right' });
-    expect(direction(await state(page)).angleTo(direction(before))).toBeGreaterThan(0.8);
+  for (const fromTop of [false, true]) {
+    await view(page, [body]);
+    if (!fromTop) {
+      await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
+      await expect.poll(async () => (await state(page)).projection[15]).toBe(0);
+    }
+    const canvas = page.getByTestId('viewport');
+    const rect = (await canvas.boundingBox())!;
+    const x = rect.x + rect.width * 0.45,
+      y = rect.y + rect.height * 0.6;
+    for (let i = 0; i < 5; i++) {
+      const before = new Quaternion(...(await state(page)).quaternion);
+      await page.mouse.move(x, y);
+      await page.mouse.down({ button: 'right' });
+      for (const [dx, dy] of [
+        [60, 15],
+        [120, 10],
+        [180, 0],
+      ]) {
+        await page.mouse.move(x + dx, y + dy, { steps: 6 });
+        const q = new Quaternion(...(await state(page)).quaternion);
+        expect(Math.abs(new Vector3(1, 0, 0).applyQuaternion(q).z)).toBeLessThan(1e-6);
+      }
+      await page.mouse.up({ button: 'right' });
+      await expect
+        .poll(async () => new Quaternion(...(await state(page)).quaternion).angleTo(before))
+        .toBeGreaterThan(0.5);
+    }
   }
 });
 
@@ -53,7 +69,7 @@ test('cube rotates with one touch without starting a drawing gesture', async ({ 
   await cdp.detach();
 });
 
-test('top-view orbit tilts in both screen directions without roll or a dead pole', async ({
+test('top-view orbit turns horizontally and leaves the pole with either vertical drag direction', async ({
   page,
 }) => {
   const body = makeBody(400, 300, 100);
@@ -76,7 +92,13 @@ test('top-view orbit tilts in both screen directions without roll or a dead pole
     await page.mouse.move(start.x + dx, start.y + dy, { steps: 8 });
     await page.mouse.up({ button: 'right' });
     const after = await state(page);
-    expect(direction(after).angleTo(direction(before))).toBeGreaterThan(0.3);
+    expect(
+      new Quaternion(...after.quaternion).angleTo(new Quaternion(...before.quaternion)),
+    ).toBeGreaterThan(0.3);
+    if (dy) expect(direction(after).angleTo(direction(before))).toBeGreaterThan(0.3);
+    expect(
+      Math.abs(new Vector3(1, 0, 0).applyQuaternion(new Quaternion(...after.quaternion)).z),
+    ).toBeLessThan(1e-6);
     expect(direction(after).z).toBeGreaterThan(0.5);
     expect(
       Math.hypot(...after.position.map((n: number, i: number) => n - after.target[i])),

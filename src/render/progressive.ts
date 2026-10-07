@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import { omitPreviewLights } from './lights';
-import type { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
+import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import { configureTraceEnvironment } from './traceJob';
 
 export type TraceStatus = {
@@ -139,10 +139,10 @@ export function progressiveRenderer(
             'Tämä selain tai näytönohjain ei tue tarkentuvaa renderöintiä. Nopea esikatselu toimii edelleen.',
           );
         if (!tracer) {
-          const module = await import('three-gpu-pathtracer');
-          if (disposed || token !== request) return;
-          environment = new module.GradientEquirectTexture(128);
-          tracer = new module.WebGLPathTracer(renderer);
+          // Load code with the app. A Pages update must not strand an open tab with
+          // a deleted lazy chunk; GPU resources are still created only on request.
+          environment = new GradientEquirectTexture(128);
+          tracer = new WebGLPathTracer(renderer);
           tracer.tiles.set(1, 1);
           renderer.domElement.dataset.traceTiles = '1';
           tracer.minSamples = 1;

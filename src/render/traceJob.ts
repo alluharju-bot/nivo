@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { configureTraceTextures, checkTraceUpload } from './traceTextures';
-import type { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
+import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
 
 export type RenderJobOptions = { width: number; samples: number };
@@ -77,8 +77,6 @@ export async function renderSnapshot(
     )
       throw new Error('Kuvan koko tai näytemäärä on liian suuri.');
     report('preparing');
-    const module = await import('three-gpu-pathtracer');
-    check();
     renderer = new THREE.WebGLRenderer({
       preserveDrawingBuffer: true,
       antialias: false,
@@ -94,10 +92,10 @@ export async function renderSnapshot(
     renderer.setSize(width, height, false);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = snapshot.exposure;
-    environment = new module.GradientEquirectTexture(256);
+    environment = new GradientEquirectTexture(256);
     configureTraceEnvironment(environment, snapshot.scene);
     snapshot.scene.environment = environment;
-    tracer = new module.WebGLPathTracer(renderer);
+    tracer = new WebGLPathTracer(renderer);
     tracer.tiles.set(Math.ceil(width / 256), Math.ceil(height / 256));
     tracer.bounces = 10;
     tracer.transmissiveBounces = 12;

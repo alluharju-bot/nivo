@@ -5,6 +5,17 @@ import { textureFrameMatrix } from './materials';
 
 export const previewLightLimit = 8;
 
+function shadowedSpot(color: string, intensity: number, angle: number, penumbra: number) {
+  const light = new THREE.SpotLight(color, intensity, 0, angle, penumbra, 2);
+  light.castShadow = true;
+  light.shadow.mapSize.set(512, 512);
+  light.shadow.bias = -0.00001;
+  light.shadow.normalBias = 0.1;
+  light.shadow.camera.near = 0.05;
+  light.shadow.camera.far = 100000;
+  return light;
+}
+
 /** Compute emitter faces in the part's local frame, never its rotated world AABB. */
 export function emitterFrame(
   body: Body,
@@ -60,37 +71,47 @@ export function createPartLights(body: Body, geometry: THREE.BufferGeometry) {
   if (emission.type === 'spot') {
     const axis = { x: 0, y: 1, z: 2 }[emission.direction.slice(-1)]!;
     const frame = emitterFrame(body, geometry, axis, emission.direction.startsWith('-') ? -1 : 1);
-    const light = new THREE.SpotLight(
+    const light = shadowedSpot(
       emission.color,
       emission.intensity * 1_000_000,
-      0,
       THREE.MathUtils.degToRad(emission.angle / 2),
       0.35,
-      2,
     );
     light.position.copy(frame.position);
     light.target.position.copy(frame.position).add(frame.direction);
-    light.shadow.mapSize.set(512, 512);
-    light.shadow.bias = -0.0001;
-    light.shadow.camera.near = 0.1;
-    light.shadow.camera.far = 100000;
     group.add(light, light.target);
   } else {
     const size = emitterFrame(body, geometry, 2, 1).size.toArray();
     const axis = size.indexOf(Math.min(...size));
-    // The two broad faces approximate a strip/panel. The tracer uses actual emissive geometry.
+    // RectAreaLight has no occlusion in the raster renderer, even in its glass
+    // highlights. Sample both emitting faces with shadowed lights instead. The
+    // tracer still uses only the actual emissive geometry.
     group.userData.previewOnly = true;
     for (const sign of [-1, 1]) {
       const frame = emitterFrame(body, geometry, axis, sign);
-      const light = new THREE.RectAreaLight(
-        emission.color,
-        emission.intensity,
-        frame.width,
-        frame.height,
-      );
-      light.position.copy(frame.position);
-      light.quaternion.copy(frame.rotation);
-      group.add(light);
+      const samples =
+        Math.max(frame.width, frame.height) / Math.min(frame.width, frame.height) > 2 ? 2 : 1;
+      const along = new THREE.Vector3(
+        frame.width >= frame.height ? 1 : 0,
+        frame.width >= frame.height ? 0 : 1,
+        0,
+      ).applyQuaternion(frame.rotation);
+      for (let i = 0; i < samples; i++) {
+        const light = shadowedSpot(
+          emission.color,
+          (emission.intensity * frame.width * frame.height) / samples,
+          Math.PI * 0.49,
+          1,
+        );
+        light.position
+          .copy(frame.position)
+          .addScaledVector(
+            along,
+            ((i + 0.5) / samples - 0.5) * Math.max(frame.width, frame.height),
+          );
+        light.target.position.copy(light.position).add(frame.direction);
+        group.add(light, light.target);
+      }
       group.userData.power = frame.width * frame.height * emission.intensity;
     }
   }
@@ -102,6 +123,7 @@ export function omitPreviewLights(scene: THREE.Scene) {
   const omitted: THREE.Object3D[] = [];
   scene.traverse((object) => {
     if (object.userData.previewOnly) omitted.push(object);
+    if (object.userData.traceOnly) object.visible = true;
   });
   omitted.forEach((object) => object.removeFromParent());
 }

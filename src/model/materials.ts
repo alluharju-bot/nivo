@@ -117,6 +117,15 @@ const wood = (
   seed,
 });
 export const materialPresets: MaterialPreset[] = [
+  {
+    id: 'paint-solid',
+    name: 'Maali · tasainen väri',
+    category: 'Maalit',
+    color: '#ffffff',
+    roughness: 0.55,
+    metalness: 0,
+    clearcoat: 0.05,
+  },
   wood('oak', 'Luonnontammi', '#bc915f', 'oak', 1),
   wood('oak-light', 'Vaalea tammi', '#e1c8a2', 'oak', 2),
   wood('oak-smoked', 'Savutammi', '#715440', 'oak', 3),
@@ -620,9 +629,24 @@ export const legacyPresets: MaterialPreset[] = [
     metalness: 0,
     clearcoat: 0.3,
   },
-  { ...materialPresets[0], id: 'wood', name: 'Puu', category: 'Perusmateriaalit' },
-  { ...materialPresets[6], id: 'metal', name: 'Metalli', category: 'Perusmateriaalit' },
-  { ...materialPresets[10], id: 'glass', name: 'Lasi', category: 'Perusmateriaalit' },
+  {
+    ...materialPresets.find((p) => p.id === 'oak')!,
+    id: 'wood',
+    name: 'Puu',
+    category: 'Perusmateriaalit',
+  },
+  {
+    ...materialPresets.find((p) => p.id === 'aluminum')!,
+    id: 'metal',
+    name: 'Metalli',
+    category: 'Perusmateriaalit',
+  },
+  {
+    ...materialPresets.find((p) => p.id === 'glass-clear')!,
+    id: 'glass',
+    name: 'Lasi',
+    category: 'Perusmateriaalit',
+  },
 ];
 export const findPreset = (id: string) =>
   [...materialPresets, ...legacyPresets].find((p) => p.id === id) ?? legacyPresets[0];

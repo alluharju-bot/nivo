@@ -1,7 +1,6 @@
 import { installTextureEditing } from '../viewport/textureEditing';
 import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, previewLightLimit } from './lights';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { progressiveRenderer, type TraceStatus } from './progressive';
 import { captureRenderScene } from './snapshot';
 import {
@@ -47,13 +46,7 @@ type Props = {
   partNumbers?: Record<string, number>;
 };
 
-let areaLightingInitialized = false;
-
 export function createRenderScene(host: HTMLDivElement, current: () => Props) {
-  if (!areaLightingInitialized) {
-    RectAreaLightUniformsLib.init();
-    areaLightingInitialized = true;
-  }
   const scene = new THREE.Scene();
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -200,18 +193,28 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       const partLights = createPartLights(body, geometry);
       if (partLights.userData.previewOnly) areaLights.push(partLights);
       else {
-        partLights.traverse((object) => {
-          if (object instanceof THREE.SpotLight)
-            object.castShadow = shadowSpots++ < previewLightLimit;
-        });
-        if (partLights.children.length) lights.add(partLights);
+        if (partLights.children.length) {
+          partLights.visible = shadowSpots++ < previewLightLimit;
+          partLights.userData.traceOnly = !partLights.visible;
+          lights.add(partLights);
+        }
       }
     }
     library.endFrame();
     areaLights.sort((a, b) => b.userData.power - a.userData.power);
-    for (const light of areaLights.slice(0, previewLightLimit)) lights.add(light);
+    // All local shadow maps share a budget; leave sampler capacity for PBR maps
+    // and studio lighting on devices with 16 fragment texture units.
+    let surfaceShadows = Math.min(shadowSpots, previewLightLimit),
+      surfaceParts = 0;
+    for (const light of areaLights.slice(0, previewLightLimit)) {
+      const count = light.children.filter((o) => o instanceof THREE.SpotLight).length;
+      if (surfaceShadows + count > previewLightLimit) continue;
+      lights.add(light);
+      surfaceShadows += count;
+      surfaceParts++;
+    }
     canvas.dataset.surfaceLights = String(areaLights.length);
-    canvas.dataset.previewSurfaceLights = String(Math.min(areaLights.length, previewLightLimit));
+    canvas.dataset.previewSurfaceLights = String(surfaceParts);
     canvas.dataset.spotLights = String(shadowSpots);
     navigation.sync(bodies, current().selectedIds ?? []);
     const box = bounds(bodies),
@@ -219,6 +222,12 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       b = new THREE.Vector3(...box.max),
       center = a.clone().add(b).multiplyScalar(0.5);
     extent = Math.max(100, a.distanceTo(b));
+    lights.traverse((light) => {
+      if (light instanceof THREE.SpotLight) {
+        light.shadow.camera.far = Math.max(1000, extent * 4);
+        light.shadow.camera.updateProjectionMatrix();
+      }
+    });
     floor.position.set(center.x, center.y, box.min[2] - extent * 0.001);
     floor.scale.setScalar(extent * 40);
     key.position.copy(center).add(new THREE.Vector3(-extent, -extent * 0.8, extent * 1.8));

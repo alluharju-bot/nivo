@@ -41,9 +41,9 @@ it('keeps millimeter offsets independent of rotation and per-object texture scal
   a.dispose();
   b.dispose();
 });
-it('ships 53 distinct presets and rejects a missing imported image', () => {
-  expect(materialPresets).toHaveLength(53);
-  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(53);
+it('ships 54 distinct presets and rejects a missing imported image', () => {
+  expect(materialPresets).toHaveLength(54);
+  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(54);
   expect(
     new Set(materialPresets.filter((p) => p.category === 'Massiivipuut').map((p) => p.pattern))
       .size,

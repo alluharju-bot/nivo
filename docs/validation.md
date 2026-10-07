@@ -4,6 +4,47 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.21.3 — horisontin säilyttävä orbit, maali ja renderin korjaukset
+
+**288 yksikkö-/CAD-testiä hyväksytty (54 tiedostoa)**. TypeScript, `/nivo/`-build,
+muotoilu ja riippuvuuksien lisenssiluettelo tarkistettu. Aiemmat bundlekoon ja
+OpenCascade-moduulin browser-external-ilmoitukset säilyvät.
+
+Kameran regressio toistettiin v0.21.2:ssa: kaarevat hiirenvedot kallistivat
+kameran oikean suunnan Z-komponentin arvoon 0,229, vaikka sen pitää pysyä nollassa.
+Korjauksen **23 kamera-/kuutiotapausta hyväksytty** desktopilla ja
+tablettiemuloinnissa; kolme kosketustapausta ohitettu desktopilla. Mukana ovat
+toistuvat kaarevat vedot ja hiiren nostaminen, perspektiivi ja ylänäkymä,
+molemmat pystyvetosuunnat navalta, kohdistinpivot, zoom, panorointi ja kosketus.
+Yksikkötesti vertaa samanaikaista pysty- ja vaakakiertoa alkuperäisen Z-up
+OrbitControlsin tulokseen sadan peräkkäisen askeleen ajan.
+
+**6 materiaali-/pintakäsittelytapausta hyväksytty** molemmilla profiileilla.
+Kaikki 54 materiaalia renderöityvät ilman selainvirheitä. Maali korvaa puun
+tekstuurin, sävy ja kiilto säilyvät renderissä, Peru/Palauta palauttavat materiaalin
+ja uusi sävy näkyy ennen hyväksymistä. Geometria säilyy.
+
+Tarkentuva renderi käynnistyy ja tarkentaa elävän väriesikatselun kahdeksaan
+näytteeseen myös silloin, kun sovelluksen käynnistyksen jälkeiset JavaScript-haut
+estetään. Tuore julkinen v0.21.2-välilehti toimi tutkimushetkellä; käyttäjän
+täsmällistä moduulivirhettä ei toistettu. Korjaus poistaa myöhemmän moduulihaun,
+joka voi jäädä vanhaan välilehteen Pages-julkaisun jälkeen.
+
+Nopean LED-valaistuksen vuoto toistettiin: peitetyn ja peittämättömän pinnan
+mitattu kirkkaus oli sama, 102,72. Varjostetut esikatselun valonäytteet korvaavat
+varjottomat aluevalot. Esikatselun paikalliset varjovalot jakavat kahdeksan valon
+budjetin, jotta materiaali- ja ympäristötekstuureille jää tilaa. Tarkentuva
+renderi käyttää todellista valaisevaa geometriaa; esikatselusta rajatut spotit
+palautuvat laskentaan. Esikatselun valaistus on edelleen likiarvo.
+
+**7 renderöintitapausta hyväksytty**: LED-varjon pikselivertailu peittävän levyn
+kanssa ja ilman, myös lasin läpi, molemmilla profiileilla; LED:n valaistus,
+spotin asetukset ja tarkentuminen; taustalla valmistuva todellinen PNG myös
+mallin vaihtuessa; estettyjen moduulihakujen väriesikatselukoe desktopilla.
+Jälkimmäinen ohitetaan tabletilla. Yhteensä tämän version **36 soveltuvaa
+selaintapausta hyväksytty**. Valon peittyminen tarkistettu lopullisella
+esikatselun yhteisellä varjovalobudjetilla.
+
 ## V0.21.2 — näkymäpalkki, vapaa orbit ja Shift-korostus
 
 **287 yksikkö-/CAD-testiä hyväksytty (54 tiedostoa)**. TypeScript, production build

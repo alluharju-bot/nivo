@@ -3,7 +3,7 @@ import { makeBody } from '../src/model/project';
 import { materialPresets, defaultAppearance } from '../src/model/materials';
 import { ready } from './helpers';
 
-test('all 53 local material presets render together without GPU errors', async ({ page }, info) => {
+test('all local material presets render together without GPU errors', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {

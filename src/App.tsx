@@ -468,7 +468,10 @@ export default function App() {
   const [pickOthers, setPickOthers] = useState(false);
   const [pickList, setPickList] = useState<{ x: number; y: number; candidates: PickCandidate[] }>();
   const [pickHovered, setPickHovered] = useState<string>();
-  const [brush, setBrush] = useState({ appearance: defaultAppearance('matte'), color: '#dbd3bd' });
+  const [brush, setBrush] = useState({
+    appearance: defaultAppearance('paint-solid'),
+    color: '#ffffff',
+  });
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
   const [paintMode, setPaintMode] = useState<'paint' | 'texture'>('paint');
@@ -6280,7 +6283,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.21.2</span>
+                    <span>v0.21.3</span>
                   </div>
                 </>
               )}

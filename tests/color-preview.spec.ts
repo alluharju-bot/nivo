@@ -84,6 +84,13 @@ test('progressive rendering refines the live tint without waiting for Apply', as
   );
   test.setTimeout(150000);
   await ready(page, [{ ...makeBody(400, 300, 40), appearance: defaultAppearance('pine') }]);
+  // An already-open app must still start tracing after a deployment removes old
+  // lazy chunks. No additional JavaScript should be needed at this point.
+  const lateModules: string[] = [];
+  await page.route('**/*.js', (route) => {
+    lateModules.push(route.request().url());
+    return route.abort();
+  });
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   const panel = page.getByRole('complementary', { name: 'Renderöinnin asetukset' });
   await panel.getByRole('button', { name: 'Kuva', exact: true }).click();
@@ -103,4 +110,5 @@ test('progressive rendering refines the live tint without waiting for Apply', as
     (await canvas.screenshot({ path: info.outputPath('live-traced-tint.png') })).equals(original),
   ).toBe(false);
   await expect(page.getByRole('button', { name: 'Käytä väriä', exact: true })).toBeEnabled();
+  expect(lateModules).toEqual([]);
 });

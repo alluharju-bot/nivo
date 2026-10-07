@@ -6,16 +6,28 @@ import { bounds, type Body } from '../model/project';
 type Camera = THREE.PerspectiveCamera | THREE.OrthographicCamera;
 type Pointer = Pick<PointerEvent, 'clientX' | 'clientY'>;
 
-/** Rotate around the screen axes, so a named view never creates an orbit pole. */
+/** Turntable orbit: world Z stays vertical, so curved mouse strokes cannot accumulate roll. */
 export function rotateInView(controls: OrbitControls<Camera>, dx: number, dy: number) {
   const camera = controls.object;
-  const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(-dy, -dx, 0, 'YXZ'));
-  const world = camera.quaternion
-    .clone()
-    .multiply(rotation)
-    .multiply(camera.quaternion.clone().invert());
-  camera.position.sub(controls.target).applyQuaternion(world).add(controls.target);
-  camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion).applyQuaternion(world).normalize();
+  const offset = camera.position.clone().sub(controls.target);
+  const radius = offset.length();
+  const horizontal = Math.hypot(offset.x, offset.y);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  // At an exact named top/bottom view, retain the cube's heading instead of
+  // deriving an arbitrary heading from numerical noise in the camera position.
+  const heading =
+    horizontal > radius * 1e-7 ? Math.atan2(offset.x, -offset.y) : Math.atan2(right.y, right.x);
+  const yaw = heading - dx;
+  const limit = Math.PI / 2 - 1e-4;
+  const pitch = THREE.MathUtils.clamp(Math.atan2(offset.z, horizontal) + dy, -limit, limit);
+  camera.position
+    .set(
+      radius * Math.sin(yaw) * Math.cos(pitch),
+      -radius * Math.cos(yaw) * Math.cos(pitch),
+      radius * Math.sin(pitch),
+    )
+    .add(controls.target);
+  camera.up.set(0, 0, 1);
   camera.lookAt(controls.target);
   camera.updateMatrixWorld();
   // Keep native pan, cursor zoom and change events in sync. No spherical rotation delta.
@@ -128,7 +140,15 @@ export function installCameraNavigation(
 ) {
   controls.zoomToCursor = true;
   let focus: THREE.Vector3 | undefined;
-  let orbit: { pivot: THREE.Vector3; localPivot: THREE.Vector3; pointer: Pointer } | undefined;
+  let orbit:
+    | {
+        pivot: THREE.Vector3;
+        localPivot: THREE.Vector3;
+        pointer: Pointer;
+        pole: number;
+        pitchSign?: number;
+      }
+    | undefined;
   const touches = new Map<number, Pointer>();
   let resumeRotation: (() => void) | undefined;
   const marker = document.createElement('div');
@@ -159,6 +179,10 @@ export function installCameraNavigation(
     orbit = {
       pivot,
       pointer,
+      pole:
+        Math.abs(controls.object.getWorldDirection(new THREE.Vector3()).z) > 1 - 1e-8
+          ? Math.sign(controls.object.position.z - controls.target.z)
+          : 0,
       localPivot: pivot
         .clone()
         .sub(controls.object.position)
@@ -199,7 +223,11 @@ export function installCameraNavigation(
     const dx = (event.clientX - orbit.pointer.clientX) * radians;
     const dy = (event.clientY - orbit.pointer.clientY) * radians;
     orbit.pointer = event;
-    rotateInView(controls, dx, dy);
+    // The first vertical motion leaves an exact top/bottom view in either drag
+    // direction. Keep that choice for this stroke, never bounce at the pole.
+    if (orbit.pitchSign === undefined && Math.abs(dy) > 1e-9)
+      orbit.pitchSign = orbit.pole ? -orbit.pole * Math.sign(dy) : 1;
+    rotateInView(controls, dx, dy * (orbit.pitchSign ?? 1));
     // OrbitControls still tracks pointers, capture and touch transitions. Suppress only
     // its spherical rotation for this event; otherwise the same drag rotates twice.
     controls.enableRotate = false;

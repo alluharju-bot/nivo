@@ -52,21 +52,44 @@ test('texture tint and finish preserve the texture, undo as individual actions a
   expect(errors).toEqual([]);
 });
 
-test('paint brush carries the selected tint and finish onto a part', async ({ page }) => {
-  const body = makeBody(400, 300, 40);
+test('plain paint replaces a texture and carries the selected colour and finish into rendering', async ({
+  page,
+}) => {
+  const body = { ...makeBody(400, 300, 40), appearance: defaultAppearance('pine') };
   await ready(page, [body]);
   const p = await view(page, [body]);
   await page.keyboard.press('p');
-  await page.getByLabel('Pensselin materiaali').selectOption('pine');
+  await expect(page.getByLabel('Pensselin materiaali')).toHaveValue('paint-solid');
+  await page.getByLabel('Pensselin materiaali').selectOption({ label: 'Maalattu kipsi · sileä' });
+  await page.getByLabel('Pensselin materiaali').selectOption({ label: 'Maali · tasainen väri' });
   await page.getByLabel('Pensselin väri').fill('#b3a292');
   await page.getByLabel('Pintakäsittely', { exact: true }).selectOption('satin');
   await click(page, p(180, 130, 40));
   const result = await save(page);
   expect(result.bodies[0].color).toBe('#b3a292');
-  expect(result.bodies[0].appearance).toMatchObject({
-    preset: 'pine',
+  expect(result.bodies[0].appearance).toEqual({
+    ...defaultAppearance('paint-solid'),
     roughness: 0.55,
     clearcoat: 0.05,
   });
   expect(result.bodies[0].feature).toEqual(body.feature);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies[0].appearance).toEqual(body.appearance);
+  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
+  await expect(page.getByLabel('Materiaali', { exact: true })).toHaveValue('paint-solid');
+  await expect(page.getByLabel('Pintakäsittely', { exact: true })).toHaveValue('satin');
+  await expect(page.getByLabel('Oma osaväri', { exact: true })).toHaveValue('#b3a292');
+  const canvas = page.getByTestId('render-canvas');
+  const original = await canvas.screenshot();
+  await page.getByLabel('Oma osaväri', { exact: true }).fill('#2277bb');
+  expect((await canvas.screenshot()).equals(original)).toBe(false);
+  expect((await save(page)).bodies[0].color).toBe('#b3a292');
+  await page.getByRole('button', { name: 'Käytä väriä', exact: true }).click();
+  await page.getByLabel('Pintakäsittely', { exact: true }).selectOption('gloss');
+  expect((await save(page)).bodies[0]).toMatchObject({
+    color: '#2277bb',
+    appearance: { preset: 'paint-solid', roughness: 0.12, clearcoat: 0.35 },
+  });
 });

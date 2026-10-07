@@ -16,7 +16,7 @@ export function createViewCube(
   container: HTMLElement,
   camera: () => Camera,
   orient: (normal: Vec3, up: Vec3) => void,
-  rotate: (dx: number, dy: number) => void,
+  rotate: (dx: number, dy: number, first: boolean) => void,
 ) {
   const host = document.createElement('div');
   host.className = 'view-cube';
@@ -65,8 +65,8 @@ export function createViewCube(
   host.addEventListener('pointermove', (event) => {
     if (press?.id !== event.pointerId) return;
     if (!moved && Math.hypot(event.clientX - press.x, event.clientY - press.y) < 4) return;
+    rotate((event.clientX - press.lastX) * 0.012, (event.clientY - press.lastY) * 0.012, !moved);
     moved = true;
-    rotate((event.clientX - press.lastX) * 0.012, (event.clientY - press.lastY) * 0.012);
     press.lastX = event.clientX;
     press.lastY = event.clientY;
     event.stopPropagation();
@@ -91,7 +91,7 @@ export function createViewCube(
     if (delta) {
       event.preventDefault();
       event.stopPropagation();
-      rotate(delta[0], delta[1]);
+      rotate(delta[0], delta[1], true);
     }
   });
   container.append(host);
