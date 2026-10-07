@@ -252,7 +252,7 @@ test('curved edges drag in perspective and a quick release commits the latest si
     'Pyöreä jalka',
   );
   await ready(page, [body]);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds([body]);
   const min = new THREE.Vector3(...box.min),

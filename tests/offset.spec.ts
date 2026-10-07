@@ -11,7 +11,9 @@ async function ready(page: Page, body: Body, front = false) {
     buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies: [body] })),
   });
   await expect(page.getByTestId(`body-${body.id}`)).toBeVisible();
-  await page.getByRole('button', { name: front ? 'Edestä' : 'Ylhäältä', exact: true }).click();
+  await page
+    .getByRole('button', { name: front ? 'Näkymä: Edestä' : 'Näkymä: Ylhäältä', exact: true })
+    .press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!;
   const { min, max } = bounds([body]),
@@ -91,16 +93,16 @@ test('600 by 600 by 2400 cabinet: hover O 18, E leaves an 18 mm back, then opens
     depth: 600,
     height: 2400,
   });
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('18mm-cabinet.png') });
-  await page.getByRole('button', { name: 'Edestä', exact: true }).click();
+  await page.getByRole('button', { name: 'Näkymä: Edestä', exact: true }).press('Enter');
   await page.mouse.click(p.x, p.y);
   await expect(page.getByTestId('remaining-input')).toHaveValue('18');
   await page.getByRole('button', { name: 'Leikkaa läpi', exact: true }).click();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   const through = await save(page);
   expect(through.bodies[0].feature).not.toEqual(pocket.bodies[0].feature);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('cabinet-through.png') });
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   await expect(page.getByRole('contentinfo').getByRole('status')).toHaveText('Muokkaus peruttu.');

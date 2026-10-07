@@ -27,10 +27,10 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {
   await page
     .getByRole('button', {
-      name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta' }[side],
+      name: { top: 'Näkymä: Ylhäältä', front: 'Näkymä: Edestä', right: 'Näkymä: Oikealta' }[side],
       exact: true,
     })
-    .click();
+    .press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
@@ -115,7 +115,7 @@ test('offset cabinet accepts a two-click door at its front corners as a separate
   expect(model.bodies[0]).toEqual(cabinet);
   expect(model.bodies[1].feature).toMatchObject({ width: 600, depth: 18, height: 2400 });
   expect(model.bodies[1].origin[1]).toBe(-18);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('cabinet-door.png') });
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies[1].feature.depth).toBe(0);

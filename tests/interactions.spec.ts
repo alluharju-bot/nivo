@@ -22,7 +22,7 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
   }
 }
 async function top(page: Page, bodies: Body[] = []) {
-  await page.getByRole('button', { name: 'Ylhäältä', exact: true }).click();
+  await page.getByRole('button', { name: 'Näkymä: Ylhäältä', exact: true }).press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!;
   const { min, max } = bounds(bodies),

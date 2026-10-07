@@ -27,10 +27,10 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {
   await page
     .getByRole('button', {
-      name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta' }[side],
+      name: { top: 'Näkymä: Ylhäältä', front: 'Näkymä: Edestä', right: 'Näkymä: Oikealta' }[side],
       exact: true,
     })
-    .click();
+    .press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
@@ -84,7 +84,7 @@ test('652 becomes exactly 550, and Tab reinterprets the same 150 as the final si
   await expect(page.getByTestId('extrusion-remaining')).toHaveText(
     'Toteutuva kokonaismitta 550 mm',
   );
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('final-size.png') });
   await view(page, [body], 'right');
   await page.getByTestId('remaining-input').press('Enter');

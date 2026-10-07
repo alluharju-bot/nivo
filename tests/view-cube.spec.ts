@@ -8,6 +8,26 @@ const state = async (page: Page) =>
 const direction = (s: Awaited<ReturnType<typeof state>>) =>
   new Vector3(0, 0, 1).applyQuaternion(new Quaternion(...s.quaternion));
 
+test('orbit keeps rotating through the former pole after choosing the top view', async ({
+  page,
+}) => {
+  const body = makeBody(400, 300, 100);
+  await ready(page, [body]);
+  await view(page, [body]);
+  const canvas = page.getByTestId('viewport');
+  const rect = (await canvas.boundingBox())!;
+  const x = rect.x + rect.width * 0.6,
+    y = rect.y + rect.height * 0.65;
+  for (let i = 0; i < 4; i++) {
+    const before = await state(page);
+    await page.mouse.move(x, y);
+    await page.mouse.down({ button: 'right' });
+    await page.mouse.move(x, y - 170, { steps: 12 });
+    await page.mouse.up({ button: 'right' });
+    expect(direction(await state(page)).angleTo(direction(before))).toBeGreaterThan(0.8);
+  }
+});
+
 test('cube rotates with one touch without starting a drawing gesture', async ({ page }, info) => {
   test.skip(info.project.name !== 'tablet', 'Touch input profile');
   const body = makeBody(400, 300, 100);
@@ -64,7 +84,7 @@ test('top-view orbit tilts in both screen directions without roll or a dead pole
   }
 });
 
-test('cube face clicks and view buttons preserve zoom, and cube dragging rotates the view', async ({
+test('cube preserves zoom, free rotation works and overview restores the whole model', async ({
   page,
 }, info) => {
   const body = makeBody(400, 300, 100);
@@ -97,9 +117,31 @@ test('cube face clicks and view buttons preserve zoom, and cube dragging rotates
   expect(direction(dragged).angleTo(direction(after))).toBeGreaterThan(0.2);
   expect(dragged.zoom).toBeCloseTo(zoomed.zoom, 8);
   await page.screenshot({ path: info.outputPath('view-cube-orbit.png') });
-  await page.getByRole('button', { name: 'Ylhäältä', exact: true }).click();
+  await page.getByRole('button', { name: 'Näkymä: Ylhäältä', exact: true }).press('Enter');
   expect((await state(page)).zoom).toBeCloseTo(zoomed.zoom, 8);
   await page.screenshot({ path: info.outputPath('view-cube.png') });
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   await expect.poll(async () => (await state(page)).zoom).toBe(1);
+  // View shortcuts are in one toolbar. Overview changes the camera, not the selection or display.
+  await expect(page.getByRole('button', { name: /^(3D|Ylhäältä|Edestä|Sivulta)$/ })).toHaveCount(0);
+  await page.mouse.click(p(210, 160, 100).x, p(210, 160, 100).y);
+  await page.keyboard.press('2');
+  await page.mouse.wheel(0, -500);
+  await expect.poll(async () => (await state(page)).zoom).toBeGreaterThan(1.1);
+  await page
+    .getByRole('toolbar', { name: 'Näkymän pikatoiminnot' })
+    .getByRole('button', { name: 'Yleisnäkymä', exact: true })
+    .click();
+  await expect.poll(async () => (await state(page)).projection[15]).toBe(0);
+  const overview = await state(page);
+  expect(overview.zoom).toBe(1);
+  expect(overview.projection[15]).toBe(0);
+  expect(new Vector3(...overview.target).distanceTo(new Vector3(200, 150, 50))).toBeLessThan(1e-6);
+  expect(direction(overview).distanceTo(new Vector3(1, -1.4, 1).normalize())).toBeLessThan(1e-6);
+  await expect(page.getByTestId(`body-${body.id}`)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('viewport')).toHaveAttribute(
+    'data-display-modes',
+    JSON.stringify({ [body.id]: 'flat' }),
+  );
+  await page.screenshot({ path: info.outputPath('overview-toolbar.png') });
 });

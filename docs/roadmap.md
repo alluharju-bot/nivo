@@ -2,6 +2,35 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.21.2 — selkeä näkymäpalkki, vapaa kierto ja valinnan korostus
+
+- Kuutio hoitaa suunnanvaihdot zoomia säilyttäen. Päällekkäiset 3D / Edestä /
+  Sivulta / Ylhäältä -painikkeet poistuvat. Näyttötilojen vieressä oleva
+  **Yleisnäkymä** palauttaa viiston perspektiivin ja sovittaa koko näkyvän mallin.
+  **Sovita näkymään** säilyttää suunnan ja sovittaa valinnan tai koko mallin.
+- Kameran kierto käyttää näytön akseleita eikä pysähdy ylänäkymän jälkeen
+  maailmankoordinaatiston napaan. Kohdistimen orbit-keskus ja zoomaus säilyvät.
+- Valitse-työkalun Shift korostaa koko osoitettavan osan tai suljetun kokoonpanon,
+  samoin kuin napsautus valitsisi. Korostus vaihtuu myös ilman hiiren liikettä.
+  Push/pullin Shift-viitehaku säilyy ennallaan.
+
+## Backlog 7.10.2026 — Valinta-paneelin selkeytys ja usean pinnan käsittely
+
+- **Valinta-paneelin toiminnot kahdelle yhtenäiselle riville:** Siirrä / Kopioi /
+  Poista; niiden alle samalla rivityksellä Muokkaa osaa / Kierrä / Kiinnitä.
+  Jälkimmäiset eivät kuulu sisennettyinä Materiaali- tai Komponentti ja linkitys
+  -osioiden jatkoksi. Avattavien osioiden rakenteen pitää pysyä siistinä.
+- **Valinta-paneelin yläosa rauhallisemmaksi:** nimi, ryhmä ja keskeiset tilat
+  selkeästi omille paikoilleen. Yhdellä vilkaisulla tulee ymmärtää, mitä on valittu
+  ja mistä tärkeimmät toiminnot löytyvät. Vähennetään kilpailevia painikkeita ja
+  sisennyksiä. Tämä on seuraavan käyttöliittymäpassin työ, ei vielä toteutettu.
+- **Usean pinnan yhteinen push/pull:** suunnitellaan pintojen kerääminen ennen
+  E-toimintoa. Push/pullin aikana **Shift on aina viitehaku**, ei monivalinta.
+  Myös muut yhteiset pintamuokkaukset huomioidaan. Valintatapaa ei ole vielä
+  päätetty: vältetään jatkuvaa tilojen vaihtamista ja säilytetään suora E/O-käyttö.
+  Numerot 1–4 säilyvät näyttötiloille. Osat/Pinnat-kytkintä ei ole hyväksytty
+  eikä monen pinnan push/pullia toteutettu.
+
 ## V0.21.1 — reaaliaikainen sävy ja kopioiden numerointi
 
 - Värivalitsin näyttää sävyn heti mallissa ja renderöinnissä. Esikatselu päivittää

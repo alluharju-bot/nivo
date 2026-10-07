@@ -137,7 +137,7 @@ test('a rectangle on the inside back of a hollow cabinet stays on that exact sur
   });
   await page.keyboard.press('Escape');
   const previousCamera = await page.getByTestId('viewport').getAttribute('data-camera');
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await expect(page.getByTestId('viewport')).not.toHaveAttribute('data-camera', previousCamera!);
   const state = JSON.parse((await page.getByTestId('viewport').getAttribute('data-camera'))!);
   const camera = new THREE.Camera();

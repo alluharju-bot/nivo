@@ -322,6 +322,7 @@ export default function App() {
   const [selected, setSelected] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [moveHovered, setMoveHovered] = useState<string>();
+  const [selectionHovered, setSelectionHovered] = useState<string>();
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [isolated, setIsolated] = useState<{ projectId: string; excluded: Set<string> }>();
   const [drawingSheetOpen, setDrawingSheetOpen] = useState(false);
@@ -742,6 +743,19 @@ export default function App() {
         : []
       : selectionUnit(project, moveHovered, openedAssembly).ids;
   }, [tool, moveHovered, visibleBodies, selectedIds, project.groups, openedAssembly]);
+  const selectionHoveredIds = useMemo(() => {
+    if (
+      tool !== 'select' ||
+      !selectionHovered ||
+      (editingBodyId && selectionHovered !== editingBodyId) ||
+      !inAssembly(project, selectionHovered, openedAssembly)
+    )
+      return [];
+    const visible = new Set(visibleBodies.map((b) => b.id));
+    return selectionUnit(project, selectionHovered, openedAssembly).ids.filter((id) =>
+      visible.has(id),
+    );
+  }, [tool, selectionHovered, visibleBodies, project, editingBodyId, openedAssembly]);
   const workspace = useWorkspaceViews(
     project,
     visibleBodies,
@@ -4445,26 +4459,13 @@ export default function App() {
             </div>
           )}
           <div className="canvas-topbar" hidden={mode !== 'model'}>
-            <div className="view-tabs" aria-label="Näkymät">
-              {(
-                [
-                  ['iso', '3D'],
-                  ['front', 'Edestä'],
-                  ['right', 'Sivulta'],
-                  ['top', 'Ylhäältä'],
-                ] as const
-              ).map(([id, label]) => (
-                <button key={id} aria-pressed={view === id} onClick={() => changeView(id)}>
-                  {label}
-                </button>
-              ))}
-            </div>
             <DisplayControls
               display={project.settings.modelDisplay}
               ids={selectedIds}
               bodyIds={project.bodies.map((b) => b.id)}
               disabled={busy}
               onChange={changeDisplay}
+              onOverview={() => changeView('iso', true)}
             />
             <div className="view-actions">
               <IconButton
@@ -4897,6 +4898,8 @@ export default function App() {
               selected={selected}
               selectedIds={selectedIds}
               moveHoveredIds={openingDraft?.included ?? moveHoveredIds}
+              selectionHoveredIds={selectionHoveredIds}
+              onSelectionHover={setSelectionHovered}
               onMoveHover={(id) => {
                 setMoveHovered(id);
                 return id
@@ -6277,7 +6280,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.21.1</span>
+                    <span>v0.21.2</span>
                   </div>
                 </>
               )}

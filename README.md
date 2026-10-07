@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.21.2** kokoaa näkymän pikatoiminnot: kuutio vaihtaa katselusuuntaa
+säilyttäen zoomin, ja näyttötilojen vieressä oleva **Yleisnäkymä** palauttaa koko
+mallin näkyviin viistosta. Kamera kiertää vapaasti myös ylänäkymän jälkeen.
+Valitse-työkalun Shift korostaa koko osan tai suljetun kokoonpanon ennen valintaa.
+Push/pullin Shift säilyy viitehakuna.
+
 Versio **0.21.1** näyttää tekstuurin sävyn heti väriä valitessa sekä mallissa että
 renderöinnissä. Hyväksy sävy valintapainikkeesta tai peru esikatselu Escillä;
 hyväksytty muutos on yksi historian askel. Uusien kopioiden nimet numeroidaan:

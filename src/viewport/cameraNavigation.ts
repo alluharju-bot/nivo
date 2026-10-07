@@ -6,6 +6,22 @@ import { bounds, type Body } from '../model/project';
 type Camera = THREE.PerspectiveCamera | THREE.OrthographicCamera;
 type Pointer = Pick<PointerEvent, 'clientX' | 'clientY'>;
 
+/** Rotate around the screen axes, so a named view never creates an orbit pole. */
+export function rotateInView(controls: OrbitControls<Camera>, dx: number, dy: number) {
+  const camera = controls.object;
+  const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(-dy, -dx, 0, 'YXZ'));
+  const world = camera.quaternion
+    .clone()
+    .multiply(rotation)
+    .multiply(camera.quaternion.clone().invert());
+  camera.position.sub(controls.target).applyQuaternion(world).add(controls.target);
+  camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion).applyQuaternion(world).normalize();
+  camera.lookAt(controls.target);
+  camera.updateMatrixWorld();
+  // Keep native pan, cursor zoom and change events in sync. No spherical rotation delta.
+  controls.update();
+}
+
 /** OrbitControls caches its up-axis at construction. Recreate it when a view changes up. */
 export function rebuildOrbitControls(previous: OrbitControls<Camera>, camera: Camera) {
   const position = camera.position.clone();
@@ -112,8 +128,9 @@ export function installCameraNavigation(
 ) {
   controls.zoomToCursor = true;
   let focus: THREE.Vector3 | undefined;
-  let orbit: { pivot: THREE.Vector3; localPivot: THREE.Vector3 } | undefined;
+  let orbit: { pivot: THREE.Vector3; localPivot: THREE.Vector3; pointer: Pointer } | undefined;
   const touches = new Map<number, Pointer>();
+  let resumeRotation: (() => void) | undefined;
   const marker = document.createElement('div');
   marker.className = 'orbit-pivot';
   marker.dataset.testid = 'orbit-pivot';
@@ -141,6 +158,7 @@ export function installCameraNavigation(
     focusDepth(controls.object, controls.target, pivot);
     orbit = {
       pivot,
+      pointer,
       localPivot: pivot
         .clone()
         .sub(controls.object.position)
@@ -174,7 +192,28 @@ export function installCameraNavigation(
     else clearOrbit();
   };
   const move = (event: PointerEvent) => {
+    resumeRotation?.();
     if (touches.has(event.pointerId)) touches.set(event.pointerId, event);
+    if (!orbit || !controls.enabled || !controls.enableRotate) return;
+    const radians = (2 * Math.PI * controls.rotateSpeed) / Math.max(1, canvas.clientHeight);
+    const dx = (event.clientX - orbit.pointer.clientX) * radians;
+    const dy = (event.clientY - orbit.pointer.clientY) * radians;
+    orbit.pointer = event;
+    rotateInView(controls, dx, dy);
+    // OrbitControls still tracks pointers, capture and touch transitions. Suppress only
+    // its spherical rotation for this event; otherwise the same drag rotates twice.
+    controls.enableRotate = false;
+    const resume = () => {
+      controls.enableRotate = true;
+      canvas.ownerDocument.removeEventListener('pointermove', resume);
+      clearTimeout(fallback);
+      resumeRotation = undefined;
+    };
+    // Restore after the native document listener, not in a microtask: browsers can
+    // run microtasks between capture and bubble listeners of the same event.
+    const fallback = setTimeout(resume, 0);
+    resumeRotation = resume;
+    canvas.ownerDocument.addEventListener('pointermove', resume, { once: true });
   };
   const up = (event: PointerEvent) => {
     touches.delete(event.pointerId);
@@ -207,6 +246,7 @@ export function installCameraNavigation(
       canvas.dataset.cameraFocus = focus ? JSON.stringify(focus.toArray()) : '';
     },
     dispose() {
+      resumeRotation?.();
       canvas.removeEventListener('pointerdown', down, true);
       canvas.removeEventListener('pointermove', move, true);
       canvas.removeEventListener('pointerup', up, true);

@@ -33,7 +33,7 @@ import { createWorkspaceGrid } from './workspaceGrid';
 import { createBodyBatches, type ModelMaterial } from './bodyBatches';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { createModelDimensions } from './modelDimensions';
-import { installCameraNavigation, rebuildOrbitControls } from './cameraNavigation';
+import { installCameraNavigation, rebuildOrbitControls, rotateInView } from './cameraNavigation';
 import { createViewCube } from './viewCube';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
@@ -309,7 +309,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const surfaceOrder = new Map(props.bodies.map((body, i) => [body.id, i + 1]));
     const selectedIds = new Set(props.selectedIds);
     const previewIds = new Set(props.colorPreview?.ids);
-    const moveHoveredIds = new Set(props.moveHoveredIds);
+    const moveHoveredIds = new Set([
+      ...(props.moveHoveredIds ?? []),
+      ...(props.selectionHoveredIds ?? []),
+    ]);
+    renderer.domElement.dataset.selectionHovered = JSON.stringify(props.selectionHoveredIds ?? []);
     renderer.domElement.dataset.moveHovered = JSON.stringify(props.moveHoveredIds ?? []);
     const scopeIds = props.scopeIds && new Set(props.scopeIds);
     const nextNodes = new Map<string, BodyNode>();
@@ -1202,7 +1206,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     controls.update();
   };
   const setCameraUp = (up: Vec3) => {
-    if (camera.up.distanceToSquared(new THREE.Vector3(...up)) < 1e-12) return;
+    // Free orbit changes the camera's up vector; refresh OrbitControls' cached frame
+    // even when a named view happens to use the same up vector.
     camera.up.set(...up);
     navigation.dispose();
     controls = rebuildOrbitControls(controls, camera);
@@ -1337,8 +1342,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().onCameraProjection?.('orthographic');
     },
     (dx, dy) => {
-      controls.rotateLeft(dx);
-      controls.rotateUp(dy);
+      rotateInView(controls, dx, dy);
       render();
     },
   );
@@ -1501,6 +1505,7 @@ export function Viewport(props: Props) {
     props.meshes,
     props.selectedIds,
     props.moveHoveredIds,
+    props.selectionHoveredIds,
     props.pickHoveredIds,
     props.selectedGroupId,
     props.selectedFace,

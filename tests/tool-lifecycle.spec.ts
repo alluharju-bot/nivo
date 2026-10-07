@@ -26,10 +26,15 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' | 'iso' = 'top') {
   await page
     .getByRole('button', {
-      name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta', iso: '3D' }[side],
+      name: {
+        top: 'Näkymä: Ylhäältä',
+        front: 'Näkymä: Edestä',
+        right: 'Näkymä: Oikealta',
+        iso: 'Yleisnäkymä',
+      }[side],
       exact: true,
     })
-    .click();
+    .press('Enter');
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
     a = new THREE.Vector3(...box.min),

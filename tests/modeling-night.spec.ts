@@ -218,7 +218,7 @@ test('changing the view cancels the knife draft and a perspective stroke still s
     'points',
     '',
   );
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await expect(page.getByTestId('knife-preview').locator('.knife-stroke')).toHaveAttribute(
     'points',
     '',

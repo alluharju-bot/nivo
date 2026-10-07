@@ -52,7 +52,7 @@ for (const editing of [false, true])
       await ready(page, [floor, wall], [guide]);
       if (editing) await editBody(page, wall.id);
       await view(page, [floor, wall]);
-      await page.getByRole('button', { name: '3D', exact: true }).click();
+      await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
       await page.keyboard.press(tool);
       await aim(page, [1300, 1600, 80]);
       await expect(page.getByTestId('snap-hint')).toContainText('pintojen risteys');
@@ -69,7 +69,7 @@ test('a moved floor updates the seam and Shift push/pull and Move reference the 
   const part = makeBody(100, 100, 20, [900, -300, 0], 'Osa');
   await ready(page, [floor, wall, part]);
   await view(page, [floor, wall, part]);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   let p = await at(page, [500, 500, 80]);
   await page.mouse.move(p.x, p.y);
   await page.keyboard.press('e');

@@ -10,7 +10,9 @@ const modes = (page: Page) =>
     .getAttribute('data-display-modes')
     .then((value) => JSON.parse(value!));
 const displayButton = (page: Page, name: string) =>
-  page.getByRole('toolbar', { name: 'Näyttötapa' }).getByRole('button', { name, exact: true });
+  page
+    .getByRole('toolbar', { name: 'Näkymän pikatoiminnot' })
+    .getByRole('button', { name, exact: true });
 
 test('ghost clicks and box selection pass through, but measurements keep exact ghost anchors', async ({
   page,

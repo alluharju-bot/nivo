@@ -578,32 +578,6 @@ p {
 .is-editing .guide-actions {
   top: 138px;
 }
-.view-tabs {
-  display: flex;
-  gap: 3px;
-  background: #ffffffb3;
-  backdrop-filter: blur(12px);
-  padding: 3px;
-  border: 1px solid #ffffffb0;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px #233a2805;
-}
-.view-tabs > button {
-  min-height: 38px;
-  min-width: 44px;
-  padding: 0 10px;
-  border-radius: 5px;
-  font-size: 11px;
-  color: #7c887b;
-}
-.view-tabs > button[aria-pressed='true'] {
-  color: var(--ink);
-  background: #ffffff;
-  box-shadow: 0 1px 3px #273d3214;
-}
-.view-tabs > button:hover {
-  background: #fff;
-}
 .view-actions {
   display: flex;
   align-items: center;
@@ -624,6 +598,12 @@ p {
   padding: 0 6px;
   font-size: 10px;
   color: #647464;
+}
+.display-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 3px;
+  background: #64746430;
 }
 .display-controls button {
   display: grid;
@@ -1893,10 +1873,6 @@ p {
     left: 13px;
     right: 13px;
   }
-  .view-tabs > button {
-    padding: 0 6px;
-    font-size: 10px;
-  }
   .projection-button {
     font-size: 9px;
     gap: 5px;
@@ -1994,14 +1970,6 @@ p {
     flex-wrap: wrap;
     gap: 8px;
     top: 12px;
-  }
-  .view-tabs {
-    padding: 2px;
-    gap: 0;
-  }
-  .view-tabs > button {
-    font-size: 9px;
-    padding: 0 4px;
   }
   .view-actions {
     margin-left: auto;
@@ -2174,10 +2142,6 @@ p {
     left: 10px;
     gap: 5px;
   }
-  .view-tabs > button {
-    font-size: 9px;
-    min-width: 43px;
-  }
   .canvas-topbar .view-actions {
     margin-left: 0;
   }
@@ -2229,7 +2193,6 @@ p {
     min-height: 44px;
   }
   .mode-switch button,
-  .view-tabs button,
   .projection-button {
     min-height: 44px;
   }

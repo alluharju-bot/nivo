@@ -106,7 +106,7 @@ test('complete precise modelling, history, drawing, export and recovery workflow
   await expect(
     page.getByRole('button', { name: 'Rinnakkaisprojektio', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Edestä', exact: true }).click();
+  await page.getByRole('button', { name: 'Näkymä: Edestä', exact: true }).press('Enter');
   const canvas = await page.getByTestId('viewport').boundingBox();
   await page.keyboard.press('v');
   await page.mouse.click(canvas!.x + canvas!.width / 2, canvas!.y + canvas!.height / 2);
@@ -167,7 +167,7 @@ test('tablet drawing release accepts once, orientation change and recovery', asy
   await ready(page);
   await page.getByRole('button', { name: 'Muodot', exact: true }).tap();
   await page.getByRole('button', { name: 'Suorakulmio', exact: true }).tap();
-  await page.getByRole('button', { name: 'Ylhäältä', exact: true }).tap();
+  await page.getByRole('button', { name: 'Näkymä: Ylhäältä', exact: true }).press('Enter');
   const viewport = await page.getByTestId('viewport').boundingBox();
   const cdp = await context.newCDPSession(page);
   const x = viewport!.x + viewport!.width * 0.38,

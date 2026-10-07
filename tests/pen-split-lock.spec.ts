@@ -25,7 +25,7 @@ for (const perspective of [false, true]) {
     const floor = makeBody(6000, 4000, 100, [12000, 8000, -100], 'Lattia');
     await ready(page, [floor]);
     await view(page, [floor]);
-    if (perspective) await page.getByRole('button', { name: '3D', exact: true }).click();
+    if (perspective) await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
     const at = (point: Vec3) => projected(page, point);
     await page.keyboard.press('k');
     const start = await at([15000, 8000, 0]),

@@ -4,6 +4,31 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.21.2 — näkymäpalkki, vapaa orbit ja Shift-korostus
+
+**287 yksikkö-/CAD-testiä hyväksytty (54 tiedostoa)**. TypeScript, production build
+polulle `/nivo/`, muotoilu ja lisenssiluettelo tarkistettu. Buildissa samat aiemmat
+bundlekoon ja OpenCascade-moduulin browser-external-ilmoitukset.
+
+54 selaintapauksen ajossa 48 hyväksyttiin, kolme kosketustapausta ohitettiin
+desktopilla ja kolmesta löytyi testin ajoitusvirhe: kameratilaa luettiin ennen
+tuonnin sovituksen tai Yleisnäkymä-komennon valmistumista. Jälki osoitti lukemisen
+vanhasta kamerasta; testit odottavat nyt todellista kameran muutosta. Viimeinen
+kuuden tapauksen ajo hyväksyi kaikki, yhteensä **51 soveltuvaa selaintapausta
+hyväksytty desktopilla ja tablettiemuloinnissa**.
+
+Kattavuus: `camera`, `view-cube`, `selection-hover`, `display-modes` ja
+`pushpull-anchors-v011`. Ylänäkymän toistuva orbit ylittää aiemmat lukkiutumiskohdat;
+kuutio säilyttää zoomin, Yleisnäkymä sovittaa mallin ja säilyttää valinnan sekä
+näyttötilan. Kohdistinzoomaus, pinnan ympärillä orbitointi, panorointi ja
+kosketuksen orbit/pinch testattu. Shift korostaa osan tai suljetun kokoonpanon
+ilman hiiren liikettä, monivalinta säilyy eikä geometria rakennu uudestaan.
+Push/pullin Shift poimii kulmat, keskipisteet, reunat ja apuviivat kaikista kolmesta
+pääsuunnasta, myös Ghost-osasta ja heti E-pikanäppäimen jälkeen.
+
+Oikean Valinta-paneelin siivous ja usean pinnan yhteinen push/pull ovat backlogissa,
+eivät tämän version toteutuksia.
+
 ## V0.21.1 — reaaliaikainen sävy ja kopioiden numerointi
 
 **285 yksikkö-/CAD-testiä hyväksytty (54 tiedostoa)**. **8 selaintapausta hyväksytty**

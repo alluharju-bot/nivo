@@ -1,4 +1,4 @@
-import { Box, Ghost, Square, Boxes } from 'lucide-react';
+import { Box, Ghost, Square, Boxes, House } from 'lucide-react';
 import {
   commonDisplayMode,
   displayLabels,
@@ -21,17 +21,28 @@ export function DisplayControls({
   bodyIds,
   disabled,
   onChange,
+  onOverview,
 }: {
   display?: ModelDisplay;
   ids: string[];
   bodyIds: string[];
   disabled: boolean;
   onChange: (mode: DisplayMode) => void;
+  onOverview: () => void;
 }) {
   const mode = commonDisplayMode(display, ids.length ? ids : bodyIds);
   const scope = ids.length ? `Valinta · ${ids.length} osaa` : 'Koko näkymä';
   return (
-    <div className="display-controls" role="toolbar" aria-label="Näyttötapa">
+    <div className="display-controls" role="toolbar" aria-label="Näkymän pikatoiminnot">
+      <button
+        type="button"
+        aria-label="Yleisnäkymä"
+        title="Yleisnäkymä · koko malli näkyviin viistosta"
+        onClick={onOverview}
+      >
+        <House size={18} aria-hidden="true" />
+      </button>
+      <span className="display-divider" aria-hidden="true" />
       <span className="display-scope" title={scope}>
         {ids.length ? `${ids.length} valittu` : 'Näkymä'}
       </span>

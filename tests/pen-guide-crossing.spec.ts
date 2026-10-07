@@ -35,7 +35,8 @@ for (const mode of ['guide', 'free'] as const)
     await ready(page, [wall], [guide]);
     await editBody(page, wall.id);
     await view(page, [wall], 'front');
-    if (mode === 'free') await page.getByRole('button', { name: '3D', exact: true }).click();
+    if (mode === 'free')
+      await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
     await page.keyboard.press('k');
     for (const z of [0, 2400]) {
       const point = await at(page, [1050, 0, z]);

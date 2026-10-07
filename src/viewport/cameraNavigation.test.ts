@@ -2,7 +2,49 @@ import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeBody } from '../model/project';
-import { focusDepth, orbitAbout, orbitSurfacePoint, selectionCenter } from './cameraNavigation';
+import {
+  focusDepth,
+  orbitAbout,
+  orbitSurfacePoint,
+  selectionCenter,
+  rotateInView,
+} from './cameraNavigation';
+
+it.each(['perspective', 'orthographic'])(
+  'free orbit crosses both poles without stopping or losing the pivot (%s)',
+  (type) => {
+    const camera =
+      type === 'perspective'
+        ? new THREE.PerspectiveCamera(40, 1.5, 0.1, 1e6)
+        : new THREE.OrthographicCamera(-600, 600, 400, -400, 0.1, 1e6);
+    camera.up.set(0, 1, 0);
+    camera.position.set(0, 0, 1000);
+    const controls = new OrbitControls(camera);
+    const pivot = new THREE.Vector3(150, 60, 0);
+    const local = pivot
+      .clone()
+      .sub(camera.position)
+      .applyQuaternion(camera.quaternion.clone().invert());
+    const screen = pivot.clone().project(camera);
+    const radius = camera.position.distanceTo(pivot);
+    controls.addEventListener('change', () => orbitAbout(camera, controls.target, pivot, local));
+    for (const [dx, dy] of [
+      [0, 0.2],
+      [0.2, 0],
+      [0.1, -0.2],
+    ]) {
+      for (let i = 0; i < 80; i++) {
+        const before = camera.getWorldDirection(new THREE.Vector3());
+        rotateInView(controls, dx, dy);
+        expect(camera.getWorldDirection(new THREE.Vector3()).angleTo(before)).toBeGreaterThan(0.19);
+        expect(camera.position.distanceTo(pivot)).toBeCloseTo(radius, 5);
+        const projected = pivot.clone().project(camera);
+        expect(projected.x).toBeCloseTo(screen.x, 5);
+        expect(projected.y).toBeCloseTo(screen.y, 5);
+      }
+    }
+  },
+);
 
 it.each(['perspective', 'orthographic'])(
   'picks the visible surface instead of a hidden part or a line (%s)',

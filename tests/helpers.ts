@@ -42,10 +42,10 @@ export async function view(page: Page, bodies: Body[], side: 'top' | 'front' | '
     await page.getByRole('button', { name: 'Piilota mallilista' }).press('Enter');
   await page
     .getByRole('button', {
-      name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta' }[side],
+      name: { top: 'Näkymä: Ylhäältä', front: 'Näkymä: Edestä', right: 'Näkymä: Oikealta' }[side],
       exact: true,
     })
-    .click();
+    .press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),

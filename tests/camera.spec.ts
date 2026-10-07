@@ -32,6 +32,14 @@ for (const projection of ['perspective', 'orthographic']) {
     const part = makeBody(400, 300, 100);
     await ready(page, [part]);
     if (projection === 'orthographic') await view(page, [part]);
+    // Import fits after the first mesh frame. Wait for that camera command before projecting.
+    await expect
+      .poll(async () =>
+        new THREE.Vector3(...(await camera(page)).target).distanceTo(
+          new THREE.Vector3(200, 150, 50),
+        ),
+      )
+      .toBeLessThan(1e-6);
     const point: Vec3 = [280, 180, 100];
     const before = await screenPoint(page, point);
     const initial = await camera(page);

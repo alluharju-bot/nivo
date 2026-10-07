@@ -94,7 +94,7 @@ test('a perspective measurement keeps exact 48, 98 and 13 mm geometry with the 1
   const body = makeBody(98, 48, 13, [0, 0, 0]);
   await ready(page, [body]);
   await view(page, [body]);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await freeMeasure(page);
   for (const [a, b, length] of [
     [[0, 0, 13], [98, 0, 13], 98],

@@ -26,10 +26,10 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {
   await page
     .getByRole('button', {
-      name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta' }[side],
+      name: { top: 'Näkymä: Ylhäältä', front: 'Näkymä: Edestä', right: 'Näkymä: Oikealta' }[side],
       exact: true,
     })
-    .click();
+    .press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
@@ -291,7 +291,7 @@ test('large thin faces remain renderable while orbiting and switching projection
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await ready(page, [makeBody(80000, 60000, 18), makeBody(80000, 18, 30000, [0, 60000, 0])]);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   const box = (await page.getByTestId('viewport').boundingBox())!,
     x = box.x + box.width * 0.6,
     y = box.y + box.height * 0.5;

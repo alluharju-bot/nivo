@@ -137,6 +137,8 @@ export interface ViewportProps {
   selected?: string;
   selectedIds: string[];
   moveHoveredIds?: string[];
+  selectionHoveredIds?: string[];
+  onSelectionHover?: (id?: string) => void;
   onMoveHover?: (id?: string) => number;
   selectedGroupId?: string;
   selectedFace?: FaceRef;

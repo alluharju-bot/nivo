@@ -193,7 +193,7 @@ test('circles, ellipses, polygons and pen faces keep priority on an oblique supp
   await view(page, parts);
   const canvas = page.getByTestId('viewport');
   const oldCamera = await canvas.getAttribute('data-camera');
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await expect(canvas).not.toHaveAttribute('data-camera', oldCamera!);
   const state = JSON.parse((await canvas.getAttribute('data-camera'))!);
   const camera = new THREE.Camera();

@@ -319,6 +319,7 @@ export function installInteractions({
         surfaceChosen?: boolean;
       }
     | undefined;
+  let selectionPointerInside = false;
   let lastEvent: PointerEvent | undefined,
     shiftDirection: Vec3 | undefined,
     lastPenPoint: Vec3 | undefined;
@@ -2024,6 +2025,7 @@ export function installInteractions({
       highlightFace();
       highlightEdge();
       current().onMoveHover?.(undefined);
+      current().onSelectionHover?.(undefined);
     }
     if (current().tool !== 'move' || !drag) showMoveAxis();
     if (current().tool !== 'detail') {
@@ -2036,6 +2038,7 @@ export function installInteractions({
       show(lastSnap);
     }
     if (epoch !== current().epoch || tool !== current().tool) {
+      current().onSelectionHover?.(undefined);
       clearSelectionBox();
       epoch = current().epoch;
       tool = current().tool;
@@ -3086,7 +3089,40 @@ export function installInteractions({
     canvas.setPointerCapture(event.pointerId);
     canvas.focus({ preventScroll: true });
   };
+  const hoverSelection = (event: PointerEvent, whole: boolean) => {
+    const props = current();
+    if (whole) {
+      // Match click priority: a guide in front of the solid belongs to the guide selection.
+      const id = selectableGuideAt(event)
+        ? undefined
+        : (wireAt(event)?.object.userData.id ?? faceAt(event)?.target.bodyId);
+      highlightFace();
+      highlightEdge();
+      show();
+      props.onSelectionHover?.(id);
+      // Keep E/O's direct face target even though Select displays the whole part.
+      const face = id ? editableFaceAt(event)?.target : undefined;
+      props.onFaceHover(face?.bodyId === id ? face : undefined);
+      return;
+    }
+    props.onSelectionHover?.(undefined);
+    const wire = props.tool === 'select' ? wireAt(event) : undefined;
+    const edge = wire ? edgeAt(event, (_point, id) => id === wire.object.userData.id) : undefined;
+    highlightEdge(edge?.edge);
+    if (wire) {
+      highlightFace();
+      show({
+        point: wire.point.toArray() as Vec3,
+        key: wire.object.userData.id,
+        label: 'Piirrosviiva',
+      });
+    } else {
+      highlightFace(editableFaceAt(event)?.target);
+      show();
+    }
+  };
   const move = (event: PointerEvent) => {
+    selectionPointerInside = true;
     lastEvent = event;
     sync();
     if (drag && Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4)
@@ -3180,6 +3216,7 @@ export function installInteractions({
       return;
     }
     if (props.tool === 'select' && drag?.moved) {
+      props.onSelectionHover?.(undefined);
       boxSelection(event);
       highlightFace();
       show();
@@ -3191,21 +3228,7 @@ export function installInteractions({
       return;
     }
     if (props.tool === 'select' || props.tool === 'offset') {
-      const wire = props.tool === 'select' ? wireAt(event) : undefined;
-      const edge = wire ? edgeAt(event, (_point, id) => id === wire.object.userData.id) : undefined;
-      highlightEdge(edge?.edge);
-      if (wire) {
-        highlightFace();
-        show({
-          point: wire.point.toArray() as Vec3,
-          key: wire.object.userData.id,
-          label: 'Piirrosviiva',
-        });
-        return;
-      }
-      const face = editableFaceAt(event);
-      highlightFace(face?.target);
-      show();
+      hoverSelection(event, props.tool === 'select' && event.shiftKey);
       return;
     }
     if (props.tool === 'extrude') {
@@ -3663,6 +3686,15 @@ export function installInteractions({
     }
     if (event.key === 'Shift' && !event.repeat) {
       shift = true;
+      if (
+        props.tool === 'select' &&
+        selectionPointerInside &&
+        lastEvent &&
+        !drag?.moved &&
+        !props.busy
+      ) {
+        hoverSelection(lastEvent, true);
+      }
       // In Select, Shift belongs exclusively to object multiselection.
       if (
         props.tool === 'select' ||
@@ -3735,6 +3767,7 @@ export function installInteractions({
     }
   };
   const keyup = (event: KeyboardEvent) => {
+    if (event.key === 'Shift') current().onSelectionHover?.(undefined);
     if (event.key === 'Control') controlCopyBefore = undefined;
     if (current().modalOpen) {
       if (event.key === 'Shift') {
@@ -3749,6 +3782,15 @@ export function installInteractions({
     }
     if (event.key === 'Shift') {
       shift = false;
+      if (
+        current().tool === 'select' &&
+        selectionPointerInside &&
+        lastEvent &&
+        !drag?.moved &&
+        !current().busy
+      ) {
+        hoverSelection(lastEvent, false);
+      }
       penShiftPending = false;
       measureShiftPending = false;
       if (current().tool === 'rotate' && rotationDrag && lastEvent) updateRotation(lastEvent);
@@ -3786,6 +3828,8 @@ export function installInteractions({
     }
   };
   const blur = () => {
+    selectionPointerInside = false;
+    current().onSelectionHover?.(undefined);
     clearSelectionBox();
     cancelDetailDrag();
     if (dimensionSession) {
@@ -3814,6 +3858,8 @@ export function installInteractions({
     show();
   };
   const leave = () => {
+    selectionPointerInside = false;
+    current().onSelectionHover?.(undefined);
     if (!drag) current().onMoveHover?.(undefined);
     if (current().tool === 'detail') {
       if (!detailSession?.started) highlightDetail();

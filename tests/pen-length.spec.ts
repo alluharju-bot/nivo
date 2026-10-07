@@ -35,7 +35,7 @@ test('free pen snapping keeps a real off-plane vertex exact in perspective', asy
     return { x: rect.x + ((p.x + 1) * rect.width) / 2, y: rect.y + ((1 - p.y) * rect.height) / 2 };
   };
   await view(page, [floor, block]);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.keyboard.press('k');
   await click(page, await project([0, 0, 0]));
   const target: Vec3 = [300, 150, 113];

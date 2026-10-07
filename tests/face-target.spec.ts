@@ -28,10 +28,10 @@ async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' = 'top') {
   await page
     .getByRole('button', {
-      name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta' }[side],
+      name: { top: 'Näkymä: Ylhäältä', front: 'Näkymä: Edestä', right: 'Näkymä: Oikealta' }[side],
       exact: true,
     })
-    .click();
+    .press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),

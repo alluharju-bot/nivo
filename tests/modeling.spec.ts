@@ -26,8 +26,11 @@ async function ready(page: Page, bodies: Body[] = []) {
 }
 async function view(page: Page, bodies: Body[], side: 'top' | 'front' = 'top') {
   await page
-    .getByRole('button', { name: side === 'top' ? 'Ylhäältä' : 'Edestä', exact: true })
-    .click();
+    .getByRole('button', {
+      name: side === 'top' ? 'Näkymä: Ylhäältä' : 'Näkymä: Edestä',
+      exact: true,
+    })
+    .press('Enter');
   await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
@@ -92,7 +95,7 @@ test('circle on a face becomes a selected region, E makes a through hole, undo r
   const cut = await save(page);
   expect(cut.bodies[0].feature).not.toEqual(split.bodies[0].feature);
   expect(cut.bodies[0].feature.height).toBeCloseTo(40, 5);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('circle-through.png') });
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   await expect(page.getByRole('contentinfo').getByRole('status')).toHaveText('Muokkaus peruttu.');
@@ -139,7 +142,7 @@ test('rectangle and pen draw directly on a vertical face and create recessed reg
   await page.keyboard.type('-8');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('vertical-pockets.png') });
 });
 
@@ -289,7 +292,7 @@ test('ellipse, regular polygon and construction roles keep precise dimensions an
     distance: 0,
     profile: { kind: 'polygon' },
   });
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('profile-tools.png') });
   await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
   await page.reload();
@@ -360,6 +363,6 @@ test('circle uses an oblique face plane and stays on that plane through region e
   const model = await save(page);
   expect(model.bodies[0].feature).toMatchObject({ type: 'brep' });
   expect(model.bodies[0].feature.height).toBeCloseTo(body.feature.height, 4);
-  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await page.getByRole('button', { name: 'Yleisnäkymä', exact: true }).click();
   await page.screenshot({ path: info.outputPath('oblique-pocket.png') });
 });
