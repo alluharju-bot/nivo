@@ -182,6 +182,12 @@ export function progressiveRenderer(
       status('loading');
       try {
         await ready();
+        // Let React commit and the browser paint the preparation message before
+        // synchronous driver work. A resolved texture promise alone only yields
+        // to another microtask and can leave the old raster UI on screen.
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
         if (disposed || token !== request) return;
         if (!renderer.extensions.has('EXT_color_buffer_float'))
           throw new Error(
