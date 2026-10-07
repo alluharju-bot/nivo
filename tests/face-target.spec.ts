@@ -32,6 +32,7 @@ async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' 
       exact: true,
     })
     .click();
+  await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
     a = new THREE.Vector3(...box.min),

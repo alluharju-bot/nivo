@@ -61,6 +61,18 @@ V0.6 lisää valinnaisen `settings.dimensionDisplay`: `all` (oletus), `selected`
 tai `hidden`. Se rajaa vain 3D-mittojen näkyvyyttä; mittakuva käyttää yhteisiä
 mittaviitteitä. Puuttuva arvo täydentyy avatessa, joten formaattiversio pysyy V5:ssä.
 Kappaleen `color` on kuusinumeroinen heksaväri; värinvaihto ei muuta geometriaa.
+Tekstuurillisessa materiaalissa sama väri sävyttää värikuvaa kertolaskuna;
+`#ffffff` säilyttää kuvan alkuperäiset värit. Pintakäsittelyn käyttöliittymä
+kirjoittaa olemassa olevat `appearance.roughness`- ja `appearance.clearcoat`-arvot.
+Se säilyttää tekstuurikuvan, PBR-kartat ja tekstuurin sijoittelun.
+
+Valinnainen `settings.modelDisplay` sisältää `mode`-oletuksen ja `overrides`-olion,
+jonka avaimet ovat kappaletunnisteita. Arvot ovat `solid`, `flat`, `ghost` ja
+`wireframe`; puuttuva asetus tarkoittaa Solid-näkymää. Osakohtainen näyttötapa
+kuuluu esiintymälle, joten linkitettyjen komponenttien materiaalit ja geometria
+säilyvät samoina. Koko näkymän tilanvaihto tyhjentää osakohtaiset poikkeukset.
+Näyttötapa vaikuttaa mallinnusnäkymään, ei materiaalin tietoihin tai renderikuviin.
+
 `axisStyle: "strong"` korostaa akseleita; `axisLabels:true` näyttää nimet.
 
 `groups` sisältää enintään 1000 ryhmää: `id`, `name` ja `hidden` (oletus false).
@@ -254,6 +266,13 @@ V6:n valinnaiset lisäkentät:
 - `bodies[].localMaterial`: `true` irrottaa esiintymän materiaalin perheen
   yhteisestä materiaalista. Nimi, ryhmä, sijainti, kierto, näkyvyys ja Hold eivät
   kuulu jaettuun määrittelyyn.
+- V0.21:n `bodies[].localTexture`: `true` pitää pelkän `appearance.texture`-asettelun
+  osakohtaisena. Tekstuurin siirto, kierto ja hajonta käyttävät tätä kenttää;
+  sävy, kiilto ja materiaali jakautuvat edelleen linkitettyihin kopioihin.
+  Hajonta tallennetaan lopullisina
+  lukuarvoina, joten projekti ei satunnaistu uudelleen avattaessa.
+- `settings.measurementsHidden` piilottaa mallin tallennetut mitta- ja apuviivat
+  sekä niiden tartunnat. Se ei poista merkintöjä tai muuta mittakuvan näkyvyyttä.
 
 Geometriamuokkaus muunnetaan lähde-esiintymän kehyksestä kopion kehykseen ennen
 projektin atomista hyväksyntää. Undo/redo palauttaa koko tallennetun tilan.

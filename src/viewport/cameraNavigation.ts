@@ -1,10 +1,42 @@
 import * as THREE from 'three';
 import { intersectModel } from './spatialIndex';
-import type { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { bounds, type Body } from '../model/project';
 
 type Camera = THREE.PerspectiveCamera | THREE.OrthographicCamera;
 type Pointer = Pick<PointerEvent, 'clientX' | 'clientY'>;
+
+/** OrbitControls caches its up-axis at construction. Recreate it when a view changes up. */
+export function rebuildOrbitControls(previous: OrbitControls<Camera>, camera: Camera) {
+  const position = camera.position.clone();
+  const element = previous.domElement!;
+  previous.dispose();
+  const next = new OrbitControls<Camera>(camera, element);
+  next.target.copy(previous.target);
+  for (const key of [
+    'enabled',
+    'enableRotate',
+    'enableZoom',
+    'enablePan',
+    'enableDamping',
+    'dampingFactor',
+    'rotateSpeed',
+    'zoomSpeed',
+    'panSpeed',
+    'minDistance',
+    'maxDistance',
+    'minZoom',
+    'maxZoom',
+    'screenSpacePanning',
+    'zoomToCursor',
+  ] as const)
+    next[key] = previous[key] as never;
+  Object.assign(next.mouseButtons, previous.mouseButtons);
+  Object.assign(next.touches, previous.touches);
+  camera.position.copy(position);
+  next.update();
+  return next;
+}
 
 /** Pick the frontmost visible surface; guides and rotation handles are not surfaces. */
 export function orbitSurfacePoint(
@@ -19,12 +51,13 @@ export function orbitSurfacePoint(
   const indexedHits: THREE.Intersection[] = [];
   for (const object of objects) {
     if (object instanceof THREE.Group && object.userData.spatialIndex) {
-      indexedHits.push(...intersectModel(ray, object));
+      indexedHits.push(...intersectModel(ray, object, 'selection'));
       continue;
     }
     object.updateWorldMatrix(true, true);
     object.traverseVisible((child) => {
-      if (child instanceof THREE.Mesh) meshes.push(child);
+      if (child instanceof THREE.Mesh && child.userData.modelDisplay !== 'ghost')
+        meshes.push(child);
     });
   }
   return [...indexedHits, ...ray.intersectObjects(meshes, false)]

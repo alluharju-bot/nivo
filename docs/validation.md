@@ -1,8 +1,74 @@
-# Validointi — 5.10.2026
+# Validointi — 7.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.21.0 — tartunta, kynä, kamera, materiaalit ja linkitetyt kopiot
+
+**280 yksikkö-/CAD-testiä hyväksytty (52 tiedostoa)**. TypeScript ja
+production build hyväksytty. Suuri pääbundle ja OpenCascade-moduulin
+browser-external-ilmoitus ovat aiemmat tunnetut build-varoitukset.
+
+Viimeinen kynän tuotantobuildin tarkistus hyväksyi **44 selaintapausta
+(22 desktop, 22 tablettiemulointi)**: `pen-length`, `pen-split-lock` ja
+`pen-guide-crossing`. Paikallinen kehityspalvelin vastaa portissa 5173.
+
+Linkityksen ja mittaviivojen 24 tapauksen tuotantoajosta 21 hyväksyttiin heti.
+Ryhmän toistokopion fixture valitsi vanhan oletuksen mukaisesti osan nimirivin:
+nykyinen listavalinta avaa kokoonpanon ja valitsee kyseisen osan. Testi valitsee
+nyt nimenomaisesti ryhmän. Tabletilla löytyi oikea sijoitteluvirhe: rivittyvän
+näkymäpalkin alle jäi mallilistan avauspainike. Paneelit seuraavat nyt palkin
+mitattua korkeutta. Korjattu viimeinen 16 tapauksen kierros hyväksyi **15 tapausta**;
+yksi pelkästään kosketukselle tarkoitettu tapaus ohitettiin desktopilla.
+Lopullinen `/nivo/`-julkaisupolku hyväksyi lisäksi kaikki **8** näkyvyys- ja
+linkitystapausta. Muotoilu ja riippuvuuksien lisenssiluettelo tarkistettu.
+
+Mukana ovat kaikkien tallennettujen mittojen ja apuviivojen yhteinen piilotus,
+piilotettujen viitteiden ohitus, palautus ja selainpäivitys. Tavallinen malliosa
+kopioituu linkitettynä, push/pull päivittyy molempiin ja Peru palauttaa molemmat.
+Ryhmän uniikiksi tekeminen säilyttää sisäiset linkit. Pikaleikkaus ja pinnanjako
+testataan sekä oletusarvoisesti yhteisinä että erikseen valittuina paikallisina
+muutoksina. Tekstuurin asettelu ei irrota yhteistä väriä tai kiiltoa.
+CAD-koe tarkistaa veitsen palojen geometrian ja linkit myös kierretyssä kopiossa
+sekä Holdin estämän atomisen operaation.
+
+Uudet geometriakokeet laskevat todellisten tasopintojen risteyksen nostetun
+lattian ja seinän välillä. Välimuisti käyttää geometrian identiteettiä: 18,625 mm:n
+nosto korvaa vanhan sauman. Oviaukko katkaisee risteysviivan eikä anna tartuntaa
+tyhjään aukkoon. Erilliset ja samantasoiset pinnat eivät synnytä kuvitteellisia
+risteysviivoja. Kaarevien pintojen analyyttiset risteyskäyrät ovat jatkotyötä.
+
+Kynän yksikkökokeet kattavat ±X/Y/Z-etenemän, syötetyn pituuden etumerkin,
+vinojen suuntien säilymisen ja kevyen 5° akselihakuisuuden. Mittaviivan ja reunan
+risteys tarkistetaan aidosti 3D:ssä: syvyyseroa tai vapaan viivan jatketta ei
+hyväksytä. Valinnaisen tekstuurivaihtelun koe käsittelee 100 linkitettyä paneelia,
+jättää valitsemattoman kopion ennalleen, säilyttää geometrian ja PBR-ominaisuudet,
+pitää arvot tiedostomuodon rajoissa ja tarkistaa puun syysuunnan myös kierretyssä
+kappaleessa. Hold estää muokkauksen.
+
+Selaimessa tarkistetaan erikseen yhteinen risteyshaku K/S/C/T-työkaluilla
+muokkaustilassa ja sen ulkopuolella, 950 mm:n apuviivan mukainen pinnanjako,
+Shift-viite ja suunnan vapautuminen, kynän lukittumisen reunatapaus sekä
+kirjoittamisen suunta ja Tab. Peräkkäiset 92 / 15 / 19 mm:n viivat testataan
+näytöllä oikealle, ylös ja vasemmalle sekä takanäkymässä että vapaan kamerakierron
+jälkeen. Enter palauttaa kohdistuksen piirtoon ja lopuksi ketju tallentuu
+geometriaksi. Tyhjät X/Y/Z-kentät vastaavat nollaa; nollasiirtymä ei luo
+päällekkäistä pistettä. Shift toimii heti seuraavan viivan aikana.
+Näyttötilakokeet varmistavat Ghostin läpivalinnan
+ja silti tarkan tartunnan, tasavärin pikselivärin, esitystilan tallennuksen ja
+sen ettei näyttötilan vaihto rakenna geometriaa uudelleen.
+
+Materiaalikokeet varmistavat sävyn ja kiillon, P-työkalun jatkuvan tekstuurin
+siirron/kierron/skaalauksen, renderin vastaavat kahvat ja kameran käytön niiden
+rinnalla. Valinnan vaihtelu, yksittäinen veto, Peru/Palauta ja sivun päivitys
+säilyttävät oikean tilan. Kamerakokeet kattavat ylänäkymän orbitin, kuution
+hiiri-/kosketuskierron ja zoomauksen säilymisen suunnanvaihdossa.
+
+Vanhoissa selaintesteissä osa koordinaattilaskennasta oletti näkymäpainikkeen
+sovittavan koko mallin. Fixture valitsee nyt Sovita näkymään erikseen. Piiloutuva
+mallilista avataan ennen listarivin valintaa; tämä estää testin napsautuksen
+osumisen työkalupalkkiin. Nämä muutokset vastaavat ohjelman tarkoitettua toimintaa.
 
 ## V0.20 — mittaviivat, Bézier, pallo ja veitsi
 

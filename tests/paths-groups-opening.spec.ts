@@ -171,7 +171,9 @@ test('quick opening previews actual targets, cuts wall layers locally and undoes
   await actions(page, 'Leikkaa aukko…');
   const dialog = page.getByRole('dialog', { name: 'Leikkaa aukko', exact: true });
   await expect(dialog.locator('.opening-targets input')).toHaveCount(2);
-  await expect(dialog).toContainText('uniikeiksi');
+  await dialog
+    .getByRole('checkbox', { name: 'Tee kohteista uniikkeja · muuta vain valittuja' })
+    .check();
   await expect(page.getByTestId('viewport')).toHaveAttribute(
     'data-move-hovered',
     JSON.stringify([front.id, back.id]),

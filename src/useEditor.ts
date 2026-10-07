@@ -138,7 +138,9 @@ export function useEditor() {
         });
         if (!validated.success) throw new Error(projectValidationMessage(validated.error));
         const next = shareProjectData(history.current, validated.data);
-        const built = await cad.build(next.bodies);
+        // View-only changes retain the exact mesh objects and avoid worker round trips.
+        const built =
+          next.bodies === history.current.bodies ? undefined : await cad.build(next.bodies);
         if (current !== revision.current) return false;
         if (mode === 'undo') history.undo();
         else if (mode === 'redo') history.redo();
@@ -148,7 +150,7 @@ export function useEditor() {
         } else history.commit(next, action);
         history.adopt(next);
         setProject(next);
-        setMeshes(built);
+        if (built) setMeshes(built);
         setMessage(label);
         setActivity({
           ...action,

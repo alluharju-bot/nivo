@@ -13,7 +13,9 @@ import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
 import { dot, sub } from './geometry';
 /** Lower is stronger: explicit vertices, midpoints, edges, then inference/grid. */
 export const snapPriority = (point: { key: string; label: string }) =>
-  /^pen:/.test(point.key) || point.label === 'Viivan piste'
+  /^pen:/.test(point.key) ||
+  point.label === 'Viivan piste' ||
+  point.label === 'Pintojen risteyspiste'
     ? -1
     : /:mid:|:center$/.test(point.key) || /keskipiste/i.test(point.label)
       ? 1
@@ -48,6 +50,23 @@ export function closestOnSnapLine(raw: Vec3, line: SnapLine): Vec3 {
   const t = dot(sub(raw, line.points[0]), delta) / length2;
   const along = line.mode === 'free' ? Math.max(0, Math.min(1, t)) : t;
   return line.points[0].map((n, i) => n + delta[i] * along) as Vec3;
+}
+/** True 3D crossing; CAD edges are finite even when a construction guide is infinite. */
+export function guideEdgeIntersection(
+  line: SnapLine,
+  edge: Pick<import('../cad/protocol').CadEdge, 'start' | 'end'>,
+): Vec3 | undefined {
+  if (
+    Math.hypot(...sub(edge.end, edge.start)) < 1e-8 ||
+    Math.hypot(...sub(line.points[1], line.points[0])) < 1e-8
+  )
+    return;
+  const point = lineIntersection(line.points, [edge.start, edge.end]);
+  return point &&
+    onSnapLine(point, line) &&
+    onSnapLine(point, { id: 'edge', points: [edge.start, edge.end], mode: 'free' })
+    ? point
+    : undefined;
 }
 export function guideSnapCandidates(raw: Vec3, lines: SnapLine[], threshold: number) {
   const candidates: (Snap & { priority: number })[] = [];
@@ -100,6 +119,7 @@ export function snapOnSketchPlane(
   gridStep = 10,
   directionGrid: 'length' | 'coordinates' = 'length',
   geometryPoints = modelSnapPoints(bodies, meshes),
+  directionAngleLimit = Infinity,
 ): Snap {
   const onPlane = (p: Vec3) => Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5;
   const candidates: (Snap & { priority: number })[] = [...geometryPoints, ...extra]
@@ -133,13 +153,17 @@ export function snapOnSketchPlane(
       c = Math.cos(angle),
       v = Math.sin(angle),
       along = dx * c + dy * v;
-    candidates.push({
-      point: fromUV([s[0] + c * along, s[1] + v * along], frame),
-      key: 'direction',
-      label: `Suunta ${Math.round((angle * 180) / Math.PI)}°`,
-      line: [start, fromUV([s[0] + c * along, s[1] + v * along], frame)],
-      priority: 2,
-    });
+    if (
+      (Math.acos(Math.min(1, Math.abs(along) / (Math.hypot(dx, dy) || 1))) * 180) / Math.PI <=
+      directionAngleLimit
+    )
+      candidates.push({
+        point: fromUV([s[0] + c * along, s[1] + v * along], frame),
+        key: 'direction',
+        label: `Suunta ${Math.round((angle * 180) / Math.PI)}°`,
+        line: [start, fromUV([s[0] + c * along, s[1] + v * along], frame)],
+        priority: 2,
+      });
   }
   const near = candidates
     .filter((p) => Math.hypot(...sub(p.point, raw)) < threshold)

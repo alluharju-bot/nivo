@@ -1,3 +1,4 @@
+import { installTextureEditing } from '../viewport/textureEditing';
 import { createPartLights, previewLightLimit } from './lights';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { progressiveRenderer, type TraceStatus } from './progressive';
@@ -6,7 +7,6 @@ import {
   createMaterialLibrary,
   updateMaterialPlacement,
   materialUV,
-  textureFrameMatrix,
   disposeMaterial,
 } from './materials';
 import {
@@ -106,7 +106,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       projection: camera.projectionMatrix.toArray(),
       target: controls.target.toArray(),
     });
-    updateHandles();
+    textureEditor.update();
   };
   const progressive = progressiveRenderer(
     renderer,
@@ -304,152 +304,39 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     renderer.shadowMap.enabled = settings.shadows;
     draw();
   };
-  const handles = document.createElement('div');
-  handles.className = 'texture-handles';
-  handles.hidden = true;
-  host.append(handles);
-  const scaleHandle = document.createElement('button'),
-    rotateHandle = document.createElement('button');
-  scaleHandle.textContent = '↗';
-  scaleHandle.setAttribute('aria-label', 'Skaalaa tekstuuria');
-  scaleHandle.title = 'Vedä: tekstuurin koko';
-  rotateHandle.textContent = '↻';
-  rotateHandle.setAttribute('aria-label', 'Kierrä tekstuuria');
-  rotateHandle.title = 'Vedä: tekstuurin kierto';
-  handles.append(scaleHandle, rotateHandle);
-  function updateHandles() {
-    const editing = current().editingTexture,
-      body = current().bodies.find((b) => b.id === editing?.id);
-    handles.hidden = !body;
-    if (!body) {
-      canvas.dataset.textureEditing = '';
-      return;
-    }
-    const point = new THREE.Vector3(...body.origin)
-      .add(
-        new THREE.Vector3(body.feature.width / 2, body.feature.depth / 2, body.feature.height / 2),
-      )
-      .project(camera);
-    handles.style.left = `${((point.x + 1) * host.clientWidth) / 2}px`;
-    handles.style.top = `${((1 - point.y) * host.clientHeight) / 2}px`;
-    canvas.dataset.textureEditing = body.id;
-  }
-  const rayAt = (event: PointerEvent) => {
-    const rect = canvas.getBoundingClientRect(),
-      ray = new THREE.Raycaster();
-    ray.setFromCamera(
-      new THREE.Vector2(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        1 - ((event.clientY - rect.top) / rect.height) * 2,
-      ),
-      camera,
-    );
-    return ray;
-  };
-  let textureDrag:
-    | {
-        id: number;
-        mode: 'move' | 'scale' | 'rotate';
-        x: number;
-        y: number;
-        initial: TexturePlacement;
-        plane: THREE.Plane;
-        inverse: THREE.Matrix4;
-        start: THREE.Vector3;
-        u: number;
-        v: number;
-        center: { x: number; y: number };
-      }
-    | undefined;
-  const textureDown = (event: PointerEvent, mode: 'move' | 'scale' | 'rotate' = 'move') => {
-    const editing = current().editingTexture;
-    if (!editing || event.button !== 0) return;
-    const body = current().bodies.find((b) => b.id === editing.id);
-    if (!body) return;
-    const ray = rayAt(event),
-      hit = ray.intersectObjects(model.children)[0];
-    // Only edit the visible surface. A foreground part must remain selectable.
-    if (mode === 'move' && hit?.object.userData.bodyId !== body.id) return;
-    start = undefined;
-    const point =
-      hit?.point ??
-      new THREE.Vector3(...body.origin).add(
-        new THREE.Vector3(body.feature.width / 2, body.feature.depth / 2, body.feature.height / 2),
-      );
-    const normal =
-      hit?.face?.normal.clone() ?? camera.getWorldDirection(new THREE.Vector3()).negate();
-    const inverse = textureFrameMatrix(body).invert(),
-      localNormal = normal.clone().transformDirection(inverse).toArray().map(Math.abs),
-      axis = localNormal.indexOf(Math.max(...localNormal));
-    const box = handles.getBoundingClientRect();
-    textureDrag = {
-      id: event.pointerId,
-      mode,
-      x: event.clientX,
-      y: event.clientY,
-      initial: { ...editing.appearance.texture },
-      plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, point),
-      inverse,
-      start: point.clone().applyMatrix4(inverse),
-      u: axis === 0 ? 1 : 0,
-      v: axis === 2 ? 1 : 2,
-      center: { x: box.left, y: box.top },
-    };
-    controls.enabled = false;
-    canvas.dataset.textureDragging = mode;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  };
-  const textureMove = (event: PointerEvent) => {
-    const d = textureDrag;
-    if (!d || d.id !== event.pointerId) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    const texture = { ...d.initial };
-    if (d.mode === 'move') {
-      const point = rayAt(event).ray.intersectPlane(d.plane, new THREE.Vector3());
-      if (!point) return;
-      const delta = point.applyMatrix4(d.inverse).sub(d.start);
-      texture.offsetX += delta.getComponent(d.u);
-      texture.offsetY += delta.getComponent(d.v);
-    } else if (d.mode === 'scale') {
-      const factor = Math.exp((event.clientX - d.x - (event.clientY - d.y)) * 0.008);
-      texture.width = Math.max(0.1, Math.min(100000, texture.width * factor));
-      if (texture.lockAspect)
-        texture.height = Math.max(0.1, Math.min(100000, texture.height * factor));
-    } else {
-      texture.rotation +=
-        ((Math.atan2(event.clientY - d.center.y, event.clientX - d.center.x) -
-          Math.atan2(d.y - d.center.y, d.x - d.center.x)) *
-          180) /
-        Math.PI;
-    }
-    current().onTexture(texture);
-  };
-  const textureUp = (event: PointerEvent) => {
-    if (textureDrag?.id !== event.pointerId) return;
-    textureDrag = undefined;
-    canvas.dataset.textureDragging = '';
-    controls.enabled = true;
-    event.stopImmediatePropagation();
-    current().onTextureCommit?.();
-  };
-  const cancelTextureDrag = () => {
-    if (textureDrag) current().onTexture(textureDrag.initial);
-    textureDrag = undefined;
-    canvas.dataset.textureDragging = '';
-    controls.enabled = true;
-  };
-  canvas.addEventListener('pointerdown', textureDown, true);
-  const scaleDown = (event: PointerEvent) => textureDown(event, 'scale'),
-    rotateDown = (event: PointerEvent) => textureDown(event, 'rotate');
-  scaleHandle.addEventListener('pointerdown', scaleDown);
-  rotateHandle.addEventListener('pointerdown', rotateDown);
-  window.addEventListener('pointermove', textureMove, true);
-  window.addEventListener('pointerup', textureUp, true);
-  window.addEventListener('pointercancel', cancelTextureDrag);
-  window.addEventListener('blur', cancelTextureDrag);
+  const textureEditor = installTextureEditing({
+    host,
+    canvas,
+    camera: () => camera,
+    hitAt: (ray) => {
+      const hit = ray.intersectObjects(model.children)[0];
+      return hit?.face
+        ? {
+            bodyId: hit.object.userData.bodyId,
+            point: hit.point,
+            normal: hit.face.normal.clone().transformDirection(hit.object.matrixWorld),
+          }
+        : undefined;
+    },
+    current: () => {
+      const editing = current().editingTexture;
+      const body = current().bodies.find((b) => b.id === editing?.id);
+      return editing && body
+        ? {
+            body,
+            texture: editing.appearance.texture,
+            change: (texture) => current().onTexture(texture),
+            commit: () => current().onTextureCommit?.(),
+          }
+        : undefined;
+    },
+    enableCamera: (enabled) => {
+      controls.enabled = enabled;
+    },
+    onStart: () => {
+      start = undefined;
+    },
+  });
   let start: { x: number; y: number; moved: boolean } | undefined;
   const down = (event: PointerEvent) => {
     start = event.button === 0 ? { x: event.clientX, y: event.clientY, moved: false } : undefined;
@@ -495,15 +382,15 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
           const material = object.material as THREE.MeshPhysicalMaterial;
           updateMaterialPlacement(material, appearance.texture);
         }
-      updateHandles();
+      textureEditor.update();
       draw();
     },
     selection() {
       controls.mouseButtons.LEFT =
         current().materialTool && current().materialTool !== 'select' ? null! : THREE.MOUSE.ROTATE;
       navigation.sync(current().bodies, current().selectedIds ?? []);
-      if (!current().editingTexture) cancelTextureDrag();
-      updateHandles();
+      if (!current().editingTexture) textureEditor.cancel();
+      textureEditor.update();
     },
     async exportPNG(width: number) {
       await library.ready();
@@ -533,14 +420,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       controls.removeEventListener('change', draw);
       navigation.dispose();
       controls.dispose();
-      window.removeEventListener('pointermove', textureMove, true);
-      window.removeEventListener('pointerup', textureUp, true);
-      window.removeEventListener('pointercancel', cancelTextureDrag);
-      window.removeEventListener('blur', cancelTextureDrag);
-      canvas.removeEventListener('pointerdown', textureDown, true);
-      scaleHandle.removeEventListener('pointerdown', scaleDown);
-      rotateHandle.removeEventListener('pointerdown', rotateDown);
-      handles.remove();
+      textureEditor.dispose();
       canvas.removeEventListener('pointerdown', down);
       canvas.removeEventListener('pointerup', up);
       canvas.removeEventListener('pointermove', move);

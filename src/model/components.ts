@@ -1,5 +1,6 @@
 import { uid, type Body, type Project } from './project';
 import { bodyLocked } from './groups';
+import { defaultAppearance } from './materials';
 
 export function asComponent(body: Body, id = body.component?.id ?? uid()): Body {
   return {
@@ -12,15 +13,29 @@ export function asComponent(body: Body, id = body.component?.id ?? uid()): Body 
     },
   };
 }
-export function uniqueComponents(project: Project, ids: string[]) {
+export function uniqueComponents(project: Project, ids: string[], keepInternalLinks = false) {
+  const selected = new Set(ids),
+    families = new Map<string, string>();
   return {
     ...project,
-    bodies: project.bodies.map((b) =>
-      ids.includes(b.id) ? { ...b, component: undefined, localMaterial: undefined } : b,
-    ),
+    bodies: project.bodies.map((b) => {
+      if (!selected.has(b.id)) return b;
+      let component: Body['component'];
+      if (keepInternalLinks && b.component) {
+        if (!families.has(b.component.id)) families.set(b.component.id, uid());
+        component = { ...b.component, id: families.get(b.component.id)! };
+      }
+      return {
+        ...b,
+        component,
+        localMaterial: keepInternalLinks ? b.localMaterial : undefined,
+        localTexture: keepInternalLinks ? b.localTexture : undefined,
+      };
+    }),
   };
 }
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b);
+const surface = (body: Body) => body.appearance && { ...body.appearance, texture: undefined };
 
 /** Changes in geometry propagate; instance placement and organisational properties do not.
  * One operation may change one definition. Conflicting edits of its instances
@@ -52,12 +67,23 @@ export async function synchronizeComponents(
     }
     if (
       !body.localMaterial &&
-      (!same(old.appearance, body.appearance) ||
+      (!same(
+        body.localTexture ? surface(old) : old.appearance,
+        body.localTexture ? surface(body) : body.appearance,
+      ) ||
         old.color !== body.color ||
         old.material !== body.material)
     ) {
       const earlier = materials.get(family);
-      if (earlier && (!same(earlier.appearance, body.appearance) || earlier.color !== body.color))
+      if (
+        earlier &&
+        (!same(surface(earlier), surface(body)) ||
+          earlier.color !== body.color ||
+          earlier.material !== body.material ||
+          (!earlier.localTexture &&
+            !body.localTexture &&
+            !same(earlier.appearance?.texture, body.appearance?.texture)))
+      )
         throw new Error(
           'Linkitetyille osille annettiin eri materiaalit. Valitse esiintymäkohtainen materiaali.',
         );
@@ -77,7 +103,18 @@ export async function synchronizeComponents(
   bodies = bodies.map((b) => {
     const source = !b.localMaterial && b.component && materials.get(b.component.id);
     return source
-      ? { ...b, color: source.color, material: source.material, appearance: source.appearance }
+      ? {
+          ...b,
+          color: source.color,
+          material: source.material,
+          appearance:
+            b.localTexture || source.localTexture
+              ? {
+                  ...(source.appearance ?? defaultAppearance(source.material)),
+                  texture: (b.appearance ?? defaultAppearance(b.material)).texture,
+                }
+              : source.appearance,
+        }
       : b;
   });
   return { ...after, bodies };

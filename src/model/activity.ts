@@ -16,6 +16,7 @@ export const operationContextSchema = z.object({
   profileId: id,
   targetIds: z.array(id).max(10000),
   keep: z.boolean(),
+  unique: z.boolean().optional(),
 });
 export type OperationContext = z.infer<typeof operationContextSchema>;
 export const actionInfoSchema = z.object({

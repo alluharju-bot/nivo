@@ -1,3 +1,4 @@
+import { bodyDisplayMode } from '../model/display';
 import type { GuideEndpoint } from '../model/guideEditing';
 import { pointMarker } from './pointMarker';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
@@ -13,7 +14,7 @@ import {
   insideSelectionRect,
   type ScreenBounds,
 } from './boxSelection';
-import { isPointDimension, uid, type PointDimension } from '../model/project';
+import { isPointDimension, uid, axisIndex, type PointDimension } from '../model/project';
 import { anchorBodyId, dimensionBodyIds, pointDimensionGeometry } from '../model/dimensions';
 import { offsetDirection } from '../model/faceBoundary';
 import { dragSize, type SizeDrag } from '../model/sizeDrag';
@@ -54,6 +55,7 @@ import {
   snapPriority,
   onSnapLine,
   closestOnSnapLine,
+  guideEdgeIntersection,
   gridLength,
   snapPoint,
   snapOnSketchPlane,
@@ -63,6 +65,8 @@ import {
 import { sketchFrame, toUV, fromUV, type SketchFrame } from '../model/sketch';
 import { rotationHandles } from '../model/rotationHandles';
 import { cross } from '../model/transforms';
+import { penAxisHint } from '../model/penInput';
+import { surfaceIntersections } from './surfaceIntersections';
 import type { ViewportProps } from './types';
 
 export function installInteractions({
@@ -84,6 +88,9 @@ export function installInteractions({
   current: () => ViewportProps;
   render: () => void;
 }) {
+  const selectableBody = (id: string) => bodyDisplayMode(current().modelDisplay, id) !== 'ghost';
+  const occludingBody = (id: string) =>
+    !['ghost', 'wireframe'].includes(bodyDisplayMode(current().modelDisplay, id));
   const raycaster = new THREE.Raycaster(),
     pointer = new THREE.Vector2();
   const hint = document.createElement('div');
@@ -117,6 +124,7 @@ export function installInteractions({
       selectionBounds = projectSelectionBounds(
         props.meshes.filter(
           (m) =>
+            selectableBody(m.id) &&
             (!props.editingBodyId || m.id === props.editingBodyId) &&
             (!props.scopeIds || props.scopeIds.includes(m.id)),
         ),
@@ -318,6 +326,7 @@ export function installInteractions({
   let measureShiftPending = false;
   let previousAxis = current().axis,
     previousPenCount = current().penPoints.length;
+  let previousConstraintReset = current().constraintReset;
   let drawingPlane: SketchFrame | undefined;
   let drawingTarget: FaceTarget | undefined;
   let penPressPoint: Vec3 | undefined;
@@ -492,11 +501,28 @@ export function installInteractions({
         label: i === 0 ? 'Aloituspiste' : 'Kynän piste',
       }));
     if (event) {
-      const accepts = (p: Vec3) => Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5;
+      const accepts = (point: Vec3) =>
+        Math.abs(dot(sub(point, frame.origin), frame.normal)) < 1e-5 &&
+        (p.tool !== 'pen' || !start || Math.hypot(...sub(point, start)) > 1e-6);
       const picked = referenceAt(event, accepts, true);
       if (picked) {
         show(picked);
         return picked.point;
+      }
+    }
+    if (p.tool === 'pen' && start) {
+      const axis = penAxisHint(start, point, frame.normal);
+      if (axis) {
+        const index = axisIndex[axis.axis];
+        axis.point[index] =
+          start[index] + gridLength(axis.point[index] - start[index], p.gridStep, p.gridSnap);
+        show({
+          point: axis.point,
+          key: 'axis-hint',
+          label: `${axis.axis.toUpperCase()} · akselin suunta`,
+          line: [start, axis.point],
+        });
+        return axis.point;
       }
     }
     const snapped = snapOnSketchPlane(
@@ -513,6 +539,7 @@ export function installInteractions({
       p.gridStep,
       p.tool === 'rectangle' ? 'coordinates' : 'length',
       event ? [] : undefined,
+      p.tool === 'pen' ? 5 : Infinity,
     );
     show(snapped);
     return snapped.point;
@@ -527,7 +554,7 @@ export function installInteractions({
       q = p.clone().project(camera()),
       ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(q.x, q.y), camera());
-    const hit = intersectModel(ray, bodies).find(
+    const hit = intersectModel(ray, bodies, 'occlusion').find(
       (h) => h.object instanceof THREE.Mesh && h.object.userData.id !== ignoreBody,
     );
     const distance = ray.ray.origin.distanceTo(p),
@@ -545,7 +572,7 @@ export function installInteractions({
           .filter(Boolean)
       : current().meshes;
     for (const mesh of rayMeshes) {
-      if (mesh.id === ignoreBody) continue;
+      if (mesh.id === ignoreBody || !occludingBody(mesh.id)) continue;
       const body = bodyById.get(mesh.id);
       if (body?.purpose === 'construction' && !featureIsSolid(body.feature)) continue;
       for (const edge of mesh.edgesCAD) {
@@ -601,6 +628,68 @@ export function installInteractions({
       ? ids.map((id) => meshById.get(id)).filter((m): m is NonNullable<typeof m> => !!m)
       : current().meshes;
   };
+  type ReferenceEdge = {
+    mesh: BodyMesh;
+    edge: BodyMesh['edgesCAD'][number];
+    synthetic?: boolean;
+    key: string;
+  };
+  // All tools see the same CAD edges and trimmed surface-surface intersections.
+  // Scope limits edits, never the availability of visible reference geometry.
+  const referenceEdges = (event: PointerEvent, excluded: string[] = []): ReferenceEdge[] => {
+    const meshes = nearby(event).filter((m) => !excluded.includes(m.id));
+    const edges: ReferenceEdge[] = meshes.flatMap((mesh) =>
+      mesh.edgesCAD.map((edge, i) => ({ mesh, edge, key: `${mesh.id}:edge:${i}` })),
+    );
+    const props = current(),
+      towardCamera = camera().getWorldDirection(new THREE.Vector3()).negate().toArray() as Vec3;
+    for (let i = 0; i < meshes.length; i++)
+      for (let j = i + 1; j < meshes.length; j++) {
+        const a = meshes[i],
+          b = meshes[j];
+        surfaceIntersections(a, b).forEach((line, index) => {
+          const preferred =
+            props.editingBodyId ??
+            (props.tool === 'move'
+              ? props.selectedIds.find((id) => id === a.id || id === b.id)
+              : undefined);
+          const owner =
+            preferred === a.id
+              ? a
+              : preferred === b.id
+                ? b
+                : dot(line.faces[0].normal, towardCamera) >= dot(line.faces[1].normal, towardCamera)
+                  ? a
+                  : b;
+          const body = bodyById.get(owner.id);
+          if (!body) return;
+          edges.push({
+            mesh: owner,
+            synthetic: true,
+            key: `${owner.id}:surface-intersection:${owner === a ? b.id : a.id}:${index}`,
+            edge: {
+              start: line.start,
+              end: line.end,
+              from: referenceAnchor(body, line.start),
+              to: referenceAnchor(body, line.end),
+            },
+          });
+        });
+      }
+    return edges;
+  };
+  const intersectionPoints = (edges: ReferenceEdge[]): ReferencePoint[] =>
+    edges
+      .filter((e) => e.synthetic)
+      .flatMap(({ edge, key }) => [
+        { point: edge.start, key: `${key}:start`, label: 'Pintojen risteyspiste' },
+        { point: edge.end, key: `${key}:end`, label: 'Pintojen risteyspiste' },
+        {
+          point: scale(add(edge.start, edge.end), 0.5),
+          key: `${key}:mid:`,
+          label: 'Pintojen risteys · keskipiste',
+        },
+      ]);
   const nearest = (
     event: PointerEvent,
     verticesOnly = false,
@@ -629,6 +718,7 @@ export function installInteractions({
             ),
             props.meshes,
           ),
+          ...intersectionPoints(referenceEdges(event)),
           ...(props.tool === 'pen'
             ? props.penPoints.slice(0, -1).map((point, i) => ({
                 point,
@@ -676,7 +766,7 @@ export function installInteractions({
   const wireAt = (event: PointerEvent) => {
     setRay(event);
     raycaster.params.Line.threshold = worldPerPixel(current().bodies[0]?.origin ?? [0, 0, 0]) * 6;
-    const hits = intersectModel(raycaster, bodies),
+    const hits = intersectModel(raycaster, bodies, 'selection'),
       wire = hits.find((h) => h.object.userData.wireOnly),
       face = hits.find((h) => h.object instanceof THREE.Mesh);
     return wire &&
@@ -684,10 +774,10 @@ export function installInteractions({
       ? wire
       : undefined;
   };
-  const faceAt = (event: PointerEvent) => {
+  const faceAt = (event: PointerEvent, reference = false) => {
     setRay(event);
     raycaster.params.Line.threshold = worldPerPixel(current().bodies[0]?.origin ?? [0, 0, 0]) * 6;
-    const hits = intersectModel(raycaster, bodies);
+    const hits = intersectModel(raycaster, bodies, reference ? 'reference' : 'selection');
     let hit = hits.find((h) => h.object instanceof THREE.Mesh);
     // A flat construction shape is selectable by its outline; its interior
     // remains transparent to face picking, including E/O and sketch planes.
@@ -753,7 +843,7 @@ export function installInteractions({
       : undefined;
   };
   const sketchSurfaceAt = (event: PointerEvent): FaceTarget | undefined => {
-    const hit = faceAt(event),
+    const hit = faceAt(event, true),
       point = nearest(event, false, () => true, true);
     const edge = point ? undefined : edgeAt(event);
     const anchor = point?.point ?? edge?.point;
@@ -823,7 +913,11 @@ export function installInteractions({
       Math.abs(Math.abs(dot(normal, target.normal)) - 1) < 1e-5 &&
       Math.abs(dot(sub(anchor, target.point), normal)) < 1e-5;
     canvas.dataset.sketchPlane = JSON.stringify(frame.normal);
-    return { point, frame, target: matchesSurface ? target : undefined };
+    return {
+      point,
+      frame,
+      target: matchesSurface && selectableBody(target.bodyId) ? target : undefined,
+    };
   };
   const hoverFace = new THREE.Mesh(
     new THREE.BufferGeometry(),
@@ -917,7 +1011,8 @@ export function installInteractions({
       depth: number;
     }[] = [];
     for (const mesh of nearby(event)) {
-      if (props.editingBodyId && props.editingBodyId !== mesh.id) continue;
+      if (!selectableBody(mesh.id) || (props.editingBodyId && props.editingBodyId !== mesh.id))
+        continue;
       if (props.bodies.find((b) => b.id === mesh.id)?.locked) continue;
       for (const boundary of mesh.boundaries) {
         for (let i = 0; i < boundary.lines.length; i += 6) {
@@ -952,7 +1047,9 @@ export function installInteractions({
       const projected = point.clone().project(camera()),
         ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const hit = intersectModel(ray, bodies).find((h) => h.object instanceof THREE.Mesh);
+      const hit = intersectModel(ray, bodies, 'occlusion').find(
+        (h) => h.object instanceof THREE.Mesh,
+      );
       return (
         !hit ||
         hit.distance >=
@@ -974,6 +1071,7 @@ export function installInteractions({
     }[] = [];
     for (const mesh of nearby(event)) {
       if (
+        !selectableBody(mesh.id) ||
         (props.editingBodyId && props.editingBodyId !== mesh.id) ||
         props.bodies.find((b) => b.id === mesh.id)?.locked
       )
@@ -1010,7 +1108,9 @@ export function installInteractions({
         projected = p.clone().project(camera());
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const hit = intersectModel(ray, bodies).find((h) => h.object instanceof THREE.Mesh);
+      const hit = intersectModel(ray, bodies, 'occlusion').find(
+        (h) => h.object instanceof THREE.Mesh,
+      );
       return !hit || hit.distance >= ray.ray.origin.distanceTo(p) - worldPerPixel(point) * 0.5;
     });
   };
@@ -1068,29 +1168,26 @@ export function installInteractions({
     const rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
-    const candidates = nearby(event)
-      .flatMap((m) =>
-        m.edgesCAD.map((edge) => {
-          // Project the actual point under the pointer, never both endpoints.
-          // A long floor edge may continue behind the perspective camera, where
-          // endpoint projection flips the segment and hides its visible middle.
-          const point = new THREE.Vector3();
-          raycaster.ray.distanceSqToSegment(
-            new THREE.Vector3(...edge.start),
-            new THREE.Vector3(...edge.end),
-            undefined,
-            point,
-          );
-          const projected = screen(point.toArray() as Vec3);
-          return {
-            edge,
-            mesh: m,
-            point: point.toArray() as Vec3,
-            depth: projected.z,
-            distance: Math.hypot(x - projected.x, y - projected.y),
-          };
-        }),
-      )
+    const candidates = referenceEdges(event)
+      .map(({ mesh, edge, synthetic, key }) => {
+        const point = new THREE.Vector3();
+        raycaster.ray.distanceSqToSegment(
+          new THREE.Vector3(...edge.start),
+          new THREE.Vector3(...edge.end),
+          undefined,
+          point,
+        );
+        const projected = screen(point.toArray() as Vec3);
+        return {
+          edge,
+          mesh,
+          synthetic,
+          key,
+          point: point.toArray() as Vec3,
+          depth: projected.z,
+          distance: Math.hypot(x - projected.x, y - projected.y),
+        };
+      })
       .filter((e) => e.distance < snapRadius(event, 'line') && e.depth >= -1 && e.depth <= 1)
       .sort((a, b) =>
         Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
@@ -1108,9 +1205,12 @@ export function installInteractions({
       point: p,
       direction: unit(delta),
       length,
-      anchor: {
-        edge: { from: found.edge.from, to: found.edge.to, t },
-      } as Anchor,
+      label: found.synthetic ? 'Pintojen risteys' : 'Reuna',
+      anchor: found.synthetic
+        ? referenceAnchor(bodyById.get(found.mesh.id)!, p)
+        : ({
+            edge: { from: found.edge.from, to: found.edge.to, t },
+          } as Anchor),
     };
   };
   const guideEndpointsAt = (event: PointerEvent): GuideEndpoint[] => {
@@ -1164,7 +1264,9 @@ export function installInteractions({
         projected = p.clone().project(camera());
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const hit = intersectModel(ray, bodies).find((h) => h.object instanceof THREE.Mesh);
+      const hit = intersectModel(ray, bodies, 'occlusion').find(
+        (h) => h.object instanceof THREE.Mesh,
+      );
       return !hit || hit.distance >= ray.ray.origin.distanceTo(p) - worldPerPixel(point) * 0.5;
     };
     type Candidate = {
@@ -1251,6 +1353,45 @@ export function installInteractions({
             anchor: { point },
           });
       }
+    if (near.length) {
+      for (const { mesh, edge, synthetic, key } of referenceEdges(event, excludedBodies))
+        for (const guide of near) {
+          const point = guideEdgeIntersection(guide.source, edge);
+          if (
+            !point ||
+            !accepts(point) ||
+            distance(point) > snapRadius(event, 'point') ||
+            !visiblePoint(point)
+          )
+            continue;
+          const delta = sub(edge.end, edge.start);
+          candidates.push({
+            guide: guide.guide,
+            point,
+            key: `${guide.guide.id}:${key}:intersection`,
+            label: synthetic
+              ? 'Mittaviivan ja pintojen risteys'
+              : guide.guide.mode === 'free'
+                ? 'Mittaviivan ja reunan risteys'
+                : 'Apuviivan ja reunan risteys',
+            kind: 'intersection',
+            priority: -1,
+            intersection: true,
+            anchor: synthetic
+              ? referenceAnchor(bodyById.get(mesh.id)!, point)
+              : {
+                  edge: {
+                    from: edge.from,
+                    to: edge.to,
+                    t: Math.max(
+                      0,
+                      Math.min(1, dot(sub(point, edge.start), delta) / dot(delta, delta)),
+                    ),
+                  },
+                },
+          });
+        }
+    }
     return candidates
       .sort(
         (a, b) =>
@@ -1350,7 +1491,7 @@ export function installInteractions({
       return {
         point: edge.point,
         key: 'edge-target',
-        label: 'Reuna',
+        label: edge.label,
         anchor: edge.anchor,
         sourceEdge: edge,
       };
@@ -1370,8 +1511,8 @@ export function installInteractions({
       (edge
         ? {
             point: edge.point,
-            key: 'edge-target',
-            label: 'Reuna',
+            key: edge.key,
+            label: edge.label,
             line: [edge.edge.start, edge.edge.end],
           }
         : undefined)
@@ -1395,6 +1536,7 @@ export function installInteractions({
       .filter(
         (b) =>
           !excluded.includes(b.id) &&
+          (!source || selectableBody(b.id) || selected.has(b.id)) &&
           (!source || !selected.size || selected.has(b.id)) &&
           (!source || (!b.locked && (!props.editingBodyId || b.id === props.editingBodyId))),
       );
@@ -1405,7 +1547,7 @@ export function installInteractions({
         projected = p.clone().project(camera()),
         ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera());
-      const obstruction = intersectModel(ray, bodies).find(
+      const obstruction = intersectModel(ray, bodies, 'occlusion').find(
         (h) =>
           h.object instanceof THREE.Mesh &&
           !excluded.includes(h.object.userData.id) &&
@@ -1424,14 +1566,19 @@ export function installInteractions({
       surfacePriority?: number;
       edge?: { start: Vec3; end: Vec3 };
     })[] = [];
+    const allEdges = referenceEdges(event, excluded);
     for (const body of eligible) {
-      for (const p of modelSnapPoints([body], props.meshes)) {
+      const bodyEdges = allEdges.filter((e) => e.mesh.id === body.id);
+      for (const p of [
+        ...modelSnapPoints([body], props.meshes),
+        ...intersectionPoints(bodyEdges),
+      ]) {
         const q = screen(p.point),
           distance = Math.hypot(q.x - x, q.y - y),
           center = p.key.endsWith(':center');
-        const priority = p.label === 'Verteksi' || p.label === 'Kulmapiste' ? 0 : 1;
+        const priority = snapPriority(p);
         if (
-          distance < snapRadius(event, priority === 0 ? 'point' : 'mid') &&
+          distance < snapRadius(event, priority <= 0 ? 'point' : 'mid') &&
           Math.abs(q.z) <= 1 &&
           visible(p.point, center, body.id)
         )
@@ -1444,9 +1591,8 @@ export function installInteractions({
             depth: q.z,
           });
       }
-      const mesh = props.meshes.find((m) => m.id === body.id);
       setRay(event);
-      for (const edge of mesh?.edgesCAD ?? []) {
+      for (const { edge, synthetic, key } of bodyEdges) {
         const point = new THREE.Vector3();
         raycaster.ray.distanceSqToSegment(
           new THREE.Vector3(...edge.start),
@@ -1457,11 +1603,11 @@ export function installInteractions({
         const p = point.toArray() as Vec3,
           q = screen(p),
           distance = Math.hypot(q.x - x, q.y - y);
-        if (distance < 8 && Math.abs(q.z) <= 1 && visible(p))
+        if (distance < snapRadius(event, 'line') && Math.abs(q.z) <= 1 && visible(p))
           candidates.push({
             point: p,
-            key: `${body.id}:edge:${edge.from.key}:${edge.to.key}`,
-            label: 'Reuna',
+            key,
+            label: synthetic ? 'Pintojen risteys' : 'Reuna',
             bodyId: body.id,
             surfacePriority: surfacePriorityById.get(body.id),
             priority: 2,
@@ -1507,7 +1653,7 @@ export function installInteractions({
     }
     show();
     highlightEdge();
-    const face = faceAt(event),
+    const face = faceAt(event, true),
       body = current().bodies.find((b) => b.id === face?.target.bodyId);
     const point = face?.target.point ?? planePoint(event, workPlane(), [0, 0, 0]);
     return point
@@ -1753,8 +1899,8 @@ export function installInteractions({
         ? undefined
         : edgeAt(event, (p, bodyId) => !!pointDepthSnap(source, p, bodyId));
     const anchor: Snap | undefined =
-      point ?? (edge ? { point: edge.point, key: `${edge.mesh.id}:edge`, label: 'Reuna' } : guide);
-    const picked = anchor ? undefined : faceAt(event);
+      point ?? (edge ? { point: edge.point, key: edge.key, label: edge.label } : guide);
+    const picked = anchor ? undefined : faceAt(event, true);
     const match = anchor
       ? pointDepthSnap(source, anchor.point)
       : picked?.face.planar &&
@@ -1870,7 +2016,15 @@ export function installInteractions({
     show(lastSnap, plane);
     return lastSnap.point;
   };
+  let displayState = current().modelDisplay;
   const sync = () => {
+    if (displayState !== current().modelDisplay) {
+      displayState = current().modelDisplay;
+      clearSelectionBox();
+      highlightFace();
+      highlightEdge();
+      current().onMoveHover?.(undefined);
+    }
     if (current().tool !== 'move' || !drag) showMoveAxis();
     if (current().tool !== 'detail') {
       detailHover.visible = false;
@@ -1944,6 +2098,7 @@ export function installInteractions({
       previousPenCount = current().penPoints.length;
       shiftDirection = undefined;
       lastPenPoint = current().penPoints.at(-1);
+      if (drawingPlane && lastPenPoint) drawingPlane = { ...drawingPlane, origin: lastPenPoint };
       lastSnap = undefined;
       current().onConstraint(current().axis ? axisVector(current().axis!) : undefined);
     }
@@ -1981,6 +2136,16 @@ export function installInteractions({
       if (detailSession?.started) showDetailSize();
       else highlightDetail(lastEvent ? detailEdgeAt(lastEvent) : undefined);
     }
+    if (previousConstraintReset !== current().constraintReset) {
+      previousConstraintReset = current().constraintReset;
+      shiftDirection = undefined;
+      penShiftPending = false;
+      measureShiftPending = false;
+      lastSnap = undefined;
+      current().onConstraint(undefined);
+      if (lastEvent && current().tool === 'pen') updatePen(lastEvent);
+      if (lastEvent && measureSession) updateMeasure(lastEvent);
+    }
   };
   const updatePen = (event: PointerEvent): Vec3 | undefined => {
     const props = current(),
@@ -1993,7 +2158,7 @@ export function installInteractions({
       lastPenPoint = picked.point;
       return picked.point;
     }
-    const found = referenceAt(event);
+    const found = referenceAt(event, (point) => Math.hypot(...sub(point, start)) > 1e-6);
     if (props.penPoints.length === 1 && drawingTarget && !props.axis && !shiftDirection) {
       const targetId = drawingTarget.bodyId;
       const hit = faceAt(event);
@@ -2018,16 +2183,26 @@ export function installInteractions({
         }
       }
     }
+    // A camera turn can put the original plane edge-on. Intersecting that
+    // plane then freezes the pointer or sends it far away. Free drawing uses
+    // a camera-facing plane through the last vertex until that plane is usable.
+    let frame = drawingPlane;
+    if (frame) {
+      setRay(event);
+      if (Math.abs(dot(raycaster.ray.direction.toArray() as Vec3, frame.normal)) < 0.05)
+        frame = sketchFrame(
+          start,
+          axisVector((['x', 'y', 'z'] as const)[planeAxes[workPlane()][2]]),
+        );
+    }
     // Shift may be pressed before there is a direction to capture. In that case
     // acquire the first nonzero drawing direction, then keep it independent of
     // whichever off-axis reference the pointer visits afterwards.
     if (penShiftPending && !props.axis) {
-      const raw = drawingPlane
-        ? framePoint(event, drawingPlane)
-        : planePoint(event, workPlane(), start);
+      const raw = frame ? framePoint(event, frame) : planePoint(event, workPlane(), start);
       if (raw) {
-        const point = drawingPlane
-          ? frameSnap(raw, drawingPlane, start, event)
+        const point = frame
+          ? frameSnap(raw, frame, start, event)
           : snap(raw, workPlane(), undefined, start);
         const delta = sub(point, start);
         if (Math.hypot(...delta) > 0.01) {
@@ -2067,22 +2242,26 @@ export function installInteractions({
       lastPenPoint = point;
       return point;
     }
-    if (drawingPlane) {
-      const raw = framePoint(event, drawingPlane);
+    // Exact geometry anchors are not projected onto an old sketch plane.
+    // Projection is only intentional while Shift or an explicit axis is held.
+    if (found) {
+      show(found);
+      props.onPenHover(found.point);
+      lastPenPoint = found.point;
+      return found.point;
+    }
+    if (frame) {
+      const raw = framePoint(event, frame);
       if (!raw) return;
-      const point = frameSnap(raw, drawingPlane, start, event);
+      const point = frameSnap(raw, frame, start, event);
       props.onPenHover(point);
       lastPenPoint = point;
       return point;
     }
-    let plane = workPlane();
+    const plane = workPlane();
     const raw = planePoint(event, plane, start ?? [0, 0, 0]);
     if (!raw) return;
-    let point: Vec3;
-    if (found && !reference()) {
-      point = found.point;
-      show(found, plane);
-    } else point = snap(raw, plane, undefined, start);
+    const point = snap(raw, plane, undefined, start);
     props.onPenHover(point);
     lastPenPoint = point;
     return point;
@@ -2208,7 +2387,7 @@ export function installInteractions({
         drag &&
         Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4
       ) {
-        const hit = faceAt(event);
+        const hit = faceAt(event, true);
         if (
           hit?.face.planar &&
           Math.abs(dot(sub(start, hit.face.center), hit.face.normal)) < 1e-5 &&
@@ -2351,7 +2530,7 @@ export function installInteractions({
   const rotationPoint = (event: PointerEvent) => {
     const vertex = nearest(event),
       edge = edgeAt(event),
-      hit = faceAt(event);
+      hit = faceAt(event, true);
     const rotation = current().rotation;
     return (
       vertex?.point ??
@@ -2396,7 +2575,7 @@ export function installInteractions({
   const pickCandidatesAt = (event: PointerEvent) => {
     setRay(event);
     const seen = new Set<string>();
-    return intersectModel(raycaster, bodies).flatMap((hit) => {
+    return intersectModel(raycaster, bodies, 'selection').flatMap((hit) => {
       const id = hit.object.userData.id as string | undefined;
       const props = current();
       if (
@@ -2831,7 +3010,7 @@ export function installInteractions({
             Math.abs(dot(sub(edge.edge.start, f.center), f.normal)) < 1e-5 &&
             Math.abs(dot(sub(edge.edge.end, f.center), f.normal)) < 1e-5,
         );
-        const hit = faceAt(event);
+        const hit = faceAt(event, true);
         const viewDirection = camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3;
         const facing = (face: BodyMesh['faces'][number]) =>
           Math.abs(dot(face.normal, viewDirection));
@@ -3676,6 +3855,23 @@ export function installInteractions({
   canvas.addEventListener('contextmenu', contextEvent);
   canvas.addEventListener('dblclick', doubleClick);
   canvas.addEventListener('pointerleave', leave);
+  const activePointers = new Set<number>();
+  const trackDown = (event: PointerEvent) => {
+    activePointers.add(event.pointerId);
+    canvas.dataset.pointerActive = 'true';
+  };
+  const trackUp = (event: PointerEvent) => {
+    activePointers.delete(event.pointerId);
+    if (!activePointers.size) delete canvas.dataset.pointerActive;
+  };
+  const trackBlur = () => {
+    activePointers.clear();
+    delete canvas.dataset.pointerActive;
+  };
+  canvas.addEventListener('pointerdown', trackDown, true);
+  window.addEventListener('pointerup', trackUp, true);
+  window.addEventListener('pointercancel', trackUp, true);
+  window.addEventListener('blur', trackBlur);
   canvas.addEventListener('pointerdown', down);
   canvas.addEventListener('pointermove', move);
   canvas.addEventListener('pointerup', up);
@@ -3689,6 +3885,10 @@ export function installInteractions({
       canvas.removeEventListener('contextmenu', contextEvent);
       canvas.removeEventListener('dblclick', doubleClick);
       canvas.removeEventListener('pointerleave', leave);
+      canvas.removeEventListener('pointerdown', trackDown, true);
+      window.removeEventListener('pointerup', trackUp, true);
+      window.removeEventListener('pointercancel', trackUp, true);
+      window.removeEventListener('blur', trackBlur);
       canvas.removeEventListener('pointerdown', down);
       canvas.removeEventListener('pointermove', move);
       canvas.removeEventListener('pointerup', up);

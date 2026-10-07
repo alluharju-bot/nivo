@@ -12,6 +12,7 @@ async function ready(page: Page, body: Body, front = false) {
   });
   await expect(page.getByTestId(`body-${body.id}`)).toBeVisible();
   await page.getByRole('button', { name: front ? 'Edestä' : 'Ylhäältä', exact: true }).click();
+  await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!;
   const { min, max } = bounds([body]),
     center = min.map((n, i) => (n + max[i]) / 2);

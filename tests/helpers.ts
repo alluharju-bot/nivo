@@ -39,13 +39,14 @@ export async function view(page: Page, bodies: Body[], side: 'top' | 'front' | '
       .getByRole('complementary', { name: 'Mallilista' })
       .getAttribute('data-expanded')) === 'true'
   )
-    await page.getByRole('button', { name: 'Piilota mallilista' }).click();
+    await page.getByRole('button', { name: 'Piilota mallilista' }).press('Enter');
   await page
     .getByRole('button', {
       name: { top: 'Ylhäältä', front: 'Edestä', right: 'Sivulta' }[side],
       exact: true,
     })
     .click();
+  await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
     a = new THREE.Vector3(...box.min),
@@ -96,11 +97,9 @@ export async function editBody(page: Page, id: string) {
       .getByRole('complementary', { name: 'Mallilista' })
       .getAttribute('data-expanded')) === 'true'
   )
-    await page.getByRole('button', { name: 'Piilota mallilista' }).click();
+    await page.getByRole('button', { name: 'Piilota mallilista' }).press('Enter');
 }
 
 export async function revealBrowser(page: Page) {
-  const browser = page.getByRole('complementary', { name: 'Mallilista' });
-  if ((await browser.getAttribute('data-expanded')) === 'false')
-    await page.getByRole('button', { name: 'Näytä mallilista' }).click();
+  await page.getByRole('button', { name: 'Näytä mallilista' }).press('Enter');
 }

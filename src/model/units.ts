@@ -1,4 +1,5 @@
 export function parseLength(input: string, allowNegative = false, allowZero = false): number {
+  if (allowZero && !input.trim()) return 0;
   const match = input
     .trim()
     .toLowerCase()

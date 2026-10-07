@@ -2,6 +2,198 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.21.0 — kynä, näkymät, pintakäsittely ja kopioiden linkitys
+
+- Näkymän yläreunan yksi mittaviivakytkin piilottaa kaikki tallennetut dimensiot,
+  vapaat mittaviivat ja apuviivat. Piilotettuja viitteitä ei voi poimia tai valita
+  näkymästä. Tiedot ja mittakuvan merkinnät säilyvät; tila tallentuu projektiin.
+- Tavalliset malliosat linkittyvät kopioitaessa samalla tavalla kuin komponentit.
+  Rakentamisen apumuodot ja piirrokset säilyvät itsenäisinä. Ryhmää tai kokoonpanoa
+  kopioitaessa vastaavat osat linkittyvät; ryhmä ja kokoonpano säilyvät eri käsitteinä.
+- Tee ryhmä uniikiksi irrottaa koko ryhmän ja sen alaryhmien osat ulkopuolisista
+  määrittelyistä. Ryhmän sisäiset toistuvat osat pysyvät keskenään linkitettyinä.
+  Tämä ei ole rakennesääntöihin perustuva kokoonpanomalli: kansiorakenteen ja osien
+  sijoittelun muutoksia ei monisteta muihin ryhmiin.
+- Pikaleikkaus ja pinnanjako säilyttävät linkityksen oletuksena. Paikallinen muutos
+  vaatii näkyvän Tee kohteista uniikkeja -valinnan. Veitsi monistaa vastaavat palat
+  kopioiden omiin sijainteihin ja kiertoihin; palat pysyvät linkitettyinä.
+  Saman komponentin ristiriitainen leikkaaminen useasta esiintymästä keskeytyy:
+  valitse yksi yhteiseksi lähtökohdaksi tai tee kohteista uniikkeja.
+- Tekstuurin asettelu käyttää erillistä osakohtaista `localTexture`-valintaa.
+  Kuvion siirto/vaihtelu ei enää irrota sävyä, kiiltoa ja materiaalia linkityksestä.
+  Aiempi nimenomainen esiintymäkohtainen materiaalivalinta säilyy.
+
+- Kynän ensisijainen mitta on aina **viivan pituus esikatselun suuntaan**,
+  myös kierretyssä kameranäkymässä ja miinusakseleilla. Negatiivinen pituus
+  kääntää suunnan. Tab siirtää tarvittaessa maailman X/Y/Z-siirtymiin; ensin
+  etenemistä vastaavaan akseliin. Tyhjä siirtymäkenttä vastaa nollaa. Enter
+  lisää pisteen ja palauttaa syötön mallinnusnäkymään, jotta seuraavat numerot ja
+  Shift eivät jää aiempaan kenttään. Maailman akselistoa ei kierretä kameran mukana.
+- Shiftin vapautus säilyttää jo kirjoitetun mitan. Uusi piste vapauttaa väliaikaisen
+  suuntalukon. Näkyvä vapautuspainike säilyttää keskeneräisen viivan ja piirtotason.
+- Kameran kääntyessä piirtotason suuntaiseksi kynä saa käyttökelpoisen tason
+  viimeisen pisteen kautta. Tarkat kulmat ja viitteet säilyttävät 3D-sijaintinsa;
+  vain tarkoituksellinen suuntalukko projisoi viitteen lukitulle suoralle.
+- Kynä ja yhteinen viitehaku tunnistavat mitta-/apuviivan ja todellisen CAD-reunan
+  3D-risteyksen. Vapaa mittaviiva pysyy rajallisena, apuviivan jatke tarttuu.
+  Piirto suosii pääakselia enintään 5° poikkeamalla; tarkka ankkuri menee edelle.
+  Shift lukitsee näin löydetyn suunnan ja voi edelleen poimia viitteen pituudeksi.
+- Yhteinen tartuntageometria sisältää myös eri osien tasopintojen todelliset
+  risteysviivat, päät ja keskipisteet. Nostettu lattia muodostaa seinään uuden
+  viitesauman. Rajaus kunnioittaa pintojen aukkoja; piilotetut ja peittyvät viitteet
+  eivät kilpaile näkyvän sauman kanssa. Sama haku palvelee muotoja, kynää,
+  mittaamista, siirtämistä ja Shift-push/pullia molemmissa muokkaustiloissa.
+  Laskenta käyttää lähellä osoitinta olevia osia ja geometriakohtaista välimuistia.
+  Kaarevien pintojen keskinäiset analyyttiset risteyskäyrät jäävät jatkotyöhön.
+- Mallin näyttötilat Solid / Tasaväri / Ghost / Wireframe valinnalle tai koko
+  näkymälle. Ghostin läpi valitaan, mutta sen tarkkoihin pisteisiin tarttuu.
+  Numerot 1–4 vain vapaassa Valitse-tilassa; yläreunassa vastaavat kuvakkeet.
+  Tilat tallentuvat projektiin, tukevat Peru/Palauta-toimintoja ja säilyttävät materiaalit.
+- Ylänäkymän orbitin vanhentunut kiertoakseli korjataan kameran pystysuunnan vaihtuessa.
+  Nimetyillä tahkoilla varustettu näkymäkuutio vaihtaa suuntaa ja sallii hiiri-/kosketuskierron.
+  Kuution ja näkymäpainikkeiden suunnanvaihto säilyttää zoomauksen ja tarkastelukohdan.
+  Sovita näkymään on erillinen yleisnäkymän komento.
+- Tekstuurin sävy ja alkuperäisen värin palautus materiaalipaneelissa. Pintakäsittelyt
+  Matta / Silkinhimmeä / Puolikiiltävä / Kiiltävä sekä Kiilto-säädin mallinnuksessa,
+  maalipensselissä ja renderissä. Sama materiaalitieto ohjaa molempia renderöintitapoja.
+- P-työkalun Maalaa / Tekstuurin asettelu: jatkuva pinnasta siirto, kierto- ja
+  kokokahvat sekä tarkat luvut. Mallinnus ja renderi käyttävät samoja hiiritoimintoja.
+  Veto tallentuu yhtenä historiatoimintona. Tekstuurin asettelu on esiintymäkohtainen.
+- Valinnainen **Vaihtele valitut tekstuurit**: hajonta kuvion koon suhteessa,
+  kierron vaihtelu oletuksena pois. Valmiiden puukuvioiden syyt suunnataan
+  kappaleen oman koordinaatiston leveän pinnan pitkän sivun mukaan, myös kierretyissä
+  osissa. Oman kierron voi säilyttää poistamalla suuntauksen. Laatat eivät muutu
+  automaattisesti. Koko valinta muuttuu yhdellä peruttavalla toiminnolla; geometrinen
+  komponentti- ja materiaalilinkit säilyvät; vain kuvion asettelu eriytetään.
+
+## Backlog 7.10.2026 — PDF-palaute ja käyttäjän tarkennukset
+
+**Tila: suunniteltu; yllä luetellut osat ovat työversiossa.** Lähde: käyttäjän
+`Nivo _261007_115638.pdf` ja sitä täsmentävät vastaukset 7.10.2026.
+Tämä täsmennys ohjaa jatkotyötä; ristiriitaisia vanhoja suunnitelmia ei toteuteta
+sen yli. Epäselvästä toiminnasta kysytään ennen kyseisen muutoksen toteutusta.
+
+### Mittatyökalun Luonnos ja pysyvät mittatasot
+
+- Mittatyökalun **Luonnos**-valinta ja seinän/tasopinnan napsautus muodostavat
+  kyseiseen tasoon oman 2D-kokonaisuuden. Sen mittaukset tallentuvat samaan
+  kokonaisuuteen. Kyseessä on kevyt, uudelleen avattava mittataso; mallintaminen
+  ei yleisesti edellytä erillisen rajoitepohjaisen sketch-tilan avaamista.
+- Mittataso nimetään, näytetään/piilotetaan ja avataan uudelleen helposti.
+  Työkalun vaihto tai luonnoksesta poistuminen säilyttää hyväksytyt mitat.
+  Poistuminen, piilottaminen ja poistaminen ovat eri toimintoja.
+- Toteutuksen suunnitteluperiaate: säilytä tason sijoitus ja mitat myös silloin,
+  kun alkuperäinen seinäviite katoaa; ilmoita korjattava viite, älä hävitä
+  kokonaisuutta tai kiinnitä sitä arvaamalla toiseen pintaan.
+- Tuo näkyviin mittojen piilotus ja osan kokonaismittojen nopea lisäys.
+  Dimensioihin helposti tartuttavat siirtokohdat sekä viereisten mittojen
+  kohdistus samaan linjaan/tasoon. Merkinnän sijoittaminen ei muuta mitattua kokoa.
+
+### Näyttötilat, kamera ja valinta
+
+- Sovitut esitystilat: **1 Solid, 2 Tasaväri, 3 Ghost,
+  4 Wireframe**. Valinta rajaa vaikutuksen valittuihin osiin; ilman valintaa
+  vaikutus koskee koko näkymää. Esitystila ei muuta materiaalia tai geometriaa.
+- **Vahvistettu:** Ghostin läpi voi valita takana olevan osan, mutta haamuun
+  tarttuminen toimii. Tasaväri näyttää tasaisen osavärin ilman valaistuksen
+  varjostusta tai tekstuuria. Varsinainen materiaali säilyy.
+- **Ratkaistu pikanäppäinristiriita:** 1–4 vaihtaa esitystapaa vain vapaassa Valitse-tilassa, kun syöttökenttä
+  tai keskeneräinen toiminto ei ole aktiivinen. Työkalujen mittasyöte säilyy.
+  Samat tilat löytyvät näkyvästä valikosta myös kosketuskäytössä.
+- Asetus tekee ohjelman Z=0-pohjatasosta läpinäkyvän ja poistaa sen tartunnan,
+  kun kamera katsoo mallia tason alapuolelta. Tämä ei koske mallinnettua
+  lattiaobjektia. Tarkista myös oletuspiirtotason poiminta, ei vain lattian piirto.
+- Ylänäkymästä orbittamisen keinuminen: kameran up-suunnan ja OrbitControlsin
+  välimuistissa olevan kiertosuunnan ero korjattu työversiossa. Varmista myös
+  pohjakuvan ja vapaan leikkaustason kamerakehys samaa mekanismia käyttäen.
+- Säilytä välitön osoitus → E/O. Valitulla facella on selkeä oranssi korostus,
+  joka erottuu pelkästä osoituskorostuksesta. Ehdotus: erillinen pintavalinta
+  mahdollistaa yhden tai usean alueen valinnan poistamista varten; tavallinen
+  klikkaus säilyttää osan valinnan ja komponentin avaaminen oman merkityksensä.
+
+### Muodot, tasoalueen poisto ja vapaat leikkaustasot
+
+- Ympyrän ja yksinkertaisen sylinterin säde/halkaisija muokattavaksi myös
+  luonnin jälkeen. Keskipiste säilytetään ja siihen voi tarttua. Ensimmäinen
+  kokonaisuus ei yritä palauttaa mielivaltaisesti leikatun BRepin parametreja.
+- **Poista pinta** tarkoittaa tässä yksitasoisen muodon valittujen alueiden
+  poistoa: esimerkiksi sisäympyrä pois kiekosta, jolloin jää rengaspinta.
+  Sama koskee suorakulmioita ja muita suljettuja tasomuotoja sekä monivalintaa.
+  Tämä ei ole läpireikäoperaatio eikä automaattinen umpinaisen osan kuoren avaus.
+  Kaksi ympyrää tai offsetilla tehty sisäraja ja keskialueen poisto muodostavat
+  ontoksi pursotettavan profiilin. Tarkista myös käyttäjän offset/pursotus-
+  työnkulku, jossa jäljelle jää ylimääräinen erillinen tasopinta.
+- Ennustava yhdensuuntaisuus myös vinoille kynäviivoille, saman luonnoksen
+  osuuksille ja lähellä oleville reunoille. Säilytä tarkka tartunta ja Shift-viite.
+- Helppo kaarityökalu. Suorakulmion kierto **piirron aikana** R:llä ja hiirellä.
+  Mittaviivan nykyinen hyvin toimiva R-kierto säilyy; sitä ei korvata.
+- Leikkaus-/projektiotaso asetetaan vapaasti, valitaan näkyvästi ja sitä
+  liikutetaan/kierretään nykyisten M/R-työkalujen käyttötavalla. Suunnan vaihto
+  säilyy. Tason muutos ei liikuta mallin osia. Nykyinen tasotietomalli tukee
+  vapaata asentoa, mutta käyttöliittymän ohjaus on laajennettava.
+- Pohjakuvan piilotus helposti löydettäväksi. Nykyisessä Pohjakuvat-paneelissa
+  on jo silmäpainike; korjaus sisältää löydettävyyden ja toiminnan varmistamisen.
+
+### Materiaalit ja asiakkaalle esitettävä renderi
+
+- Maalipensselin aktiivinen väri/materiaali näkyy selvästi. **Tyhjä sivellin**
+  tarkoittaa, ettei materiaalia ole valittu; se ei tarkoita materiaalin poistoa.
+  Tyhjä sivellin ei muuta napsautetun osan pintaa.
+- Tekstuurin siirto, kierto ja koon muokkaus saman pintatyönkulun yhteyteen
+  mallinnuksen maalipensselissä: **toteutettu työversiossa**. Mallinnus ja renderi
+  käyttävät yhteisiä tekstuurikahvoja; vedon hyväksyntä muodostaa yhden historiatoiminnon.
+- Tavoite on **valokuvamaisempi** asiakasesitys sekä nopeassa esikatselussa
+  että tarkentuvassa renderissä. Pehmeä valaistus ja varjot, materiaalien
+  uskottavuus, värintoisto ja pinnan yksityiskohdat arvioidaan yhdessä.
+  Terävyyttä ei korvata koko kuvan sumennuksella.
+- Suunnittele yhtenäinen laatupassi: pehmeät valolähteet/ympäristövalaistus,
+  valotus ja sävykartoitus, PBR-pintojen mittakaava, kohina ja mahdollinen
+  kohinanpoisto. Arvioi parannukset samoilla kaluste- ja huonenäkymillä ennen
+  ja jälkeen, myös GPU-muistin ja tabletin suorituskyvyn osalta.
+
+### Saranat ja liikkeen havainnollistaminen
+
+- Valitse oven vasen/oikea/ylä-/alareuna saranareunaksi, määritä avautuminen
+  ja esikatsele/animoi liike asiakkaalle. Sovella samaa periaatetta myöhemmin
+  laatikoiden ja kiskojen lineaariseen liikkeeseen.
+- Suunnitteluperiaate: animaatio on tallennetun lepoasennon esitys; se ei
+  muuta valmistusmittoja tai kerrytä jokaisesta kuvasta toimintohistoriaa.
+- Kyseessä on liikkeen visualisointi. Rigid body -simulointi, törmäyslaskenta
+  ja varsinainen kuormitus-/lujuuslaskenta ovat erillisiä mahdollisia jatkotöitä.
+
+### Visuaaliset työkalujen ohjeet ja toistuva selkeytys
+
+- Ensimmäisellä työkalun käyttökerralla oikeaan reunaan avautuu selkeä pieni
+  visuaalinen ohjekortti: aloitus, osoitus/veto, tarkka mitta, hyväksyntä ja
+  peruminen. Käytä vain kyseiselle työkalulle olennaisia vaiheita ja esimerkkiä.
+- Ohje ei peitä mallinnuskohdetta tai estä käyttöä. Kortin saa suljettua ja
+  avattua uudelleen helposti työkalun yhteydestä sekä yhteisestä ohjevalikosta.
+  Kosketuskäytössä näytetään myös vaihtoehdot näppäinoikoteille.
+- **Jatkuva backlog-kohta: säännölliset optimointi- ja järkevöittämispassit.**
+  Tarkastele työvaiheiden määrää, päällekkäisiä valintoja, termien johdonmukaisuutta,
+  toimintojen löydettävyyttä, paneelien tilantarvetta ja palautteen selkeyttä.
+  Ehdotettu rytmi on 2–3 toiminnallisen kokonaisuuden jälkeen ja ennen laajaa
+  testijulkaisua; havaittu peruskäytön regressio korjataan heti.
+- Mittaa samoilla vertailumalleilla esimerkiksi 296, 1 000 ja 5 000 osaa:
+  orbit/zoom, osoitus/tartunta, monivalinta, siirron esikatselu, kopiointi,
+  mallilista, muisti ja CAD-laskennan aikainen reagointi. Kirjaa lähtötilanne,
+  todellinen pullonkaula ja tulos; tavoitelupauksia ei tehdä ilman mittausta.
+
+### Ehdotettu toteutusjärjestys ja säilytettävät työnkulut
+
+1. Kamera, näkyvyys, valinnan selkeys ja ensimmäiset työkalujen ohjekortit.
+2. Pysyvät mittatasot ja mittojen sijoittelu; tasoalueiden poisto,
+   ympyrän/sylinterin jälkimuokkaus, kaaret ja piirron kierto.
+3. Vapaasti asetettavat leikkaustasot sekä yhtenäinen materiaalien käsittely
+   ja renderin laatupassi. Saranavisualisointi omana rajattuna kokonaisuutena.
+4. Selkeytys- ja suorituskykypassit yllä olevan jatkuvan käytännön mukaisesti.
+
+Muodoilla leikkaaminen, push/pullin läpileikkaus sekä muutosmitan ja
+toteutuvan kokonaismitan välillä vaihtaminen toimivat käyttäjän mukaan hyvin.
+Näiden käyttötapa säilytetään ja regressiot tarkistetaan. Mittaviivan R-kierto,
+tarkat viitteet, Hold, komponenttilinkitys, ryhmän ja kokoonpanon ero sekä
+tallennus/Peru säilyvät uusien ominaisuuksien yhteydessä.
+
 ## V0.20 — viivat ja monimuotoinen mallintaminen
 
 - Päällekkäiset vapaat mittaviivat yhdistyvät samalla 3D-suoralla. Duplikaatti

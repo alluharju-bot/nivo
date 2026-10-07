@@ -30,6 +30,7 @@ async function view(page: Page, bodies: Body[], side: 'top' | 'front' | 'right' 
       exact: true,
     })
     .click();
+  await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!,
     box = bounds(bodies),
     a = new THREE.Vector3(...box.min),
@@ -231,7 +232,7 @@ test('Shift locks the third pen segment while the first vertex supplies its exac
       [0, 0],
       [200, 0],
       [200, 100],
-      [0, 100],
+      [expect.closeTo(0, 8), expect.closeTo(100, 8)],
     ],
   });
   // Z is also an axis shortcut: modifiers must retain undo/redo during both tools.

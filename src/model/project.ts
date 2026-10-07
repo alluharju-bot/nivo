@@ -1,4 +1,5 @@
 import { drawingSheetSchema } from './drawingSheets';
+import { modelDisplaySchema } from './display';
 import { sectionSchema } from './sections';
 import { referenceImageSchema } from './referenceImages';
 import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
@@ -190,6 +191,7 @@ export const bodySchema = z.object({
     })
     .optional(),
   localMaterial: z.boolean().optional(),
+  localTexture: z.boolean().optional(),
   locked: z.boolean().default(false),
   hidden: z.boolean().default(false),
   groupId: id.optional(),
@@ -305,6 +307,8 @@ export const projectSchema = z
         axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
         axisLabels: z.boolean().default(false),
         dimensionDisplay: z.enum(['all', 'selected', 'hidden']).default('all'),
+        measurementsHidden: z.boolean().optional(),
+        modelDisplay: modelDisplaySchema.optional(),
         render: z
           .object({
             environment: z.enum(['studio', 'warm', 'dark']),

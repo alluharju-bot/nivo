@@ -8,6 +8,9 @@ import { add } from '../model/geometry';
 import { instantiateComponents } from './components';
 import { rotateBodies } from './transforms';
 import { createShape, pushPullFace, meshBody, bodyFromShape } from './kernel';
+import { knifeBodies } from './modeling';
+import { linkSplitCopies } from '../model/linkedSplit';
+import { applySplitResult } from '../model/splitReferences';
 beforeAll(
   async () =>
     setOC(
@@ -17,6 +20,51 @@ beforeAll(
     ),
   30000,
 );
+it('knife repeats its pieces in a rotated linked copy, preserves piece links and rejects a held copy', async () => {
+  const a = asComponent(makeBody(600, 400, 100));
+  const b = rotateBodies(
+    [{ ...a, id: 'copy', origin: [1000, 0, 0] }],
+    [1000, 0, 0],
+    [0, 0, 1],
+    90,
+  )[0];
+  const before = { ...freshProject(), bodies: [a, b] };
+  const split = knifeBodies(
+    [a],
+    [
+      { origin: [200, -80, 500], direction: [0, 0, -1] },
+      { origin: [200, 480, 500], direction: [0, 0, -1] },
+    ],
+  );
+  const result = await linkSplitCopies(before, split, async (s, t) => instantiateComponents(s, t));
+  const after = applySplitResult(before, result);
+  expect(after.bodies).toHaveLength(4);
+  expect(result.replacements[a.id]).toHaveLength(2);
+  expect(result.replacements[b.id]).toHaveLength(2);
+  for (let i = 0; i < 2; i++) {
+    const source = after.bodies.find((p) => p.id === result.replacements[a.id][i])!;
+    const copy = after.bodies.find((p) => p.id === result.replacements[b.id][i])!;
+    expect(source.component!.id).toBe(copy.component!.id);
+    expect(source.component!.id).not.toBe(a.component!.id);
+    add(copy.origin, copy.component!.offset).forEach((n, axis) =>
+      expect(n).toBeCloseTo(add(b.origin, b.component!.offset)[axis], 5),
+    );
+    const sourceShape = createShape(source),
+      copyShape = createShape(copy);
+    expect(measureVolume(copyShape.asShape3D())).toBeCloseTo(
+      measureVolume(sourceShape.asShape3D()),
+      2,
+    );
+    sourceShape.delete();
+    copyShape.delete();
+  }
+  await expect(
+    linkSplitCopies({ ...before, bodies: [a, { ...b, locked: true }] }, split, async (s, t) =>
+      instantiateComponents(s, t),
+    ),
+  ).rejects.toThrow('Hold');
+  expect(before.bodies).toEqual([a, b]);
+});
 it('propagates opposite-face push/pull in each rotated instance frame without shifting the fixed end', async () => {
   const a = asComponent(makeBody(600, 400, 18));
   const b = rotateBodies(

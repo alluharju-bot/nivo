@@ -17,6 +17,8 @@ export function GroupActions({
   onMerge,
   canMerge,
   onEdit,
+  onUnique,
+  canUnique,
 }: {
   group: BodyGroup;
   groups: BodyGroup[];
@@ -32,6 +34,8 @@ export function GroupActions({
   onMerge: () => void;
   canMerge: boolean;
   onEdit: () => void;
+  onUnique: () => void;
+  canUnique: boolean;
 }) {
   const locked = groupAncestors(groups, group.id).some((g) => g.locked);
   return (
@@ -73,6 +77,15 @@ export function GroupActions({
         <button onClick={onCopy} disabled={busy || !count || locked}>
           <Copy size={15} /> Kopioi valinta
         </button>
+        {canUnique && (
+          <button
+            onClick={onUnique}
+            disabled={busy || locked}
+            title="Irrota ryhmän osat ulkopuolisista kopioista. Sisäiset linkit säilyvät."
+          >
+            Tee ryhmä uniikiksi
+          </button>
+        )}
         <button onClick={onFit} disabled={!count}>
           <Maximize size={15} /> Sovita valinta
         </button>

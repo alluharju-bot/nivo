@@ -12,6 +12,7 @@ async function ready(page: Page, bodies: Body[]) {
   });
   await expect(page.locator('.object-list .object-select')).toHaveCount(bodies.length);
   await page.getByRole('button', { name: 'Ylhäältä', exact: true }).click();
+  await page.getByRole('button', { name: 'Sovita näkymään', exact: true }).click();
   const rect = (await page.getByTestId('viewport').boundingBox())!;
   const { min, max } = bounds(bodies),
     center = min.map((n, i) => (n + max[i]) / 2);

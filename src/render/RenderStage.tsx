@@ -1,5 +1,6 @@
 import { EmissionControls } from '../ui/EmissionControls';
 import { SurfaceMaps } from '../ui/MaterialSurface';
+import { SurfaceFinish } from '../ui/SurfaceFinish';
 import { traceDefaults, type TraceStatus, type TraceOptions } from './progressive';
 import type { RenderSnapshot } from './snapshot';
 import type { RenderJobOptions } from './traceJob';
@@ -587,21 +588,23 @@ export function RenderStage(props: Props) {
               )}
               {!textureDraft && (
                 <>
-                  <div className="surface-properties">
-                    {(['roughness', 'metalness', 'transmission', 'clearcoat'] as const).map(
-                      (key) => (
-                        <label key={key}>
-                          {
+                  {(appearance.assetId || preset.pattern) && (
+                    <p className="muted">
+                      Väri sävyttää tekstuuria. Valkoinen näyttää kuvan alkuperäiset värit.
+                    </p>
+                  )}
+                  <SurfaceFinish
+                    appearance={appearance}
+                    busy={busy || !ids.length}
+                    onChange={applyAppearance}
+                  />
+                  <details>
+                    <summary>Pinnan lisäsäädöt</summary>
+                    <div className="surface-properties">
+                      {(['roughness', 'metalness', 'transmission', 'clearcoat'] as const).map(
+                        (key) => (
+                          <label key={key}>
                             {
-                              roughness: 'Karheus',
-                              metalness: 'Metallisuus',
-                              transmission: 'Läpäisevyys',
-                              clearcoat: 'Pinnoite',
-                            }[key]
-                          }
-                          <input
-                            key={`${ids.join()}:${appearance[key]}:${preset.id}`}
-                            aria-label={
                               {
                                 roughness: 'Karheus',
                                 metalness: 'Metallisuus',
@@ -609,30 +612,41 @@ export function RenderStage(props: Props) {
                                 clearcoat: 'Pinnoite',
                               }[key]
                             }
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            disabled={busy || !ids.length}
-                            defaultValue={appearance[key] ?? preset[key] ?? 0}
-                            onBlur={(e) => {
-                              const n = Number(e.target.value);
-                              if (
-                                Number.isFinite(n) &&
-                                n >= 0 &&
-                                n <= 1 &&
-                                n !== (appearance[key] ?? preset[key] ?? 0)
-                              )
-                                applyAppearance({
-                                  ...appearance,
-                                  [key]: n,
-                                });
-                            }}
-                          />
-                        </label>
-                      ),
-                    )}
-                  </div>
+                            <input
+                              key={`${ids.join()}:${appearance[key]}:${preset.id}`}
+                              aria-label={
+                                {
+                                  roughness: 'Karheus',
+                                  metalness: 'Metallisuus',
+                                  transmission: 'Läpäisevyys',
+                                  clearcoat: 'Pinnoite',
+                                }[key]
+                              }
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              disabled={busy || !ids.length}
+                              defaultValue={appearance[key] ?? preset[key] ?? 0}
+                              onBlur={(e) => {
+                                const n = Number(e.target.value);
+                                if (
+                                  Number.isFinite(n) &&
+                                  n >= 0 &&
+                                  n <= 1 &&
+                                  n !== (appearance[key] ?? preset[key] ?? 0)
+                                )
+                                  applyAppearance({
+                                    ...appearance,
+                                    [key]: n,
+                                  });
+                              }}
+                            />
+                          </label>
+                        ),
+                      )}
+                    </div>
+                  </details>
                   <input
                     ref={imageInput}
                     type="file"

@@ -86,7 +86,7 @@ describe('nested groups and whole-selection transforms', () => {
     expect(result.bodies[15]).toEqual(p.bodies[15]);
     expect(p.bodies[0].origin).toEqual([0, 0, 0]);
   });
-  it('copies the group tree and remaps dimensions and anchored guides to independent parts', () => {
+  it('copies the group tree with linked geometry and remaps dimensions and anchored guides to each instance', () => {
     const p = frame(),
       ids = groupBodies(p, 'root').map((b) => b.id);
     const {
@@ -95,7 +95,11 @@ describe('nested groups and whole-selection transforms', () => {
       groupId,
     } = translateSelection(p, ids, [1000, 0, 0], true, 'root');
     expect(result.bodies).toHaveLength(31);
-    expect(result.bodies.slice(0, 16)).toEqual(p.bodies);
+    result.bodies.slice(0, 15).forEach((b, i) => {
+      expect(b).toEqual({ ...p.bodies[i], purpose: 'component', component: expect.any(Object) });
+      expect(b.component?.id).toBe(result.bodies[16 + i].component?.id);
+    });
+    expect(result.bodies[15]).toEqual(p.bodies[15]);
     expect(groupBodies(result, groupId!)).toHaveLength(15);
     expect(result.groups[3].parentId).toBe(groupId);
     expect('bodyId' in result.dimensions[1] ? result.dimensions[1].bodyId : undefined).toBe(

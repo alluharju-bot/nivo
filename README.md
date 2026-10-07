@@ -3,7 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.20.0** lisää **Veitsen (N)**, pallon ja Bézier-käyrät. Veitsi paloittelee
+Versio **0.21.0** korjaa kynän suuntaan sidotun mittasyötön ja Shift-viitteet,
+yhtenäistää risteystartunnat, lisää pyöritettävän näkymäkuution sekä näyttötilat
+Solid / Tasaväri / Ghost / Wireframe. P-työkalulla voi asetella tekstuureja
+ja vaihdella valittujen osien kuvioita. Materiaalin sävyä ja kiiltoa voi säätää.
+Yksi viivainpainike piilottaa kaikki mallin mitta- ja apuviivat.
+Kopioidut malliosat linkittyvät oletuksena; uniikiksi tekeminen on erillinen valinta.
+
+Versio **0.20.0** lisäsi **Veitsen (N)**, pallon ja Bézier-käyrät. Veitsi paloittelee
 valitut tai näkyvät vapaat kappaleet nykyisestä kamerasta: suora, taitettu reitti,
 suljettu siluetti, sileä Bézier-viilto tai vapaa viilto. Molemmat puolet säilyvät,
 ja yksi Peru palauttaa leikkauksen. **Muodot → Pallo** sijoittaa keskipisteen ja
@@ -57,7 +64,7 @@ kun kyseinen kumoamistila on yhä tallessa. **Palauta valinta** vaihtaa vain val
 - Mallilista avautuu vasemmalta. Kiinnitä se nastasta tai piilota nuolesta. Työkalupalkin kahvaa voi vetää reunaan tai napsauttaa sijainnin valitsemiseksi.
 - Napsauta valitun osan tai ryhmän otsikkonimeä nimetäksesi sen. Ryhmäpolku näkyy heti alla.
 - **Luo kokoonpano** yhdistää valinnan käsiteltäväksi kokonaisuudeksi. Tuplaklikkaa avataksesi yksittäiset osat; Esc tai Sulje kokoonpano päättää. **Ryhmä** järjestää mallia kansion tavoin; ryhmän voi myös valita listasta siirtoa, piilotusta tai Holdia varten. Valitse-tilassa osan nimirivi valitsee nimenomaisen osan ja avaa sen kokoonpanon näkyvästi.
-- **Tee komponentti**: seuraavat kopiot jakavat geometrian ja oletuksena materiaalin. **Tee uniikiksi** irrottaa linkin. Sijainti, kierto, nimi, näkyvyys ja Hold ovat esiintymäkohtaisia. Olemassa olevat osat voi linkittää valittuun lähtöosaan.
+- **Kopioi**: malliosien kopiot jakavat geometrian ja oletuksena materiaalin ilman erillistä komponentiksi muuttamista. **Tee uniikiksi** irrottaa osan linkin. Ryhmän vastaava toiminto säilyttää sisäiset linkit ja irrottaa ulkopuoliset kopiot. Sijainti, kierto, nimi, näkyvyys ja Hold ovat esiintymäkohtaisia. Olemassa olevat osat voi linkittää valittuun lähtöosaan.
 - **P – Maalipensseli**: valitse materiaali ja napsauta osia. Paletti kertoo, koskeeko maalaus koko valintaa ja linkitettyjä kopioita.
 - Oikean napin napsautus tai **Toiminnot** avaa valinnan yhteisen valikon. Oikean napin veto kiertää kameraa. Delete/Backspace tai Valitse-tilassa X poistaa koko valinnan yhdellä peruttavalla toiminnolla.
 - Siirron X/Y/Z-akseli näkyy tartuntapisteen kautta myös kappaleen läpi, ja mittalappu näyttää siirtymän.

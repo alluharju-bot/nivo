@@ -24,13 +24,15 @@ it('repeats linked assembly copies at exact intervals, retaining nested groups a
   expect(result.project.dimensions).toHaveLength(4);
   expect(groupBodies(result.project, result.groupId!)).toHaveLength(2);
   expect(
-    result.project.bodies.filter((part) => part.component).map((part) => part.origin[0]),
+    result.project.bodies
+      .filter((part) => part.component?.id === a.component!.id)
+      .map((part) => part.origin[0]),
   ).toEqual([0, 650.125, 1300.25, 1950.375]);
   expect(
     new Set(
       result.project.bodies.filter((part) => part.component).map((part) => part.component!.id),
     ).size,
-  ).toBe(1);
+  ).toBe(2);
   expect(parseProject(JSON.stringify(result.project)).bodies).toHaveLength(8);
   expect(project.bodies).toEqual([a, b]);
   const next = repeatTranslation(

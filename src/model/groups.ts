@@ -101,7 +101,9 @@ export function translateSelection(
       groupId: rootGroupId,
     };
   const bodyIds = new Map(chosen.map((b) => [b.id, uid()]));
-  const copySources = chosen.map((b) => (b.purpose === 'component' ? asComponent(b) : b));
+  const copySources = chosen.map((b) =>
+    b.purpose === 'component' || b.purpose === 'model' ? asComponent(b) : b,
+  );
   const sourceById = new Map(copySources.map((b) => [b.id, b]));
   const roots = rootGroupId
     ? [rootGroupId]

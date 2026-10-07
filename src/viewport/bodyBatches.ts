@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 
+export type ModelMaterial = THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
+
 export interface BatchPart {
   id: string;
   shape: string;
   style: string;
   origin: [number, number, number];
-  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial[]>;
+  mesh: THREE.Mesh<THREE.BufferGeometry, ModelMaterial[]>;
   outline: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
 }
 interface SharedGeometry {
@@ -61,7 +63,7 @@ export function createBodyBatches(scene: THREE.Object3D, allowTransparent = fals
     sync(parts: BatchPart[]) {
       for (const part of previous) {
         part.mesh.material.forEach((material) => {
-          material.visible = true;
+          material.visible = part.mesh.userData.modelDisplay !== 'wireframe';
         });
         part.outline.material.visible = true;
         part.mesh.userData.batched = false;
@@ -139,6 +141,7 @@ export function createBodyBatches(scene: THREE.Object3D, allowTransparent = fals
         // Source material may have changed while the visual signature stayed the same.
         (batch.surface.material as THREE.Material).copy(first.mesh.material[0]);
         (batch.surface.material as THREE.Material).visible = true;
+        batch.surface.visible = first.mesh.userData.modelDisplay !== 'wireframe';
         batch.surface.castShadow = first.mesh.castShadow;
         batch.surface.count = list.length;
         batch.edges.geometry.instanceCount = list.length;

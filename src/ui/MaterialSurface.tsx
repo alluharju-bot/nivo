@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EmissionControls } from './EmissionControls';
 import { CommitCheckbox } from './CommitCheckbox';
+import { SurfaceFinish } from './SurfaceFinish';
 import {
   defaultAppearance,
   findPreset,
@@ -265,6 +266,10 @@ export function ModelMaterials({
   );
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
+  const [tint, setTint] = useState(source.color);
+  useEffect(() => setTint(source.color), [source.id, source.color]);
+  const textured = !!appearance.assetId || !!findPreset(appearance.preset).pattern;
+  const defaultTint = appearance.assetId ? '#ffffff' : findPreset(appearance.preset).color;
   return (
     <details className="inspector-disclosure model-materials">
       <summary>Materiaali</summary>
@@ -337,6 +342,43 @@ export function ModelMaterials({
           }}
         />
         {appearance.assetId && <span className="muted">{assets?.[appearance.assetId]?.name}</span>}
+        {textured && (
+          <div className="texture-tint-controls">
+            <label htmlFor="model-texture-tint">Tekstuurin sävy</label>
+            <div className="texture-tint">
+              <input
+                id="model-texture-tint"
+                type="color"
+                aria-label="Tekstuurin sävy"
+                disabled={busy}
+                value={tint}
+                onChange={(e) => setTint(e.target.value)}
+              />
+              <button
+                type="button"
+                className="button outlined"
+                disabled={busy || tint === source.color}
+                onClick={() => void onChange(appearance, tint)}
+              >
+                Käytä sävyä
+              </button>
+              <button
+                type="button"
+                className="button subtle"
+                disabled={busy || source.color === defaultTint}
+                onClick={() => void onChange(appearance, defaultTint)}
+              >
+                Palauta oletussävy
+              </button>
+            </div>
+            <small>
+              {appearance.assetId
+                ? 'Väri sävyttää tekstuuria. Valkoinen näyttää kuvan alkuperäiset värit.'
+                : 'Väri sävyttää materiaalin kuviointia. Kuvio ja kohokuvio säilyvät.'}
+            </small>
+          </div>
+        )}
+        <SurfaceFinish appearance={appearance} busy={busy} onChange={(value) => onChange(value)} />
         <EmissionControls
           appearance={appearance}
           color={source.color}

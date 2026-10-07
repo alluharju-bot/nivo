@@ -352,6 +352,51 @@ p {
 .canvas-topbar > * {
   pointer-events: auto;
 }
+.view-cube {
+  position: absolute;
+  right: 22px;
+  top: 112px;
+  width: 104px;
+  height: 104px;
+  z-index: 2;
+  perspective: 600px;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.view-cube:active {
+  cursor: grabbing;
+}
+.view-cube-solid {
+  position: absolute;
+  inset: 20px;
+  transform-style: preserve-3d;
+}
+.view-cube-face {
+  position: absolute;
+  inset: 0;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid #a2afa5;
+  border-radius: 3px;
+  background: #f1f3ede8;
+  color: #34483c;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 10px;
+  backface-visibility: hidden;
+  cursor: inherit;
+}
+.view-cube-face:hover,
+.view-cube-face[aria-pressed='true'] {
+  background: #d7e6d7;
+  color: #173f2b;
+}
+.view-cube-face:focus-visible {
+  outline: 2px solid #277b5a;
+  outline-offset: 2px;
+}
 .operation-context {
   position: absolute;
   top: 66px;
@@ -368,6 +413,31 @@ p {
   color: #28594b;
   font-size: 12px;
   box-shadow: 0 2px 10px #233a2810;
+}
+.surface-finish {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0;
+}
+.surface-gloss > span,
+.surface-gloss > small {
+  display: flex;
+  justify-content: space-between;
+}
+.surface-gloss > input {
+  width: 100%;
+  padding: 0;
+  accent-color: #326b51;
+}
+.texture-tint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.texture-tint > input[type='color'] {
+  width: 42px;
+  padding: 2px;
 }
 .edit-context {
   position: absolute;
@@ -538,6 +608,52 @@ p {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.display-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #ffffffb0;
+  border-radius: 8px;
+  background: #ffffffb3;
+  backdrop-filter: blur(12px);
+}
+.display-scope {
+  padding: 0 6px;
+  font-size: 10px;
+  color: #647464;
+}
+.display-controls button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  min-height: 38px;
+  border-radius: 5px;
+  color: #657565;
+}
+.display-controls button:hover {
+  background: #fff;
+}
+.display-controls button[aria-pressed='true'] {
+  background: #dbe6d3;
+  color: #294734;
+}
+@media (pointer: coarse) {
+  .display-controls button {
+    width: 44px;
+    min-height: 44px;
+  }
+}
+@media (max-width: 1350px) {
+  .canvas-topbar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .display-scope {
+    display: none;
+  }
 }
 .view-actions > .icon-button {
   background: #ffffff9c;
@@ -3153,6 +3269,87 @@ p {
   font-size: 12px;
   line-height: 1.5;
 }
+.material-tool-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 12px;
+  padding: 3px;
+  background: #e6eae4;
+  border-radius: 8px;
+}
+.tool-inspector .material-tool-tabs {
+  margin: 12px 16px;
+}
+.tool-inspector > .texture-editor {
+  padding: 0 18px 18px;
+}
+.texture-editor input[type='number'],
+.texture-editor select {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 8px;
+  border: 1px solid #ced6cb;
+  border-radius: 7px;
+  background: #fff;
+  color: #243e33;
+  font: inherit;
+  font-size: 12px;
+}
+.texture-editor input[type='range'],
+.texture-editor input[type='checkbox'] {
+  accent-color: #447c68;
+}
+.texture-editor .render-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.texture-editor > h3 {
+  font-size: 14px;
+  margin: 16px 0 8px;
+}
+.material-tool-tabs button {
+  flex: 1;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 5px;
+  color: #43544c;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.material-tool-tabs button[aria-pressed='true'] {
+  background: #fff;
+  color: #183d32;
+  box-shadow: 0 1px 4px #193a2515;
+}
+.texture-placement-fields {
+  border: 0;
+  padding: 0;
+  margin: 0 0 16px;
+  min-width: 0;
+}
+.texture-variation {
+  border-top: 1px solid #dae0d8;
+  padding-top: 12px;
+}
+.texture-variation summary {
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.texture-variation > label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.texture-variation > label.render-check {
+  display: flex;
+}
 .texture-handles {
   position: absolute;
   z-index: 3;
@@ -5351,6 +5548,27 @@ p {
 }
 .canvas-area.is-editing .browser-handle {
   top: 138px;
+}
+
+/* Wrapped view controls must never sit underneath model or drawing controls. */
+.canvas-area .model-browser,
+.canvas-area.is-editing .model-browser {
+  top: calc(var(--view-toolbar-bottom, 60px) + 4px);
+  max-height: calc(100% - var(--view-toolbar-bottom, 60px) - 82px);
+}
+.canvas-area .browser-handle,
+.canvas-area.is-editing .browser-handle {
+  top: calc(var(--view-toolbar-bottom, 60px) + 14px);
+}
+.canvas-area .guide-actions,
+.canvas-area .section-notice {
+  top: calc(var(--view-toolbar-bottom, 60px) + 12px);
+}
+.canvas-area .reference-bar {
+  top: calc(var(--view-toolbar-bottom, 60px) + 78px);
+}
+.canvas-area .view-cube {
+  top: calc(var(--view-toolbar-bottom, 60px) + 52px);
 }
 
 .repeat-action {

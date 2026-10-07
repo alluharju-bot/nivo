@@ -1,14 +1,21 @@
 import { installKnife } from './knife';
+import { installTextureEditing } from './textureEditing';
+import { bodyDisplayMode } from '../model/display';
 import { sampleBezier } from '../model/bezier';
 import { pointMarker } from './pointMarker';
 import { createWorkspaceViews } from './workspaceViews';
 import { prioritizeSurface } from './surfaceDepth';
-import { createMaterialLibrary, materialUV, disposeMaterial } from '../render/materials';
+import {
+  createMaterialLibrary,
+  materialUV,
+  disposeMaterial,
+  updateMaterialPlacement,
+} from '../render/materials';
 import { createPointDimensions } from './pointDimensions';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { bounds, featureIsSolid, type Vec3 } from '../model/project';
+import { bounds, featureIsSolid, type Vec3, type View } from '../model/project';
 import { guidePoints, guideMeasurement } from '../model/guides';
 import { formatLength } from '../model/units';
 import { installInteractions } from './interactions';
@@ -23,12 +30,14 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { rotationHandles } from '../model/rotationHandles';
 import { dot, unit } from '../model/geometry';
 import { createWorkspaceGrid } from './workspaceGrid';
-import { createBodyBatches } from './bodyBatches';
+import { createBodyBatches, type ModelMaterial } from './bodyBatches';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { createModelDimensions } from './modelDimensions';
-import { installCameraNavigation } from './cameraNavigation';
+import { installCameraNavigation, rebuildOrbitControls } from './cameraNavigation';
+import { createViewCube } from './viewCube';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
+  texture: () => void;
   sync: () => void;
   workspaceViews: () => void;
   preview: () => void;
@@ -69,7 +78,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   perspective.position.set(1350, -1550, 1250);
   let camera: THREE.PerspectiveCamera | THREE.OrthographicCamera = perspective;
   let halfHeight = 700;
-  const controls = new OrbitControls<THREE.PerspectiveCamera | THREE.OrthographicCamera>(
+  let controls = new OrbitControls<THREE.PerspectiveCamera | THREE.OrthographicCamera>(
     camera,
     renderer.domElement,
   );
@@ -78,10 +87,14 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   controls.minDistance = 2;
   controls.maxDistance = 250_000;
   controls.screenSpacePanning = true;
-  const navigation = installCameraNavigation(controls, renderer.domElement, () => [
+  const navigationSurfaces = () => [
     bodies,
     ...ghost.children.filter((object) => object.userData.orbitSurface),
-  ]);
+  ];
+  let navigation = installCameraNavigation(controls, renderer.domElement, navigationSurfaces);
+  let viewCube: ReturnType<typeof createViewCube> | undefined;
+  let textureEditor: ReturnType<typeof installTextureEditing> | undefined;
+  let reportedView: View | undefined;
   const labels: { element: HTMLDivElement; point: THREE.Vector3; xray: boolean }[] = [];
   const extrusionLabels: typeof labels = [];
   let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
@@ -97,6 +110,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       });
   };
   const renderNow = () => {
+    textureEditor?.update();
     // Keep useful depth precision at CAD scales instead of a fixed 1:10,000,000 range.
     const distance = camera.position.distanceTo(clippingSphere.center),
       extent = Math.max(clippingSphere.radius * 1.8, 100);
@@ -126,6 +140,22 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         Math.abs(p.z) <= 1 && (marker.userData.xray || !labelOccluded?.(marker.position));
     }
     renderer.render(scene, camera);
+    viewCube?.update();
+    const facing = camera.getWorldDirection(new THREE.Vector3()).negate();
+    const actualView: View | undefined =
+      facing.z > 0.99999
+        ? 'top'
+        : facing.y < -0.99999
+          ? 'front'
+          : facing.x > 0.99999
+            ? 'right'
+            : camera === perspective
+              ? 'iso'
+              : undefined;
+    if (reportedView !== actualView) {
+      reportedView = actualView;
+      current().onCameraView?.(actualView);
+    }
     renderer.domElement.dataset.triangles = String(renderer.info.render.triangles);
     renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls);
     renderer.domElement.dataset.camera = JSON.stringify({
@@ -214,7 +244,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   labelOccluded = (point) => {
     const projected = point.clone().project(camera);
     labelRay.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera);
-    const hit = intersectModel(labelRay, bodies).find((h) => h.object instanceof THREE.Mesh);
+    const hit = intersectModel(labelRay, bodies, 'occlusion').find(
+      (h) => h.object instanceof THREE.Mesh,
+    );
     return !!hit && hit.distance < labelRay.ray.origin.distanceTo(point) - 0.05;
   };
   const disposeGroup = (group: THREE.Group) => {
@@ -231,7 +263,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     style: string;
     uv: string;
     assets: Props['assets'];
-    mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial[]>;
+    mesh: THREE.Mesh<THREE.BufferGeometry, ModelMaterial[]>;
     outline: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
     boundary?: THREE.Box3Helper;
   };
@@ -255,6 +287,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const props = current();
     renderer.shadowMap.needsUpdate = true;
     renderer.domElement.dataset.meshCount = String(props.meshes.length);
+    renderer.domElement.dataset.displayModes = JSON.stringify(
+      Object.fromEntries(
+        props.bodies.map((body) => [body.id, bodyDisplayMode(props.modelDisplay, body.id)]),
+      ),
+    );
     navigation.sync(props.bodies, props.selectedIds, props.editingBodyId);
     renderer.domElement.dataset.selectionKind = props.selectedFace
       ? 'face'
@@ -278,6 +315,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const body = bodyById.get(data.id);
       if (!body) continue;
       const selected = selectedIds.has(data.id);
+      const display = bodyDisplayMode(props.modelDisplay, data.id);
       const moveHovered = moveHoveredIds.has(data.id);
       const context = data.id === props.editingBodyId;
       const reference =
@@ -298,7 +336,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         body.appearance,
         body.locked,
         body.purpose,
+        display,
         selected,
+        selected && props.tool === 'paint',
         moveHovered,
         context,
         reference,
@@ -306,6 +346,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         cutter,
         selected ? props.selectedGroupId : undefined,
         selected ? props.selectedFace : undefined,
+        props.editingTexture?.id === body.id ? body.id : undefined,
       ]);
       if (
         old &&
@@ -334,7 +375,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         edges.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
       }
       geometry.clearGroups();
-      const baseMaterial = materialLibrary.create(body, props.assets);
+      const baseMaterial: ModelMaterial =
+        display === 'solid'
+          ? materialLibrary.create(body, props.assets)
+          : new THREE.MeshBasicMaterial({ toneMapped: false });
       // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
       const materialFaces =
         selected && props.selectedFace
@@ -358,7 +402,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                     ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
                     : selected && face.ref === props.selectedFace
                       ? '#e1bd7b'
-                      : selected && !props.selectedFace
+                      : selected && !props.selectedFace && props.tool !== 'paint'
                         ? new THREE.Color(body.color).lerp(
                             new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
                             0.3,
@@ -368,23 +412,40 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           polygonOffset: true,
           polygonOffsetFactor: surfacePriority ? -1 : 1,
           polygonOffsetUnits: surfacePriority ? -1 : 1,
-          transparent: auxiliary || cutter,
-          opacity: constructionLine ? 0 : cutter ? 0.22 : auxiliary ? 0.035 : 1,
-          depthWrite: !auxiliary && !cutter,
+          transparent: auxiliary || cutter || display === 'ghost',
+          opacity: constructionLine
+            ? 0
+            : cutter
+              ? 0.22
+              : auxiliary
+                ? 0.035
+                : display === 'ghost'
+                  ? 0.16
+                  : 1,
+          depthWrite: !auxiliary && !cutter && display !== 'ghost' && display !== 'wireframe',
           depthTest: !cutter,
+          visible: display !== 'wireframe',
         });
-        material.userData.baseEmissive = material.emissive.getHex();
-        material.userData.baseEmissiveIntensity = material.emissiveIntensity;
+        if (material instanceof THREE.MeshStandardMaterial) {
+          material.userData.baseEmissive = material.emissive.getHex();
+          material.userData.baseEmissiveIntensity = material.emissiveIntensity;
+        }
         if (surfacePriority) prioritizeSurface(material);
         return material;
       });
       baseMaterial.dispose();
       const mesh = new THREE.Mesh(geometry, materials);
-      mesh.castShadow = !auxiliary && !reference;
+      mesh.castShadow = !auxiliary && !reference && display === 'solid';
       // Self-shadow acne on broad coplanar CAD faces caused view-dependent striping.
       // Parts still cast a ground shadow; their own surfaces use stable direct lighting.
       mesh.receiveShadow = false;
-      mesh.userData = { id: body.id, faces: data.faces, purpose: body.purpose, surfacePriority };
+      mesh.userData = {
+        id: body.id,
+        faces: data.faces,
+        purpose: body.purpose,
+        surfacePriority,
+        modelDisplay: display,
+      };
       mesh.renderOrder = surfaceRenderOrder;
       if (constructionLine) mesh.raycast = () => {};
       bodies.add(mesh);
@@ -415,11 +476,18 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                             ? '#637168'
                             : '#766851',
           transparent: true,
-          opacity: reference
-            ? 0.65
-            : selected || context || target || cutter || auxiliary
-              ? 1
-              : 0.5,
+          opacity:
+            display === 'wireframe'
+              ? 0.9
+              : display === 'ghost'
+                ? selected
+                  ? 0.8
+                  : 0.28
+                : reference
+                  ? 0.65
+                  : selected || context || target || cutter || auxiliary
+                    ? 1
+                    : 0.5,
           depthTest: !cutter,
         }),
       );
@@ -437,6 +505,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         constructionLine,
         wireOnly: !data.faces.length,
         surfacePriority,
+        modelDisplay: display,
       };
       outline.renderOrder = surfacePriority ? surfaceRenderOrder + 0.1 : 0;
       if (surfacePriority) prioritizeSurface(outline.material, true);
@@ -1055,6 +1124,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         guides.add(marker);
       }
     }
+    renderer.domElement.dataset.penPoints = JSON.stringify(props.penPoints);
+    renderer.domElement.dataset.penHover = JSON.stringify(props.penHover ?? null);
     if (props.penPoints.length) {
       const points = [...props.penPoints];
       if (props.penHover) points.push(props.penHover);
@@ -1126,7 +1197,66 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     resize();
     controls.update();
   };
+  const setCameraUp = (up: Vec3) => {
+    if (camera.up.distanceToSquared(new THREE.Vector3(...up)) < 1e-12) return;
+    camera.up.set(...up);
+    navigation.dispose();
+    controls = rebuildOrbitControls(controls, camera);
+    navigation = installCameraNavigation(controls, renderer.domElement, navigationSurfaces);
+    const target = controls.target.clone();
+    navigation.sync(current().bodies, current().selectedIds, current().editingBodyId);
+    controls.target.copy(target);
+    controls.addEventListener('change', render);
+    controls.addEventListener('change', knife.clear);
+  };
+  const orientCamera = (
+    normal: Vec3,
+    up: Vec3,
+    projection: 'perspective' | 'orthographic' = 'orthographic',
+  ) => {
+    // Change direction around the current working center without fitting the model.
+    setProjection(projection);
+    const distance = camera.position.distanceTo(controls.target);
+    setCameraUp(up);
+    camera.position
+      .copy(controls.target)
+      .addScaledVector(new THREE.Vector3(...normal).normalize(), distance);
+    controls.update();
+    render();
+  };
   const command = (command: CameraCommand) => {
+    if (command.type === 'view') {
+      const view = command.view!;
+      const normal = { iso: [1, -1.4, 1], front: [0, -1, 0], right: [1, 0, 0], top: [0, 0, 1] }[
+        view
+      ] as Vec3;
+      orientCamera(
+        normal,
+        view === 'top' ? [0, 1, 0] : [0, 0, 1],
+        view === 'iso' ? 'perspective' : 'orthographic',
+      );
+      if (command.fit) {
+        const props = current(),
+          box = bounds(props.bodies);
+        const min = new THREE.Vector3(...box.min),
+          max = new THREE.Vector3(...box.max);
+        const radius =
+          Math.max(max.distanceTo(min) * 0.65, 100) /
+          Math.min(container.clientWidth / Math.max(container.clientHeight, 1), 1);
+        controls.target.copy(min).add(max).multiplyScalar(0.5);
+        camera.position
+          .copy(controls.target)
+          .addScaledVector(
+            new THREE.Vector3(...normal).normalize(),
+            radius / Math.tan(THREE.MathUtils.degToRad(20)),
+          );
+        halfHeight = radius;
+        orthographic.zoom = 1;
+        resize();
+        controls.update();
+      }
+      return;
+    }
     if (command.type === 'frame' && command.frame) {
       setProjection('orthographic');
       const frame = command.frame;
@@ -1134,7 +1264,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         .addScaledVector(new THREE.Vector3(...frame.u), (command.width ?? 0) / 2)
         .addScaledVector(new THREE.Vector3(...frameV(frame)), (command.height ?? 0) / 2);
       controls.target.copy(center);
-      camera.up.set(...frameV(frame));
+      setCameraUp(frameV(frame));
       halfHeight =
         Math.max(
           command.height ?? 600,
@@ -1169,17 +1299,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const center = min.clone().add(max).multiplyScalar(0.5);
       const aspect = container.clientWidth / Math.max(container.clientHeight, 1);
       const radius = Math.max(max.distanceTo(min) * 0.65, 100) / Math.min(aspect, 1);
-      let direction = camera.position.clone().sub(controls.target).normalize();
-      if (command.type === 'view') {
-        const view = command.view!;
-        setProjection(view === 'iso' ? 'perspective' : 'orthographic');
-        direction = new THREE.Vector3(
-          ...({ iso: [1, -1.4, 1], front: [0, -1, 0], right: [1, 0, 0], top: [0, 0, 1] }[
-            view
-          ] as Vec3),
-        ).normalize();
-        camera.up.set(...((view === 'top' ? [0, 1, 0] : [0, 0, 1]) as Vec3));
-      }
+      const direction = camera.position.clone().sub(controls.target).normalize();
       controls.target.copy(center);
       camera.position
         .copy(center)
@@ -1204,7 +1324,71 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     },
   );
   const knife = installKnife(renderer.domElement, container, () => camera, current);
+  viewCube = createViewCube(
+    container,
+    () => camera,
+    (normal, up) => {
+      knife.clear();
+      orientCamera(normal, up);
+      current().onCameraProjection?.('orthographic');
+    },
+    (dx, dy) => {
+      controls.rotateLeft(dx);
+      controls.rotateUp(dy);
+      render();
+    },
+  );
   controls.addEventListener('change', knife.clear);
+  let previewedTexture: string | undefined;
+  const texture = () => {
+    const editing = current().editingTexture;
+    for (const id of new Set([previewedTexture, editing?.id])) {
+      if (!id) continue;
+      const placement =
+        editing?.id === id
+          ? editing.texture
+          : current().bodies.find((b) => b.id === id)?.appearance?.texture;
+      if (placement)
+        bodyNodes.get(id)?.mesh.material.forEach((material) => {
+          if (material instanceof THREE.MeshPhysicalMaterial)
+            updateMaterialPlacement(material, placement);
+        });
+    }
+    previewedTexture = editing?.id;
+    textureEditor?.update();
+    render();
+  };
+  textureEditor = installTextureEditing({
+    host: container,
+    canvas: renderer.domElement,
+    camera: () => camera,
+    hitAt: (ray) => {
+      const hit = intersectModel(ray, bodies, 'selection')[0];
+      return hit?.face
+        ? {
+            bodyId: hit.object.userData.id,
+            point: hit.point,
+            normal: hit.face.normal.clone().transformDirection(hit.object.matrixWorld),
+          }
+        : undefined;
+    },
+    current: () => {
+      const props = current(),
+        editing = props.editingTexture;
+      const body = props.bodies.find((b) => b.id === editing?.id);
+      return editing && body && !body.locked && !props.modalOpen
+        ? {
+            body,
+            texture: editing.texture,
+            change: (value) => props.onTexture?.(value),
+            commit: () => current().onTextureCommit?.(),
+          }
+        : undefined;
+    },
+    enableCamera: (enabled) => {
+      controls.enabled = enabled;
+    },
+  });
   const interactions = installInteractions({
     container,
     canvas: renderer.domElement,
@@ -1218,6 +1402,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   resize();
   sync();
   return {
+    texture,
     sync,
     workspaceViews: workspaceViews.sync,
     annotations,
@@ -1239,6 +1424,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       cancelAnimationFrame(renderFrame);
       observer.disconnect();
       navigation.dispose();
+      viewCube?.dispose();
+      textureEditor?.dispose();
       controls.dispose();
       knife.dispose();
       interactions.dispose();
@@ -1286,10 +1473,12 @@ export function Viewport(props: Props) {
   useEffect(() => {
     api.current?.sync();
     api.current?.interactionSync();
+    api.current?.texture();
     if (props.meshes.length && !hadGeometry.current) api.current?.command({ id: 0, type: 'fit' });
     hadGeometry.current = props.meshes.length > 0;
   }, [
     props.bodies,
+    props.modelDisplay,
     props.meshes,
     props.selectedIds,
     props.moveHoveredIds,
@@ -1306,7 +1495,9 @@ export function Viewport(props: Props) {
     props.axisLabels,
     props.gridStep,
     props.assets,
+    props.editingTexture?.id,
   ]);
+  useEffect(() => api.current?.texture(), [props.editingTexture]);
   useEffect(
     () => api.current?.workspaceViews(),
     [
@@ -1347,6 +1538,7 @@ export function Viewport(props: Props) {
       props.knifeCommand,
       props.reference,
       props.axis,
+      props.constraintReset,
       props.penPoints.length,
       props.freeRotate,
       props.guideRotationStep,

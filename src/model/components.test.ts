@@ -3,19 +3,63 @@ import { asComponent, synchronizeComponents, uniqueComponents } from './componen
 import { freshProject, makeBody, parseProject } from './project';
 import { translateSelection } from './groups';
 import { removeSelection, selectionUnit } from './selection';
+import { defaultAppearance } from './materials';
 
-it('copies components as linked instances and leaves ordinary bodies independent', () => {
+it('copies model parts as linked instances without requiring a component conversion first', () => {
   const source = { ...makeBody(600, 400, 18), purpose: 'component' as const };
   const other = makeBody(100, 100, 50);
   const before = { ...freshProject(), bodies: [source, other] };
   const copied = translateSelection(before, [source.id, other.id], [700, 0, 0], true).project;
   expect(copied.bodies[0].component?.id).toBe(copied.bodies[2].component?.id);
   expect(copied.bodies[0].component?.id).toBeTruthy();
-  expect(copied.bodies[3].component).toBeUndefined();
+  expect(copied.bodies[3].component?.id).toBeTruthy();
+  expect(copied.bodies[3].component?.id).toBe(copied.bodies[1].component?.id);
+  expect(copied.bodies[3].component?.id).not.toBe(copied.bodies[2].component?.id);
   expect(parseProject(JSON.stringify(copied)).bodies[2].component).toEqual(
     copied.bodies[2].component,
   );
   expect(uniqueComponents(copied, [copied.bodies[2].id]).bodies[2].component).toBeUndefined();
+});
+
+it('making a group unique preserves its internal copies and detaches every outside instance', () => {
+  const a = asComponent(makeBody()),
+    b = { ...a, id: 'inside' },
+    c = { ...a, id: 'outside' };
+  const p = { ...freshProject(), bodies: [a, b, c] };
+  const unique = uniqueComponents(p, [a.id, b.id], true);
+  expect(unique.bodies[0].component?.id).toBe(unique.bodies[1].component?.id);
+  expect(unique.bodies[0].component?.id).not.toBe(c.component!.id);
+  expect(unique.bodies[2]).toBe(c);
+  expect(unique.bodies[0].feature).toBe(a.feature);
+});
+
+it('local texture placement keeps color and finish shared in both directions', async () => {
+  const a = asComponent({ ...makeBody(), appearance: defaultAppearance('pine') });
+  const b = { ...a, id: 'copy' };
+  const before = { ...freshProject(), bodies: [a, b] };
+  const placed = {
+    ...a,
+    localTexture: true,
+    appearance: { ...a.appearance!, texture: { ...a.appearance!.texture, offsetX: 98 } },
+  };
+  const own = await synchronizeComponents(before, { ...before, bodies: [placed, b] }, vi.fn());
+  expect(own.bodies[1]).toEqual(b);
+  const painted = {
+    ...placed,
+    color: '#445566',
+    appearance: { ...placed.appearance, roughness: 0.12 },
+  };
+  const shared = await synchronizeComponents(own, { ...own, bodies: [painted, b] }, vi.fn());
+  expect(shared.bodies[1].color).toBe('#445566');
+  expect(shared.bodies[1].appearance!.roughness).toBe(0.12);
+  expect(shared.bodies[1].appearance!.texture.offsetX).toBe(0);
+  const next = await synchronizeComponents(
+    shared,
+    { ...shared, bodies: [shared.bodies[0], { ...shared.bodies[1], color: '#112233' }] },
+    vi.fn(),
+  );
+  expect(next.bodies[0].color).toBe('#112233');
+  expect(next.bodies[0].appearance!.texture.offsetX).toBe(98);
 });
 
 it('keeps placement, names, visibility and local material independent; shared appearance propagates', async () => {

@@ -87,7 +87,12 @@ export class BodySpatialIndex {
   }
 }
 
-export function intersectModel(ray: THREE.Raycaster, group: THREE.Group) {
+/** Ghosts keep their CAD hit geometry for references, but never block selection or sight. */
+export function intersectModel(
+  ray: THREE.Raycaster,
+  group: THREE.Group,
+  purpose: 'reference' | 'selection' | 'occlusion' = 'reference',
+) {
   const index = group.userData.spatialIndex as BodySpatialIndex | undefined;
   const nodes = group.userData.pickNodes as Map<string, THREE.Object3D[]> | undefined;
   const objects =
@@ -96,7 +101,12 @@ export function intersectModel(ray: THREE.Raycaster, group: THREE.Group) {
       : group.children;
   const hits = ray
     .intersectObjects(
-      objects.filter((object) => object.visible),
+      objects.filter(
+        (object) =>
+          object.visible &&
+          (purpose === 'reference' || object.userData.modelDisplay !== 'ghost') &&
+          (purpose !== 'occlusion' || object.userData.modelDisplay !== 'wireframe'),
+      ),
       false,
     )
     .filter((hit) => !group.userData.acceptPoint || group.userData.acceptPoint(hit.point));

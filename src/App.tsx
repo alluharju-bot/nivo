@@ -1,4 +1,7 @@
 import { applySplitResult } from './model/splitReferences';
+import { linkSplitCopies } from './model/linkedSplit';
+import { displayLabels, displayModes, setModelDisplay, type DisplayMode } from './model/display';
+import { DisplayControls } from './ui/DisplayControls';
 import { selectionDescription } from './model/activity';
 import { bezierInstruction } from './model/bezier';
 import { upsertGuide } from './model/guideMerge';
@@ -14,6 +17,8 @@ import { useWorkspaceViews } from './ui/WorkspaceViews';
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, dimensionEnvelope, type PointDimension } from './model/project';
 import { PaintPanel } from './ui/PaintPanel';
+import { TexturePanel } from './ui/TexturePanel';
+import { hasTexture, varyTextures, type TextureVariation } from './model/textureVariation';
 import { ContextActions, type QuickAction } from './ui/ContextActions';
 import { CommandSearch } from './ui/CommandSearch';
 import type { Command } from './ui/commands';
@@ -21,7 +26,7 @@ import { ToolContext } from './ui/ToolContext';
 import { RepeatAction } from './ui/RepeatAction';
 import { repeatTranslation } from './model/repeat';
 import { OverlapPicker, type PickCandidate } from './ui/OverlapPicker';
-import { defaultAppearance } from './model/materials';
+import { defaultAppearance, type TexturePlacement } from './model/materials';
 import { CabinetBuilder } from './ui/CabinetBuilder';
 import { insertCabinet } from './model/cabinet';
 import { useRenderJob } from './render/useRenderJob';
@@ -153,6 +158,7 @@ import {
 import { RotationPanel } from './ui/RotationPanel';
 import { useOffsetOutline } from './ui/useOffsetOutline';
 import { DynamicInput, type NumericField } from './ui/DynamicInput';
+import { penTravelDirection, penPointAtLength } from './model/penInput';
 import { CommitCheckbox } from './ui/CommitCheckbox';
 import { BooleanPanel, ShapeProperties, type Operation } from './ui/ModelingPanel';
 import { applyBoolean, type BooleanOperation } from './model/operations';
@@ -259,7 +265,7 @@ const instructions: Record<Tool, string> = {
   extrude:
     'E · Shift poimii tavoitemitan pisteestä, reunasta, apuviivasta tai pinnasta. Kirjoitettu mitta ohittaa tartunnan. Enter tai klikkaus hyväksyy.',
   move: 'Korostus näyttää siirrettävät osat. Vedä valitusta osasta; Shift-klikkaus muuttaa valintaa. Tyhjästä veto valitsee laatikolla. X/Y/Z lukitsee akselin, Ctrl vaihtaa kopioinnin.',
-  pen: 'X/Y/Z lukitsee akselin. Shift lukitsee suunnan; poimi pituus toisesta pisteestä. Sama akselinäppäin vapauttaa lukon. Esc peruu toiminnon; seuraava Esc päättää työkalun.',
+  pen: 'Osoita suunta ja kirjoita viivan pituus. + jatkaa osoitettuun suuntaan, − vastakkaiseen. Enter lisää pisteen. Tab vie X/Y/Z-siirtymiin. Shift lukitsee suunnan ja poimii viitepituuden.',
   measure:
     'Vedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc peruu toiminnon; seuraava Esc päättää työkalun. R aloittaa hiirellä kierron 22,5° välein, Shift+R vapaasti.',
   navigate: 'Vedä yhdellä sormella kiertääksesi. Kahdella sormella panoroit ja zoomaat.',
@@ -338,6 +344,7 @@ export default function App() {
   const rotationRef = useRef<Omit<Rotation, 'angle'> | undefined>(undefined);
   const [popup, setPopup] = useState<[number, number]>();
   const [knifeMode, setKnifeMode] = useState<'line' | 'polyline' | 'curve' | 'free'>('line');
+  const [knifeUnique, setKnifeUnique] = useState(false);
   const [knifeCommand, setKnifeCommand] = useState<{ id: number; action: 'finish' | 'clear' }>();
   const [penMode, setPenMode] = useState<'line' | 'bezier'>('line');
   const [penPoints, setPenPoints] = useState<Vec3[]>([]);
@@ -346,6 +353,11 @@ export default function App() {
   const [penHover, setPenHover] = useState<Vec3>();
   const [penConstraint, setPenConstraint] = useState<Vec3>();
   const constraintRef = useRef<Vec3 | undefined>(undefined);
+  const penPointerRef = useRef<Vec3 | undefined>(undefined);
+  const penDirectionRef = useRef<Vec3 | undefined>(undefined);
+  const penLengthDirectionRef = useRef<Vec3 | undefined>(undefined);
+  const [penInputAxis, setPenInputAxis] = useState<Axis>('x');
+  const [constraintReset, setConstraintReset] = useState(0);
   const [faceTarget, setFaceTarget] = useState<FaceTarget>();
   const faceRef = useRef<FaceTarget | undefined>(undefined);
   const [faceSpan, setFaceSpan] = useState<FaceSpan>();
@@ -434,6 +446,7 @@ export default function App() {
     included: string[];
     revision: number;
     keep: boolean;
+    unique?: boolean;
   }>();
   const [openingBusy, setOpeningBusy] = useState(false);
   const [surfaceSplitDraft, setSurfaceSplitDraft] = useState<{
@@ -441,6 +454,7 @@ export default function App() {
     results: SplitResult[];
     included: string[];
     revision: number;
+    unique?: boolean;
   }>();
   const openingRequest = useRef(0);
   const [actionMenu, setActionMenu] = useState<{
@@ -455,6 +469,9 @@ export default function App() {
   const [brush, setBrush] = useState({ appearance: defaultAppearance('matte'), color: '#dbd3bd' });
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
+  const [paintMode, setPaintMode] = useState<'paint' | 'texture'>('paint');
+  const [textureDraft, setTextureDraft] = useState<{ id: string; texture: TexturePlacement }>();
+  const textureDraftRef = useRef<typeof textureDraft>(undefined);
   const [openedAssembly, setOpenedAssembly] = useState<string>();
   const actionContext: SelectionContext = {
     ids: selectedIds,
@@ -474,6 +491,15 @@ export default function App() {
   const [cabinetOpen, setCabinetOpen] = useState(false);
   const renderJob = useRenderJob();
   const [mode, setMode] = useState<'model' | 'drawing'>('model');
+  const changeDisplay = (value: DisplayMode) => {
+    if (busy) return;
+    const next = setModelDisplay(project, value, selectedIds);
+    if (next !== project)
+      void editor.transact(
+        next,
+        `${displayLabels[value]} · ${selectedIds.length ? `${selectedIds.length} valittua osaa` : 'koko näkymä'}.`,
+      );
+  };
   const [fields, setFields] = useState<Fields>(defaults);
   const fieldsRef = useRef(fields);
   const constructionLine =
@@ -493,7 +519,7 @@ export default function App() {
     setSnapLabel(gridSnap ? `Ruudukko · ${project.settings.gridStep ?? 10} mm` : 'Vapaa tartunta');
   }, [gridSnap, project.settings.gridStep]);
   const [projection, setProjection] = useState<'perspective' | 'orthographic'>('perspective');
-  const [view, setView] = useState<View>('iso');
+  const [view, setView] = useState<View>();
   const [cameraCommand, setCameraCommand] = useState<CameraCommand>();
   const [panelOpen, setPanelOpen] = useState(true);
   const [help, setHelp] = useState(false);
@@ -560,12 +586,101 @@ export default function App() {
         })),
     [project.bodies, project.groups, openedAssembly, isolated, project.id],
   );
+  const textureBody =
+    tool === 'paint' && paintMode === 'texture' && !renderOpen
+      ? visibleBodies.find(
+          (b) =>
+            b.id === selected &&
+            !b.locked &&
+            hasTexture(b) &&
+            (!editingBodyId || b.id === editingBodyId),
+        )
+      : undefined;
+  const activeTexture = textureBody
+    ? {
+        id: textureBody.id,
+        texture:
+          textureDraft?.id === textureBody.id
+            ? textureDraft.texture
+            : (textureBody.appearance ?? defaultAppearance(textureBody.material)).texture,
+      }
+    : undefined;
+  useEffect(() => {
+    textureDraftRef.current = undefined;
+    setTextureDraft(undefined);
+  }, [project, selected, paintMode, tool, renderOpen]);
+  const previewTexture = (texture: TexturePlacement) => {
+    if (!textureBody || busy) return;
+    const draft = { id: textureBody.id, texture };
+    textureDraftRef.current = draft;
+    setTextureDraft(draft);
+  };
+  const commitTexture = () => {
+    const draft = textureDraftRef.current;
+    if (!draft || busy || !textureBody || textureBody.id !== draft.id) return;
+    textureDraftRef.current = undefined;
+    const appearance = textureBody.appearance ?? defaultAppearance(textureBody.material);
+    if (JSON.stringify(appearance.texture) === JSON.stringify(draft.texture)) return;
+    void editor.transact(
+      {
+        ...project,
+        bodies: project.bodies.map((b) =>
+          b.id === draft.id
+            ? { ...b, localTexture: true, appearance: { ...appearance, texture: draft.texture } }
+            : b,
+        ),
+      },
+      `Tekstuurin sijoittelu · ${textureBody.name}.`,
+    );
+  };
+  const textureSelection = project.bodies.filter((b) => selectedIdSet.has(b.id) && hasTexture(b));
+  const textureSelectionBlocked = textureSelection.some(
+    (b) =>
+      bodyLocked(b, project.groups) ||
+      !inAssembly(project, b.id, openedAssembly) ||
+      (!!editingBodyId && b.id !== editingBodyId),
+  );
+  const varySelectedTextures = (options: TextureVariation) => {
+    if (busy || textureSelectionBlocked) return;
+    try {
+      const next = varyTextures(
+        project,
+        selectedIds,
+        options,
+        crypto.getRandomValues(new Uint32Array(1))[0],
+        editor.meshes,
+      );
+      void editor.transact(next, `Tekstuurien vaihtelu · ${textureSelection.length} osaa.`);
+    } catch (error) {
+      editor.setError((error as Error).message);
+    }
+  };
   const visibleDimensions = useMemo(() => {
+    if (project.settings.measurementsHidden) return [];
     const ids = new Set(visibleBodies.map((body) => body.id));
     return project.dimensions.filter((d) =>
       dimensionBodyIds(d, project).every((id) => ids.has(id)),
     );
-  }, [project.dimensions, visibleBodies]);
+  }, [project.dimensions, visibleBodies, project.settings.measurementsHidden]);
+  const visibleGuides = useMemo(
+    () => (project.settings.measurementsHidden ? [] : project.guides),
+    [project.guides, project.settings.measurementsHidden],
+  );
+  const toggleMeasurements = async () => {
+    const measurementsHidden = !project.settings.measurementsHidden;
+    if (
+      await editor.transact(
+        { ...project, settings: { ...project.settings, measurementsHidden } },
+        measurementsHidden
+          ? 'Kaikki mittaviivat ja apuviivat piilotettu.'
+          : 'Mittaviivat ja apuviivat näkyvät.',
+      )
+    ) {
+      setSelectedGuideId(undefined);
+      setSelectedGuideIds([]);
+      setGuidePointMenu(undefined);
+    }
+  };
   const renderBodies = useMemo(() => {
     const visible = new Set(visibleBodies.map((b) => b.id));
     return project.bodies
@@ -576,6 +691,20 @@ export default function App() {
     const ids = new Set(visibleBodies.map((body) => body.id));
     return editor.meshes.filter((mesh) => ids.has(mesh.id));
   }, [editor.meshes, visibleBodies]);
+  useLayoutEffect(() => {
+    const toolbar = document.querySelector<HTMLElement>('.canvas-topbar');
+    const host = toolbar?.closest<HTMLElement>('.canvas-area');
+    if (!toolbar || !host) return;
+    const positionOverlays = () =>
+      host.style.setProperty(
+        '--view-toolbar-bottom',
+        `${toolbar.offsetTop + toolbar.offsetHeight}px`,
+      );
+    positionOverlays();
+    const observer = new ResizeObserver(positionOverlays);
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, [mode, editingBodyId, openedAssembly]);
   const moveHoveredIds = useMemo(() => {
     if (tool !== 'move' || !moveHovered) return [];
     const target = visibleBodies.find((b) => b.id === moveHovered);
@@ -677,9 +806,21 @@ export default function App() {
         assets: asset
           ? { ...current.project.assets, [asset.id]: asset.asset }
           : current.project.assets,
-        bodies: current.project.bodies.map((b) =>
-          ids.includes(b.id) ? { ...b, appearance, color: color ?? b.color } : b,
-        ),
+        bodies: current.project.bodies.map((b) => {
+          if (!ids.includes(b.id)) return b;
+          const old = b.appearance ?? defaultAppearance(b.material);
+          const textureOnly =
+            color === undefined &&
+            JSON.stringify({ ...old, texture: undefined }) ===
+              JSON.stringify({ ...appearance, texture: undefined }) &&
+            JSON.stringify(old.texture) !== JSON.stringify(appearance.texture);
+          return {
+            ...b,
+            appearance,
+            color: color ?? b.color,
+            localTexture: textureOnly ? true : b.localTexture,
+          };
+        }),
       },
       'Materiaali ja tekstuuri tallennettu.',
     );
@@ -779,10 +920,19 @@ export default function App() {
       writeFields({ thickness: value });
       return;
     }
+    if (tool === 'pen' && key === 'length' && !lockRef.current.has(key)) {
+      penLengthDirectionRef.current = penDirectionRef.current;
+      for (const axis of ['x', 'y', 'z']) lockRef.current.delete(axis);
+    }
+    if (tool === 'pen' && ['x', 'y', 'z'].includes(key) && lockRef.current.has('length')) {
+      penPointerRef.current = hoverRef.current;
+      lockRef.current.delete('length');
+      penLengthDirectionRef.current = undefined;
+    }
     lockRef.current.add(key);
     setLocked(new Set(lockRef.current));
     writeFields({ [key]: value });
-    if (tool === 'pen') penMove(hoverRef.current ?? penRef.current.at(-1));
+    if (tool === 'pen') penMove(penPointerRef.current ?? penRef.current.at(-1));
     if (tool === 'measure' && guideRef.current) {
       guideRef.current = { ...guideRef.current, endAnchor: undefined };
       if (key === 'angle') {
@@ -797,6 +947,10 @@ export default function App() {
   const clearLocks = () => {
     lockRef.current.clear();
     setLocked(new Set());
+    penPointerRef.current = undefined;
+    penDirectionRef.current = undefined;
+    penLengthDirectionRef.current = undefined;
+    setPenInputAxis('x');
   };
   const resetGesture = () => {
     openingRequest.current++;
@@ -1032,10 +1186,10 @@ export default function App() {
     }
   };
   const fit = () => setCameraCommand({ id: performance.now(), type: 'fit' });
-  const changeView = (next: View) => {
+  const changeView = (next: View, fit = false) => {
     setView(next);
     setProjection(next === 'iso' ? 'perspective' : 'orthographic');
-    setCameraCommand({ id: performance.now(), type: 'view', view: next });
+    setCameraCommand({ id: performance.now(), type: 'view', view: next, fit });
   };
   const changeRotation = (patch: Partial<Rotation>) => {
     if (!rotationRef.current) return;
@@ -1100,6 +1254,7 @@ export default function App() {
       return;
     }
     if (next === 'knife' || next === 'paint') {
+      if (next === 'knife') setKnifeUnique(false);
       setPanelOpen(true);
       return;
     }
@@ -1304,16 +1459,17 @@ export default function App() {
   const precisePenPoint = (point: Vec3): Vec3 => {
     const start = penRef.current.at(-1);
     if (!start) return point;
-    if (constraintRef.current && lockRef.current.has('length'))
-      return add(
+    if (lockRef.current.has('length'))
+      return penPointAtLength(
         start,
-        scaleVector(constraintRef.current, parseLength(fieldsRef.current.length, true, true)),
+        penLengthDirectionRef.current,
+        parseLength(fieldsRef.current.length, true, true),
       );
-    return point.map((n, i) => {
+    return point.map((value, i) => {
       const key = (['x', 'y', 'z'] as const)[i];
       return lockRef.current.has(key)
         ? start[i] + parseLength(fieldsRef.current[key], true, true)
-        : n;
+        : value;
     }) as Vec3;
   };
   const changeOperation = (operation: Operation) => {
@@ -1654,10 +1810,23 @@ export default function App() {
       } else if (tool === 'pen') {
         if (!forceClose && lockRef.current.size && hoverRef.current) {
           const point = precisePenPoint(hoverRef.current);
+          if (Math.hypot(...sub(point, penRef.current.at(-1)!)) < 1e-8) {
+            editor.setError('');
+            editor.setMessage('Siirtymä on nolla. Jatka osoittamalla seuraavan viivan suunta.');
+            clearLocks();
+            document
+              .querySelector<HTMLCanvasElement>('canvas[data-testid="viewport"]')
+              ?.focus({ preventScroll: true });
+            return;
+          }
           penRef.current = [...penRef.current, point];
           setPenPoints(penRef.current);
           clearLocks();
-          writeFields({ x: '0', y: '0', z: '0' });
+          writeFields({ x: '0', y: '0', z: '0', length: '0' });
+          // The next number starts a new length; Shift/X/Y/Z must reach the drawing tool.
+          document
+            .querySelector<HTMLCanvasElement>('canvas[data-testid="viewport"]')
+            ?.focus({ preventScroll: true });
           editor.setError('');
           void finishPenPath(false);
           return;
@@ -1946,28 +2115,44 @@ export default function App() {
     );
   };
   const penMove = (point?: Vec3) => {
+    penPointerRef.current = point;
     if (point && penRef.current.length) {
       const start = penRef.current.at(-1)!;
-      const next = [...point] as Vec3;
-      for (const [i, key] of ['x', 'y', 'z'].entries()) {
-        if (lockRef.current.has(key)) {
-          try {
-            next[i] = start[i] + parseLength(fieldsRef.current[key as 'x' | 'y' | 'z'], true, true);
-          } catch {}
-        } else
-          writeFields({
-            [key]: String(Math.round((point[i] - start[i]) * 100) / 100),
-          });
-      }
-      point = next;
-      if (constraintRef.current && !lockRef.current.has('length'))
+      if (!lockRef.current.has('length')) {
+        penDirectionRef.current = penTravelDirection(
+          start,
+          point,
+          constraintRef.current,
+          penDirectionRef.current,
+        );
         writeFields({
-          length: String(Math.round(dot(sub(point, start), constraintRef.current) * 100) / 100),
+          length: inputNumber(Math.hypot(...sub(point, start))),
         });
-      if (constraintRef.current && lockRef.current.has('length'))
-        try {
-          point = precisePenPoint(point);
-        } catch {}
+        const delta = sub(point, start);
+        if (!lockRef.current.size && Math.hypot(...delta) > 1e-8) {
+          const index = delta.map(Math.abs).indexOf(Math.max(...delta.map(Math.abs)));
+          setPenInputAxis((['x', 'y', 'z'] as const)[index]);
+        }
+        const patch: Partial<Fields> = {};
+        for (const [i, key] of (['x', 'y', 'z'] as const).entries())
+          if (!lockRef.current.has(key)) patch[key] = inputNumber(delta[i]);
+        writeFields(patch);
+      } else {
+        // Keep the direction captured before typing; the adjusted preview must
+        // never feed back into the sign of the next digit or pointer event.
+        penLengthDirectionRef.current ??= penTravelDirection(start, point, constraintRef.current);
+      }
+      try {
+        point = precisePenPoint(point);
+        if (lockRef.current.has('length')) {
+          const delta = sub(point, start);
+          writeFields({
+            x: inputNumber(delta[0]),
+            y: inputNumber(delta[1]),
+            z: inputNumber(delta[2]),
+          });
+        }
+      } catch {}
     }
     hoverRef.current = point;
     setPenHover(point);
@@ -2070,12 +2255,13 @@ export default function App() {
       setGuideDraft(guideRef.current);
     } else if (event.type === 'pen') {
       if (committing.current || busy) return;
-      if (event.close) {
+      if (event.close && !lockRef.current.size) {
         void apply(true);
         return;
       }
       try {
-        penMove(precisePenPoint(event.point));
+        precisePenPoint(event.point); // Validate numeric input before committing.
+        penMove(event.point);
       } catch (e) {
         editor.setError((e as Error).message);
         return;
@@ -2107,10 +2293,14 @@ export default function App() {
       let pieces: string[] = [];
       const ok = await editor.transact(async () => {
         requireMovable(knifeTargets, project.groups);
-        const result = await editor.cad.knife(knifeTargets, rays, curveNormal);
+        let result = await editor.cad.knife(knifeTargets, rays, curveNormal);
         if (!result.affected.length)
           throw new Error(
             'Viiva ei halkaissut kappaletta. Vedä reitti kappaleen reunasta reunaan tai sulje siluetti sen sisällä.',
+          );
+        if (!knifeUnique)
+          result = await linkSplitCopies(project, result, (source, targets) =>
+            editor.cad.instances(source, targets),
           );
         pieces = result.pieces;
         return applySplitResult(project, result);
@@ -2370,16 +2560,31 @@ export default function App() {
                         testId: 'guide-angle',
                       },
                     ]
-                  : tool === 'pen' && penConstraint
+                  : tool === 'pen'
                     ? [
                         {
                           key: 'length',
-                          label: 'Pituus lukitulla suunnalla',
+                          label: penConstraint
+                            ? 'Pituus lukitulla suunnalla'
+                            : 'Pituus piirtosuuntaan',
                           value: fields.length,
                           unit: 'mm',
                           testId: 'pen-length',
                           signed: true,
                         },
+                        ...(!penConstraint
+                          ? [
+                              penInputAxis,
+                              ...(['x', 'y', 'z'] as Axis[]).filter((a) => a !== penInputAxis),
+                            ].map((key) => ({
+                              key,
+                              label: `Siirtymä · ${key.toUpperCase()}`,
+                              value: fields[key],
+                              unit: 'mm',
+                              testId: `move-${key}`,
+                              signed: true,
+                            }))
+                          : []),
                       ]
                     : ['x', 'y', 'z'].map((key) => ({
                         key,
@@ -2628,7 +2833,7 @@ export default function App() {
       setMode('model');
       setPartsOpen(false);
       setRenderOpen(false);
-      changeView('iso');
+      changeView('iso', true);
     }
   };
   const finishedExample = async () => {
@@ -2647,7 +2852,7 @@ export default function App() {
         setMode('model');
         setPartsOpen(false);
         setRenderOpen(false);
-        changeView('iso');
+        changeView('iso', true);
       }
     } catch (error) {
       editor.setError((error as Error).message);
@@ -2666,7 +2871,7 @@ export default function App() {
         setMode('model');
         setPartsOpen(false);
         setRenderOpen(false);
-        changeView('iso');
+        changeView('iso', true);
       }
     } catch (e) {
       editor.setError((e as Error).message);
@@ -2814,6 +3019,22 @@ export default function App() {
       if (renderOpen || partsOpen || mode === 'drawing') return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (
+        tool === 'select' &&
+        !event.shiftKey &&
+        !event.repeat &&
+        /^[1-4]$/.test(key) &&
+        !dimensionDraft &&
+        !guideDraft &&
+        !pickOthers &&
+        !workspace.sectionPick &&
+        !workspace.calibration &&
+        !document.querySelector('[data-testid="viewport"]')?.hasAttribute('data-pointer-active')
+      ) {
+        event.preventDefault();
+        changeDisplay(displayModes[Number(key) - 1]);
+        return;
+      }
+      if (
         awaitingStart &&
         numericFields.length &&
         !(tool === 'measure' && measureMode === 'dimension') &&
@@ -2856,6 +3077,7 @@ export default function App() {
       }
       if (key === 'backspace' && tool === 'pen') {
         event.preventDefault();
+        clearLocks();
         penRef.current = penRef.current.slice(0, -1);
         setPenPoints(penRef.current);
         return;
@@ -2946,7 +3168,7 @@ export default function App() {
   );
   const linkSelected = async () => {
     if (!body || busy) return;
-    const source = asComponent(body);
+    const source = { ...asComponent(body), localMaterial: false, localTexture: false };
     const targets = project.bodies
       .filter((b) => selectedIdSet.has(b.id) && b.id !== body.id)
       .map((b) => asComponent(b, source.component!.id));
@@ -2966,6 +3188,7 @@ export default function App() {
               appearance: source.appearance,
               material: source.material,
               localMaterial: false,
+              localTexture: false,
             })),
           ].map((b) => [b.id, b]),
         );
@@ -2978,13 +3201,24 @@ export default function App() {
   };
   const makeUnique = () => {
     void editor.transact(
-      uniqueComponents(project, selectedIds),
-      'Valinnan komponenttilinkit irrotettu.',
+      uniqueComponents(
+        project,
+        selectedGroup ? groupBodies(project, selectedGroup.id).map((b) => b.id) : selectedIds,
+        !!selectedGroup,
+      ),
+      selectedGroup
+        ? 'Ryhmän osat erotettu muista kopioista. Ryhmän sisäiset linkit säilyivät.'
+        : 'Valinnan komponenttilinkit irrotettu.',
     );
   };
   const paintBody = (id: string) => {
     if (busy || !inAssembly(project, id, openedAssembly) || (editingBodyId && id !== editingBodyId))
       return;
+    if (paintMode === 'texture') {
+      if (selectedIdSet.has(id)) setSelected(id);
+      else select(id);
+      return;
+    }
     const ids = paintAll && selectedIdSet.has(id) ? selectedIds : [id];
     void editor.transact(
       {
@@ -3060,13 +3294,11 @@ export default function App() {
     const results = draft.results.filter((r) => draft.included.includes(r.body.id));
     const cleaned = removeSelection(project, [draft.profile.id]);
     const byId = new Map(results.map((r) => [r.body.id, r.body]));
-    const next = uniqueComponents(
-      {
-        ...cleaned,
-        bodies: cleaned.bodies.map((b) => byId.get(b.id) ?? b),
-      },
-      draft.included,
-    );
+    const candidate = {
+      ...cleaned,
+      bodies: cleaned.bodies.map((b) => byId.get(b.id) ?? b),
+    };
+    const next = draft.unique ? uniqueComponents(candidate, draft.included) : candidate;
     if (
       await editor.transact(
         next,
@@ -3119,6 +3351,7 @@ export default function App() {
     profileId: draft.profile.id,
     targetIds: [...draft.included],
     keep: draft.keep,
+    unique: draft.unique,
   });
   const openingContext = (draft: NonNullable<typeof openingDraft>): SelectionContext => ({
     ids: [draft.profile.id, ...draft.included],
@@ -3175,6 +3408,7 @@ export default function App() {
           : result.affected,
         revision,
         keep: settings?.keep ?? false,
+        unique: settings?.unique ?? false,
       });
     } catch (e) {
       editor.setError((e as Error).message);
@@ -3216,17 +3450,15 @@ export default function App() {
     const removed = draft.included.filter((id) => !results.has(id));
     if (!draft.keep) removed.push(draft.profile.id);
     const cleaned = removeSelection(project, removed);
-    const next = uniqueComponents(
-      {
-        ...cleaned,
-        bodies: cleaned.bodies.flatMap((b) => {
-          if (!draft.included.includes(b.id)) return [b];
-          const result = results.get(b.id);
-          return result ? [result] : [];
-        }),
-      },
-      draft.included,
-    );
+    const candidate = {
+      ...cleaned,
+      bodies: cleaned.bodies.flatMap((b) => {
+        if (!draft.included.includes(b.id)) return [b];
+        const result = results.get(b.id);
+        return result ? [result] : [];
+      }),
+    };
+    const next = draft.unique ? uniqueComponents(candidate, draft.included) : candidate;
     if (
       await editor.transact(
         next,
@@ -3356,7 +3588,7 @@ export default function App() {
                   },
                 ]
               : []),
-            ...(body?.component
+            ...(project.bodies.some((b) => selectedIdSet.has(b.id) && b.component)
               ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }]
               : []),
             {
@@ -3579,19 +3811,21 @@ export default function App() {
   const activeTool = !['select', 'navigate'].includes(tool);
   const shapeTool = ['rectangle', 'circle', 'pen'].includes(tool);
   const toolTitle =
-    tool === 'pen' && penMode === 'bezier'
-      ? 'Bézier-käyrä'
-      : tool === 'circle'
-        ? { circle: 'Ympyrä', ellipse: 'Ellipsi', polygon: 'Monikulmio', sphere: 'Pallo' }[
-            shapeKind
-          ]
-        : tool === 'measure'
-          ? { dimension: 'Dimensio', guide: 'Apuviiva', free: 'Vapaa mittaviiva' }[measureMode]
-          : tool === 'boolean'
-            ? booleanOperation === 'cut'
-              ? 'Leikkaa'
-              : 'Yhdistä'
-            : (tools.find((t) => t.id === tool)?.label ?? '');
+    tool === 'paint' && paintMode === 'texture'
+      ? 'Tekstuurin asettelu'
+      : tool === 'pen' && penMode === 'bezier'
+        ? 'Bézier-käyrä'
+        : tool === 'circle'
+          ? { circle: 'Ympyrä', ellipse: 'Ellipsi', polygon: 'Monikulmio', sphere: 'Pallo' }[
+              shapeKind
+            ]
+          : tool === 'measure'
+            ? { dimension: 'Dimensio', guide: 'Apuviiva', free: 'Vapaa mittaviiva' }[measureMode]
+            : tool === 'boolean'
+              ? booleanOperation === 'cut'
+                ? 'Leikkaa'
+                : 'Yhdistä'
+              : (tools.find((t) => t.id === tool)?.label ?? '');
   const targetName = selectedIds.length > 1 ? `${selectedIds.length} kappaletta` : body?.name;
   const shapeTarget =
     sketchTarget && project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name;
@@ -3610,37 +3844,39 @@ export default function App() {
           ? `Muokkaa osaa · ${editingBody.name}`
           : targetName;
   const toolStep =
-    tool === 'move'
-      ? selectedIds.length
-        ? 'Tartu valinnan korostettuun pisteeseen ja vedä. Shift lisää osia valintaan.'
-        : 'Osoita osaa ja tartu korostettuun pisteeseen.'
-      : tool === 'extrude'
-        ? faceTarget
-          ? 'Vedä pintaa tai kirjoita mitta. Shift poimii tavoitteen toisesta pisteestä tai pinnasta.'
-          : 'Osoita pintaa ja vedä siitä.'
-        : tool === 'offset'
+    tool === 'paint' && paintMode === 'texture'
+      ? 'Valitse osa ja vedä kuviota tai kierto-/kokokahvaa. Veto tallentuu heti. Esc päättää.'
+      : tool === 'move'
+        ? selectedIds.length
+          ? 'Tartu valinnan korostettuun pisteeseen ja vedä. Shift lisää osia valintaan.'
+          : 'Osoita osaa ja tartu korostettuun pisteeseen.'
+        : tool === 'extrude'
           ? faceTarget
-            ? 'Säädä sisennystä hiirellä tai kirjoita mitta. Klikkaus tai Enter hyväksyy.'
-            : 'Osoita pintaa ja napsauta tai vedä.'
-          : tool === 'rectangle'
-            ? awaitingStart
-              ? 'Napsauta alkukulmaa näkymästä.'
-              : 'Napsauta vastakulmaa tai kirjoita mitat. Enter hyväksyy.'
-            : tool === 'circle'
+            ? 'Vedä pintaa tai kirjoita mitta. Shift poimii tavoitteen toisesta pisteestä tai pinnasta.'
+            : 'Osoita pintaa ja vedä siitä.'
+          : tool === 'offset'
+            ? faceTarget
+              ? 'Säädä sisennystä hiirellä tai kirjoita mitta. Klikkaus tai Enter hyväksyy.'
+              : 'Osoita pintaa ja napsauta tai vedä.'
+            : tool === 'rectangle'
               ? awaitingStart
-                ? 'Napsauta keskipistettä näkymästä.'
-                : 'Napsauta reunaa tai kirjoita halkaisija. Enter hyväksyy.'
-              : tool === 'detail'
-                ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
-                : tool === 'measure'
-                  ? guidePointEdit
-                    ? 'Siirrä valitun viivan päätä. Muut viivat jäävät paikoilleen. Klikkaus tai Enter hyväksyy, Esc peruu.'
-                    : measureMode === 'dimension'
-                      ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
-                      : measureMode === 'free'
-                        ? 'Napsauta alkupistettä ja jatka pisteestä pisteeseen. Shift pitää suunnan lukittuna ja poimii pituuden toisesta pisteestä. X/Y/Z valitsee akselin. Enter tai Esc päättää ketjun.'
-                        : instructions.measure
-                  : instructions[tool];
+                ? 'Napsauta alkukulmaa näkymästä.'
+                : 'Napsauta vastakulmaa tai kirjoita mitat. Enter hyväksyy.'
+              : tool === 'circle'
+                ? awaitingStart
+                  ? 'Napsauta keskipistettä näkymästä.'
+                  : 'Napsauta reunaa tai kirjoita halkaisija. Enter hyväksyy.'
+                : tool === 'detail'
+                  ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
+                  : tool === 'measure'
+                    ? guidePointEdit
+                      ? 'Siirrä valitun viivan päätä. Muut viivat jäävät paikoilleen. Klikkaus tai Enter hyväksyy, Esc peruu.'
+                      : measureMode === 'dimension'
+                        ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
+                        : measureMode === 'free'
+                          ? 'Napsauta alkupistettä ja jatka pisteestä pisteeseen. Shift pitää suunnan lukittuna ja poimii pituuden toisesta pisteestä. X/Y/Z valitsee akselin. Enter tai Esc päättää ketjun.'
+                          : instructions.measure
+                    : instructions[tool];
   const linkTarget =
     tool === 'knife' || (tool === 'circle' && shapeKind === 'sphere')
       ? undefined
@@ -3746,7 +3982,13 @@ export default function App() {
         locked={locked}
         onChange={field}
         activeKey={
-          tool === 'extrude' ? extrusionMode : tool === 'move' ? (axis ?? moveInputAxis) : undefined
+          tool === 'extrude'
+            ? extrusionMode
+            : tool === 'move'
+              ? (axis ?? moveInputAxis)
+              : tool === 'pen'
+                ? 'length'
+                : undefined
         }
         initialValue={
           tool === 'move'
@@ -4188,7 +4430,26 @@ export default function App() {
                 </button>
               ))}
             </div>
+            <DisplayControls
+              display={project.settings.modelDisplay}
+              ids={selectedIds}
+              bodyIds={project.bodies.map((b) => b.id)}
+              disabled={busy}
+              onChange={changeDisplay}
+            />
             <div className="view-actions">
+              <IconButton
+                label={
+                  project.settings.measurementsHidden
+                    ? 'Näytä kaikki mittaviivat'
+                    : 'Piilota kaikki mittaviivat'
+                }
+                aria-pressed={!project.settings.measurementsHidden}
+                disabled={busy}
+                onClick={() => void toggleMeasurements()}
+              >
+                <Ruler />
+              </IconButton>
               <IconButton
                 label="Leikkaus"
                 aria-pressed={!!workspace.section || workspace.panel === 'section'}
@@ -4461,6 +4722,10 @@ export default function App() {
               </div>
             )}
             <Viewport
+              onCameraView={setView}
+              onCameraProjection={setProjection}
+              constraintReset={constraintReset}
+              modelDisplay={project.settings.modelDisplay}
               knifeMode={knifeMode}
               knifeCommand={knifeCommand}
               onKnife={(rays, normal) => void applyKnife(rays, normal)}
@@ -4541,6 +4806,9 @@ export default function App() {
               editingBodyId={editingBodyId}
               scopeIds={scopeIds}
               onPaint={paintBody}
+              editingTexture={busy ? undefined : activeTexture}
+              onTexture={previewTexture}
+              onTextureCommit={commitTexture}
               modalOpen={
                 commandOpen ||
                 measureMenu ||
@@ -4614,7 +4882,7 @@ export default function App() {
               gridStep={project.settings.gridStep ?? 10}
               busy={busy}
               command={cameraCommand}
-              guides={project.guides}
+              guides={visibleGuides}
               guidePreview={tool === 'measure' ? guidePreview : undefined}
               measureMode={measureMode}
               measureStart={measureStart}
@@ -4755,7 +5023,19 @@ export default function App() {
               onConstraint={(direction) => {
                 constraintRef.current = direction;
                 setPenConstraint(direction);
-                lockRef.current.delete('length');
+                // Releasing Shift must not discard a typed length. An explicit
+                // new axis reorients it using the unmodified pointer position.
+                const start = penRef.current.at(-1);
+                if (tool === 'pen' && direction && start && penPointerRef.current) {
+                  penDirectionRef.current = penTravelDirection(
+                    start,
+                    penPointerRef.current,
+                    direction,
+                    penDirectionRef.current,
+                  );
+                  if (lockRef.current.has('length'))
+                    penLengthDirectionRef.current = penDirectionRef.current;
+                }
               }}
               onAccept={(continueMeasure) => void apply(false, continueMeasure)}
               onPenHover={penMove}
@@ -4913,7 +5193,8 @@ export default function App() {
                         setAxis(undefined);
                         constraintRef.current = undefined;
                         setPenConstraint(undefined);
-                        setEpoch((e) => e + 1);
+                        clearLocks();
+                        setConstraintReset((value) => value + 1);
                       }}
                       aria-label="Vapauta suuntalukko"
                     >
@@ -5068,15 +5349,43 @@ export default function App() {
               )}
               {activeTool && linkNotice}
               {tool === 'paint' && (
-                <PaintPanel
-                  {...brush}
-                  count={selectedIds.length}
-                  all={paintAll}
-                  linked={paintLinked}
-                  onChange={(appearance, color) => setBrush({ appearance, color })}
-                  onAll={setPaintAll}
-                  onLinked={setPaintLinked}
-                />
+                <>
+                  <div className="material-tool-tabs" role="group" aria-label="Maalauksen työkalut">
+                    <button
+                      aria-pressed={paintMode === 'paint'}
+                      onClick={() => setPaintMode('paint')}
+                    >
+                      Maalaa
+                    </button>
+                    <button
+                      aria-pressed={paintMode === 'texture'}
+                      onClick={() => setPaintMode('texture')}
+                    >
+                      Tekstuurin asettelu
+                    </button>
+                  </div>
+                  {paintMode === 'paint' ? (
+                    <PaintPanel
+                      {...brush}
+                      count={selectedIds.length}
+                      all={paintAll}
+                      linked={paintLinked}
+                      onChange={(appearance, color) => setBrush({ appearance, color })}
+                      onAll={setPaintAll}
+                      onLinked={setPaintLinked}
+                    />
+                  ) : (
+                    <TexturePanel
+                      texture={activeTexture?.texture}
+                      name={textureBody?.name}
+                      count={textureSelection.length}
+                      disabled={busy || textureSelectionBlocked}
+                      onChange={previewTexture}
+                      onCommit={commitTexture}
+                      onVary={varySelectedTextures}
+                    />
+                  )}
+                </>
               )}
               {numericInput}
               {canRepeat && ['select', 'move'].includes(tool) && (
@@ -5154,9 +5463,18 @@ export default function App() {
                           : 'Napsauta reitin pisteet ja paina Enter. Alkupisteeseen palaaminen sulkee siluetin ja leikkaa.'}
                   </p>
                   <p>
-                    Molemmat puolet jäävät erillisiksi osiksi. Lukitut osat säilyvät. Paloista tulee
-                    uniikkeja; muut linkitetyt kopiot säilyvät.
+                    Molemmat puolet jäävät erillisiksi osiksi. Linkitetyt kopiot saavat saman
+                    leikkauksen ja vastaavat palat pysyvät linkitettyinä. Hold estää muokkaamisen.
                   </p>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={knifeUnique}
+                      disabled={busy}
+                      onChange={(e) => setKnifeUnique(e.target.checked)}
+                    />
+                    Tee kohteista uniikkeja · muuta vain valittuja
+                  </label>
                   <button
                     className="button dark full"
                     disabled={busy}
@@ -5549,6 +5867,7 @@ export default function App() {
                           className="button subtle"
                           disabled={!penPoints.length}
                           onClick={() => {
+                            clearLocks();
                             penRef.current = penRef.current.slice(0, -1);
                             setPenPoints(penRef.current);
                           }}
@@ -5909,6 +6228,8 @@ export default function App() {
                       onRemove={() => void removeGroup(selectedGroup.id)}
                       onMerge={() => void mergeSelected()}
                       onEdit={() => openAssembly(selectedGroup.id)}
+                      onUnique={makeUnique}
+                      canUnique={groupBodies(project, selectedGroup.id).some((b) => b.component)}
                       canMerge={
                         selectedIds.length > 1 &&
                         project.bodies
@@ -5922,7 +6243,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.20.0</span>
+                    <span>v0.21.0</span>
                   </div>
                 </>
               )}
@@ -5939,7 +6260,8 @@ export default function App() {
         >
           <p>
             Piirros jakaa valittujen osien pinnat muokattaviksi alueiksi. Osia ei tarvitse avata.
-            Linkitetyt kohdeosat tehdään uniikeiksi.
+            Muokkaus päivittyy myös kohteiden linkitettyihin kopioihin. Hold estää niiden
+            muokkaamisen.
           </p>
           <div className="opening-targets">
             {surfaceSplitDraft.results.map(({ body }) => (
@@ -5961,6 +6283,19 @@ export default function App() {
               </label>
             ))}
           </div>
+          {project.bodies.some((b) => surfaceSplitDraft.included.includes(b.id) && b.component) && (
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={!!surfaceSplitDraft.unique}
+                disabled={busy}
+                onChange={(e) =>
+                  setSurfaceSplitDraft({ ...surfaceSplitDraft, unique: e.target.checked })
+                }
+              />
+              Tee kohteista uniikkeja · muuta vain valittuja
+            </label>
+          )}
           <button
             className="button primary"
             disabled={busy || !surfaceSplitDraft.included.length}
@@ -5974,7 +6309,7 @@ export default function App() {
         <SelectionDialog side title="Leikkaa aukko" onClose={() => !busy && cancelOpening()}>
           <p>
             Muoto leikkaa kohtisuoraan molempiin suuntiin kaikkien valittujen osien läpi. Korostetut
-            osat muuttuvat. Piilotetut ja Hold-osat säilyvät.
+            osat ja niiden linkitetyt kopiot muuttuvat. Hold estää muokkaamisen.
           </p>
           <div className="opening-targets">
             {openingDraft.affected.map((id) => (
@@ -5997,7 +6332,15 @@ export default function App() {
             ))}
           </div>
           {project.bodies.some((b) => openingDraft.included.includes(b.id) && b.component) && (
-            <p>Leikattavat osat tehdään uniikeiksi. Muut linkitetyt kopiot säilyvät.</p>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={!!openingDraft.unique}
+                disabled={busy}
+                onChange={(e) => setOpeningDraft({ ...openingDraft, unique: e.target.checked })}
+              />
+              Tee kohteista uniikkeja · muuta vain valittuja
+            </label>
           )}
           <label className="checkbox-label">
             <input
@@ -6132,7 +6475,7 @@ export default function App() {
             setTool('select');
             setPanelOpen(true);
             setTab('objects');
-            changeView('iso');
+            changeView('iso', true);
             return true;
           }}
         />
@@ -6499,6 +6842,32 @@ export default function App() {
               tai verteksin päälle ja pidä Shift pohjassa. Viitteestä lähtevät suuntalinjat ohjaavat
               piirtämistä. Kesken kynän viivan Shift lukitsee viivan suunnan: voit poimia pituuden
               aiemmasta pisteestä. Kosketuksella käytä Poimi viite- ja akselipainikkeita.
+            </p>
+            <p>
+              <strong>Kynän mitat:</strong> kirjoita viivan pituus osoittamaasi suuntaan.
+              Positiivinen mitta jatkaa esikatselun suuntaan myös kameran kiertämisen jälkeen;
+              negatiivinen mitta kääntää etenemän. Tab vie tarvittaessa X/Y/Z-siirtymiin, joissa
+              tyhjä kenttä tarkoittaa nollaa. Enter lisää pisteen ja palauttaa syötön piirtämiseen;
+              seuraava Enter päättää viivan. Shift lukitsee suunnan ja poimii viitteestä pituuden.
+            </p>
+            <p>
+              <strong>Näkymäkuutio:</strong> napsauta nimettyä tahkoa tai kierrä kuutiota vetämällä.
+              Suunnan vaihto säilyttää zoomauksen. Sovita näkymään näyttää koko mallin tai valinnan.
+              Näyttötilat 1–4 (Solid, Tasaväri, Ghost, Wireframe) toimivat Valitse-tilassa;
+              yläreunan kuvakkeet toimivat myös muissa työkaluissa. Valinta rajaa vaikutuksen, ilman
+              valintaa tila koskee koko näkymää. Ghostin läpi voi valita ja siihen voi tarttua.
+            </p>
+            <p>
+              <strong>Mittaviivojen näkyvyys:</strong> näkymän yläreunan viivainpainike piilottaa
+              kaikki tallennetut mitat, mittaviivat ja apuviivat yhdellä kertaa. Sama painike
+              palauttaa ne. Piilotettuihin viivoihin ei tartuta; mittakuvan mitat säilyvät.
+            </p>
+            <p>
+              <strong>Kopioiden linkitys:</strong> malliosan kopiot jakavat muodon ja materiaalin.
+              Sijainti ja kierto koskevat kyseistä esiintymää. Tee uniikiksi irrottaa osan; Tee
+              ryhmä uniikiksi säilyttää ryhmän sisäiset linkit ja irrottaa ulkopuoliset kopiot.
+              Tekstuurin asettelu ja vaihtelu voivat olla osakohtaisia ilman materiaalin
+              irrottamista. Ryhmä järjestää osia, kokoonpano määrittää yhteisen valinnan.
             </p>
             <p>
               <strong>Cut / Join (B):</strong> valitse ensin Kohteet, sitten Työstökappaleet.

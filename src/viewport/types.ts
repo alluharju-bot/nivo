@@ -1,9 +1,10 @@
 import type { GuideEndpoint } from '../model/guideEditing';
+import type { ModelDisplay } from '../model/display';
 import type { Section } from '../model/sections';
 import type { PickCandidate } from '../ui/OverlapPicker';
 import type { ReferenceImage } from '../model/referenceImages';
 import type { SectionResult } from '../cad/protocol';
-import type { TextureAsset } from '../model/materials';
+import type { TextureAsset, TexturePlacement } from '../model/materials';
 import type { Rotation } from '../model/transforms';
 import type {
   Anchor,
@@ -51,6 +52,7 @@ export interface CameraCommand {
   width?: number;
   height?: number;
   view?: View;
+  fit?: boolean;
   projection?: 'perspective' | 'orthographic';
 }
 export type Gesture =
@@ -73,6 +75,10 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  editingTexture?: { id: string; texture: TexturePlacement };
+  onTexture?: (texture: TexturePlacement) => void;
+  onTextureCommit?: () => void;
+  modelDisplay?: ModelDisplay;
   knifeMode: 'line' | 'polyline' | 'curve' | 'free';
   knifeCommand?: { id: number; action: 'finish' | 'clear' };
   onKnife: (rays: import('../cad/modeling').KnifeRay[], curveNormal?: Vec3) => void;
@@ -141,6 +147,9 @@ export interface ViewportProps {
   offsetOutline?: number[];
   offsetPreviewDistance?: number;
   axis?: Axis;
+  constraintReset?: number;
+  onCameraProjection?: (projection: 'perspective' | 'orthographic') => void;
+  onCameraView?: (view?: View) => void;
   gridSnap: boolean;
   gridStep: number;
   busy: boolean;

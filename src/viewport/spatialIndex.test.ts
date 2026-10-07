@@ -3,6 +3,26 @@ import * as THREE from 'three';
 import { makeBody } from '../model/project';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 
+it('a ghost keeps exact reference hits while selection and occlusion pass through it', () => {
+  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  const ghost = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), material);
+  const behind = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), material);
+  ghost.userData.modelDisplay = 'ghost';
+  ghost.position.z = 20;
+  const group = new THREE.Group();
+  group.add(ghost, behind);
+  group.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(5, 5, 100), new THREE.Vector3(0, 0, -1));
+  expect(intersectModel(ray, group, 'selection')[0].object).toBe(behind);
+  expect(intersectModel(ray, group, 'reference')[0].point.z).toBe(20);
+  expect(intersectModel(ray, group, 'occlusion')[0].object).toBe(behind);
+  ghost.userData.modelDisplay = 'solid';
+  expect(intersectModel(ray, group, 'selection')[0].object).toBe(ghost);
+  ghost.geometry.dispose();
+  behind.geometry.dispose();
+  material.dispose();
+});
+
 it.each([false, true])(
   'picks coplanar sketches consistently with reversed insertion = %s',
   (reverse) => {

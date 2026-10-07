@@ -19,6 +19,9 @@ describe('precision and model persistence', () => {
     expect(parseLength('1.8 cm')).toBe(18);
     expect(parseLength('-2,5', true)).toBe(-2.5);
     expect(parseLength('0', true, true)).toBe(0);
+    expect(parseLength('', true, true)).toBe(0);
+    expect(parseLength('   ', true, true)).toBe(0);
+    expect(() => parseLength('')).toThrow();
     for (const bad of ['NaN', 'Infinity', '1e8', '3 apples', '1,2.3', '', '0', '-18', '100001'])
       expect(() => parseLength(bad)).toThrow();
   });

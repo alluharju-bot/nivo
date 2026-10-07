@@ -220,10 +220,15 @@ test('surface division exposes linked targets before making a local change', asy
   await page.getByTestId(`body-${profile.id}`).click();
   await page.getByRole('button', { name: 'Jaa pinta', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Jaa pinta', exact: true });
-  await expect(dialog).toContainText('uniikeiksi');
+  await expect(
+    dialog.getByRole('checkbox', { name: 'Tee kohteista uniikkeja · muuta vain valittuja' }),
+  ).not.toBeChecked();
   await page.keyboard.press('Escape');
   expect((await save(page)).bodies).toEqual([first, other, profile]);
   await page.getByRole('button', { name: 'Jaa pinta', exact: true }).click();
+  await dialog
+    .getByRole('checkbox', { name: 'Tee kohteista uniikkeja · muuta vain valittuja' })
+    .check();
   await dialog.getByRole('button', { name: 'Jaa valitut pinnat', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   const result = await save(page);

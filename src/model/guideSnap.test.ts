@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { guideMeasurement, guidePlaneNormal, lineIntersection } from './guides';
-import { snapPoint, snapOnSketchPlane } from './snap';
+import { snapPoint, snapOnSketchPlane, guideEdgeIntersection } from './snap';
 import { sketchFrame } from './sketch';
 import type { Guide, Vec3 } from './project';
 
@@ -24,6 +24,34 @@ const horizontal: Guide = {
 };
 
 describe('guide measurements and intersections', () => {
+  it('intersects a finite CAD edge with a guide, rejects skew depth and does not extend measurements', () => {
+    const line = {
+      id: 'guide',
+      mode: 'guide' as const,
+      points: [
+        [1050, 0, 200],
+        [1050, 0, 2200],
+      ] as [Vec3, Vec3],
+    };
+    const edge = { start: [0, 0, 0] as Vec3, end: [2000, 0, 0] as Vec3 };
+    expect(guideEdgeIntersection(line, edge)).toEqual([1050, 0, 0]);
+    expect(guideEdgeIntersection({ ...line, mode: 'free' }, edge)).toBeUndefined();
+    expect(guideEdgeIntersection(line, { ...edge, end: [1000, 0, 0] })).toBeUndefined();
+    expect(guideEdgeIntersection(line, { start: [0, 20, 0], end: [2000, 20, 0] })).toBeUndefined();
+    expect(
+      guideEdgeIntersection(
+        {
+          ...line,
+          points: [
+            [1050, 0, -100],
+            [1050, 0, 2500],
+          ],
+          mode: 'free',
+        },
+        edge,
+      ),
+    ).toEqual([1050, 0, 0]);
+  });
   it('recovers the vertical plane of a guide raised from a floor edge', () => {
     const raised: Guide = {
       ...horizontal,

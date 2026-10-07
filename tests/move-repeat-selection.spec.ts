@@ -85,7 +85,7 @@ test('copy repeats preserve the assembly and linked parts, continue from the las
     ],
   );
   await revealBrowser(page);
-  await page.getByTestId(`body-${a.id}`).click();
+  await page.getByRole('button', { name: 'Valitse ryhmä: Kaappi', exact: true }).click();
   await page.keyboard.press('m');
   await page.getByRole('checkbox', { name: 'Siirrä kopio', exact: true }).check();
   await page.getByTestId('move-x').fill('650');
@@ -97,7 +97,7 @@ test('copy repeats preserve the assembly and linked parts, continue from the las
   const result = await save(page);
   expect(result.bodies).toHaveLength(10);
   expect(result.groups).toHaveLength(10);
-  const linked = result.bodies.filter((b) => b.component);
+  const linked = result.bodies.filter((b) => b.component?.id === result.bodies[0].component?.id);
   expect(linked.map((b) => b.origin[0])).toEqual([0, 650, 1300, 1950, 2600]);
   expect(new Set(linked.map((b) => b.component!.id)).size).toBe(1);
   await page.getByLabel('Lisätoistojen määrä').fill('1');

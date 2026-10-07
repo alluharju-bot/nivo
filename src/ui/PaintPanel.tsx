@@ -1,4 +1,10 @@
-import { defaultAppearance, materialPresets, type Appearance } from '../model/materials';
+import {
+  defaultAppearance,
+  materialPresets,
+  findPreset,
+  type Appearance,
+} from '../model/materials';
+import { SurfaceFinish } from './SurfaceFinish';
 export function PaintPanel({
   appearance,
   color,
@@ -67,6 +73,12 @@ export function PaintPanel({
           </select>
         </label>
       )}
+      {(appearance.assetId || findPreset(appearance.preset).pattern) && (
+        <p className="muted">
+          Väri sävyttää tekstuuria. Valkoinen säilyttää kuvan alkuperäiset värit.
+        </p>
+      )}
+      <SurfaceFinish appearance={appearance} onChange={(value) => onChange(value, color)} />
       <label>
         Komponentin materiaali
         <select

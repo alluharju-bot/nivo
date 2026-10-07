@@ -1,6 +1,15 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { makeBody, isPointDimension } from '../src/model/project';
-import { ready, view, click, save } from './helpers';
+import { ready, view, click, save, revealBrowser } from './helpers';
+
+async function selectListed(page: Page, id: string) {
+  const expanded = await page
+    .getByRole('complementary', { name: 'Mallilista' })
+    .getAttribute('data-expanded');
+  await revealBrowser(page);
+  await page.getByTestId(`body-${id}`).click();
+  if (expanded === 'false') await page.getByRole('button', { name: 'Piilota mallilista' }).click();
+}
 
 test('retained fillet reopens, adds a meeting edge, changes size and can be removed', async ({
   page,
@@ -11,7 +20,7 @@ test('retained fillet reopens, adds a meeting edge, changes size and can be remo
   };
   await ready(page, [body], [], [{ id: 'panels', name: 'Ovilevyt', hidden: false }]);
   const p = await view(page, [body]);
-  await page.getByTestId(`body-${body.id}`).click();
+  await selectListed(page, body.id);
   await page.keyboard.press('f');
   await click(page, p(240, 0, 18));
   await page.getByTestId('detail-size').fill('3');
@@ -20,7 +29,7 @@ test('retained fillet reopens, adds a meeting edge, changes size and can be remo
   const first = await save(page);
   expect(first.bodies[0].edgeTreatment?.indices).toHaveLength(1);
   await page.keyboard.press('Escape');
-  await page.getByTestId(`body-${body.id}`).click();
+  await selectListed(page, body.id);
   await page.keyboard.press('f');
   await expect(page.getByTestId('detail-size')).toHaveValue('3');
   await click(page, p(0, 240, 18));
@@ -33,8 +42,9 @@ test('retained fillet reopens, adds a meeting edge, changes size and can be remo
   await expect(page.locator('.save-status')).toContainText('Tallessa');
   await page.reload();
   await expect(page.getByTestId(`body-${body.id}`)).toBeVisible();
-  await page.getByTestId(`body-${body.id}`).click();
+  await selectListed(page, body.id);
   await page.keyboard.press('f');
+  await revealBrowser(page);
   await page.getByRole('button', { name: 'Kiinnitä ryhmä: Ovilevyt', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Poista käsittely', exact: true })).toHaveCount(0);
   await expect(
@@ -114,13 +124,13 @@ test('move uses the same visible grab point and exact destination with grid enab
     b = makeBody(120, 100, 20, [257.375, 143.625, 0], 'Kohde');
   await ready(page, [a, b]);
   const p = await view(page, [a, b]);
-  await page.getByTestId(`body-${a.id}`).click();
+  await selectListed(page, a.id);
   await page.keyboard.press('m');
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const start = p(100, 80, 20),
     end = p(257.375, 143.625, 20);
   await page.mouse.move(start.x, start.y);
-  await expect(page.getByTestId('snap-hint')).toContainText('Tartuntapiste');
+  await expect(page.getByTestId('snap-hint')).toContainText('Verteksi');
   await page.mouse.down();
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-move-grab', '[100,80,20]');
   await page.mouse.move(end.x, end.y, { steps: 10 });
@@ -236,7 +246,7 @@ test('move snaps edge points and axis references and obeys a saved grid step', a
     )
     .toBe(0);
   await page.locator('.viewport-settings summary').click();
-  await page.getByTestId(`body-${a.id}`).click();
+  await selectListed(page, a.id);
   await page.keyboard.press('m');
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const start = p(27, 80, 20),
@@ -253,8 +263,9 @@ test('move snaps edge points and axis references and obeys a saved grid step', a
   expect(result.bodies[0].origin[0]).toBeCloseTo(257.375, 4);
   expect(result.bodies[0].origin[1]).toBeCloseTo(63.625, 6);
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Palauta', exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
-  await page.getByTestId(`body-${a.id}`).click();
+  await selectListed(page, a.id);
   await page.keyboard.press('m');
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const corner = p(100, 80, 20);

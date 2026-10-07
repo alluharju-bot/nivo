@@ -138,8 +138,10 @@ test('right click opens actions, right drag orbits and move shows the axis at th
   await expect(page.getByRole('menu')).toHaveCount(0);
 });
 
-test('a component copy stays linked through push/pull, undo and reload', async ({ page }) => {
-  const part = { ...makeBody(200, 200, 50), purpose: 'component' as const };
+test('an ordinary part copy becomes linked by default through push/pull, undo and reload', async ({
+  page,
+}) => {
+  const part = makeBody(200, 200, 50);
   await ready(page, [part]);
   await reveal(page);
   await page.getByTestId(`body-${part.id}`).click();
