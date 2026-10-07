@@ -6,6 +6,21 @@ import { defaultAppearance } from '../model/materials';
 import { makeBody } from '../model/project';
 import { textureFrameMatrix } from './materials';
 
+it('excludes switched-off studio panels from the trace light sampling budget', () => {
+  const scene = new THREE.Scene(),
+    panels = new THREE.Group();
+  panels.visible = false;
+  panels.userData.traceOnly = true;
+  panels.add(new THREE.RectAreaLight('white', 0), new THREE.RectAreaLight('white', 5));
+  scene.add(panels);
+  const snapshot = scene.clone();
+  omitPreviewLights(snapshot);
+  expect(snapshot.children[0].visible).toBe(true);
+  expect(snapshot.children[0].children).toHaveLength(1);
+  expect((snapshot.children[0].children[0] as THREE.Light).intensity).toBe(5);
+  expect(panels.children).toHaveLength(2);
+});
+
 it('samples rotated rectangular emitters only in tracing and does not bridge a curved outline', () => {
   const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.5, 0.7, 0.9));
   const body = {

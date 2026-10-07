@@ -23,10 +23,16 @@ export function SurfaceFinish({
   const clearcoat = appearance.clearcoat ?? preset.clearcoat ?? 0;
   const percent = Math.round((1 - roughness) * 100);
   const [gloss, setGloss] = useState(percent);
+  const [adjusting, setAdjusting] = useState(false);
+  const mappedFinish =
+    appearance.roughness === undefined &&
+    appearance.surfaceDetail !== false &&
+    !!(appearance.maps?.roughness || (preset.pbr && !appearance.assetId));
   const committed = useRef(percent);
   useEffect(() => {
     setGloss(percent);
     committed.current = percent;
+    setAdjusting(false);
   }, [percent, appearance]);
   const selected =
     appearance.roughness === undefined && appearance.clearcoat === undefined
@@ -36,7 +42,7 @@ export function SurfaceFinish({
             Math.abs(f.roughness - roughness) < 1e-8 && Math.abs(f.clearcoat - clearcoat) < 1e-8,
         )?.id ?? 'custom');
   const commit = () => {
-    if (gloss !== committed.current && !busy) {
+    if ((gloss !== committed.current || (mappedFinish && adjusting)) && !busy) {
       committed.current = gloss;
       // The finish slider controls the coating too: a glossy preset must not
       // retain a mirror-like clearcoat when the user requests zero gloss.
@@ -109,7 +115,7 @@ export function SurfaceFinish({
       </label>
       <label className="surface-gloss">
         <span>
-          Kiilto <output>{gloss} %</output>
+          Kiilto <output>{mappedFinish && !adjusting ? 'Pintakartan mukaan' : `${gloss} %`}</output>
         </span>
         <input
           type="range"
@@ -119,7 +125,11 @@ export function SurfaceFinish({
           step={1}
           value={gloss}
           disabled={busy}
-          onChange={(e) => setGloss(Number(e.target.value))}
+          onPointerDown={() => setAdjusting(true)}
+          onChange={(e) => {
+            setAdjusting(true);
+            setGloss(Number(e.target.value));
+          }}
           onPointerUp={commit}
           onKeyUp={commit}
           onBlur={commit}

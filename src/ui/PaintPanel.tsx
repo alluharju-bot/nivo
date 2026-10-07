@@ -2,6 +2,7 @@ import {
   defaultAppearance,
   materialPresets,
   findPreset,
+  hasAppearanceTexture,
   type Appearance,
 } from '../model/materials';
 import { SurfaceFinish } from './SurfaceFinish';
@@ -73,7 +74,7 @@ export function PaintPanel({
           </select>
         </label>
       )}
-      {(appearance.assetId || findPreset(appearance.preset).pattern) && (
+      {hasAppearanceTexture(appearance) && (
         <p className="muted">
           Väri sävyttää tekstuuria. Valkoinen säilyttää kuvan alkuperäiset värit.
         </p>

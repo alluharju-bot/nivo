@@ -3,6 +3,21 @@ import { ready, save, view } from './helpers';
 import { makeBody } from '../src/model/project';
 import { defaultAppearance, findPreset } from '../src/model/materials';
 import { asComponent } from '../src/model/components';
+import { decode } from 'fast-png';
+
+function maxPixelDifference(a: Buffer, b: Buffer) {
+  const first = decode(a),
+    second = decode(b);
+  expect([first.width, first.height, first.channels]).toEqual([
+    second.width,
+    second.height,
+    second.channels,
+  ]);
+  let difference = 0;
+  for (let i = 0; i < first.data.length; i++)
+    difference = Math.max(difference, Math.abs(first.data[i] - second.data[i]));
+  return difference;
+}
 
 test('texture tint previews every input without geometry work, cancels, and commits as one shared edit', async ({
   page,
@@ -35,9 +50,14 @@ test('texture tint previews every input without geometry work, cancels, and comm
   await expect(canvas).toHaveAttribute('data-geometry-builds', builds!);
   await picker.press('Escape');
   await expect(picker).toHaveValue(body.color);
+  // Native GPU compositing can differ by 1–2 levels in the translucent list;
+  // compare decoded pixels rather than requiring identical PNG bytes.
   expect(
-    (await canvas.screenshot({ path: info.outputPath('restored.png') })).equals(original),
-  ).toBe(true);
+    maxPixelDifference(
+      await canvas.screenshot({ path: info.outputPath('restored.png') }),
+      original,
+    ),
+  ).toBeLessThanOrEqual(2);
   await picker.fill('#2266aa');
   await picker.fill('#668899');
   await page.getByRole('button', { name: 'Käytä sävyä', exact: true }).click();

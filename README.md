@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.22.0** nopeuttaa tarkentuvan kuvan valmistelua ja materiaalinvaihtoa.
+Valotuksen säätö säilyttää jo lasketut näytteet. GPU:lla mustuneen lakkapinnan
+laskentavirhe on korjattu. **Aidot pinnat** sisältää yhdeksän paikallista CC0-PBR-materiaalia,
+juuri niille tehdyt normal-, karheus- ja korkeuskartat sekä oikeat mittakaavat.
+Yhteinen HDRI-studio, pehmeät studiovarjot, pois kytkettävä kohinan pehmennys ja tarkempi sisätilan
+valolaskenta viimeistelevät renderiä. [Yöpassin seloste](docs/overnight-2026-10-08-render.md).
+
 Versio **0.21.5** erottaa ensimmäisen renderinäytteen valmistelun varsinaisesta
 tarkentumisesta ja poistaa tarpeettomien shader-versioiden valmistelua aloituksesta.
 Katkennut kameraveto ei jätä tarkennusta tauolle, ja tavoitteen

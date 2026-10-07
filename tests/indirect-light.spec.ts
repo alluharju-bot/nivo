@@ -88,7 +88,7 @@ test('a sheltered LED illuminates the room by reflected light rather than leakin
   const refine = async () => {
     await page.getByRole('button', { name: 'Kuva', exact: true }).click();
     await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
-    await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('256');
+    await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('1024');
     await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
       timeout: 150000,
     });

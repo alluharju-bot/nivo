@@ -180,7 +180,11 @@ export function createTraceLights(body: Body, geometry: THREE.BufferGeometry) {
 export function omitPreviewLights(scene: THREE.Scene) {
   const omitted: THREE.Object3D[] = [];
   scene.traverse((object) => {
-    if (object.userData.previewOnly) omitted.push(object);
+    if (
+      object.userData.previewOnly ||
+      ((object as THREE.Light).isLight && (object as THREE.Light).intensity <= 0)
+    )
+      omitted.push(object);
     if (object.userData.traceOnly) object.visible = true;
   });
   omitted.forEach((object) => object.removeFromParent());

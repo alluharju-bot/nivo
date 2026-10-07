@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { BodyMesh } from '../cad/protocol';
 import { textureFrameMatrix } from '../render/materials';
 import { bodyLocked } from './groups';
-import { defaultAppearance, findPreset } from './materials';
+import { defaultAppearance, findPreset, hasAppearanceTexture } from './materials';
 import type { Body, Project } from './project';
 
 export interface TextureVariation {
@@ -12,10 +12,10 @@ export interface TextureVariation {
 }
 export const hasTexture = (body: Body) => {
   const appearance = body.appearance ?? defaultAppearance(body.material);
-  return !!(appearance.assetId || findPreset(appearance.preset).pattern);
+  return hasAppearanceTexture(appearance);
 };
 
-/** Align V (the built-in wood grain) with the long side of the broad face, in the part's own frame. */
+/** Align the source image's grain with the broad face's long side in the part's own frame. */
 export function woodGrainRotation(body: Body, mesh?: Pick<BodyMesh, 'vertices'>): number {
   let size = [body.feature.width, body.feature.depth, body.feature.height];
   if (mesh?.vertices.length) {
@@ -29,7 +29,9 @@ export function woodGrainRotation(body: Body, mesh?: Pick<BodyMesh, 'vertices'>)
   const longest = size.indexOf(Math.max(...size));
   const face = size.indexOf(Math.min(...size));
   const v = face === 2 ? 1 : 2;
-  return longest === v ? 0 : 90;
+  const rotation = longest === v ? 0 : 90;
+  const preset = findPreset((body.appearance ?? defaultAppearance(body.material)).preset);
+  return preset.grainAxis === 'u' ? 90 - rotation : rotation;
 }
 
 /** Instance-local placement: geometry links stay intact and unselected copies are untouched. */
@@ -71,9 +73,9 @@ export function varyTextures(
       };
       const appearance = body.appearance ?? defaultAppearance(body.material),
         old = appearance.texture;
-      const wood = ['oak', 'pine', 'birch', 'walnut'].includes(
-        findPreset(appearance.preset).pattern ?? '',
-      );
+      const preset = findPreset(appearance.preset);
+      const wood =
+        !!preset.grainAxis || ['oak', 'pine', 'birch', 'walnut'].includes(preset.pattern ?? '');
       const texture = {
         ...old,
         offsetX: THREE.MathUtils.clamp(

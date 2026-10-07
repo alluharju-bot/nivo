@@ -3,7 +3,25 @@ import * as THREE from 'three';
 import { freshProject, makeBody, projectSchema } from './project';
 import { defaultAppearance } from './materials';
 import { asComponent, synchronizeComponents } from './components';
-import { varyTextures, woodGrainRotation } from './textureVariation';
+import { hasTexture, varyTextures, woodGrainRotation } from './textureVariation';
+
+it('recognizes real PBR textures and follows their actual horizontal or vertical grain', () => {
+  const panel = makeBody(2400, 95, 19);
+  const pine = { ...panel, appearance: defaultAppearance('pbr-coated_pine') };
+  const oak = { ...panel, appearance: defaultAppearance('pbr-oak_veneer_01') };
+  expect(hasTexture(pine)).toBe(true);
+  expect(woodGrainRotation(pine)).toBe(0);
+  expect(woodGrainRotation(oak)).toBe(90);
+  const project = { ...freshProject(), bodies: [pine] };
+  const result = varyTextures(
+    project,
+    [pine.id],
+    { spread: 0.2, rotation: 0, alignWood: true },
+    13,
+  );
+  expect(result.bodies[0].appearance!.texture.rotation).toBe(0);
+  expect(result.bodies[0].appearance!.texture.offsetX).not.toBe(0);
+});
 
 it('varies 100 linked instances without moving them, changing maps or affecting an unselected copy', async () => {
   const source = asComponent({

@@ -128,7 +128,9 @@ export function cuttingParts(
       dimensions,
       grain:
         override?.grain ??
-        (asset || ['oak', 'walnut', 'birch', 'pine', 'brushed'].includes(preset.pattern ?? '')
+        (asset ||
+        preset.grainAxis ||
+        ['oak', 'walnut', 'birch', 'pine', 'brushed'].includes(preset.pattern ?? '')
           ? 'length'
           : 'free'),
       included: override?.included ?? true,

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pbrMapUrl } from '../model/pbrCatalog';
 import { derivedCanvas } from './surfaceMaps';
 import {
   findPreset,
@@ -216,7 +217,31 @@ export function createMaterialLibrary(draw: () => void) {
   const pending = new Set<Promise<void>>();
   const failed = new Set<HTMLImageElement>();
   const activeImages = new Map<THREE.Texture, HTMLImageElement>();
+  const assetSources = new Map<string, THREE.Source<CanvasImageSource>>();
   let disposed = false;
+  let redraw = 0;
+  const decoded = new WeakMap<HTMLImageElement, Promise<void>>();
+  const placeholders = new Map<string, HTMLCanvasElement>();
+  const placeholder = (normal: boolean) => {
+    const key = normal ? '#8080ff' : '#ffffff';
+    let canvas = placeholders.get(key);
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 1;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = key;
+      context.fillRect(0, 0, 1, 1);
+      placeholders.set(key, canvas);
+    }
+    return canvas;
+  };
+  const scheduleDraw = () => {
+    if (!redraw && !disposed)
+      redraw = requestAnimationFrame(() => {
+        redraw = 0;
+        if (!disposed) draw();
+      });
+  };
   const texture = (source: CanvasImageSource, color: boolean, placement: TexturePlacement) => {
     const map: THREE.Texture<CanvasImageSource> =
       source instanceof HTMLCanvasElement
@@ -232,7 +257,7 @@ export function createMaterialLibrary(draw: () => void) {
   };
   const load = (id: string, asset: TextureAsset) => {
     let image = images.get(id);
-    if (!image || image.src !== asset.dataUrl) {
+    if (!image || image.src !== new URL(asset.dataUrl, document.baseURI).href) {
       image = new Image();
       images.set(id, image);
       image.src = asset.dataUrl;
@@ -244,13 +269,17 @@ export function createMaterialLibrary(draw: () => void) {
       update();
       return;
     }
-    const promise = image
-      .decode()
+    let decoding = decoded.get(image);
+    if (!decoding) {
+      decoding = image.decode();
+      decoded.set(image, decoding);
+    }
+    const promise = decoding
       .then(() => {
         if (!disposed) {
           failed.delete(image);
           update();
-          draw();
+          scheduleDraw();
         }
       })
       .catch(() => {
@@ -300,21 +329,52 @@ export function createMaterialLibrary(draw: () => void) {
         derived?: 'normal' | 'roughness',
         legacy = false,
       ) => {
-        if (!id || !assets[id]) return null;
-        const image = load(id, assets[id]);
-        const result = texture(image, color, placement);
+        if (!id) return null;
+        const builtIn = id.startsWith('builtin:') ? id.slice(8) : undefined;
+        if (!builtIn && !assets[id]) return null;
+        const image = load(
+          id,
+          builtIn ? { name: id, dataUrl: builtIn, width: 1024, height: 1024 } : assets[id],
+        );
+        const initial =
+          image.complete && image.naturalWidth
+            ? image
+            : placeholder(
+                derived === 'normal' ||
+                  id === appearance.maps?.normal ||
+                  id.endsWith('/normal.jpg'),
+              );
+        const result = texture(initial, color, placement);
+        const sourceKey = JSON.stringify([
+          id,
+          derived,
+          derived ? (legacy ? null : physical) : null,
+        ]);
+        let source = assetSources.get(sourceKey);
+        if (!source) {
+          source = new THREE.Source(initial);
+          assetSources.set(sourceKey, source);
+        }
+        // Keep this Source identity for its entire GPU lifetime. Replacing a
+        // loaded Texture.source breaks Three's shared upload reference counts.
+        result.source = source;
         activeImages.set(result, image);
         result.addEventListener('dispose', () => activeImages.delete(result));
         wait(image, () => {
-          if (derived)
-            result.source = sourceFor(
-              cached(`asset:${id}:${sourceFor(image).uuid}`, image, derived, legacy),
-            );
+          if (!activeImages.has(result)) return;
+          // The placeholder has a smaller immutable GPU allocation. Release it
+          // while its Source still has the old data; re-upload at the decoded size.
+          result.dispose();
+          activeImages.set(result, image);
+          source.data = derived
+            ? cached(`asset:${id}:${sourceFor(image).uuid}`, image, derived, legacy)
+            : image;
           result.needsUpdate = true;
         });
         return result;
       };
       if (appearance.assetId) map = imageMap(appearance.assetId, true);
+      else if (preset.pbr) map = imageMap(`builtin:${pbrMapUrl(preset.pbr, 'color')}`, true);
       else if (preset.pattern) {
         pattern = patterns.get(preset.id);
         if (!pattern) {
@@ -330,6 +390,14 @@ export function createMaterialLibrary(draw: () => void) {
           ? imageMap(appearance.maps.normal)
           : imageMap(appearance.maps?.bump, false, 'normal', appearance.bumpDepth === undefined);
         roughnessMap = imageMap(appearance.maps?.roughness);
+        // A custom color image must not inherit an unrelated built-in relief.
+        if (preset.pbr && !appearance.assetId) {
+          normalMap ??=
+            appearance.surfaceSource === 'height'
+              ? imageMap(`builtin:${pbrMapUrl(preset.pbr, 'height')}`, false, 'normal')
+              : imageMap(`builtin:${pbrMapUrl(preset.pbr, 'normal')}`);
+          roughnessMap ??= imageMap(`builtin:${pbrMapUrl(preset.pbr, 'roughness')}`);
+        }
         if (appearance.generatedSurface && appearance.assetId) {
           normalMap ??= imageMap(appearance.assetId, false, 'normal');
           roughnessMap ??= imageMap(appearance.assetId, false, 'roughness');
@@ -377,7 +445,9 @@ export function createMaterialLibrary(draw: () => void) {
         !appearance.maps?.normal &&
         (appearance.maps?.bump
           ? appearance.bumpDepth !== undefined
-          : !!pattern || (appearance.generatedSurface && appearance.assetId))
+          : !!pattern ||
+            (preset.pbr && !appearance.assetId) ||
+            (appearance.generatedSurface && appearance.assetId))
       )
         material.userData.physicalSurface = {
           width: placement.width,
@@ -396,11 +466,14 @@ export function createMaterialLibrary(draw: () => void) {
     },
     dispose() {
       disposed = true;
+      if (redraw) cancelAnimationFrame(redraw);
+      placeholders.clear();
       patterns.clear();
       images.clear();
       normals.clear();
       roughness.clear();
       activeImages.clear();
+      assetSources.clear();
       failed.clear();
     },
   };

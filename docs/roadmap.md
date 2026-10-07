@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.22.0 — renderin vaste, aidot pinnat ja kuvan laatu
+
+- Materiaalinvaihto säilyttää geometrian ja tracing-BVH:n. Valotuksen säätö säilyttää näytteet.
+- Varjostin valmistellaan etukäteen ajureilla, joilla kääntäminen onnistuu asynkronisesti.
+- Metal-GPU:lla mustuneen clearcoat-pinnan Fresnel-laskennan määrittelemätön pow korjattu.
+- Yhdeksän CC0-PBR-pintaa: mänty, tammi, pähkinä, kipsi, rappaus, kaksi betonia, marmori ja laatta.
+  Paikalliset väri-, normal-, karheus- ja korkeuskartat, mittakaava ja lähdetiedot mukana.
+- Samat tekstuurin siirto-, kierto- ja hajontatoiminnot toimivat uusilla pinnoilla;
+  puunsyy tunnistetaan kuvan todellisen suunnan mukaan.
+- Nopea ja tarkentuva renderi käyttävät samaa HDRI-studiota. Kuvan viennillä on oma kopio.
+- Tarkentuvassa kuvassa laajat studiovalot pehmentävät varjoja. Sammutetut valot eivät kuluta valonäytteitä.
+- Reunat huomioiva kohinan pehmennys voidaan poistaa käytöstä. Se ei muuta näytteiden kertymistä.
+- Täysi laatu ja kuvanlaskenta käyttävät 16 valon kimpoamista; 4096 näytteen sisätilavaihtoehto.
+- Seuraavaksi: lumen/lm-per-m-kalibroitu LED, mitattu kameraresponssi suurissa sisätiloissa,
+  hermoverkkopohjainen kohinanpoisto sekä erikseen validoitu WebGPU-siirtymä.
+  Nykyinen pehmennys ei korvaa riittävää näytemäärää hämärässä epäsuorassa valaistuksessa.
+
 ## V0.21.5 — tarkennuksen käynnistyminen ja valmistuminen
 
 - Ensimmäisen näytteen valmistelu näkyy omana tilanaan. Nopea esikatselu säilyy
@@ -47,11 +64,12 @@
 
 ## Backlog — valaistuksen yksiköt ja kuvan laatu
 
-- **Korkea prioriteetti: ensimmäisen tarkentuvan kuvan viive.** Testiselaimessa
-  ensimmäiset näytteet odottavat GPU-ohjelmaa noin 50 sekuntia. Ylimääräisten
-  shader-versioiden poisto ei yksin lyhentänyt mitattua odotusta. Profiloi
-  varsinainen ajurikäännös ja selvitä kevyempi aloitus sekä valmistelu, joka
-  säilyttää kameran ja käyttöliittymän toiminnan myös ilman rinnakkaiskäännöstukea.
+- **Ensimmäinen kuva ilman rinnakkaiskäännöstukea.** V0.22 erottaa fyysisen GPU:n
+  ja headless-ohjelmistopiirron: aiempi noin 50 s viive koski jälkimmäistä.
+  M1 Prolla kylmä diagnostiikkakohtaus käynnistyi noin 2,7 s:ssa ja valmistellun
+  PBR-esikatselun 8 näytettä noin 0,44 s:ssa. Selvitä edelleen kevyempi aloitus
+  hitailla ajureilla ja ohjelmistopiirrossa; taustavalmistelu ei yksin nopeuta
+  itse kääntäjää. Mittaa myös suuret sisätilat ja fyysiset mobiililaitteet.
 - Valon nykyinen voimakkuus on suhteellinen kerroin, **ei lumenluku**. LED-nauhalle
   ehdotetaan lm/m ja valaisimelle lm. Toteutus tarvitsee pituuden/pinta-alan,
   säteilyjakauman, värin ja millimetreissä toimivan kohtauksen yhteisen kalibroinnin.
@@ -59,9 +77,11 @@
   50 lumeniksi. Mittaus referenssikohtauksella ennen fysikaalisia lupauksia.
 - Epäsuoran valon kohinan vähentäminen, peilausten laatutesti ja vaativan sisätilan
   suorituskykykoe. Suorakulmaisen LED:n kohdennettu näytteistys auttaa, mutta pieni
-  valoaukko voi edelleen vaatia paljon näytteitä. Kohinanpoisto on erillinen työ.
-- Kalibroidut valokuviin perustuvat PBR-materiaalit, laadukas HDRI-valaistus sekä
-  selkeät sisätilan valo- ja kameran valotusasetukset asiakkaalle vietäviin kuviin.
+  valoaukko voi edelleen vaatia paljon näytteitä. V0.22:n kevyt reunat huomioiva
+  suodatus on ensimmäinen vaihe; normal-/albedo-ohjattu kohinanpoisto on jatkotyö.
+- V0.22 toi yhdeksän aitoa PBR-pintaa ja yhteisen HDRI-studion. Seuraavaksi
+  lisää puu- ja kalustelevypintoja, valokuvavertailu ja suurempien materiaalien
+  tarkkuuden valinta hallitulla muistibudjetilla sekä sisätilan valaistusopastus.
 
 ## Suunnitteluehdotus — kaatopinnat ja paikalliset korkeudet
 

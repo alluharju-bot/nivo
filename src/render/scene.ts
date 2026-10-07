@@ -1,4 +1,6 @@
 import { installTextureEditing } from '../viewport/textureEditing';
+import { canUpdateSurfaces, surfaceKey, type RenderModel } from './sceneChanges';
+import { loadStudioEnvironment } from './environment';
 import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, createTraceLights, previewLightLimit } from './lights';
 import { progressiveRenderer, type TraceStatus } from './progressive';
@@ -49,7 +51,11 @@ type Props = {
 
 export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   const scene = new THREE.Scene();
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    preserveDrawingBuffer: true,
+    powerPreference: 'high-performance',
+  });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
@@ -85,6 +91,16 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   scene.add(key, key.target);
   const fill = new THREE.DirectionalLight('#ccdfff', 1.3);
   scene.add(fill);
+  // Broad studio panels produce natural penumbras in the traced image. Keep
+  // shadow-mapped directional proxies for the inexpensive live camera view.
+  key.userData.previewOnly = fill.userData.previewOnly = true;
+  const studioPanels = new THREE.Group();
+  studioPanels.visible = false;
+  studioPanels.userData.traceOnly = true;
+  const softKey = new THREE.RectAreaLight(),
+    softFill = new THREE.RectAreaLight();
+  studioPanels.add(softKey, softFill);
+  scene.add(studioPanels);
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
     new THREE.MeshStandardMaterial({ color: '#dce1dc', roughness: 0.95 }),
@@ -94,9 +110,10 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   let disposed = false;
   let extent = 100,
     initialized = false;
-  const draw = (materials = false) => {
+  const draw = (materials = false, invalidate = true) => {
     renderer.render(scene, camera);
-    progressive.invalidate(false, materials);
+    if (invalidate) progressive.invalidate(false, materials);
+    else progressive.display();
     canvas.dataset.camera = JSON.stringify({
       position: camera.position.toArray(),
       quaternion: camera.quaternion.toArray(),
@@ -110,12 +127,37 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     scene,
     camera,
     (status) => current().onTraceStatus?.(status),
-    () => library.ready(),
+    async () => {
+      await environmentReady;
+      await library.ready();
+    },
   );
   const library = createMaterialLibrary(() => {
-    progressive.invalidate(true);
+    progressive.invalidate(false, true);
     draw();
   });
+  let studioEnvironment: THREE.Texture | undefined;
+  const environmentReady = loadStudioEnvironment()
+    .then((texture) => {
+      if (disposed) {
+        texture.dispose();
+        return;
+      }
+      studioEnvironment = texture;
+      scene.environment = texture;
+      scene.environmentRotation.set(
+        Math.PI / 2,
+        0,
+        THREE.MathUtils.degToRad(current().settings.lightRotation ?? 0),
+      );
+      canvas.dataset.environment = 'studio-hdri';
+      progressive.lighting();
+      draw();
+    })
+    .catch(() => {
+      // Modeling remains usable even if an offline cache lacks the studio image.
+      canvas.dataset.environment = 'neutral-fallback';
+    });
   const lights = new THREE.Group();
   scene.add(lights);
   const labels = new THREE.Group();
@@ -191,7 +233,43 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     });
     labels.clear();
   };
+  let previousModel: RenderModel | undefined;
+  let sceneBuilds = 0;
+  let prepareTimer = 0;
   const sync = () => {
+    const next = current();
+    if (canUpdateSurfaces(previousModel, next)) {
+      const previous = new Map(previousModel!.bodies.map((body) => [body.id, body]));
+      const bodies = new Map(next.bodies.map((body) => [body.id, body]));
+      let changed = false;
+      for (const object of model.children) {
+        if (!(object instanceof THREE.Mesh)) continue;
+        const body = bodies.get(object.userData.bodyId)!;
+        if (
+          surfaceKey(previous.get(body.id)!) === surfaceKey(body) &&
+          previousModel!.assets === next.assets
+        )
+          continue;
+        const surface = library.create(body, next.assets);
+        const existing = Array.isArray(object.material) ? object.material : [object.material];
+        for (let i = 0; i < existing.length; i++) {
+          // Retain material identity: the trace snapshot shares these instances.
+          disposeMaterial(existing[i]);
+          existing[i].copy(surface);
+          if (i > 0) mirrorBacking(existing[i] as THREE.MeshPhysicalMaterial);
+        }
+        surface.dispose();
+        object.castShadow = surface.transmission < 0.5;
+        changed = true;
+      }
+      previousModel = { ...next };
+      navigation.sync(next.bodies, next.selectedIds ?? []);
+      if (changed) {
+        renderer.shadowMap.needsUpdate = true;
+        draw(true);
+      }
+      return;
+    }
     renderer.shadowMap.needsUpdate = true;
     clearModel();
     library.beginFrame();
@@ -318,7 +396,12 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       fit();
     } else draw();
     canvas.dataset.bodyCount = String(model.children.length);
+    canvas.dataset.sceneBuilds = String(++sceneBuilds);
+    previousModel = { ...next };
+    clearTimeout(prepareTimer);
+    prepareTimer = window.setTimeout(() => progressive.prepare(), 600);
   };
+  let previousLighting = '';
   const settingsOnly = () => {
     renderer.shadowMap.needsUpdate = true;
     const settings = current().settings;
@@ -335,6 +418,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     const center = key.target.position;
     const rotation = THREE.MathUtils.degToRad(settings.lightRotation ?? 0),
       axis = new THREE.Vector3(0, 0, 1);
+    if (studioEnvironment) scene.environmentRotation.set(Math.PI / 2, 0, rotation);
     key.position.copy(
       new THREE.Vector3(-extent, -extent * 0.8, extent * 1.8)
         .applyAxisAngle(axis, rotation)
@@ -343,11 +427,38 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     fill.position.copy(
       new THREE.Vector3(extent, extent, extent).applyAxisAngle(axis, rotation).add(center),
     );
-    floor.visible = settings.ground ?? true;
-    progressive.invalidate(true);
+    for (const [source, panel, size] of [
+      [key, softKey, 1.2],
+      [fill, softFill, 1.6],
+    ] as const) {
+      panel.position.copy(source.position);
+      panel.up.set(0, 0, 1);
+      panel.lookAt(center);
+      panel.width = panel.height = extent * size;
+      panel.color.copy(source.color);
+      // Preserve roughly the same incident light at the model centre as its
+      // directional preview, independently of scene units and model size.
+      panel.intensity =
+        (source.intensity * source.position.distanceToSquared(center)) /
+        (panel.width * panel.height);
+    }
+    const ground = settings.ground ?? true;
+    if (floor.visible !== ground) progressive.invalidate(true);
+    floor.visible = ground;
+    const lighting = JSON.stringify([
+      settings.environment,
+      settings.environmentPower,
+      settings.lightPower,
+      settings.lightRotation,
+    ]);
+    if (lighting !== previousLighting) {
+      previousLighting = lighting;
+      progressive.lighting();
+      progressive.invalidate(false, true);
+    }
     renderer.toneMappingExposure = settings.exposure;
     renderer.shadowMap.enabled = settings.shadows;
-    draw();
+    draw(false, false);
   };
   const textureEditor = installTextureEditing({
     host,
@@ -478,6 +589,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     },
     dispose() {
       disposed = true;
+      clearTimeout(prepareTimer);
       progressive.dispose();
       observer.disconnect();
       cancelAnimationFrame(cameraFrame);
@@ -497,6 +609,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       floor.material.dispose();
       key.shadow.dispose();
       env.dispose();
+      studioEnvironment?.dispose();
       library.dispose();
       // These lookup textures are shared by Three, but their GPU disposal listeners belong
       // to each renderer. Release them before closing this context; another view can reupload.

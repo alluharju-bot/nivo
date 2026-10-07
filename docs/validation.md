@@ -4,6 +4,58 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.22.0 — PBR-pinnat, nopea päivitys ja renderin viimeistely
+
+**297 yksikkö-/CAD-testiä hyväksytty (58 tiedostoa)**. TypeScript, `/nivo/`-build
+ja lisenssiluettelo tarkistettu. Uusi aineistotesti tarkistaa kaikkien yhdeksän
+materiaalin neljä karttaa alkuperäisillä MD5-summilla sekä mittakaavan ja CC0-tiedot.
+Sammutetut valot jätetään pois valonäytteiden valinnasta.
+
+Fyysisellä M1 Pro / Metal -GPU:lla toistettiin musta lakkapinta. Syy oli GLSL:n
+määrittelemätön negatiivisen luvun `pow(x, 2)`, joka palautti NaN-arvon Fresnel-
+laskentaan. Kertolaskuksi korjattu kaava läpäisi männylle, pähkinälle ja 296 osalle
+tehdyt kuvatestit. Ohjelmistopiirto ei paljastanut tätä alkuperäistä virhettä.
+
+Kohdennetuissa tuotantobundlen selaintesteissä tarkistettiin:
+
+- Tarkennuksen valmistuminen paikallaan, kevyt/täysi tarkkuus, tauko, keskeytynyt
+  kameraveto ja paluu Nopea-tilasta. Paluukoe vertaa myös osan paikkaa kuvan
+  pikseleistä: renderi ei hyppää takaisin vanhaan kameraan.
+- PBR-materiaalinvaihto kesken tarkennuksen. Testi odottaa uutta GPU-materiaalilatausta
+  ja valmista kuvaa; scene- ja BVH-rakennusten määrä säilyy yhdessä.
+- Valotus sekä kohinan pehmennyksen kytkin muuttavat kuvaa säilyttäen näytteet.
+  Matta tallentuu karheutena 1 ja lakkana 0; oma pintakäsittely palauttaa kartan.
+- Kaikki yhdeksän pintaa latautuvat sovelluksen omasta `/nivo/materials/`-polusta.
+  Vuorotellen normal- ja korkeuskarttaa käyttävä kohtaus viedään PNG:ksi, ja
+  projektin asetukset säilyvät ilman paikallisten oletuskuvien upottamista tiedostoon.
+- PBR-puun jatkuva siirto-/kiertotyökalu, maalaus, Peru/Palauta ja Hold.
+  Puunsyyn suunta huomioi eri lähdekuvien U/V-suunnan myös hajonnassa ja leikkauslistassa.
+- Renderin reaaliaikainen sävy, peruminen, linkitettyjen osien yhteinen värimuutos,
+  peilin sisältävä taustatyö ja kuvan lataaminen malliin paluun jälkeen.
+- LED:n peittäminen myös lasin läpi katsottaessa. Epäsuoran valon vertailu
+  **1 024 näytteellä**: 50 → 100 lisää vastaanottavan lattian valoa, valkoisen
+  kotelon vaihtaminen ruskeaksi vähentää sitä ja suljettu kotelo jää alle 1/255.
+  Aiemman 256 näytteen pistevertailun kohina saattoi peittää kirkkauseron.
+
+PBR- ja tekstuurityökalujen kolme tapausta hyväksyttiin myös Chromiumin
+tablettiprofiilissa. PBR-käynnistys, kameran paluu, materiaalinvaihto ja vienti
+hyväksyttiin lisäksi headless-ohjelmistopiirrolla. Fyysistä Safaria/iPadia ei testattu.
+
+Laitteistokiihdytetty valmis PBR-esikatselu saavutti 8 näytettä noin **0,25–0,50 s**
+ja materiaalinvaihto noin **0,43–0,50 s** paikallisissa tuotantotesteissä.
+Ennakkoon valmisteltu shader ja paikalliset resurssit vaikuttavat lukuun; se ei
+ole kylmän selaimen tai suuren työmaamallin yleinen suorituskykylupaus.
+Erillinen kylmä WebGL-diagnostiikka tuotti ensimmäisen näytteen noin 2,7 s:ssa
+M1 Prolla. Headless-ohjelmistopiirron PBR-esikatselun käynnistys oli **50,2 s**.
+Näitä kahta erilaista mittausta ei pidä esittää saman konepolun ennen/jälkeen-vertailuna.
+
+Studio-HDRI, laajat studiovalopinnat, karheus- ja normal-kartat sekä pois kytkettävä
+kuvasuodatin tarkistettiin myös täydellä tarkkuudella tammikaappiin, messinkivetimiin
+ja marmorilaattatasoon. Korkeuskartta muuttaa pintanormaalia, ei CAD-geometriaa.
+Kohinan pehmennys ei vastaa hermoverkkodenoiseria; hämärä sisätila tarvitsee yhä
+enemmän näytteitä. Valon voimakkuus ei vielä ole lumenarvo. Vanhojen projektien
+materiaalipresetit säilyvät; uusi studiovalaistus muuttaa esityskuvan valoa.
+
 ## V0.21.5 — tarkennuksen elinkaari ja valaistuksen vertailu
 
 **293 yksikkö-/CAD-testiä hyväksytty (56 tiedostoa)**. TypeScript ja `/nivo/`-build

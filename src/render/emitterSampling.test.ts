@@ -15,6 +15,8 @@ it('integrates with the installed tracer shader and rejects incompatible upgrade
   try {
     expect(() => configureEmitterSampling(tracer)).not.toThrow();
     expect(material.fragmentShader).toContain('if ( ! nivoSampledEmitter )');
+    expect(material.fragmentShader).toContain('return ratio * ratio;');
+    expect(material.fragmentShader).not.toContain('return pow( ( 1.0 - eta )');
     expect(compilations).toBe(1);
     // The first sample must not prepare separate unused fog/depth-of-field
     // programs after the adapter already prepared the scene's actual shader.

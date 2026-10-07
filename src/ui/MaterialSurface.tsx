@@ -6,6 +6,7 @@ import { useColorDraft } from './useColorDraft';
 import {
   defaultAppearance,
   findPreset,
+  hasAppearanceTexture,
   surfaceDepth,
   surfaceStrength,
   materialPresets,
@@ -50,6 +51,33 @@ export function SurfaceMaps({
   return (
     <details className="surface-maps">
       <summary>Pinnan rakenne · PBR</summary>
+      {preset.pbr && !appearance.assetId && (
+        <>
+          <p className="muted">Pintaan kuuluvat väri-, normal-, karheus- ja korkeuskartat.</p>
+          <label>
+            Kohokuvion lähde
+            <select
+              aria-label="Kohokuvion lähde"
+              value={appearance.surfaceSource ?? 'normal'}
+              disabled={busy}
+              onChange={(e) =>
+                void onChange({
+                  ...appearance,
+                  surfaceSource: e.target.value as 'normal' | 'height',
+                })
+              }
+            >
+              <option value="normal">Valmis normal-kartta</option>
+              <option value="height">Korkeuskartta · syvyys millimetreinä</option>
+            </select>
+          </label>
+          <small>
+            <a href={`https://polyhaven.com/a/${preset.pbr}`} target="_blank" rel="noreferrer">
+              Poly Haven · CC0
+            </a>
+          </small>
+        </>
+      )}
       <label className="checkbox-label">
         <CommitCheckbox
           label="Pinnan rakenne"
@@ -89,7 +117,10 @@ export function SurfaceMaps({
       )}
       {!legacyBump &&
         !appearance.maps?.normal &&
-        (appearance.maps?.bump || appearance.generatedSurface || preset.pattern) && (
+        (appearance.maps?.bump ||
+          appearance.generatedSurface ||
+          preset.pattern ||
+          (preset.pbr && appearance.surfaceSource === 'height')) && (
           <label>
             Kohokuvion syvyys (mm)
             <input
@@ -114,6 +145,7 @@ export function SurfaceMaps({
           </label>
         )}
       {(appearance.maps?.normal ||
+        preset.pbr ||
         legacyBump ||
         (appearance.normalStrength !== undefined && appearance.normalStrength !== 1)) && (
         <label>
@@ -274,7 +306,7 @@ export function ModelMaterials({
     change: previewTint,
     cancel: cancelTint,
   } = useColorDraft(source.color, onPreviewColor);
-  const textured = !!appearance.assetId || !!findPreset(appearance.preset).pattern;
+  const textured = hasAppearanceTexture(appearance);
   const defaultTint = appearance.assetId ? '#ffffff' : findPreset(appearance.preset).color;
   return (
     <details className="inspector-disclosure model-materials">

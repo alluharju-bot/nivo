@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pbrSurfaces } from './pbrCatalog';
 export const texturePlacementSchema = z.object({
   width: z.number().min(0.1).max(100000),
   height: z.number().min(0.1).max(100000),
@@ -21,6 +22,7 @@ export const appearanceSchema = z.object({
     .optional(),
   normalStrength: z.number().min(0).max(5).optional(),
   surfaceDetail: z.boolean().optional(),
+  surfaceSource: z.enum(['normal', 'height']).optional(),
   generatedSurface: z.boolean().optional(),
   bumpDepth: z.number().min(0).max(20).optional(),
   normalFormat: z.enum(['opengl', 'directx']).optional(),
@@ -76,6 +78,8 @@ export type MaterialPreset = {
   metalness: number;
   transmission?: number;
   clearcoat?: number;
+  pbr?: string;
+  grainAxis?: 'u' | 'v';
   pattern?:
     | 'oak'
     | 'walnut'
@@ -118,6 +122,23 @@ const wood = (
   seed,
 });
 export const materialPresets: MaterialPreset[] = [
+  ...pbrSurfaces.map((surface): MaterialPreset => ({
+    id: `pbr-${surface.source}`,
+    name: surface.name,
+    category: 'Aidot pinnat',
+    color: '#ffffff',
+    roughness: 1,
+    metalness: 0,
+    pbr: surface.source,
+    grainAxis:
+      surface.source === 'oak_veneer_01'
+        ? 'v'
+        : ['coated_pine', 'american_walnut_veneer'].includes(surface.source)
+          ? 'u'
+          : undefined,
+    size: [surface.size, surface.size],
+    relief: surface.relief,
+  })),
   {
     id: 'paint-solid',
     name: 'Maali · tasainen väri',
@@ -680,6 +701,10 @@ export const defaultAppearance = (preset = 'matte'): Appearance => ({
     height: findPreset(preset).size?.[1] ?? textureDefaults.height,
   },
 });
+export const hasAppearanceTexture = (appearance: Appearance) => {
+  const preset = findPreset(appearance.preset);
+  return !!(appearance.assetId || preset.pattern || preset.pbr);
+};
 export function emissionSettings(appearance: Appearance, color: string) {
   const preset = findPreset(appearance.preset);
   return (

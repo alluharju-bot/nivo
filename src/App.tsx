@@ -6292,7 +6292,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.21.5</span>
+                    <span>v0.22.0</span>
                   </div>
                 </>
               )}

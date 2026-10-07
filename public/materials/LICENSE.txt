@@ -1,0 +1,9 @@
+PBR textures and HDRI: CC0 1.0 Universal
+Source: Poly Haven — https://polyhaven.com/
+License: https://polyhaven.com/license
+Legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+These assets were created by the artists listed in sources.json, not by Nivo.
+The manifest records each original asset page, author, download URL and checksum.
+Images are distributed unchanged at the provider's 1K resolution.
+Powered by Poly Haven. No live API connection is required to use these assets.

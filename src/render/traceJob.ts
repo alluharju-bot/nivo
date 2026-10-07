@@ -3,8 +3,9 @@ import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
 import { configureEmitterSampling } from './emitterSampling';
+import { traceDenoise } from './traceDenoise';
 
-export type RenderJobOptions = { width: number; samples: number };
+export type RenderJobOptions = { width: number; samples: number; denoise?: boolean };
 export type RenderJobProgress = {
   phase: 'preparing' | 'rendering' | 'saving';
   samples: number;
@@ -51,6 +52,7 @@ export async function renderSnapshot(
   const { width, samples: target } = options,
     height = Math.max(1, Math.round(width / snapshot.aspect));
   const started = performance.now();
+  const denoise = traceDenoise();
   const check = () => {
     if (signal.aborted) throw new DOMException('Renderöinti keskeytettiin.', 'AbortError');
   };
@@ -95,12 +97,12 @@ export async function renderSnapshot(
     renderer.toneMappingExposure = snapshot.exposure;
     environment = new GradientEquirectTexture(256);
     configureTraceEnvironment(environment, snapshot.scene);
-    snapshot.scene.environment = environment;
+    snapshot.scene.environment ??= environment;
     tracer = new WebGLPathTracer(renderer);
     tracer.tiles.set(Math.ceil(width / 256), Math.ceil(height / 256));
-    tracer.bounces = 10;
+    tracer.bounces = 16;
     tracer.transmissiveBounces = 12;
-    tracer.filterGlossyFactor = 0.5;
+    tracer.filterGlossyFactor = 0.25;
     tracer.renderScale = 1;
     tracer.minSamples = 1;
     tracer.fadeDuration = 0;
@@ -141,6 +143,7 @@ export async function renderSnapshot(
       }
     }
     report('saving');
+    if (options.denoise !== false && target >= 8) denoise.draw(renderer, tracer.target.texture);
     check();
     const blob = await new Promise<Blob>((resolve, reject) =>
       renderer!.domElement.toBlob(
@@ -152,6 +155,7 @@ export async function renderSnapshot(
     return blob;
   } finally {
     tracer?.dispose();
+    denoise.dispose();
     environment?.dispose();
     snapshot.dispose();
     renderer?.dispose();

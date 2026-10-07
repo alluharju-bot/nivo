@@ -20,6 +20,8 @@ const lines = [
   'The CAD WebAssembly module is provided separately under LGPL-2.1-only.',
   'OCCT has an additional exception; OpenCascade.js remains LGPL-2.1.',
   'License texts are included alongside this notice.',
+  'PBR textures and Studio Small 09 HDRI: Poly Haven, CC0-1.0. See materials/sources.json and materials/LICENSE.txt.',
+  'glslSmartDeNoise: Copyright (c) 2019-2020 Michele Morrone, BSD-2-Clause. See glslSmartDeNoise-LICENSE.',
   '',
   'Corresponding upstream source and build configuration:',
   'Replicad and its WASM package (1.1.0, git e4b05f67dc4e2393a876ce8c5064a9c93db05bf1):',

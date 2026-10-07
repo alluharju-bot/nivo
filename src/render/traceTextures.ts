@@ -48,8 +48,14 @@ export function configureTraceTextures(
 }
 
 export function checkTraceUpload(renderer: THREE.WebGLRenderer) {
-  if (renderer.getContext().getError() !== renderer.getContext().NO_ERROR)
+  const gl = renderer.getContext();
+  const error = gl.getError();
+  if (error === gl.NO_ERROR) return;
+  if (error === gl.OUT_OF_MEMORY)
     throw new Error(
       'Näytönohjain ei voinut varata tarkentuvan kuvan muistia. Kokeile rajattua osavalintaa tai nopeaa esikatselua.',
     );
+  throw new Error(
+    `Tarkentuvan kuvan valmistelu epäonnistui (WebGL ${error}). Kokeile käynnistää tarkennus uudelleen. Nopea esikatselu toimii edelleen.`,
+  );
 }

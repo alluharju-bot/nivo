@@ -1,0 +1,355 @@
+[
+  {
+    "id": "coated_pine",
+    "name": "Coated Pine",
+    "authors": {
+      "Charlotte Baglioni": "Scanning ",
+      "Rico Cilliers": "Processing "
+    },
+    "sizeMm": [740, 740],
+    "source": "https://polyhaven.com/a/coated_pine",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coated_pine/coated_pine_diff_1k.jpg",
+        "file": "coated_pine/color.jpg",
+        "md5": "9a7ae992985ad56fd22ed26196a9b405",
+        "bytes": 710600
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coated_pine/coated_pine_nor_gl_1k.jpg",
+        "file": "coated_pine/normal.jpg",
+        "md5": "2148b0edde5af6b16fbd08a9724feafc",
+        "bytes": 443383
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coated_pine/coated_pine_rough_1k.jpg",
+        "file": "coated_pine/roughness.jpg",
+        "md5": "0ce8476bf398e47b0655648b3d38d4ae",
+        "bytes": 491513
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coated_pine/coated_pine_disp_1k.jpg",
+        "file": "coated_pine/height.jpg",
+        "md5": "15c3269cb38cd3780893be023a315a52",
+        "bytes": 347837
+      }
+    }
+  },
+  {
+    "id": "oak_veneer_01",
+    "name": "Oak Veneer 01",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1830, 1830],
+    "source": "https://polyhaven.com/a/oak_veneer_01",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_diff_1k.jpg",
+        "file": "oak_veneer_01/color.jpg",
+        "md5": "39a99df4e328d62d74f3122722a64a95",
+        "bytes": 641756
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_nor_gl_1k.jpg",
+        "file": "oak_veneer_01/normal.jpg",
+        "md5": "d05406f5fdaf51f0d7b115b35d9af1b7",
+        "bytes": 484844
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_rough_1k.jpg",
+        "file": "oak_veneer_01/roughness.jpg",
+        "md5": "a19b44176a078b9ae93314133848c9aa",
+        "bytes": 865194
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_disp_1k.jpg",
+        "file": "oak_veneer_01/height.jpg",
+        "md5": "4f7dff5974628568e056edd33c0df9b3",
+        "bytes": 23526
+      }
+    }
+  },
+  {
+    "id": "american_walnut_veneer",
+    "name": "American Walnut Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/american_walnut_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/american_walnut_veneer/american_walnut_veneer_diff_1k.jpg",
+        "file": "american_walnut_veneer/color.jpg",
+        "md5": "748b39ed2ba9dce314104055f18837f0",
+        "bytes": 579182
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/american_walnut_veneer/american_walnut_veneer_nor_gl_1k.jpg",
+        "file": "american_walnut_veneer/normal.jpg",
+        "md5": "4bd673f87d8aef1fcce85625d748fa0e",
+        "bytes": 414945
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/american_walnut_veneer/american_walnut_veneer_rough_1k.jpg",
+        "file": "american_walnut_veneer/roughness.jpg",
+        "md5": "d9fa24afc4790122e9ba3c535af8b615",
+        "bytes": 691712
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/american_walnut_veneer/american_walnut_veneer_disp_1k.jpg",
+        "file": "american_walnut_veneer/height.jpg",
+        "md5": "7081945eaff4a6cff32a09e8fcd16eae",
+        "bytes": 160293
+      }
+    }
+  },
+  {
+    "id": "white_plaster_02",
+    "name": "White Plaster 02",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/white_plaster_02",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_diff_1k.jpg",
+        "file": "white_plaster_02/color.jpg",
+        "md5": "7b10c2686bcfd76d1f309a20fd06b57e",
+        "bytes": 527219
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_nor_gl_1k.jpg",
+        "file": "white_plaster_02/normal.jpg",
+        "md5": "55fc03203ebf1dc703a380fde93ff502",
+        "bytes": 652310
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_rough_1k.jpg",
+        "file": "white_plaster_02/roughness.jpg",
+        "md5": "8b28f263360b8c4ddbdc4f7c650c4eeb",
+        "bytes": 295900
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_disp_1k.jpg",
+        "file": "white_plaster_02/height.jpg",
+        "md5": "73f9cf2ee82e1a85c86ef9e607f50407",
+        "bytes": 282756
+      }
+    }
+  },
+  {
+    "id": "white_stucco",
+    "name": "White Stucco",
+    "authors": {
+      "Amal Kumar": "All"
+    },
+    "sizeMm": [1998, 1998],
+    "source": "https://polyhaven.com/a/white_stucco",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_diff_1k.jpg",
+        "file": "white_stucco/color.jpg",
+        "md5": "34b66656dbf2a90eec29306deb1a20d0",
+        "bytes": 557550
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_nor_gl_1k.jpg",
+        "file": "white_stucco/normal.jpg",
+        "md5": "3e70f3be77f582fd41a9a08c8e8a6e66",
+        "bytes": 932038
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_rough_1k.jpg",
+        "file": "white_stucco/roughness.jpg",
+        "md5": "bf6289112520870861b21620fdf9c4d1",
+        "bytes": 347861
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_disp_1k.jpg",
+        "file": "white_stucco/height.jpg",
+        "md5": "d18cadb8fb33677dbfe9389613e3ffcf",
+        "bytes": 621336
+      }
+    }
+  },
+  {
+    "id": "concrete_wall_009",
+    "name": "Concrete Wall 009",
+    "authors": {
+      "Charlotte Baglioni": "All"
+    },
+    "sizeMm": [1805, 1805],
+    "source": "https://polyhaven.com/a/concrete_wall_009",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_009/concrete_wall_009_diff_1k.jpg",
+        "file": "concrete_wall_009/color.jpg",
+        "md5": "183930f83ca9b70797b1226833d64bf3",
+        "bytes": 626688
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_009/concrete_wall_009_nor_gl_1k.jpg",
+        "file": "concrete_wall_009/normal.jpg",
+        "md5": "68c543079c71fd14e9f0b38b126eb116",
+        "bytes": 518536
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_009/concrete_wall_009_rough_1k.jpg",
+        "file": "concrete_wall_009/roughness.jpg",
+        "md5": "4b5da97ce2a223738a67457ff9b75081",
+        "bytes": 766943
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_009/concrete_wall_009_disp_1k.jpg",
+        "file": "concrete_wall_009/height.jpg",
+        "md5": "cadacfbcf3ced533a329ab81645860a7",
+        "bytes": 237816
+      }
+    }
+  },
+  {
+    "id": "smooth_concrete_floor",
+    "name": "Smooth Concrete Floor",
+    "authors": {
+      "Dimitrios Savva": "All"
+    },
+    "sizeMm": [2000, 2000],
+    "source": "https://polyhaven.com/a/smooth_concrete_floor",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smooth_concrete_floor/smooth_concrete_floor_diff_1k.jpg",
+        "file": "smooth_concrete_floor/color.jpg",
+        "md5": "321efe0af2d0809ab958b78a008fa116",
+        "bytes": 861674
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smooth_concrete_floor/smooth_concrete_floor_nor_gl_1k.jpg",
+        "file": "smooth_concrete_floor/normal.jpg",
+        "md5": "92b8f007ff471cecb2ef581615989a9d",
+        "bytes": 529251
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smooth_concrete_floor/smooth_concrete_floor_rough_1k.jpg",
+        "file": "smooth_concrete_floor/roughness.jpg",
+        "md5": "d69e03eafb7442684db178e26896a1ee",
+        "bytes": 488628
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smooth_concrete_floor/smooth_concrete_floor_disp_1k.jpg",
+        "file": "smooth_concrete_floor/height.jpg",
+        "md5": "cb75bc46f1c1f65f4d3eb5f134439585",
+        "bytes": 169690
+      }
+    }
+  },
+  {
+    "id": "marble_01",
+    "name": "Marble 01",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "sizeMm": [1500, 1500],
+    "source": "https://polyhaven.com/a/marble_01",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_diff_1k.jpg",
+        "file": "marble_01/color.jpg",
+        "md5": "04325ced5018eb8a2e598a4ef69cb176",
+        "bytes": 305029
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_nor_gl_1k.jpg",
+        "file": "marble_01/normal.jpg",
+        "md5": "fa073d722cde733c1bd6cc6e8897c8e3",
+        "bytes": 110230
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_rough_1k.jpg",
+        "file": "marble_01/roughness.jpg",
+        "md5": "59cef1be1b7376c9d0dcc7a64adf7882",
+        "bytes": 91848
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_disp_1k.jpg",
+        "file": "marble_01/height.jpg",
+        "md5": "cd0ee5ada8943324e99acce649a123c7",
+        "bytes": 78919
+      }
+    }
+  },
+  {
+    "id": "long_white_tiles",
+    "name": "Long White Tiles",
+    "authors": {
+      "Jenelle van Heerden": "processing",
+      "Sergej Majboroda": "photography"
+    },
+    "sizeMm": [1270, 1270],
+    "source": "https://polyhaven.com/a/long_white_tiles",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/long_white_tiles/long_white_tiles_diff_1k.jpg",
+        "file": "long_white_tiles/color.jpg",
+        "md5": "49f7e4c3a0afd9a8ca3df5ac75747353",
+        "bytes": 619644
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/long_white_tiles/long_white_tiles_nor_gl_1k.jpg",
+        "file": "long_white_tiles/normal.jpg",
+        "md5": "7837ef3d13258d6ee2bf9ee928d48152",
+        "bytes": 651009
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/long_white_tiles/long_white_tiles_rough_1k.jpg",
+        "file": "long_white_tiles/roughness.jpg",
+        "md5": "d271d3837f7b6e9db9c3a565ff57c290",
+        "bytes": 491268
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/long_white_tiles/long_white_tiles_disp_1k.jpg",
+        "file": "long_white_tiles/height.jpg",
+        "md5": "75df67d997c9ca22b7e5e813b532fb3d",
+        "bytes": 313560
+      }
+    }
+  },
+  {
+    "id": "studio_small_09",
+    "name": "Studio Small 09",
+    "authors": {
+      "Sergej Majboroda": "All"
+    },
+    "source": "https://polyhaven.com/a/studio_small_09",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "environment": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr",
+        "size": 1615248,
+        "md5": "d5d7eb9d26d341d6aa4d11c1a54fd97c",
+        "file": "studio_small_09/environment.hdr"
+      }
+    }
+  }
+]

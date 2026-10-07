@@ -12,6 +12,7 @@ import type { RenderJobOptions } from './traceJob';
 import {
   defaultAppearance,
   findPreset,
+  hasAppearanceTexture,
   materialPresets,
   textureDefaults,
   type Appearance,
@@ -20,6 +21,7 @@ import {
   type TexturePlacement,
 } from '../model/materials';
 import { patternCanvas } from './materials';
+import { pbrMapUrl } from '../model/pbrCatalog';
 import { importTexture, withColorTexture } from '../storage/textures';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { ArrowLeft, Download, Maximize, MousePointer2, Paintbrush, Move } from 'lucide-react';
@@ -113,7 +115,7 @@ export function RenderStage(props: Props) {
     color: findPreset('oak').color,
   });
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('Massiivipuut');
+  const [category, setCategory] = useState('Aidot pinnat');
   const [textureDraft, setTextureDraft] = useState<{
     id: string;
     appearance: Appearance;
@@ -234,8 +236,7 @@ export function RenderStage(props: Props) {
     );
     const body = candidates.length === 1 ? candidates[0] : undefined;
     const a = body?.appearance ?? defaultAppearance(body?.material);
-    const editable =
-      tool === 'texture' && body && !body.locked && (a.assetId || findPreset(a.preset).pattern);
+    const editable = tool === 'texture' && body && !body.locked && hasAppearanceTexture(a);
     const source = JSON.stringify(body);
     if (!editable) {
       draftRef.current = undefined;
@@ -319,7 +320,10 @@ export function RenderStage(props: Props) {
         .map((p) => {
           if (p.pattern && !thumbnailCache.current.has(p.id))
             thumbnailCache.current.set(p.id, patternCanvas(p).toDataURL());
-          return { ...p, image: thumbnailCache.current.get(p.id) };
+          return {
+            ...p,
+            image: p.pbr ? pbrMapUrl(p.pbr, 'color') : thumbnailCache.current.get(p.id),
+          };
         }),
     [category, search],
   );
@@ -602,7 +606,7 @@ export function RenderStage(props: Props) {
               )}
               {!textureDraft && (
                 <>
-                  {(appearance.assetId || preset.pattern) && (
+                  {hasAppearanceTexture(appearance) && (
                     <p className="muted">
                       Väri sävyttää tekstuuria. Valkoinen näyttää kuvan alkuperäiset värit.
                     </p>
@@ -1006,8 +1010,21 @@ export function RenderStage(props: Props) {
                     <option value={64}>64 näytettä</option>
                     <option value={256}>256 näytettä</option>
                     <option value={1024}>1 024 näytettä</option>
+                    <option value={4096}>4 096 näytettä · sisätilat</option>
                     <option value={0}>Jatkuva</option>
                   </select>
+                </label>
+                <label className="checkbox-label">
+                  <CommitCheckbox
+                    label="Kohinan pehmennys"
+                    checked={traceOptions.denoise !== false}
+                    onChange={async (denoise) => {
+                      const next = { ...traceOptions, denoise };
+                      setTraceOptions(next);
+                      api.current?.trace.configure(next);
+                    }}
+                  />
+                  Kohinan pehmennys
                 </label>
               </div>
               {trace.state !== 'off' && (
@@ -1101,6 +1118,7 @@ export function RenderStage(props: Props) {
                     <option value={64}>64 · Luonnos</option>
                     <option value={256}>256 · Esityskuva</option>
                     <option value={1024}>1 024 · Viimeistelty</option>
+                    <option value={4096}>4 096 · Sisätilan valaistus</option>
                   </select>
                 </label>
                 <button
@@ -1114,7 +1132,11 @@ export function RenderStage(props: Props) {
                       api.current?.trace.stop();
                       const snapshot = await api.current?.capture();
                       if (snapshot)
-                        props.onStartRender(snapshot, { width, samples: jobSamples }, props.name);
+                        props.onStartRender(
+                          snapshot,
+                          { width, samples: jobSamples, denoise: traceOptions.denoise },
+                          props.name,
+                        );
                     } catch (e) {
                       setError((e as Error).message);
                     } finally {

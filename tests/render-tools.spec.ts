@@ -23,7 +23,7 @@ test('texture tool stays active across drags, commits, picks and undo, then brus
   test.setTimeout(120000);
   const a = {
     ...makeBody(200, 200, 100, [0, 0, 0], 'Ensimmäinen'),
-    appearance: defaultAppearance('pine'),
+    appearance: defaultAppearance('pbr-coated_pine'),
   };
   const b = {
     ...makeBody(200, 200, 100, [400, 0, 0], 'Toinen'),
@@ -78,7 +78,7 @@ test('texture tool stays active across drags, commits, picks and undo, then brus
   expect(project.bodies[1].appearance!.texture.width).toBe(450);
   await page.getByRole('button', { name: 'Maalaa', exact: true }).click();
   await page.getByLabel('Etsi materiaalia', { exact: true }).fill('betoni');
-  await expect(page.locator('.material-swatches button')).toHaveCount(2);
+  await expect(page.locator('.material-swatches button')).toHaveCount(4);
   await page.getByRole('button', { name: 'Raaka betoni', exact: true }).click();
   // Choosing a brush material does not paint until the user clicks a part.
   expect((await save(page)).bodies[1].appearance!.preset).toBe('walnut');
@@ -87,7 +87,7 @@ test('texture tool stays active across drags, commits, picks and undo, then brus
   project = await save(page);
   expect(project.bodies[1].appearance!.preset).toBe('concrete-raw');
   expect(project.bodies[1].color).toBe(findPreset('concrete-raw').color);
-  expect(project.bodies[0].appearance!.preset).toBe('pine');
+  expect(project.bodies[0].appearance!.preset).toBe('pbr-coated_pine');
   p = await point(page, [840, 40, 100]);
   await page.mouse.click(p.x, p.y);
   await expect(page.locator('.render-panel')).toContainText('Osa on Hold-lukittu');
