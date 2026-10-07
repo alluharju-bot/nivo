@@ -1,4 +1,5 @@
 import { applySplitResult } from './model/splitReferences';
+import { colorPreviewTargets, type ColorPreview } from './model/colorPreview';
 import { linkSplitCopies } from './model/linkedSplit';
 import { displayLabels, displayModes, setModelDisplay, type DisplayMode } from './model/display';
 import { DisplayControls } from './ui/DisplayControls';
@@ -473,6 +474,33 @@ export default function App() {
   const [textureDraft, setTextureDraft] = useState<{ id: string; texture: TexturePlacement }>();
   const textureDraftRef = useRef<typeof textureDraft>(undefined);
   const [openedAssembly, setOpenedAssembly] = useState<string>();
+  const [mode, setMode] = useState<'model' | 'drawing'>('model');
+  const colorContext = `${selectedIds.join(',')}:${selected}:${tool}:${mode}:${renderOpen}:${editingBodyId}:${openedAssembly}`;
+  const [colorDraft, setColorDraft] = useState<{
+    value: ColorPreview;
+    project: typeof project;
+    context: string;
+  }>();
+  const colorPreview =
+    colorDraft?.project === project && colorDraft.context === colorContext
+      ? colorDraft.value
+      : undefined;
+  useEffect(() => {
+    setColorDraft((draft) =>
+      draft && (draft.project !== project || draft.context !== colorContext) ? undefined : draft,
+    );
+  }, [project, colorContext]);
+  const previewColor = (ids: string[], color?: string) => {
+    setColorDraft(
+      color
+        ? {
+            value: { ids: colorPreviewTargets(project.bodies, project.groups, ids), color },
+            project,
+            context: colorContext,
+          }
+        : undefined,
+    );
+  };
   const actionContext: SelectionContext = {
     ids: selectedIds,
     guideIds: selectedGuideIds,
@@ -490,7 +518,6 @@ export default function App() {
   });
   const [cabinetOpen, setCabinetOpen] = useState(false);
   const renderJob = useRenderJob();
-  const [mode, setMode] = useState<'model' | 'drawing'>('model');
   const changeDisplay = (value: DisplayMode) => {
     if (busy) return;
     const next = setModelDisplay(project, value, selectedIds);
@@ -3937,6 +3964,7 @@ export default function App() {
   );
   const objectActions = body && !selectedGroup && mode === 'model' && (
     <ObjectActions
+      key={colorContext}
       body={{ ...body, locked: bodyLocked(body, project.groups) }}
       groups={project.groups}
       count={selectedIds.length}
@@ -3945,6 +3973,7 @@ export default function App() {
       )}
       busy={busy}
       onChange={(patch) => void patchBodies([body.id], patch)}
+      onPreviewColor={(color) => previewColor(selectedIds.length ? selectedIds : [body.id], color)}
       onColor={(color) =>
         void patchBodies(selectedIds.length ? selectedIds : [body.id], {
           color,
@@ -4807,6 +4836,7 @@ export default function App() {
               scopeIds={scopeIds}
               onPaint={paintBody}
               editingTexture={busy ? undefined : activeTexture}
+              colorPreview={colorPreview}
               onTexture={previewTexture}
               onTextureCommit={commitTexture}
               modalOpen={
@@ -6072,6 +6102,10 @@ export default function App() {
                         </>
                       )}
                       <ModelMaterials
+                        key={colorContext}
+                        onPreviewColor={(color) =>
+                          previewColor(selectedIds.length ? selectedIds : [body.id], color)
+                        }
                         bodies={project.bodies.filter((b) =>
                           selectedIds.length ? selectedIdSet.has(b.id) : b.id === body.id,
                         )}
@@ -6243,7 +6277,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.21.0</span>
+                    <span>v0.21.1</span>
                   </div>
                 </>
               )}
@@ -6497,6 +6531,8 @@ export default function App() {
 
       {renderOpen && (
         <RenderStage
+          colorPreview={colorPreview}
+          onPreviewColor={previewColor}
           onStartRender={renderJob.start}
           renderJobActive={renderJob.job?.state === 'working'}
           bodies={renderBodies}

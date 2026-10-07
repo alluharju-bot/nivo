@@ -34,11 +34,27 @@ test('fifteen-part nested group copies and moves as one adjustable selection', a
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   let result = await save(page);
   expect(result.bodies).toHaveLength(31);
-  expect(result.bodies.slice(0, 16)).toEqual([...parts, extra]);
-  const copyGroup = result.groups.find((g) => g.name === 'Runko kopio')!;
+  const originals = result.bodies.slice(0, 16);
+  originals.forEach((body, i) =>
+    expect(body).toEqual(
+      i === 14
+        ? parts[i]
+        : {
+            ...[...parts, extra][i],
+            purpose: 'component',
+            component: expect.any(Object),
+          },
+    ),
+  );
+  const copyGroup = result.groups.find((g) => g.name === 'Runko (kopio #1)')!;
   expect(groupBodies(result, copyGroup.id)).toHaveLength(14);
   const copied = result.bodies.slice(16);
-  copied.forEach((b, i) => expect(b.origin[0]).toBe((i < 14 ? parts[i] : extra).origin[0] + 1200));
+  copied.forEach((b, i) => {
+    const source = i < 14 ? parts[i] : extra;
+    expect(b.origin[0]).toBe(source.origin[0] + 1200);
+    expect(b.name).toBe(`${source.name} (kopio #1)`);
+    expect(b.component?.id).toBe(originals[i < 14 ? i : 15].component?.id);
+  });
   // The same M tool moves the entire copied selection, including the extra part.
   await page.keyboard.press('m');
   await page.getByTestId('move-y').fill('250');
@@ -46,7 +62,7 @@ test('fifteen-part nested group copies and moves as one adjustable selection', a
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   result = await save(page);
   result.bodies.slice(16).forEach((b) => expect(b.origin[1]).toBe(250));
-  expect(result.bodies.slice(0, 16)).toEqual([...parts, extra]);
+  expect(result.bodies.slice(0, 16)).toEqual(originals);
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies.slice(16)).toEqual(copied);
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();

@@ -3,7 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.21.0** korjaa kynän suuntaan sidotun mittasyötön ja Shift-viitteet,
+Versio **0.21.1** näyttää tekstuurin sävyn heti väriä valitessa sekä mallissa että
+renderöinnissä. Hyväksy sävy valintapainikkeesta tai peru esikatselu Escillä;
+hyväksytty muutos on yksi historian askel. Uusien kopioiden nimet numeroidaan:
+`Kynämuoto 122 (kopio #1)`, `(kopio #2)` jne. Myös kopion kopio jatkaa samaa sarjaa.
+
+Versio **0.21.0** korjasi kynän suuntaan sidotun mittasyötön ja Shift-viitteet,
 yhtenäistää risteystartunnat, lisää pyöritettävän näkymäkuution sekä näyttötilat
 Solid / Tasaväri / Ghost / Wireframe. P-työkalulla voi asetella tekstuureja
 ja vaihdella valittujen osien kuvioita. Materiaalin sävyä ja kiiltoa voi säätää.

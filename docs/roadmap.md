@@ -2,6 +2,18 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.21.1 — reaaliaikainen sävy ja kopioiden numerointi
+
+- Värivalitsin näyttää sävyn heti mallissa ja renderöinnissä. Esikatselu päivittää
+  materiaaleja ilman CAD- tai näkymägeometrian uudelleenrakennusta. Myös linkitetyt
+  kopiot osallistuvat materiaalin jakamisen sääntöjen mukaan. Hold säilyy suojattuna.
+- Hyväksy tallentaa yhden peruttavan muutoksen, Esc palauttaa tallennetun värin.
+  Esikatselua ei tallenneta projektitiedostoon. Työkalun tai kohteen vaihto purkaa sen.
+- Osien ja ryhmien uudet kopiot saavat `(kopio #1)` -päätteen. Alkuperäisen ja sen
+  kopioiden kopiointi jatkaa yhteistä nimisarjaa, myös Toista-komennossa. Vanhoja
+  nimiä ei muuteta taustalla; vanhasta `kopio kopio` -nimestä tehty uusi kopio
+  saa siistin numeroidun nimen. Piilotetutkin nimet huomioidaan numeroinnissa.
+
 ## V0.21.0 — kynä, näkymät, pintakäsittely ja kopioiden linkitys
 
 - Näkymän yläreunan yksi mittaviivakytkin piilottaa kaikki tallennetut dimensiot,

@@ -80,7 +80,7 @@ test('a copied group becomes unique as a whole and preserves its internal repeat
   const copied = translateSelection(original, [a.id, b.id], [0, 300, 0], true, 'root');
   await ready(page, copied.project.bodies, [], copied.project.groups);
   await revealBrowser(page);
-  await page.getByRole('button', { name: 'Valitse ryhmä: Runko kopio', exact: true }).click();
+  await page.getByRole('button', { name: 'Valitse ryhmä: Runko (kopio #1)', exact: true }).click();
   await page.getByRole('button', { name: 'Tee ryhmä uniikiksi', exact: true }).click();
   const saved = await save(page);
   expect(saved.bodies.slice(0, 2)).toEqual(copied.project.bodies.slice(0, 2));

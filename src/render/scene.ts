@@ -1,4 +1,5 @@
 import { installTextureEditing } from '../viewport/textureEditing';
+import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, previewLightLimit } from './lights';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { progressiveRenderer, type TraceStatus } from './progressive';
@@ -383,6 +384,19 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
           updateMaterialPlacement(material, appearance.texture);
         }
       textureEditor.update();
+      draw();
+    },
+    color(preview?: ColorPreview) {
+      const ids = new Set(preview?.ids);
+      const bodies = new Map(current().bodies.map((body) => [body.id, body]));
+      for (const object of model.children) {
+        if (!(object instanceof THREE.Mesh)) continue;
+        const body = bodies.get(object.userData.bodyId);
+        if (!body) continue;
+        (object.material as THREE.MeshPhysicalMaterial).color.set(
+          ids.has(body.id) ? preview!.color : body.color,
+        );
+      }
       draw();
     },
     selection() {

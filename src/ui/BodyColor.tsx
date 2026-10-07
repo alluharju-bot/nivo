@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useColorDraft } from './useColorDraft';
 import { Check } from 'lucide-react';
 
 const palette = [
@@ -14,14 +14,15 @@ export function BodyColor({
   mixed,
   busy,
   onChange,
+  onPreview,
 }: {
   color: string;
   mixed: boolean;
   busy: boolean;
   onChange: (color: string) => void;
+  onPreview?: (color?: string) => void;
 }) {
-  const [draft, setDraft] = useState(color);
-  useEffect(() => setDraft(color), [color]);
+  const { draft, change, cancel } = useColorDraft(color, onPreview);
   return (
     <fieldset className="body-color" disabled={busy}>
       <legend>{mixed ? 'Väri · useita' : 'Väri'}</legend>
@@ -34,7 +35,10 @@ export function BodyColor({
             title={name}
             aria-pressed={!mixed && color.toLowerCase() === value}
             style={{ background: value }}
-            onClick={() => onChange(value)}
+            onClick={() => {
+              cancel();
+              onChange(value);
+            }}
           />
         ))}
       </div>
@@ -42,8 +46,13 @@ export function BodyColor({
         <input
           type="color"
           aria-label="Oma osaväri"
+          title={
+            onPreview
+              ? 'Esikatselu näkyy heti. Hyväksy valintamerkistä tai peru Escillä.'
+              : undefined
+          }
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => change(e.target.value)}
         />
         <span>{draft.toUpperCase()}</span>
         <button
@@ -51,7 +60,10 @@ export function BodyColor({
           aria-label="Käytä väriä"
           title="Käytä väriä"
           disabled={!mixed && draft.toLowerCase() === color.toLowerCase()}
-          onClick={() => onChange(draft)}
+          onClick={() => {
+            onChange(draft);
+            cancel();
+          }}
         >
           <Check size={16} />
         </button>

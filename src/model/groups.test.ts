@@ -120,7 +120,7 @@ describe('nested groups and whole-selection transforms', () => {
     const result = translateSelection(p, ids, [10, 20, 30], true, 'root');
     expect(result.ids).toHaveLength(15);
     expect(groupBodies(result.project, result.groupId!)).toHaveLength(14);
-    expect(result.project.bodies.at(-1)!.name).toBe('Muu kopio');
+    expect(result.project.bodies.at(-1)!.name).toBe('Muu (kopio #1)');
     expect(result.project.dimensions).toEqual(p.dimensions);
     expect(result.project.guides).toEqual(p.guides);
   });

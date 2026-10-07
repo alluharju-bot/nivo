@@ -1,4 +1,5 @@
 import type { GuideEndpoint } from '../model/guideEditing';
+import type { ColorPreview } from '../model/colorPreview';
 import type { ModelDisplay } from '../model/display';
 import type { Section } from '../model/sections';
 import type { PickCandidate } from '../ui/OverlapPicker';
@@ -76,6 +77,7 @@ export type Gesture =
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
   editingTexture?: { id: string; texture: TexturePlacement };
+  colorPreview?: ColorPreview;
   onTexture?: (texture: TexturePlacement) => void;
   onTextureCommit?: () => void;
   modelDisplay?: ModelDisplay;

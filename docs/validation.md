@@ -4,6 +4,23 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.21.1 — reaaliaikainen sävy ja kopioiden numerointi
+
+**285 yksikkö-/CAD-testiä hyväksytty (54 tiedostoa)**. **8 selaintapausta hyväksytty**
+(4 desktop, 4 tablettiemulointi): `color-preview` ja `surface-finish`.
+Kuvavertailu varmistaa esikatselun ennen hyväksymistä sekä Esc-palautuksen.
+Tallennus säilyttää alkuperäisen värin esikatselun aikana; hyväksyminen ja yksi
+Peru muuttavat molemmat linkitetyt kappaleet. Geometrian rakennuslaskuri pysyy
+samana koko säätämisen ja perumisen ajan. Pintakäsittely ja maalaaminen tarkistettu.
+Kopioiden yksikkötestit kattavat vanhat nimiketjut, olemassa olevat numerot,
+pitkät nimet, ryhmähierarkian toiston ja kopion kopioinnin projektin lataamisen jälkeen.
+Tarkentuvan renderöinnin selaintesti varmisti lisäksi uuden sävyn tarkentumisen
+kahdeksaan näytteeseen ennen hyväksymistä. Ryhmän uniikiksi tekeminen ja kokoonpanon
+kopiointi hyväksyttiin uusilla numeroiduilla nimillä. Vanhan 15 osan ryhmätestin
+oletus itsenäisistä kopioista päivitettiin v0.21:n mukaiseen oletuslinkitykseen.
+Lopullisen `/nivo/`-julkaisupolun **6 tapausta hyväksytty**: sävyn esikatselu
+mallissa ja renderissä sekä 15 osan ryhmäkopiointi, desktopilla ja tabletilla.
+
 ## V0.21.0 — tartunta, kynä, kamera, materiaalit ja linkitetyt kopiot
 
 **280 yksikkö-/CAD-testiä hyväksytty (52 tiedostoa)**. TypeScript ja

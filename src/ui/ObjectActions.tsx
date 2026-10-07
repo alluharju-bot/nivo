@@ -16,6 +16,7 @@ export function ObjectActions({
   onRotate,
   onHold,
   onColor,
+  onPreviewColor,
   onEdit,
   editing,
 }: {
@@ -30,6 +31,7 @@ export function ObjectActions({
   onRotate: () => void;
   onHold: () => void;
   onColor: (color: string) => void;
+  onPreviewColor?: (color?: string) => void;
   onEdit: () => void;
   editing: boolean;
 }) {
@@ -97,6 +99,7 @@ export function ObjectActions({
             mixed={mixedColor}
             busy={busy || !!body.locked}
             onChange={onColor}
+            onPreview={onPreviewColor}
           />
         </div>
       </details>

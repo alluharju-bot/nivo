@@ -21,6 +21,12 @@ it('repeats linked assembly copies at exact intervals, retaining nested groups a
   const result = repeatTranslation(project, [a.id, b.id], [650.125, 0, 0], 3, true, 'root');
   expect(result.project.bodies).toHaveLength(8);
   expect(result.project.groups).toHaveLength(8);
+  expect(result.project.groups.filter((g) => !g.parentId).map((g) => g.name)).toEqual([
+    'Kaappi',
+    'Kaappi (kopio #1)',
+    'Kaappi (kopio #2)',
+    'Kaappi (kopio #3)',
+  ]);
   expect(result.project.dimensions).toHaveLength(4);
   expect(groupBodies(result.project, result.groupId!)).toHaveLength(2);
   expect(
@@ -44,6 +50,7 @@ it('repeats linked assembly copies at exact intervals, retaining nested groups a
     result.groupId,
   );
   expect(next.project.bodies.at(-2)!.origin[0]).toBe(2600.5);
+  expect(next.project.groups.find((g) => g.id === next.groupId)?.name).toBe('Kaappi (kopio #4)');
 });
 
 it('repeats a signed move on the same selection, preserving all other coordinates', () => {

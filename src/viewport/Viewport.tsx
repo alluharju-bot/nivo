@@ -37,6 +37,7 @@ import { installCameraNavigation, rebuildOrbitControls } from './cameraNavigatio
 import { createViewCube } from './viewCube';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
+  color: () => void;
   texture: () => void;
   sync: () => void;
   workspaceViews: () => void;
@@ -307,6 +308,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const bodyById = new Map(props.bodies.map((body) => [body.id, body]));
     const surfaceOrder = new Map(props.bodies.map((body, i) => [body.id, i + 1]));
     const selectedIds = new Set(props.selectedIds);
+    const previewIds = new Set(props.colorPreview?.ids);
     const moveHoveredIds = new Set(props.moveHoveredIds);
     renderer.domElement.dataset.moveHovered = JSON.stringify(props.moveHoveredIds ?? []);
     const scopeIds = props.scopeIds && new Set(props.scopeIds);
@@ -332,6 +334,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const uv = JSON.stringify(body.textureFrame);
       const style = JSON.stringify([
         body.color,
+        previewIds.has(body.id),
         body.material,
         body.appearance,
         body.locked,
@@ -431,6 +434,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           material.userData.baseEmissiveIntensity = material.emissiveIntensity;
         }
         if (surfacePriority) prioritizeSurface(material);
+        material.userData.originalColor = material.color.getHex();
         return material;
       });
       baseMaterial.dispose();
@@ -1340,6 +1344,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   );
   controls.addEventListener('change', knife.clear);
   let previewedTexture: string | undefined;
+  const color = () => {
+    const preview = current().colorPreview;
+    const ids = new Set(preview?.ids);
+    for (const [id, node] of bodyNodes) {
+      for (const material of node.mesh.material) {
+        // Show the actual tint while editing; keep selection visible in the outline.
+        if (ids.has(id)) material.color.set(preview!.color);
+        else material.color.setHex(material.userData.originalColor);
+      }
+    }
+    bodyBatches.refreshColors();
+    render();
+  };
   const texture = () => {
     const editing = current().editingTexture;
     for (const id of new Set([previewedTexture, editing?.id])) {
@@ -1403,6 +1420,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   sync();
   return {
     texture,
+    color,
     sync,
     workspaceViews: workspaceViews.sync,
     annotations,
@@ -1474,6 +1492,7 @@ export function Viewport(props: Props) {
     api.current?.sync();
     api.current?.interactionSync();
     api.current?.texture();
+    api.current?.color();
     if (props.meshes.length && !hadGeometry.current) api.current?.command({ id: 0, type: 'fit' });
     hadGeometry.current = props.meshes.length > 0;
   }, [
@@ -1496,7 +1515,9 @@ export function Viewport(props: Props) {
     props.gridStep,
     props.assets,
     props.editingTexture?.id,
+    props.colorPreview?.ids.join(','),
   ]);
+  useEffect(() => api.current?.color(), [props.colorPreview]);
   useEffect(() => api.current?.texture(), [props.editingTexture]);
   useEffect(
     () => api.current?.workspaceViews(),

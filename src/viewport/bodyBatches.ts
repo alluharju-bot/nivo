@@ -60,6 +60,12 @@ export function createBodyBatches(scene: THREE.Object3D, allowTransparent = fals
   return {
     group,
     updateVisibility,
+    refreshColors() {
+      for (const batch of batches.values()) {
+        const material = batch.surface.material as ModelMaterial;
+        material.color.copy(batch.parts[0].mesh.material[0].color);
+      }
+    },
     sync(parts: BatchPart[]) {
       for (const part of previous) {
         part.mesh.material.forEach((material) => {

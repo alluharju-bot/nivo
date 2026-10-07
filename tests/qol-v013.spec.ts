@@ -204,7 +204,7 @@ test('an assembly copies its nested hierarchy, moves all members and honours gro
   await expect(page.locator('.object-select')).toHaveCount(30);
   let saved = await save(page);
   expect(saved.groups).toHaveLength(4);
-  const group = saved.groups.find((g) => g.name === 'Runko kopio')!;
+  const group = saved.groups.find((g) => g.name === 'Runko (kopio #1)')!;
   expect(group.kind).toBe('assembly');
   expect(saved.bodies.slice(15).map((b) => b.origin[0])).toEqual(
     parts.map((b) => b.origin[0] + 1200),
@@ -214,7 +214,7 @@ test('an assembly copies its nested hierarchy, moves all members and honours gro
     .forEach((b, i) => expect(b.component?.id).toBe(saved.bodies[i].component?.id));
   await page.keyboard.press('Escape');
   await reveal(page);
-  await page.getByRole('button', { name: 'Valitse ryhmä: Runko kopio', exact: true }).click();
+  await page.getByRole('button', { name: 'Valitse ryhmä: Runko (kopio #1)', exact: true }).click();
   await page.getByRole('button', { name: 'Kiinnitä · G', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Vapauta Hold', exact: true })).toBeEnabled();
   await page.keyboard.press('x');

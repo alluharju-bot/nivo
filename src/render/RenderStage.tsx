@@ -22,6 +22,7 @@ import type { BodyMesh } from '../cad/protocol';
 import type { Body } from '../model/project';
 import { CommitCheckbox } from '../ui/CommitCheckbox';
 import { BodyColor } from '../ui/BodyColor';
+import type { ColorPreview } from '../model/colorPreview';
 import { downloadFile, safeFilename } from '../storage/projects';
 import { createRenderScene, materialNames, type RenderSettings } from './scene';
 
@@ -37,6 +38,8 @@ type Props = {
   error: string;
   onMaterial: (ids: string[], material: NonNullable<Body['material']>) => void;
   onColor: (ids: string[], color: string) => void;
+  colorPreview?: ColorPreview;
+  onPreviewColor: (ids: string[], color?: string) => void;
   onSettings: (settings: RenderSettings) => Promise<unknown>;
   onClose: () => void;
   assets?: Record<string, TextureAsset>;
@@ -170,7 +173,11 @@ export function RenderStage(props: Props) {
   }, []);
   useEffect(() => {
     api.current?.sync();
+    api.current?.color(props.colorPreview);
   }, [bodies, meshes, props.assets]);
+  useEffect(() => {
+    api.current?.color(props.colorPreview);
+  }, [props.colorPreview]);
   useEffect(() => setExposure(settings.exposure), [settings.exposure]);
   useEffect(() => {
     api.current?.settings();
@@ -576,6 +583,10 @@ export function RenderStage(props: Props) {
               )}
               {!textureDraft && (
                 <BodyColor
+                  key={`${tool}:${target}:${ids.join(',')}`}
+                  onPreview={
+                    tool === 'paint' ? undefined : (color) => props.onPreviewColor(ids, color)
+                  }
                   color={color}
                   mixed={tool !== 'paint' && targets.some((b) => b.color !== color)}
                   busy={busy || !ids.length || !!textureDraft}

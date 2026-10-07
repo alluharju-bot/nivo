@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { EmissionControls } from './EmissionControls';
 import { CommitCheckbox } from './CommitCheckbox';
 import { SurfaceFinish } from './SurfaceFinish';
+import { useColorDraft } from './useColorDraft';
 import {
   defaultAppearance,
   findPreset,
@@ -252,12 +253,14 @@ export function ModelMaterials({
   materials,
   busy,
   onChange,
+  onPreviewColor,
 }: {
   bodies: Body[];
   assets?: Record<string, TextureAsset>;
   materials?: CustomMaterial[];
   busy: boolean;
   onChange: MaterialChange;
+  onPreviewColor?: (color?: string) => void;
 }) {
   const source = bodies[0],
     appearance = source.appearance ?? defaultAppearance(source.material);
@@ -266,8 +269,11 @@ export function ModelMaterials({
   );
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
-  const [tint, setTint] = useState(source.color);
-  useEffect(() => setTint(source.color), [source.id, source.color]);
+  const {
+    draft: tint,
+    change: previewTint,
+    cancel: cancelTint,
+  } = useColorDraft(source.color, onPreviewColor);
   const textured = !!appearance.assetId || !!findPreset(appearance.preset).pattern;
   const defaultTint = appearance.assetId ? '#ffffff' : findPreset(appearance.preset).color;
   return (
@@ -352,13 +358,16 @@ export function ModelMaterials({
                 aria-label="Tekstuurin sävy"
                 disabled={busy}
                 value={tint}
-                onChange={(e) => setTint(e.target.value)}
+                onChange={(e) => previewTint(e.target.value)}
               />
               <button
                 type="button"
                 className="button outlined"
                 disabled={busy || tint === source.color}
-                onClick={() => void onChange(appearance, tint)}
+                onClick={async () => {
+                  await onChange(appearance, tint);
+                  cancelTint();
+                }}
               >
                 Käytä sävyä
               </button>
@@ -372,6 +381,7 @@ export function ModelMaterials({
               </button>
             </div>
             <small>
+              Sävy näkyy heti mallissa. Hyväksy painamalla Käytä sävyä, peru Escillä.{' '}
               {appearance.assetId
                 ? 'Väri sävyttää tekstuuria. Valkoinen näyttää kuvan alkuperäiset värit.'
                 : 'Väri sävyttää materiaalin kuviointia. Kuvio ja kohokuvio säilyvät.'}

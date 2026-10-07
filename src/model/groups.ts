@@ -3,6 +3,7 @@ import { dimensionBodyIds } from './dimensions';
 import { uid, type Anchor, type Body, type BodyGroup, type Project, type Vec3 } from './project';
 import { add } from './geometry';
 import { asComponent } from './components';
+import { copyNameAllocator } from './copyNames';
 
 const groupMaps = new WeakMap<BodyGroup[], Map<string, BodyGroup>>();
 export function groupAncestors(groups: BodyGroup[], id?: string): BodyGroup[] {
@@ -121,17 +122,19 @@ export function translateSelection(
       chosen.some((b) => groupContains(project.groups, g.id, b.groupId)),
   );
   const groupIds = new Map(copiedGroups.map((g) => [g.id, uid()]));
+  const bodyName = copyNameAllocator(project.bodies.map((b) => b.name));
+  const groupName = copyNameAllocator(project.groups.map((g) => g.name));
   const bodies = copySources.map((b) => ({
     ...b,
     id: bodyIds.get(b.id)!,
-    name: `${b.name.slice(0, 110)} kopio`,
+    name: bodyName(b.name),
     origin: add(b.origin, offset),
     groupId: b.groupId ? (groupIds.get(b.groupId) ?? b.groupId) : undefined,
   }));
   const groups = copiedGroups.map((g) => ({
     ...g,
     id: groupIds.get(g.id)!,
-    name: roots.includes(g.id) ? `${g.name.slice(0, 110)} kopio` : g.name,
+    name: roots.includes(g.id) ? groupName(g.name) : g.name,
     parentId: g.parentId ? (groupIds.get(g.parentId) ?? g.parentId) : undefined,
   }));
   const anchorIds = (a: Anchor): string[] =>
