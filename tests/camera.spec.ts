@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import * as THREE from 'three';
 import { makeBody, type Vec3 } from '../src/model/project';
-import { ready, view, editBody, revealBrowser } from './helpers';
+import { defaultAppearance } from '../src/model/materials';
+import { ready, view, editBody, revealBrowser, save } from './helpers';
 
 async function camera(page: Page) {
   return JSON.parse((await page.getByTestId('viewport').getAttribute('data-camera'))!) as {
@@ -26,6 +27,38 @@ async function screenPoint(page: Page, point: Vec3) {
 function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
+
+test('camera drags suspend Move targeting and hover resumes without changing the model', async ({
+  page,
+}) => {
+  const part = { ...makeBody(600, 18, 760), appearance: defaultAppearance('pbr-black_oak_veneer') };
+  await ready(page, [part]);
+  const p = await view(page, [part], 'front');
+  const center = p(300, 0, 380);
+  await page.keyboard.press('m');
+  await page.mouse.move(center.x, center.y);
+  const canvas = page.getByTestId('viewport');
+  await expect(canvas).toHaveAttribute('data-move-hovered', JSON.stringify([part.id]));
+  const builds = await canvas.getAttribute('data-geometry-builds');
+  for (const button of ['right', 'middle'] as const) {
+    const before = await camera(page);
+    await page.mouse.down({ button });
+    await page.mouse.move(center.x + 15, center.y + 10, { steps: 3 });
+    await expect(canvas).toHaveAttribute('data-move-hovered', '[]');
+    await page.mouse.move(center.x + 30, center.y + 20, { steps: 3 });
+    await expect(canvas).toHaveAttribute('data-move-hovered', '[]');
+    expect(await camera(page)).not.toEqual(before);
+    await page.mouse.up({ button });
+    const target = await screenPoint(page, [300, 0, 380]);
+    await page.mouse.move(target.x, target.y);
+    await expect(canvas).toHaveAttribute('data-move-hovered', JSON.stringify([part.id]));
+  }
+  await expect(canvas).toHaveAttribute('data-geometry-builds', builds!);
+  await expect(canvas).toHaveAttribute('data-mesh-count', '1');
+  const stored = (await save(page)).bodies[0];
+  expect(stored.origin).toEqual(part.origin);
+  expect(stored.feature).toEqual(part.feature);
+});
 
 for (const projection of ['perspective', 'orthographic']) {
   test(`wheel zoom keeps the point under the cursor in ${projection}`, async ({ page }) => {

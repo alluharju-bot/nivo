@@ -2,6 +2,17 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.24.1 — kameraliikkeen työkaluhakujen kuormitus
+
+- Kameran kierto, panorointi ja kahden sormen navigointi keskeyttävät työkalun
+  kohdehaun liikkeen ajaksi. Siirtokorostus ei kulje kameran alla osasta toiseen
+  eikä lataa tekstuureja uudelleen. Tavallinen osoitus jatkuu kameravedon jälkeen.
+- Erillinen, käsin käynnistettävä 12 kaapin mustan tammiviilun suorituskykykoe:
+  tekstuurin koko ja kierto, yksittäiset kopioinnin toistot sekä kymmenen oven erä.
+- **Tutkimus jatkuu:** käyttäjän 15–30 FPS:n kamerakiertoa ei vielä toistettu
+  vertailumallilla. Tarvitaan käyttäjän tarkka projekti ja selain-/laitetiedot;
+  korjaus poistaa havaitun ylimääräisen työn, ei osoita koko ongelmaa ratkaistuksi.
+
 ## V0.24.0 — metallit ja puunsyyn suunta
 
 - Kupari, hapettunut kupari, musta kromi sekä anodisoitu alumiini: hopea, musta,

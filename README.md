@@ -3,6 +3,10 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.24.1** keskeyttää työkalujen tartunta- ja osoitushakuja kameravedon ajaksi.
+Siirrä-työkalun korostus ei enää vaihdu kameran alla ja aiheuta ylimääräisiä
+tekstuurien GPU-latauksia. [Mittaus ja tutkimuksen rajat](docs/performance.md).
+
 Versio **0.24.0** lisää kuparin, hapettuneen kuparin, mustan kromin ja kuusi
 anodisoidun alumiinin sävyä. Metallin **sileä / harjattu** kuviointi, väri ja kiilto
 säätyvät erikseen. Metallien kevyt studioheijastus näyttää värin jo mallintaessa.

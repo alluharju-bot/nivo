@@ -3170,9 +3170,30 @@ export function installInteractions({
       show();
     }
   };
+  let navigating = false;
   const move = (event: PointerEvent) => {
     selectionPointerInside = true;
     lastEvent = event;
+    // Camera drags do not acquire modeling targets. In particular, Move's
+    // edge/intersection picking and whole-assembly hover updates can otherwise
+    // rebuild textured materials for every point crossed while orbiting.
+    if (
+      event.buttons & 6 ||
+      pointers.size > 1 ||
+      (current().tool === 'navigate' && event.buttons)
+    ) {
+      if (!navigating) {
+        navigating = true;
+        hoveredReference = undefined;
+        current().onMoveHover?.(undefined);
+        current().onSelectionHover?.(undefined);
+        highlightFace();
+        highlightEdge();
+        show();
+      }
+      return;
+    }
+    navigating = false;
     sync();
     if (drag && Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4)
       drag.moved = true;

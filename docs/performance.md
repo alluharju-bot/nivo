@@ -1,5 +1,45 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.24.1 — musta tammiviilu ja kaappien kopiointi, 8.10.2026
+
+Käyttäjä raportoi 12 kaapin kamerakierrolle arviolta 15–30 FPS tavallisessa
+mallinnusnäkymässä. Avoimen käyttäjäistunnon projektia ei ollut saatavilla.
+Vertailu rakennettiin kaappityökalun levyistä: 600 × 590 × 760 mm, 18 mm ovi,
+musta tammiviilu, tekstuurin toisto 650 mm ja kierto 90°. Yksi kaappikopio ja
+kymmenen yksittäistä Toista-painallusta, sitten oven kopio ja kymmenen oven erä:
+yhteensä 95 osaa. Tämä ei varmista käyttäjän mahdollisen offset-/pursotusmallin
+geometriaa, näkymää tai pitkän istunnon tilaa.
+
+Siirrä-työkalun tartunta- ja korostushaku suoritettiin myös oikean hiirennapin
+kameravedossa. Korostuksen vaihtuessa materiaaleja saatettiin rakentaa uudelleen.
+Kameravedon ajaksi haku nyt keskeytyy; osoitus jatkuu tavallisella hiirenliikkeellä.
+
+| 150 kameraliikettä, Siirrä aktiivisena | Julkaistu 0.24.0 | Paikallinen korjaus |
+| -------------------------------------- | ---------------: | ------------------: |
+| Tekstuurin GPU-latauskutsut            |               16 |                   0 |
+| Animaatioruudun mediaani / p95         |     8,3 / 9,3 ms |        8,3 / 9,0 ms |
+| Piirtokutsut / kolmiot                 |        21 / 1742 |           21 / 1742 |
+
+M1 Pro, näkyvä Chromium-ikkuna, 1728 × 1117 CSS-pikseliä, DPR 2;
+3D-piirtopinta 2720 × 2040 pikseliä. Ennen-ajo oli GitHub Pagesissa, korjausajo
+paikallisella tuotantobuildilla. Korjauksen pisin ruutuväli oli 9,3 ms;
+yli 32 ms:n välejä ei ollut tässä lyhyessä ajossa. Animaatioruudun väli ei ole erillinen GPU-ajan
+mittaus. Pieni p95-ero ei ole yleinen FPS-lupaus. Valitse-työkalulla latauksia oli
+molemmissa ajoissa nolla. Alkuperäinen 15–30 FPS:n tilanne jäi **toistamatta**;
+sen jatkotutkimukseen tarvitaan käyttäjän tarkka projekti ja selain-/laitetiedot.
+[Raakadata](benchmarks/v0241-cabinet-orbit.json).
+
+Käsin käynnistettävä testi tallentaa CPU-profiilit, GPU-latausmäärät, ruutuvälit
+ja kuvakaappaukset. Se ei aseta kaikille koneille yhteistä FPS-hyväksymisrajaa:
+
+```sh
+NIVO_PROFILE=1 npx playwright test tests/material-performance.spec.ts --project=desktop --headed --grep 'black oak'
+```
+
+Ajossa on syytä pitää muut selain-testisarjat pysäytettyinä. Tavallinen
+regressiotesti tarkistaa kameran liikkeen, siirtokorostuksen tauon ja palautumisen
+sekä geometrian rakennusmäärän säilymisen ilman ajoituskynnystä.
+
 ## V0.19 — tarkentuvan renderöinnin tekstuurimuisti, 5.10.2026
 
 296 mäntyosaa käytti aiemmin samoille kolmelle kuvalle 888 eri Three.js Source

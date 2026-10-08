@@ -4,6 +4,28 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.24.1 — kamerakierto ja siirtotyökalun tartuntakuormitus
+
+**313 yksikkö-/CAD-testiä hyväksytty (60 tiedostoa)**. TypeScript, lisenssiluettelo
+ja `/nivo/`-tuotantobuild hyväksytty. Kehitysversiossa **54 selaintapausta hyväksytty**
+desktopilla ja Chromiumin tablettiprofiilissa; kaksi vain kosketukselle tarkoitettua
+tapausta ohitettiin desktopilla. Mukana ovat kohdistimeen zoomaus, pinnan ympäri
+kierto, panorointi, kosketuskierto ja nipistys, siirron suunnallinen mitta, kopioinnin
+toisto ja Peru, valintaruudut sekä pintojen risteystartunta muokkaustilassa ja sen ulkopuolella.
+
+Tuotantobuildissa hyväksyttiin uusi kameraregressio sekä 12 kaapin / 95 osan
+mustan tammiviilun suorituskykykoe. Regressio varmistaa, että siirtokorostus
+poistuu oikean/keskimmäisen napin kameravedon ajaksi, palautuu sen jälkeen,
+eikä osan tallennettu sijainti tai geometria muutu. Tekstuurien lataukset
+tarkistettiin ennen mittausta. Korjauksella kameravedossa oli nolla GPU-tekstuurilatausta;
+ennen korjausta julkaistussa versiossa samassa kokeessa oli 16.
+[Mittauksen rajat ja raakadata](performance.md).
+
+Alkuperäistä käyttäjän 15–30 FPS:n tilannetta **ei toistettu**, eikä sen kaikkia
+syitä ole vahvistettu. Käyttäjän tarkka projekti ja selain-/laitetiedot puuttuvat.
+Ensimmäisen yksikkötestiajon patinatesti ylitti 5 s:n aikarajan samanaikaisen
+selainsarjan aikana; erikseen ajettu koko 313 testin sarja läpäisi ilman muutosta.
+
 ## V0.24.0 — metallit, harjaus ja puunsyyn suunta
 
 **313 yksikkö-/CAD-testiä hyväksytty (60 tiedostoa)**. TypeScript, lisenssiluettelo

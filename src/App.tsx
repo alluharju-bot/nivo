@@ -6313,7 +6313,7 @@ export default function App() {
                     <span>
                       {project.bodies.length} kappaletta · {project.dimensions.length} mittaa
                     </span>
-                    <span>v0.22.0</span>
+                    <span>v{import.meta.env.VITE_APP_VERSION}</span>
                   </div>
                 </>
               )}
