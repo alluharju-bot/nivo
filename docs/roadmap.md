@@ -2,6 +2,27 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## Yöpassi — valaistus ja esityskuvan viimeistely, 8.–9.10.2026
+
+1. Julkaise käyttäjän kaappimallilla varmennettu apuviivojen näkyvyyshaun korjaus.
+2. Yhteinen selkeä valaistusnäkymä: studio, ympäristö ja säädettävä aurinko;
+   suunta, korkeus, voimakkuus, väri ja varjojen pehmeys. Nopea kuva ja tarkentuva
+   kuva sekä kuvanvienti käyttävät samoja asetuksia.
+3. Kuvan ilme, yksityiskohdat ja käyttöliittymän järjestys: materiaalit pysyvät
+   helposti saatavilla, valaistus ja kuvan viimeistely löytyvät omista paikoistaan.
+4. Testaa tallennus, Peru, välitön esikatselu ja kuvanvienti; julkaise valmis kokonaisuus.
+
+## V0.24.2 — apuviivojen näkyvyyshaun korjaus
+
+- Käyttäjän tallentamassa mallissa toistettu noin 20 FPS:n kamerakierto.
+  Mallissa 26 osaa, 24 apuviivaa ja noin 178 000 näyttökolmiota. Materiaalien
+  poistaminen ei auttanut; apuviivojen poistaminen poisti hidastumisen.
+- Välimuistissa oleva kolmiohakupuu rajaa pisteiden ja tekstien peittotarkistukset.
+  Pienten taso-osien tarkistus pysyy kevyenä, eikä CAD-kolmioiden järjestys muutu.
+  Haamut, wireframe, yksittäinen/yleinen x-ray ja poikkileikkausten näkyvä puoli säilyvät.
+- Sama malli samalla Chromella: kameraruudun mediaani 50 → 8,3 ms, noin 20 → 120 FPS.
+  Ennen/jälkeen-kuvakaappaukset olivat identtiset. Käyttäjän tiedosto säilyy paikallisena.
+
 ## V0.24.1 — kameraliikkeen työkaluhakujen kuormitus
 
 - Kameran kierto, panorointi ja kahden sormen navigointi keskeyttävät työkalun
@@ -9,9 +30,17 @@
   eikä lataa tekstuureja uudelleen. Tavallinen osoitus jatkuu kameravedon jälkeen.
 - Erillinen, käsin käynnistettävä 12 kaapin mustan tammiviilun suorituskykykoe:
   tekstuurin koko ja kierto, yksittäiset kopioinnin toistot sekä kymmenen oven erä.
-- **Tutkimus jatkuu:** käyttäjän 15–30 FPS:n kamerakiertoa ei vielä toistettu
-  vertailumallilla. Tarvitaan käyttäjän tarkka projekti ja selain-/laitetiedot;
-  korjaus poistaa havaitun ylimääräisen työn, ei osoita koko ongelmaa ratkaistuksi.
+- Ensimmäinen vertailumalli ei toistanut käyttäjän 15–30 FPS:n kamerakiertoa.
+  Käyttäjän tarkalla projektilla pääsyy löytyi ja korjattiin versiossa 0.24.2.
+
+## Backlog — vanhempien käyttöliittymätestien tarkistus
+
+- `snap-annotations.spec.ts`: mittaviivojen risteyksen sijasta haetaan myös
+  1 mm päässä olevaa apuviivan ja levyn reunan risteystä; tutki kilpailutilanne.
+- Saman tiedoston fillet-korostuksen pikselikoe ei löydä oransseja pikseleitä
+  odotetusta kuva-alueesta. Tarkista kameran projektio ja korostus.
+- Molemmat epäonnistuvat samalla tavalla myös ennen näkyvyyskorjausta julkaistussa
+  versiossa 0.24.1; ne eivät syntyneet kolmiohakupuun käyttöönotosta.
 
 ## V0.24.0 — metallit ja puunsyyn suunta
 

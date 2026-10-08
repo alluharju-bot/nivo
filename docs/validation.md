@@ -4,6 +4,29 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.24.2 — apuviivojen näkyvyyshaku pyöristetyissä kaapeissa
+
+**318 yksikkö-/CAD-testiä hyväksytty (61 tiedostoa)**. TypeScript,
+lisenssiluettelo ja `/nivo/`-tuotantobuild hyväksytty.
+
+Uudet yksikkötestit vertaavat kiihdytettyä näkyvyyttä vanhaan täsmälliseen
+sädehakuun kaarevalla, siirretyllä ja eri suunnissa skaalatulla geometrialla.
+Mukana ovat pintaan osuva piste, ghost/wireframe, piilotettu osa, rakentamisviiva,
+poikkileikkauksen poistama ensimmäinen osuma, seuraava säilytetty pinta,
+CAD-kolmioindeksien säilyminen sekä muuttuneen/vapautetun geometrian välimuisti.
+
+Tuotantobuildista **30 hyväksyttyä selaintapausta** desktopilla ja tablettiprofiilissa:
+kaarevan kappaleen peitto ja hakupuun säilyminen kamerakierrossa, ghost/solid,
+yksittäinen ja yleinen x-ray tallennuksineen, tarkat mittapisteet, poikkileikkaukset
+ja kuvanviennit. Kahden muun `snap-annotations.spec.ts`-tapauksen molemmat profiilit
+epäonnistuivat. Samat risteysvihjeen ja fillet-korostuksen pikselikokeen virheet
+toistettiin myös julkaistussa 0.24.1-versiossa ennen korjausta; ne kirjattiin backlogiin.
+
+Käyttäjän **alkuperäisen tiedoston** kamerakierto toistettiin paikallisesti koneen
+asennetulla Chrome 154:llä. Mediaani 50,2 → 8,3 ms, p95 108,1 → 9,7 ms.
+Materiaali- ja apuviivavertailu eristi syyn; ennen/jälkeen-kuvakaappaukset olivat
+identtiset. Tarkka malli pysyy paikallisena. [Mittaus ja rajat](performance.md).
+
 ## V0.24.1 — kamerakierto ja siirtotyökalun tartuntakuormitus
 
 **313 yksikkö-/CAD-testiä hyväksytty (60 tiedostoa)**. TypeScript, lisenssiluettelo

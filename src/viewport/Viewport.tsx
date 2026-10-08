@@ -38,6 +38,7 @@ import { createModelDimensions } from './modelDimensions';
 import { installCameraNavigation, rebuildOrbitControls, rotateInView } from './cameraNavigation';
 import { mirrorFaceGroups, mirrorBacking } from '../render/mirror';
 import { createViewCube } from './viewCube';
+import { createAnnotationOcclusion } from './annotationOcclusion';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   color: () => void;
@@ -202,6 +203,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       label.element.style.left = `${((p.x + 1) * container.clientWidth) / 2}px`;
       label.element.style.top = `${((1 - p.y) * container.clientHeight) / 2}px`;
     }
+    renderer.domElement.dataset.occlusionBuilds = String(annotationOcclusion.builds);
   };
   let workspaceViews: ReturnType<typeof createWorkspaceViews> | undefined;
   const materialLibrary = createMaterialLibrary(render);
@@ -257,13 +259,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   let pickPreviewKey = '';
 
   const labelRay = new THREE.Raycaster();
+  const annotationOcclusion = createAnnotationOcclusion();
   labelOccluded = (point) => {
     const projected = point.clone().project(camera);
     labelRay.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera);
-    const hit = intersectModel(labelRay, bodies, 'occlusion').find(
-      (h) => h.object instanceof THREE.Mesh,
+    return annotationOcclusion.test(
+      labelRay.ray,
+      bodies,
+      labelRay.ray.origin.distanceTo(point) - 0.05,
     );
-    return !!hit && hit.distance < labelRay.ray.origin.distanceTo(point) - 0.05;
   };
   const disposeGroup = (group: THREE.Group) => {
     group.traverse((obj) => {

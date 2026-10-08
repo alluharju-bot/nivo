@@ -1,6 +1,6 @@
 {
   "name": "nivo-cad",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -27,6 +27,7 @@
     "svg2pdf.js": "2.8.1",
     "three": "0.186.1",
     "three-gpu-pathtracer": "0.0.26",
+    "three-mesh-bvh": "0.9.15",
     "zod": "4.6.5"
   },
   "devDependencies": {

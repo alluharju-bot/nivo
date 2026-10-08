@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.24.2** nopeuttaa apuviivojen pisteiden ja mittatekstien näkyvyystarkistusta.
+Käyttäjän pyöristetyllä 12 kaapin mallilla kamerakierto nousi testissä noin
+20 → 120 kuvaan/s samoilla materiaaleilla ja apuviivoilla. Piirron yksityiskohdat säilyvät.
+[Mittaus ja rajaukset](docs/performance.md).
+
 Versio **0.24.1** keskeyttää työkalujen tartunta- ja osoitushakuja kameravedon ajaksi.
 Siirrä-työkalun korostus ei enää vaihdu kameran alla ja aiheuta ylimääräisiä
 tekstuurien GPU-latauksia. [Mittaus ja tutkimuksen rajat](docs/performance.md).

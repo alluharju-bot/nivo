@@ -1,0 +1,157 @@
+{
+  "environment": {
+    "machine": "MacBook Pro / Apple M1 Pro / 16 GB",
+    "browser": "Google Chrome 154.0.8037.98 / ANGLE Metal",
+    "viewportCss": [1728, 1117],
+    "deviceScaleFactor": 2
+  },
+  "fixture": {
+    "bodies": 26,
+    "uniqueShapes": 3,
+    "guides": 24,
+    "triangles": 178034,
+    "description": "User supplied 12 rounded cabinet bodies and 12 black-oak veneer doors plus two other parts; model kept private"
+  },
+  "method": "180 camera pointer moves scheduled by requestAnimationFrame; first 10 intervals excluded. Local production builds, same installed Chrome and model. Frame intervals, not GPU timer queries.",
+  "before": {
+    "original": {
+      "select": {
+        "median": 50.19999999999891,
+        "p95": 108.10000000000036,
+        "max": 175.5,
+        "slowFrames": 129,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": null
+      },
+      "move": {
+        "median": 50,
+        "p95": 100.09999999999854,
+        "max": 108.29999999999927,
+        "slowFrames": 123,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": null
+      }
+    },
+    "no-guides": {
+      "select": {
+        "median": 8.300000000000182,
+        "p95": 9.099999999999909,
+        "max": 9.300000000000182,
+        "slowFrames": 0,
+        "drawCalls": "17",
+        "triangles": "177602",
+        "geometryBuilds": "26",
+        "occlusionBuilds": null
+      },
+      "move": {
+        "median": 8.300000000000182,
+        "p95": 9.100000000000364,
+        "max": 9.300000000000182,
+        "slowFrames": 0,
+        "drawCalls": "17",
+        "triangles": "177602",
+        "geometryBuilds": "26",
+        "occlusionBuilds": null
+      }
+    },
+    "flat-materials": {
+      "select": {
+        "median": 50,
+        "p95": 100,
+        "max": 108.30000000000018,
+        "slowFrames": 123,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": null
+      },
+      "move": {
+        "median": 50,
+        "p95": 100,
+        "max": 108.29999999999927,
+        "slowFrames": 121,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": null
+      }
+    }
+  },
+  "after": {
+    "original": {
+      "select": {
+        "median": 8.300000000000182,
+        "p95": 9.700000000000728,
+        "max": 18,
+        "slowFrames": 0,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": "24"
+      },
+      "move": {
+        "median": 8.300000000000182,
+        "p95": 10,
+        "max": 10.300000000000182,
+        "slowFrames": 0,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": "24"
+      }
+    },
+    "no-guides": {
+      "select": {
+        "median": 8.300000000000182,
+        "p95": 9.699999999999818,
+        "max": 10.300000000000182,
+        "slowFrames": 0,
+        "drawCalls": "17",
+        "triangles": "177602",
+        "geometryBuilds": "26",
+        "occlusionBuilds": "0"
+      },
+      "move": {
+        "median": 8.300000000000182,
+        "p95": 9.800000000000182,
+        "max": 10.300000000000182,
+        "slowFrames": 0,
+        "drawCalls": "17",
+        "triangles": "177602",
+        "geometryBuilds": "26",
+        "occlusionBuilds": "0"
+      }
+    },
+    "flat-materials": {
+      "select": {
+        "median": 8.300000000000182,
+        "p95": 10,
+        "max": 16.200000000000273,
+        "slowFrames": 0,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": "24"
+      },
+      "move": {
+        "median": 8.300000000000182,
+        "p95": 9.899999999999636,
+        "max": 10.399999999999636,
+        "slowFrames": 0,
+        "drawCalls": "92",
+        "triangles": "178034",
+        "geometryBuilds": "26",
+        "occlusionBuilds": "24"
+      }
+    }
+  },
+  "screenshotsIdentical": {
+    "original": true,
+    "no-guides": true,
+    "flat-materials": true
+  }
+}

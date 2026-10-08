@@ -1,5 +1,53 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.24.2 — käyttäjän kaappimallin todellinen pullonkaula, 8.10.2026
+
+Käyttäjän tallentama malli toisti hidastumisen: 12 pyöristettyä kaappirunkoa,
+12 pyöristettyä mustalla tammiviilulla pinnoitettua ovea, kaksi muuta osaa ja
+24 apuviivaa. Yhteensä 26 CAD-osaa, kolme erilaista perusgeometriaa ja
+178 034 piirrettävää kolmiota. Malli ja sitä esittävät kuvat säilyvät paikallisina.
+
+Kameran jokaisella ruudulla apuviivojen pisteille ja mittateksteille tehtiin
+tarkka sädehaku koko osan kolmioihin. CPU-profiilissa noin 90 % ajasta kului
+näihin osumatarkistuksiin. Materiaalien korvaaminen tasaisella maalilla ei
+auttanut. Apuviivojen poistaminen palautti nopeuden.
+
+| Sama kamerakierto, Valitse aktiivisena | Mediaani ennen | Mediaani jälkeen | p95 ennen → jälkeen |
+| -------------------------------------- | -------------: | ---------------: | ------------------: |
+| Alkuperäinen malli                     |        50,2 ms |           8,3 ms |      108,1 → 9,7 ms |
+| Apuviivat poistettu vertailua varten   |         8,3 ms |           8,3 ms |        9,1 → 9,7 ms |
+| Materiaalit korvattu maalilla          |        50,0 ms |           8,3 ms |       100,0 → 10 ms |
+
+Korjatussa alkuperäisessä mallissa myös Siirrä-työkalun kamerakierron mediaani
+oli 8,3 ms ja p95 10,0 ms. Yli 32 ms:n välejä oli Valitse-ajossa ennen korjausta
+129/170 ja korjauksen jälkeen 0/170. Piirtokutsut pysyivät 92:ssa ja kolmioiden
+määrä muuttumattomana. Kaikkien kolmen vertailutilanteen lopulliset PNG-kuvat
+olivat ennen ja jälkeen **tavutasolla identtiset**.
+
+Näkyvyyskyselyt käyttävät nyt geometriakohtaista kolmiohakupuuta, joka säilyy
+kameran liikkeen ja korostuksen vaihdon yli. Pienet yksinkertaiset osat eivät
+tarvitse puuta. Haku päättyy ensimmäiseen peittävään pintaan; poikkileikkauksen
+poistama pinta ohitetaan. Puut eivät muuta CAD:n kolmioindeksejä, pintavalintaa
+tai mallin tarkkuutta. Geometrian muutos tai vapautus mitätöi välimuistin.
+
+Apple M1 Pro / 16 Gt, koneen asennettu Google Chrome 154.0.8037.98,
+ANGLE Metal, näkyvä selainikkuna, 1728 × 1117 CSS-pikseliä, DPR 2.
+Molemmat ajot paikallisesta tuotantobuildista. 180 kameraliikettä,
+ensimmäiset kymmenen ruutuväliä rajattu pois. Noin **20 → 120 FPS** on tämän
+mallin mitattu animaatioruutujen taso; ei kaikkien mallien tai laitteiden takuu
+eikä erillinen GPU-ajan mittaus. [Mittausluvut](benchmarks/v0242-annotation-occlusion.json).
+
+Yksityisen projektin vertailu on toistettavissa paikallisesti:
+
+```sh
+NIVO_BASE_PATH=/nivo/ npm run preview -- --port 4173
+NIVO_BROWSER=chrome node scripts/performance-project.mjs http://127.0.0.1:4173/nivo/ model.nivo
+```
+
+Skripti käyttää erillistä selainprofiilia ja hyväksyy vain paikallisen palvelimen.
+Se tallentaa CPU-profiilit ja kuvakaappaukset väliaikaiseen kansioon, ellei
+tuloshakemistoa anneta kolmantena argumenttina. Aja ilman rinnakkaista testikuormaa.
+
 ## V0.24.1 — musta tammiviilu ja kaappien kopiointi, 8.10.2026
 
 Käyttäjä raportoi 12 kaapin kamerakierrolle arviolta 15–30 FPS tavallisessa
