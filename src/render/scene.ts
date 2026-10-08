@@ -11,6 +11,7 @@ import {
   updateMaterialPlacement,
   materialUV,
   disposeMaterial,
+  setMaterialColor,
 } from './materials';
 import {
   defaultAppearance,
@@ -553,7 +554,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of materials)
           if (!material.userData.mirrorBacking)
-            (material as THREE.MeshPhysicalMaterial).color.set(
+            setMaterialColor(
+              material as THREE.MeshPhysicalMaterial,
               ids.has(body.id) ? preview!.color : body.color,
             );
       }

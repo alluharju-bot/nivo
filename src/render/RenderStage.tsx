@@ -22,6 +22,11 @@ import {
 } from '../model/materials';
 import { patternCanvas } from './materials';
 import { pbrMapUrl } from '../model/pbrCatalog';
+import {
+  surfaceCollectionName,
+  surfaceGroups,
+  type SurfaceGroup,
+} from '../model/surfaceCollection';
 import { importTexture, withColorTexture } from '../storage/textures';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { ArrowLeft, Download, Maximize, MousePointer2, Paintbrush, Move } from 'lucide-react';
@@ -115,7 +120,8 @@ export function RenderStage(props: Props) {
     color: findPreset('oak').color,
   });
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('Aidot pinnat');
+  const [category, setCategory] = useState(surfaceCollectionName);
+  const [surfaceGroup, setSurfaceGroup] = useState<SurfaceGroup | ''>('Puut');
   const [textureDraft, setTextureDraft] = useState<{
     id: string;
     appearance: Appearance;
@@ -303,6 +309,7 @@ export function RenderStage(props: Props) {
       const p = findPreset(id);
       applyAppearance(defaultAppearance(id), p.color);
       setCategory(p.category);
+      if (p.collectionGroup) setSurfaceGroup(p.collectionGroup);
     } else if (tool === 'paint') setBrush({ appearance: defaultAppearance(id), color });
     else props.onMaterial(ids, id as NonNullable<Body['material']>);
   };
@@ -312,10 +319,13 @@ export function RenderStage(props: Props) {
       materialPresets
         .filter((p) =>
           search.trim()
-            ? `${p.name} ${p.category}`
+            ? `${p.name} ${p.category} ${p.collectionGroup ?? ''}`
                 .toLocaleLowerCase('fi')
                 .includes(search.trim().toLocaleLowerCase('fi'))
-            : p.category === category,
+            : p.category === category &&
+              (category !== surfaceCollectionName ||
+                !surfaceGroup ||
+                p.collectionGroup === surfaceGroup),
         )
         .map((p) => {
           if (p.pattern && !thumbnailCache.current.has(p.id))
@@ -325,7 +335,7 @@ export function RenderStage(props: Props) {
             image: p.pbr ? pbrMapUrl(p.pbr, 'color') : thumbnailCache.current.get(p.id),
           };
         }),
-    [category, search],
+    [category, search, surfaceGroup],
   );
   const upload = async (file?: File) => {
     if (!file) return;
@@ -565,6 +575,21 @@ export function RenderStage(props: Props) {
                       ))}
                     </select>
                   </label>
+                  {category === surfaceCollectionName && !search.trim() && (
+                    <label>
+                      Pinta
+                      <select
+                        aria-label="Pintakokoelman pinnat"
+                        value={surfaceGroup}
+                        onChange={(e) => setSurfaceGroup(e.target.value as SurfaceGroup | '')}
+                      >
+                        <option value="">Kaikki pinnat</option>
+                        {surfaceGroups.map((group) => (
+                          <option key={group}>{group}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <div className="material-swatches">
                     {thumbnails.map((p) => (
                       <button

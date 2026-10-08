@@ -4,6 +4,44 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.23.0 — pintakokoelma ja maalipensselin sävytys
+
+**309 yksikkö-/CAD-testiä hyväksytty (59 tiedostoa)**. TypeScript, lisenssiluettelo
+ja `/nivo/`-tuotantobuild hyväksytty. Kokoelmassa on 25 PBR-pintaa ja 12 maalisävyä;
+kaikkiaan 93 materiaalipresetiä. Jokaisen PBR-pinnan neljän paikallisen 1K-kartan
+MD5-summa vastaa Poly Havenin lähdetietoja. Koko materiaalihakemisto HDRI mukaan
+lukien on noin 49 Mt; kuvat ladataan vasta käytössä. Kokoelman puuvalikko ei lataa
+kivi- ja tekstiilipintojen esikatselukuvia samalla kertaa.
+
+Käyttäjän P → tekstuuri → väri → sama osa uudelleen -ketju tarkistettiin tallennetusta
+väristä ja osan kuvan pikseleistä. Alkuperäinen kertolaskusävytys tallensi uuden värin,
+mutta sininen kerrottuna lakatun männyn oranssinruskealla kuvalla jäi lähes mustaksi.
+Uusi värisävyn vaihto käyttää tekstuurin lineaarista valoisuutta, säilyttää kuvion
+ja kertoo sen valitulla värillä. Normaali- ja karheuskarttoja ei muuteta. Valkoinen
+palauttaa alkuperäisen värikuvan. Kuultava sävy ja vanhojen projektien puuttuva
+sävytysasetus säilyttävät aiemman kertolaskun.
+
+Tuotantobundlesta hyväksyttiin **11 selaintapausta** desktopilla ja Chromiumin
+tablettiprofiilissa. Tarkentuvan renderin erillinen pikselikoe ajettiin vain
+desktopilla, ja sen tablettivastine ohitettiin tarkoituksella:
+
+- Proseduraalinen ja PBR-mänty maalataan uudelleen siniseksi P-työkalulla.
+  Sekä projektin väri että osan pikselit muuttuvat; Peru palauttaa edellisen värin.
+- Molempien puutekstuurien suora sävyn esikatselu, Esc, hyväksyntä ja linkitetyt kopiot.
+  Sävyn perumisen pikselivertailu kohdistuu osiin, ei päälle piirrettyjen säätimien hover-tilaan.
+- Tarkentuva renderi vaihtaa alkuperäinen → sininen → alkuperäinen → sininen.
+  Jokainen väri tarkistetaan valmistuneesta kuvasta ja materiaalin GPU-päivityksestä;
+  scene-/BVH-rakennusten määrä ei kasva. Esikatselu toimii ennen hyväksyntää.
+- Kokoelman suodatus, haku, puu, pellava, maali, kiillon valinta sekä tallennettu resepti.
+
+Kehitysversiossa tarkistettiin lisäksi kaikkien 93 materiaalin yhteinen näkymä sekä
+kaikkien 25 PBR-pinnan karttojen lataus, normal-/korkeuskartta ja PNG-vienti.
+Materiaalitarkistuksessa havaittiin myös aiempi laajan valo-/materiaalikohtauksen
+16 tekstuuriyksikön varoitus; sitä ei pidä tulkita rajattoman materiaalimäärän
+suorituskykytakuuksi. Varsinaiset uudet sävytyskokeet eivät tuottaneet GPU-virheitä.
+Fyysistä iPadia tai Safaria ei testattu. Sävytetty erillinen lakkakerros on backlogissa,
+ei tämän version ominaisuus.
+
 ## V0.22.1 — offsetatun piirustuspinnan kehän säilyminen
 
 **306 yksikkö-/CAD-testiä hyväksytty (59 tiedostoa)**. TypeScript ja `/nivo/`-build

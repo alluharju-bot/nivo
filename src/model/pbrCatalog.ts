@@ -1,15 +1,202 @@
+import type { SurfaceGroup } from './surfaceCollection';
+
 /** Offline CC0 assets. Provenance and original checksums: public/materials/sources.json. */
-export const pbrSurfaces = [
-  { source: 'coated_pine', name: 'Mänty · lakattu', size: 740, relief: 0.2 },
-  { source: 'oak_veneer_01', name: 'Tammi · viilu', size: 1830, relief: 0.2 },
-  { source: 'american_walnut_veneer', name: 'Pähkinä · harmaa viilu', size: 1000, relief: 0.2 },
-  { source: 'white_plaster_02', name: 'Kipsipinta · sileä', size: 1000, relief: 0.3 },
-  { source: 'white_stucco', name: 'Rappaus · karkea', size: 1998, relief: 1.2 },
-  { source: 'concrete_wall_009', name: 'Betoni · raaka', size: 1805, relief: 1 },
-  { source: 'smooth_concrete_floor', name: 'Betoni · liipattu', size: 2000, relief: 0.3 },
-  { source: 'marble_01', name: 'Marmorilaatta · vaalea', size: 1500, relief: 0.1 },
-  { source: 'long_white_tiles', name: 'Seinälaatta · valkoinen', size: 1270, relief: 1 },
-] as const;
+export const pbrSurfaces: {
+  source: string;
+  name: string;
+  size: number;
+  relief: number;
+  group: SurfaceGroup;
+  grainAxis?: 'u' | 'v';
+}[] = [
+  {
+    source: 'coated_pine',
+    name: 'Mänty · lakattu',
+    size: 740,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'oak_veneer_01',
+    name: 'Tammi · viilu',
+    size: 1830,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'v',
+  },
+  {
+    source: 'white_oak_veneer',
+    name: 'Valkotammi · viilu',
+    size: 500,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'v',
+  },
+  {
+    source: 'black_oak_veneer',
+    name: 'Tammi · musta viilu',
+    size: 1000,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'ash_veneer',
+    name: 'Saarni · viilu',
+    size: 1000,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'white_maple_veneer',
+    name: 'Vaahtera · vaalea viilu',
+    size: 1000,
+    relief: 0.15,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'cherry_veneer',
+    name: 'Kirsikka · viilu',
+    size: 1000,
+    relief: 0.15,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'teak_veneer',
+    name: 'Tiikki · viilu',
+    size: 1000,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'bamboo_veneer',
+    name: 'Bambu · viilu',
+    size: 1000,
+    relief: 0.15,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'natural_walnut_veneer',
+    name: 'Pähkinä · luonnollinen viilu',
+    size: 1000,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'smoked_walnut_veneer',
+    name: 'Pähkinä · savustettu viilu',
+    size: 1000,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'american_walnut_veneer',
+    name: 'Pähkinä · harmaa viilu',
+    size: 1000,
+    relief: 0.2,
+    group: 'Puut',
+    grainAxis: 'u',
+  },
+  {
+    source: 'white_plaster_02',
+    name: 'Kipsipinta · sileä',
+    size: 1000,
+    relief: 0.3,
+    group: 'Seinäpinnat',
+  },
+  {
+    source: 'white_stucco',
+    name: 'Rappaus · karkea',
+    size: 1998,
+    relief: 1.2,
+    group: 'Seinäpinnat',
+  },
+  {
+    source: 'plaster_grey_04',
+    name: 'Rappaus · harmaa',
+    size: 1500,
+    relief: 0.5,
+    group: 'Seinäpinnat',
+  },
+  {
+    source: 'concrete_wall_009',
+    name: 'Betoni · raaka',
+    size: 1805,
+    relief: 1,
+    group: 'Seinäpinnat',
+  },
+  {
+    source: 'smooth_concrete_floor',
+    name: 'Betoni · liipattu',
+    size: 2000,
+    relief: 0.3,
+    group: 'Seinäpinnat',
+  },
+  {
+    source: 'marble_01',
+    name: 'Marmorilaatta · vaalea',
+    size: 1500,
+    relief: 0.1,
+    group: 'Kivet ja laatat',
+  },
+  {
+    source: 'long_white_tiles',
+    name: 'Seinälaatta · valkoinen',
+    size: 1270,
+    relief: 1,
+    group: 'Kivet ja laatat',
+  },
+  {
+    source: 'terrazzo_tiles',
+    name: 'Terrazzo · lämmin',
+    size: 2000,
+    relief: 0.25,
+    group: 'Kivet ja laatat',
+  },
+  {
+    source: 'granite_tile',
+    name: 'Graniittilaatta · harmaa',
+    size: 2300,
+    relief: 0.5,
+    group: 'Kivet ja laatat',
+  },
+  {
+    source: 'terracotta_floor_tiles',
+    name: 'Terrakottalaatta · patinoitu',
+    size: 2080,
+    relief: 1,
+    group: 'Kivet ja laatat',
+  },
+  {
+    source: 'rough_linen',
+    name: 'Pellava · siniharmaa',
+    size: 271,
+    relief: 0.5,
+    group: 'Tekstiilit ja nahka',
+  },
+  {
+    source: 'brown_leather',
+    name: 'Nahka · ruskea',
+    size: 400,
+    relief: 0.3,
+    group: 'Tekstiilit ja nahka',
+  },
+  {
+    source: 'leather_white',
+    name: 'Nahka · valkoinen',
+    size: 300,
+    relief: 0.2,
+    group: 'Tekstiilit ja nahka',
+  },
+];
 
 export function pbrMapUrl(source: string, channel: 'color' | 'normal' | 'roughness' | 'height') {
   return `${import.meta.env.BASE_URL}materials/${source}/${channel}.jpg`;

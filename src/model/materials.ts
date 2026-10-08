@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { pbrSurfaces } from './pbrCatalog';
+import { collectionPaints, surfaceCollectionName, type SurfaceGroup } from './surfaceCollection';
 export const texturePlacementSchema = z.object({
   width: z.number().min(0.1).max(100000),
   height: z.number().min(0.1).max(100000),
@@ -9,6 +10,7 @@ export const texturePlacementSchema = z.object({
   lockAspect: z.boolean(),
 });
 export const appearanceSchema = z.object({
+  textureTint: z.enum(['multiply', 'colorize']).optional(),
   mirrorSide: z.enum(['front', 'back', 'both']).optional(),
   preset: z.string().min(1).max(100),
   assetId: z.string().max(100).optional(),
@@ -73,6 +75,7 @@ export type MaterialPreset = {
   id: string;
   name: string;
   category: string;
+  collectionGroup?: SurfaceGroup;
   color: string;
   roughness: number;
   metalness: number;
@@ -125,19 +128,25 @@ export const materialPresets: MaterialPreset[] = [
   ...pbrSurfaces.map((surface): MaterialPreset => ({
     id: `pbr-${surface.source}`,
     name: surface.name,
-    category: 'Aidot pinnat',
+    category: surfaceCollectionName,
+    collectionGroup: surface.group,
     color: '#ffffff',
     roughness: 1,
     metalness: 0,
     pbr: surface.source,
-    grainAxis:
-      surface.source === 'oak_veneer_01'
-        ? 'v'
-        : ['coated_pine', 'american_walnut_veneer'].includes(surface.source)
-          ? 'u'
-          : undefined,
+    grainAxis: surface.grainAxis,
     size: [surface.size, surface.size],
     relief: surface.relief,
+  })),
+  ...collectionPaints.map((paint): MaterialPreset => ({
+    id: `collection-paint-${paint.id}`,
+    name: `Maali · ${paint.name.toLocaleLowerCase('fi')}`,
+    category: surfaceCollectionName,
+    collectionGroup: 'Maalit',
+    color: paint.color,
+    roughness: 1,
+    metalness: 0,
+    clearcoat: 0,
   })),
   {
     id: 'paint-solid',
@@ -695,6 +704,7 @@ export const findPreset = (id: string) =>
   [...materialPresets, ...legacyPresets].find((p) => p.id === id) ?? legacyPresets[0];
 export const defaultAppearance = (preset = 'matte'): Appearance => ({
   preset,
+  ...(findPreset(preset).pbr ? { textureTint: 'colorize' as const } : {}),
   texture: {
     ...textureDefaults,
     width: findPreset(preset).size?.[0] ?? textureDefaults.width,

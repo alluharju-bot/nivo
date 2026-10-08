@@ -55,6 +55,22 @@ export function SurfaceFinish({
   };
   return (
     <div className="surface-finish">
+      {(preset.pbr || appearance.assetId) && (
+        <label>
+          Tekstuurin sävytys
+          <select
+            aria-label="Tekstuurin sävytys"
+            value={appearance.textureTint ?? 'multiply'}
+            disabled={busy}
+            onChange={(e) =>
+              onChange({ ...appearance, textureTint: e.target.value as 'multiply' | 'colorize' })
+            }
+          >
+            <option value="colorize">Vaihda värisävy · säilytä kuvio</option>
+            <option value="multiply">Kuultava sävy · yhdistä pohjaväriin</option>
+          </select>
+        </label>
+      )}
       {appearance.preset === 'mirror' && (
         <>
           <label>

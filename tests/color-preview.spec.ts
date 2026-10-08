@@ -5,68 +5,67 @@ import { defaultAppearance, findPreset } from '../src/model/materials';
 import { asComponent } from '../src/model/components';
 import { decode } from 'fast-png';
 
-function maxPixelDifference(a: Buffer, b: Buffer) {
-  const first = decode(a),
-    second = decode(b);
-  expect([first.width, first.height, first.channels]).toEqual([
-    second.width,
-    second.height,
-    second.channels,
-  ]);
-  let difference = 0;
-  for (let i = 0; i < first.data.length; i++)
-    difference = Math.max(difference, Math.abs(first.data[i] - second.data[i]));
-  return difference;
-}
-
-test('texture tint previews every input without geometry work, cancels, and commits as one shared edit', async ({
-  page,
-}, info) => {
-  const body = asComponent({
-    ...makeBody(400, 300, 40),
-    color: findPreset('pine').color,
-    appearance: defaultAppearance('pine'),
+for (const presetId of ['pine', 'pbr-coated_pine']) {
+  test(`${presetId} texture tint previews every input without geometry work, cancels, and commits as one shared edit`, async ({
+    page,
+  }, info) => {
+    const body = asComponent({
+      ...makeBody(400, 300, 40),
+      color: findPreset(presetId).color,
+      appearance: defaultAppearance(presetId),
+    });
+    const copy = {
+      ...asComponent(makeBody(400, 300, 40), body.component!.id),
+      color: body.color,
+      appearance: body.appearance,
+      origin: [500, 0, 0] as [number, number, number],
+    };
+    await ready(page, [body, copy]);
+    await page.getByTestId(`body-${body.id}`).click();
+    const point = await view(page, [body, copy]);
+    await page.locator('.model-materials > summary').click();
+    const canvas = page.getByTestId('viewport');
+    const builds = await canvas.getAttribute('data-geometry-builds');
+    const original = await canvas.screenshot({ path: info.outputPath('original.png') });
+    const picker = page.getByLabel('Tekstuurin sävy', { exact: true });
+    await picker.fill('#2266aa');
+    const blue = await canvas.screenshot();
+    expect(blue.equals(original)).toBe(false);
+    expect((await save(page)).bodies.map((b) => b.color)).toEqual([body.color, body.color]);
+    await picker.fill('#bb4422');
+    expect((await canvas.screenshot()).equals(blue)).toBe(false);
+    await expect(canvas).toHaveAttribute('data-geometry-builds', builds!);
+    await picker.press('Escape');
+    await expect(picker).toHaveValue(body.color);
+    // Compare the two actual parts. Hover/focus changes in the floating grid
+    // controls are unrelated to restoring the model's colour.
+    const restored = await canvas.screenshot({ path: info.outputPath('restored.png') });
+    const rect = (await canvas.boundingBox())!;
+    const a = decode(original),
+      b = decode(restored);
+    let difference = 0;
+    for (const position of [point(200, 150, 40), point(700, 150, 40)]) {
+      for (let dy = -25; dy < 25; dy++)
+        for (let dx = -25; dx < 25; dx++) {
+          const pixel =
+            (Math.round(((position.y - rect.y + dy) * a.height) / rect.height) * a.width +
+              Math.round(((position.x - rect.x + dx) * a.width) / rect.width)) *
+            a.channels;
+          for (let c = 0; c < 3; c++)
+            difference = Math.max(difference, Math.abs(a.data[pixel + c] - b.data[pixel + c]));
+        }
+    }
+    expect(difference).toBeLessThanOrEqual(2);
+    await picker.fill('#2266aa');
+    await picker.fill('#668899');
+    await page.getByRole('button', { name: 'Käytä sävyä', exact: true }).click();
+    expect((await save(page)).bodies.map((b) => b.color)).toEqual(['#668899', '#668899']);
+    await expect(picker).toHaveValue('#668899');
+    await page.getByRole('button', { name: 'Peru', exact: true }).click();
+    expect((await save(page)).bodies.map((b) => b.color)).toEqual([body.color, body.color]);
+    await expect(canvas).toHaveAttribute('data-geometry-builds', builds!);
   });
-  const copy = {
-    ...asComponent(makeBody(400, 300, 40), body.component!.id),
-    color: body.color,
-    appearance: body.appearance,
-    origin: [500, 0, 0] as [number, number, number],
-  };
-  await ready(page, [body, copy]);
-  await page.getByTestId(`body-${body.id}`).click();
-  await view(page, [body, copy]);
-  await page.locator('.model-materials > summary').click();
-  const canvas = page.getByTestId('viewport');
-  const builds = await canvas.getAttribute('data-geometry-builds');
-  const original = await canvas.screenshot({ path: info.outputPath('original.png') });
-  const picker = page.getByLabel('Tekstuurin sävy', { exact: true });
-  await picker.fill('#2266aa');
-  const blue = await canvas.screenshot();
-  expect(blue.equals(original)).toBe(false);
-  expect((await save(page)).bodies.map((b) => b.color)).toEqual([body.color, body.color]);
-  await picker.fill('#bb4422');
-  expect((await canvas.screenshot()).equals(blue)).toBe(false);
-  await expect(canvas).toHaveAttribute('data-geometry-builds', builds!);
-  await picker.press('Escape');
-  await expect(picker).toHaveValue(body.color);
-  // Native GPU compositing can differ by 1–2 levels in the translucent list;
-  // compare decoded pixels rather than requiring identical PNG bytes.
-  expect(
-    maxPixelDifference(
-      await canvas.screenshot({ path: info.outputPath('restored.png') }),
-      original,
-    ),
-  ).toBeLessThanOrEqual(2);
-  await picker.fill('#2266aa');
-  await picker.fill('#668899');
-  await page.getByRole('button', { name: 'Käytä sävyä', exact: true }).click();
-  expect((await save(page)).bodies.map((b) => b.color)).toEqual(['#668899', '#668899']);
-  await expect(picker).toHaveValue('#668899');
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
-  expect((await save(page)).bodies.map((b) => b.color)).toEqual([body.color, body.color]);
-  await expect(canvas).toHaveAttribute('data-geometry-builds', builds!);
-});
+}
 
 test('render tint previews before Apply and Escape restores the original material', async ({
   page,

@@ -3990,7 +3990,7 @@ export default function App() {
   );
   const objectActions = body && !selectedGroup && mode === 'model' && (
     <ObjectActions
-      key={colorContext}
+      key={`object:${colorContext}`}
       body={{ ...body, locked: bodyLocked(body, project.groups) }}
       groups={project.groups}
       count={selectedIds.length}
@@ -6117,7 +6117,7 @@ export default function App() {
                         </>
                       )}
                       <ModelMaterials
-                        key={colorContext}
+                        key={`material:${colorContext}`}
                         onPreviewColor={(color) =>
                           previewColor(selectedIds.length ? selectedIds : [body.id], color)
                         }

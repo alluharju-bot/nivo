@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.23.0** laajentaa **Pintakokoelman** 25 PBR-pintaan ja 12 maalisävyyn.
+Mukana ovat saarni, vaahtera, kirsikka, tiikki, bambu sekä lisää tammea ja pähkinää,
+pellava, nahka, graniitti, terrazzo ja terrakotta. Puut, seinäpinnat, kivet ja laatat,
+tekstiilit sekä maalit löytyvät saman kokoelman suodatuksesta. Kaikkiaan 93 materiaalia.
+Uusien PBR-pintojen **Vaihda värisävy** säilyttää kuvion ja vaihtaa pohjan sävyä:
+sininen ei muutu ruskean puukuvan kanssa lähes mustaksi. **Kuultava sävy** säilyttää
+aiemman pohjaväriin yhdistämisen, jota myös vanhat projektit käyttävät.
+
 Versio **0.22.1** säilyttää jaetun piirustuspinnan muut alueet, kun yhtä aluetta
 pursotetaan. Esimerkiksi 1000 × 1000 mm neliön 250 mm offset ja keskiosan
 400 mm nosto jättävät ulkokehän paikalleen. Myös kehää voi pursottaa, ja
@@ -10,7 +18,7 @@ keskiosan jatkomuokkaukset, mitat sekä tallennus huomioivat jäljelle jäävän
 
 Versio **0.22.0** nopeuttaa tarkentuvan kuvan valmistelua ja materiaalinvaihtoa.
 Valotuksen säätö säilyttää jo lasketut näytteet. GPU:lla mustuneen lakkapinnan
-laskentavirhe on korjattu. **Aidot pinnat** sisältää yhdeksän paikallista CC0-PBR-materiaalia,
+laskentavirhe on korjattu. **Pintakokoelma** sisältää tässä versiossa yhdeksän paikallista CC0-PBR-materiaalia,
 juuri niille tehdyt normal-, karheus- ja korkeuskartat sekä oikeat mittakaavat.
 Yhteinen HDRI-studio, pehmeät studiovarjot, pois kytkettävä kohinan pehmennys ja tarkempi sisätilan
 valolaskenta viimeistelevät renderiä. [Yöpassin seloste](docs/overnight-2026-10-08-render.md).

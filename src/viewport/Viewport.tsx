@@ -10,6 +10,7 @@ import {
   materialUV,
   disposeMaterial,
   updateMaterialPlacement,
+  setMaterialColor,
 } from '../render/materials';
 import { createPointDimensions } from './pointDimensions';
 import { useEffect, useRef, useState } from 'react';
@@ -1373,11 +1374,18 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const color = () => {
     const preview = current().colorPreview;
     const ids = new Set(preview?.ids);
+    const colors = new Map(current().bodies.map((body) => [body.id, body.color]));
     for (const [id, node] of bodyNodes) {
       for (const material of node.mesh.material) {
         // Show the actual tint while editing; keep selection visible in the outline.
-        if (ids.has(id) && !material.userData.mirrorBacking) material.color.set(preview!.color);
-        else material.color.setHex(material.userData.originalColor);
+        if (ids.has(id) && !material.userData.mirrorBacking)
+          setMaterialColor(material, preview!.color);
+        else
+          setMaterialColor(
+            material,
+            material.userData.originalColor,
+            colors.get(id) ?? material.userData.originalColor,
+          );
       }
     }
     bodyBatches.refreshColors();

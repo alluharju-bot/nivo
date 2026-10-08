@@ -2,7 +2,37 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
-## V0.22.0 — renderin vaste, aidot pinnat ja kuvan laatu
+## V0.23.0 — pintakokoelma ja tekstuurin värisävy
+
+- Yhteinen **Pintakokoelma** korvaa Aidot pinnat -nimen. Kokoelman sisäinen
+  suodatus: puut, kivet ja laatat, seinäpinnat, tekstiilit ja nahka sekä maalit.
+- 16 uutta Poly Havenin CC0-PBR-pintaa, yhteensä 25. Yhdeksän puutekstuuria
+  täydentävät tammea, pähkinää, saarnia, vaahteraa, kirsikkaa, tiikkiä ja bambua.
+  Mukana myös pellava, kaksi nahkaa, graniitti, terrazzo, terrakotta ja harmaa rappaus.
+- 12 Nivon omaa maalisävyä, matta lähtöpinta ja yhteinen kiillon säätö.
+  Sävyjä ei esitetä valmistajan, RAL:n tai NCS:n tarkkoina vastineina.
+- Uudelle PBR-materiaalille värisävyn vaihto säilyttää kuvan valoisuuserot ja
+  kohokuvion. Valkoinen palauttaa alkuperäisen kuvan. Kuultava sävy käyttää
+  aiempaa kertolaskua; vanhat tallennetut materiaalit säilyvät tällä tavalla.
+- Kartat pysyvät paikallisina 1K-resursseina ja latautuvat käytettäessä.
+  Puunsyiden suunta tarkistettu kuvista; valkotammi kulkee V-akselia, muut uudet puut U-akselia.
+
+## Backlog — sävytetty lakkakerros
+
+- Pohjapinnan väristä erillinen lakan sävy, voimakkuus ja kiilto. Puunsyyt näkyvät
+  pinnoitteen läpi. Sävy ei ole sama asia kuin pohjatekstuurin värin muuttaminen.
+- Toteuta yhtenäisesti mallinnusnäkymään, nopeaan ja tarkentuvaan renderiin sekä
+  kuvanvientiin. Pelkän pohjavärin kertomista ei nimetä fyysiseksi lakkakerrokseksi.
+- Testaa kirkas ja sävytetty lakka puulla, sävyn nollaus, mattapinta, materiaalin
+  tallennus sekä vanhojen projektien ulkonäön säilyminen.
+
+## Backlog — puupintojen täydentäminen
+
+- Täydennä jatkossa koivun, kuusen, haavan, lepän ja pyökin valokuvapinnat, kun
+  puulaji sekä sovelluksen mukana jaettava lisenssi voidaan varmistaa. Nykyinen
+  koivupreset säilyy Massiivipuut-osiossa; toista puulajia ei nimetä koivuksi.
+
+## V0.22.0 — renderin vaste, pintakokoelma ja kuvan laatu
 
 - Materiaalinvaihto säilyttää geometrian ja tracing-BVH:n. Valotuksen säätö säilyttää näytteet.
 - Varjostin valmistellaan etukäteen ajureilla, joilla kääntäminen onnistuu asynkronisesti.

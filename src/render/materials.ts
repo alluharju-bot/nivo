@@ -199,6 +199,43 @@ export function disposeMaterial(material: THREE.Material) {
   for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
   material.dispose();
 }
+// Materials cloned for individual CAD faces share their colour texture. The
+// controller belongs to that texture, so previews and committed colours follow
+// the same rule in modeling, raster rendering and the path tracer.
+const colorTints = new WeakMap<THREE.Texture, (color: THREE.Color) => void>();
+export function setMaterialColor(
+  material: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial,
+  color: THREE.ColorRepresentation,
+  tintColor: THREE.ColorRepresentation = color,
+) {
+  material.color.set(color);
+  if (material.map) colorTints.get(material.map)?.(new THREE.Color(tintColor));
+}
+
+function luminanceCanvas(image: HTMLImageElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d')!;
+  context.drawImage(image, 0, 0);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const linear = Array.from({ length: 256 }, (_, n) => {
+    const value = n / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    const light =
+      0.2126 * linear[pixels.data[i]] +
+      0.7152 * linear[pixels.data[i + 1]] +
+      0.0722 * linear[pixels.data[i + 2]];
+    const value = Math.round(
+      255 * (light <= 0.0031308 ? light * 12.92 : 1.055 * light ** (1 / 2.4) - 0.055),
+    );
+    pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas;
+}
 export function createMaterialLibrary(draw: () => void) {
   const patterns = new Map<string, HTMLCanvasElement>(),
     images = new Map<string, HTMLImageElement>();
@@ -221,6 +258,7 @@ export function createMaterialLibrary(draw: () => void) {
   let disposed = false;
   let redraw = 0;
   const decoded = new WeakMap<HTMLImageElement, Promise<void>>();
+  const luminances = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
   const placeholders = new Map<string, HTMLCanvasElement>();
   const placeholder = (normal: boolean) => {
     const key = normal ? '#8080ff' : '#ffffff';
@@ -360,6 +398,34 @@ export function createMaterialLibrary(draw: () => void) {
         result.source = source;
         activeImages.set(result, image);
         result.addEventListener('dispose', () => activeImages.delete(result));
+        let applyTint: (() => void) | undefined;
+        if (color && appearance.textureTint === 'colorize') {
+          let requested = new THREE.Color(body.color);
+          applyTint = () => {
+            if (!image.complete || !image.naturalWidth || !activeImages.has(result)) return;
+            let target = source;
+            // White is the neutral reset used throughout Nivo's material UI.
+            if (requested.getHex() !== 0xffffff) {
+              let gray = luminances.get(image);
+              if (!gray) {
+                gray = luminanceCanvas(image);
+                luminances.set(image, gray);
+              }
+              target = sourceFor(gray);
+            }
+            if (result.source !== target) {
+              // End the old GPU allocation before switching its shared source.
+              result.dispose();
+              activeImages.set(result, image);
+              result.source = target;
+              result.needsUpdate = true;
+            }
+          };
+          colorTints.set(result, (value) => {
+            requested = value;
+            applyTint!();
+          });
+        }
         wait(image, () => {
           if (!activeImages.has(result)) return;
           // The placeholder has a smaller immutable GPU allocation. Release it
@@ -370,6 +436,7 @@ export function createMaterialLibrary(draw: () => void) {
             ? cached(`asset:${id}:${sourceFor(image).uuid}`, image, derived, legacy)
             : image;
           result.needsUpdate = true;
+          applyTint?.();
         });
         return result;
       };

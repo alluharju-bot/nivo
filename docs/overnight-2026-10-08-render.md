@@ -47,7 +47,7 @@ marmorilaatta ja messinkivetimet; ei jälkikäsittelyä sovelluksen ulkopuolella
 
 ## Käyttö
 
-- Materiaali → **Aidot pinnat**: valitse uusi PBR-pinta.
+- Materiaali → **Pintakokoelma**: valitse uusi PBR-pinta (kokoelman nimi päivitetty v0.23:ssa).
 - Materiaalin oma pintakäsittely käyttää karheuskarttaa. **Matta** tai oma kiilto
   korvaa sen käyttäjän valinnalla; valikko kertoo, milloin kiilto tulee kartasta.
 - Pintarakenne: käytä valmista normal-karttaa tai vaihda korkeuskarttaan ja säädä

@@ -351,5 +351,598 @@
         "file": "studio_small_09/environment.hdr"
       }
     }
+  },
+  {
+    "id": "ash_veneer",
+    "name": "Ash Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/ash_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ash_veneer/ash_veneer_diff_1k.jpg",
+        "file": "ash_veneer/color.jpg",
+        "md5": "5be48b4be87620998cfaee5a4281169d",
+        "bytes": 592273
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ash_veneer/ash_veneer_nor_gl_1k.jpg",
+        "file": "ash_veneer/normal.jpg",
+        "md5": "6986a1e827968726d996b76d77f3a2ac",
+        "bytes": 397524
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ash_veneer/ash_veneer_rough_1k.jpg",
+        "file": "ash_veneer/roughness.jpg",
+        "md5": "175ba23d74984b0cfb1d9eac636cc255",
+        "bytes": 797439
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ash_veneer/ash_veneer_disp_1k.jpg",
+        "file": "ash_veneer/height.jpg",
+        "md5": "224052eae694be8d9b7fe9c243e178fc",
+        "bytes": 157322
+      }
+    }
+  },
+  {
+    "id": "white_maple_veneer",
+    "name": "White Maple Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/white_maple_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_maple_veneer/white_maple_veneer_diff_1k.jpg",
+        "file": "white_maple_veneer/color.jpg",
+        "md5": "33f613aa2b8f215f390e897165948b9c",
+        "bytes": 443279
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_maple_veneer/white_maple_veneer_nor_gl_1k.jpg",
+        "file": "white_maple_veneer/normal.jpg",
+        "md5": "b4f8e50d663c93a7e51b4bd4cfce945c",
+        "bytes": 275968
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_maple_veneer/white_maple_veneer_rough_1k.jpg",
+        "file": "white_maple_veneer/roughness.jpg",
+        "md5": "cae64b97e4d49ed4212f692eb2cf560e",
+        "bytes": 721797
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_maple_veneer/white_maple_veneer_disp_1k.jpg",
+        "file": "white_maple_veneer/height.jpg",
+        "md5": "d19a08e572c28bc6b8b3b4a79a23e7cf",
+        "bytes": 116171
+      }
+    }
+  },
+  {
+    "id": "cherry_veneer",
+    "name": "Cherry Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/cherry_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cherry_veneer/cherry_veneer_diff_1k.jpg",
+        "file": "cherry_veneer/color.jpg",
+        "md5": "830831a311de65af31d238be811aa46f",
+        "bytes": 485750
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cherry_veneer/cherry_veneer_nor_gl_1k.jpg",
+        "file": "cherry_veneer/normal.jpg",
+        "md5": "cb9cd94c9c0028ef84a60ac4f1dfcf1d",
+        "bytes": 288037
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cherry_veneer/cherry_veneer_rough_1k.jpg",
+        "file": "cherry_veneer/roughness.jpg",
+        "md5": "24e433b708fbafdcaa1b074bb8a2d673",
+        "bytes": 522104
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cherry_veneer/cherry_veneer_disp_1k.jpg",
+        "file": "cherry_veneer/height.jpg",
+        "md5": "aef08ae17b2a179dd980f30775b36960",
+        "bytes": 126384
+      }
+    }
+  },
+  {
+    "id": "teak_veneer",
+    "name": "Teak Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/teak_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/teak_veneer/teak_veneer_diff_1k.jpg",
+        "file": "teak_veneer/color.jpg",
+        "md5": "0ca1914271448bcec9989ccaf46ea6b8",
+        "bytes": 612194
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/teak_veneer/teak_veneer_nor_gl_1k.jpg",
+        "file": "teak_veneer/normal.jpg",
+        "md5": "7c7d3c362775233d89523b44e5771c73",
+        "bytes": 410625
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/teak_veneer/teak_veneer_rough_1k.jpg",
+        "file": "teak_veneer/roughness.jpg",
+        "md5": "bc875070660548e52189959794f23f1b",
+        "bytes": 731629
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/teak_veneer/teak_veneer_disp_1k.jpg",
+        "file": "teak_veneer/height.jpg",
+        "md5": "8153e808845a61101b2d4110ce04ca3f",
+        "bytes": 152783
+      }
+    }
+  },
+  {
+    "id": "bamboo_veneer",
+    "name": "Bamboo Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/bamboo_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bamboo_veneer/bamboo_veneer_diff_1k.jpg",
+        "file": "bamboo_veneer/color.jpg",
+        "md5": "8642edf2af80a6158585a97264d40419",
+        "bytes": 499386
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bamboo_veneer/bamboo_veneer_nor_gl_1k.jpg",
+        "file": "bamboo_veneer/normal.jpg",
+        "md5": "affa5edeeae2af3ed841d532ca135bcb",
+        "bytes": 259223
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bamboo_veneer/bamboo_veneer_rough_1k.jpg",
+        "file": "bamboo_veneer/roughness.jpg",
+        "md5": "8ad387ac67e82a3fa4201ee3c79c3a1e",
+        "bytes": 618975
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bamboo_veneer/bamboo_veneer_disp_1k.jpg",
+        "file": "bamboo_veneer/height.jpg",
+        "md5": "c34423f564a350a2fae80f2fa43b55d5",
+        "bytes": 96700
+      }
+    }
+  },
+  {
+    "id": "white_oak_veneer",
+    "name": "White Oak Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [500, 500],
+    "source": "https://polyhaven.com/a/white_oak_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_oak_veneer/white_oak_veneer_diff_1k.jpg",
+        "file": "white_oak_veneer/color.jpg",
+        "md5": "4ac6f031704bdc243f71cc61d692f823",
+        "bytes": 595257
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_oak_veneer/white_oak_veneer_nor_gl_1k.jpg",
+        "file": "white_oak_veneer/normal.jpg",
+        "md5": "ce3dc086c58f50ba47c026a58d03fcbd",
+        "bytes": 623607
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_oak_veneer/white_oak_veneer_rough_1k.jpg",
+        "file": "white_oak_veneer/roughness.jpg",
+        "md5": "ae2a746fc106f6eb0f90c92d49bd7643",
+        "bytes": 520649
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_oak_veneer/white_oak_veneer_disp_1k.jpg",
+        "file": "white_oak_veneer/height.jpg",
+        "md5": "d891d43f38524c67df23ff6f55705e6f",
+        "bytes": 193120
+      }
+    }
+  },
+  {
+    "id": "natural_walnut_veneer",
+    "name": "Natural Walnut Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/natural_walnut_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/natural_walnut_veneer/natural_walnut_veneer_diff_1k.jpg",
+        "file": "natural_walnut_veneer/color.jpg",
+        "md5": "b9dd8a10990c388322b2b2ca15824b8a",
+        "bytes": 633330
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/natural_walnut_veneer/natural_walnut_veneer_nor_gl_1k.jpg",
+        "file": "natural_walnut_veneer/normal.jpg",
+        "md5": "985fe886f38aeb2fa3580a5c0294f81a",
+        "bytes": 441987
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/natural_walnut_veneer/natural_walnut_veneer_rough_1k.jpg",
+        "file": "natural_walnut_veneer/roughness.jpg",
+        "md5": "d88bc3c533ed61d6737ad75454c9b61f",
+        "bytes": 568696
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/natural_walnut_veneer/natural_walnut_veneer_disp_1k.jpg",
+        "file": "natural_walnut_veneer/height.jpg",
+        "md5": "9d13571f2a34d5fb76ec427bca3c7194",
+        "bytes": 177331
+      }
+    }
+  },
+  {
+    "id": "smoked_walnut_veneer",
+    "name": "Smoked Walnut Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/smoked_walnut_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smoked_walnut_veneer/smoked_walnut_veneer_diff_1k.jpg",
+        "file": "smoked_walnut_veneer/color.jpg",
+        "md5": "8a89a2a623c61af870f1b1c5d2a877b3",
+        "bytes": 534484
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smoked_walnut_veneer/smoked_walnut_veneer_nor_gl_1k.jpg",
+        "file": "smoked_walnut_veneer/normal.jpg",
+        "md5": "3aebd0371e68690a44b608c98b9e052a",
+        "bytes": 366348
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smoked_walnut_veneer/smoked_walnut_veneer_rough_1k.jpg",
+        "file": "smoked_walnut_veneer/roughness.jpg",
+        "md5": "cfcb3f188b2b231996795bd19fb8d03a",
+        "bytes": 408443
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smoked_walnut_veneer/smoked_walnut_veneer_disp_1k.jpg",
+        "file": "smoked_walnut_veneer/height.jpg",
+        "md5": "1f12c108780035c7a9bfb77af53e1a34",
+        "bytes": 189597
+      }
+    }
+  },
+  {
+    "id": "black_oak_veneer",
+    "name": "Black Oak Veneer",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/black_oak_veneer",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_oak_veneer/black_oak_veneer_diff_1k.jpg",
+        "file": "black_oak_veneer/color.jpg",
+        "md5": "83abcaef4fd86aa32cc258ea331003ca",
+        "bytes": 580236
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_oak_veneer/black_oak_veneer_nor_gl_1k.jpg",
+        "file": "black_oak_veneer/normal.jpg",
+        "md5": "fcdb4ee5bb80d8ab0ed4f23d95eda845",
+        "bytes": 390277
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_oak_veneer/black_oak_veneer_rough_1k.jpg",
+        "file": "black_oak_veneer/roughness.jpg",
+        "md5": "777b8d56fbeab5506b40116af4c7c344",
+        "bytes": 565446
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_oak_veneer/black_oak_veneer_disp_1k.jpg",
+        "file": "black_oak_veneer/height.jpg",
+        "md5": "3b303158766af482a9c4c439b02ad97b",
+        "bytes": 152433
+      }
+    }
+  },
+  {
+    "id": "rough_linen",
+    "name": "Rough Linen",
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "sizeMm": [271, 271],
+    "source": "https://polyhaven.com/a/rough_linen",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_diff_1k.jpg",
+        "file": "rough_linen/color.jpg",
+        "md5": "663db789fb075462b685c1f740e58930",
+        "bytes": 835801
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_nor_gl_1k.jpg",
+        "file": "rough_linen/normal.jpg",
+        "md5": "3350269a2e9c472aa406bd3cc1eaf2c8",
+        "bytes": 916843
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_rough_1k.jpg",
+        "file": "rough_linen/roughness.jpg",
+        "md5": "a380b24cc43cff88c39510305ebf0020",
+        "bytes": 1083725
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_disp_1k.jpg",
+        "file": "rough_linen/height.jpg",
+        "md5": "ae9235beae232e1f8e28aa2120bba199",
+        "bytes": 882066
+      }
+    }
+  },
+  {
+    "id": "brown_leather",
+    "name": "Brown Leather",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "sizeMm": [400, 400],
+    "source": "https://polyhaven.com/a/brown_leather",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_albedo_1k.jpg",
+        "file": "brown_leather/color.jpg",
+        "md5": "080b3bf1372766ff2c7ff121ed07b5e8",
+        "bytes": 503348
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_nor_gl_1k.jpg",
+        "file": "brown_leather/normal.jpg",
+        "md5": "b63ae0121a415c23d74eed0b07fc6065",
+        "bytes": 863280
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_rough_1k.jpg",
+        "file": "brown_leather/roughness.jpg",
+        "md5": "0f3a0148c8d2d25fbeca67e64e79bca0",
+        "bytes": 686142
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_disp_1k.jpg",
+        "file": "brown_leather/height.jpg",
+        "md5": "fff4890194163eca49dd3e88f2b73b81",
+        "bytes": 359644
+      }
+    }
+  },
+  {
+    "id": "leather_white",
+    "name": "Leather White",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "sizeMm": [300, 300],
+    "source": "https://polyhaven.com/a/leather_white",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_diff_1k.jpg",
+        "file": "leather_white/color.jpg",
+        "md5": "a580e1c45d806a56d89331f9a549ecb2",
+        "bytes": 728363
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_nor_gl_1k.jpg",
+        "file": "leather_white/normal.jpg",
+        "md5": "4226eb91e17693722f3368cd41a3b1c9",
+        "bytes": 670610
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_rough_1k.jpg",
+        "file": "leather_white/roughness.jpg",
+        "md5": "db1052bac557bb6b03fdde325a853af4",
+        "bytes": 675426
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_disp_1k.jpg",
+        "file": "leather_white/height.jpg",
+        "md5": "d9872d18db8017e06e58d009ad3aa938",
+        "bytes": 762314
+      }
+    }
+  },
+  {
+    "id": "terrazzo_tiles",
+    "name": "Terrazzo Tiles",
+    "authors": {
+      "Amal Kumar": "All"
+    },
+    "sizeMm": [2000, 2000],
+    "source": "https://polyhaven.com/a/terrazzo_tiles",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terrazzo_tiles/terrazzo_tiles_diff_1k.jpg",
+        "file": "terrazzo_tiles/color.jpg",
+        "md5": "12c27a579c2ed49de854b8a86e33647b",
+        "bytes": 1166107
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terrazzo_tiles/terrazzo_tiles_nor_gl_1k.jpg",
+        "file": "terrazzo_tiles/normal.jpg",
+        "md5": "a5f6d05f27db4151227535bdbc82c048",
+        "bytes": 77954
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terrazzo_tiles/terrazzo_tiles_rough_1k.jpg",
+        "file": "terrazzo_tiles/roughness.jpg",
+        "md5": "e34bfd2f4fee1b2b9f310a71588aad17",
+        "bytes": 459022
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terrazzo_tiles/terrazzo_tiles_disp_1k.jpg",
+        "file": "terrazzo_tiles/height.jpg",
+        "md5": "f4b6a65998786dd646aa5c1945c4d818",
+        "bytes": 93432
+      }
+    }
+  },
+  {
+    "id": "granite_tile",
+    "name": "Granite Tile",
+    "authors": {
+      "Charlotte Baglioni": "All"
+    },
+    "sizeMm": [2300, 2300],
+    "source": "https://polyhaven.com/a/granite_tile",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/granite_tile/granite_tile_diff_1k.jpg",
+        "file": "granite_tile/color.jpg",
+        "md5": "5dfd6dbdb5c0b22ca04505c6209cea9f",
+        "bytes": 676597
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/granite_tile/granite_tile_nor_gl_1k.jpg",
+        "file": "granite_tile/normal.jpg",
+        "md5": "e9053333e3db348d10466a781456ec58",
+        "bytes": 592362
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/granite_tile/granite_tile_rough_1k.jpg",
+        "file": "granite_tile/roughness.jpg",
+        "md5": "fd4d40cbc28323260038eedb43bc6ff8",
+        "bytes": 674755
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/granite_tile/granite_tile_disp_1k.jpg",
+        "file": "granite_tile/height.jpg",
+        "md5": "3776cbebe6929f54b2a230cada1dcaba",
+        "bytes": 409126
+      }
+    }
+  },
+  {
+    "id": "terracotta_floor_tiles",
+    "name": "Terracotta Floor Tiles",
+    "authors": {
+      "Dimitrios Savva": "All"
+    },
+    "sizeMm": [2080, 2080],
+    "source": "https://polyhaven.com/a/terracotta_floor_tiles",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terracotta_floor_tiles/terracotta_floor_tiles_diff_1k.jpg",
+        "file": "terracotta_floor_tiles/color.jpg",
+        "md5": "06cc0f29e2a61115580fe147140c0201",
+        "bytes": 649304
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terracotta_floor_tiles/terracotta_floor_tiles_nor_gl_1k.jpg",
+        "file": "terracotta_floor_tiles/normal.jpg",
+        "md5": "727399912c20adf49b87078c21af8071",
+        "bytes": 593169
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terracotta_floor_tiles/terracotta_floor_tiles_rough_1k.jpg",
+        "file": "terracotta_floor_tiles/roughness.jpg",
+        "md5": "029c0915fc7cc0e59a426cdbaeac81b3",
+        "bytes": 626503
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/terracotta_floor_tiles/terracotta_floor_tiles_disp_1k.jpg",
+        "file": "terracotta_floor_tiles/height.jpg",
+        "md5": "b3734c4dfb3f6364856d3a19b8567ecc",
+        "bytes": 305623
+      }
+    }
+  },
+  {
+    "id": "plaster_grey_04",
+    "name": "Plaster Grey 04",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "sizeMm": [1500, 1500],
+    "source": "https://polyhaven.com/a/plaster_grey_04",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plaster_grey_04/plaster_grey_04_diff_1k.jpg",
+        "file": "plaster_grey_04/color.jpg",
+        "md5": "bc8a1530a637d36865f90c86391c75c4",
+        "bytes": 456938
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plaster_grey_04/plaster_grey_04_nor_gl_1k.jpg",
+        "file": "plaster_grey_04/normal.jpg",
+        "md5": "d1ada132c3eea7bee3abe7624c592391",
+        "bytes": 983244
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plaster_grey_04/plaster_grey_04_rough_1k.jpg",
+        "file": "plaster_grey_04/roughness.jpg",
+        "md5": "ef0f4120c0b1085db4f6a08f7a0b197d",
+        "bytes": 370366
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plaster_grey_04/plaster_grey_04_disp_1k.jpg",
+        "file": "plaster_grey_04/height.jpg",
+        "md5": "b24986d0797355935554018327353011",
+        "bytes": 207014
+      }
+    }
   }
 ]
