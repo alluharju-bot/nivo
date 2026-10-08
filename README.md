@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.22.1** säilyttää jaetun piirustuspinnan muut alueet, kun yhtä aluetta
+pursotetaan. Esimerkiksi 1000 × 1000 mm neliön 250 mm offset ja keskiosan
+400 mm nosto jättävät ulkokehän paikalleen. Myös kehää voi pursottaa, ja
+keskiosan jatkomuokkaukset, mitat sekä tallennus huomioivat jäljelle jäävän pinnan.
+
 Versio **0.22.0** nopeuttaa tarkentuvan kuvan valmistelua ja materiaalinvaihtoa.
 Valotuksen säätö säilyttää jo lasketut näytteet. GPU:lla mustuneen lakkapinnan
 laskentavirhe on korjattu. **Aidot pinnat** sisältää yhdeksän paikallista CC0-PBR-materiaalia,

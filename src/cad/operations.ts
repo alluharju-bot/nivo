@@ -1,15 +1,13 @@
-import {
-  cast,
-  getOC,
-  makeFace,
-  measureArea,
-  measureVolume,
-  type AnyShape,
-  type Shape3D,
-  Wire,
-} from 'replicad';
+import { cast, getOC, makeFace, measureArea, type AnyShape, type Shape3D, Wire } from 'replicad';
 import { featureIsSolid, type Body, type FaceRef } from '../model/project';
-import { createShape, meshBody, bodyFromShape, shapeIsValid, exactBounds } from './kernel';
+import {
+  createShape,
+  meshBody,
+  bodyFromShape,
+  shapeIsValid,
+  exactBounds,
+  solidVolume,
+} from './kernel';
 import type { SplitResult } from './protocol';
 
 /** A true planar inset: split the original face, preserving the solid and its volume. */
@@ -117,8 +115,7 @@ export function removeBoundary(body: Body, refs: [FaceRef, FaceRef]): Body {
       before.max.some((n, i) => Math.abs(n - after.max[i]) > 1e-5) ||
       Math.abs(measureArea(result as Shape3D) - area) > Math.max(1e-5, area * 1e-8) ||
       (featureIsSolid(body.feature) &&
-        Math.abs(measureVolume(result.asShape3D()) - mesh.volume) >
-          Math.max(1e-5, mesh.volume * 1e-8))
+        Math.abs(solidVolume(result) - mesh.volume) > Math.max(1e-5, mesh.volume * 1e-8))
     )
       throw new Error(
         'Rajauksen poisto muuttaisi kappaleen mittoja tai materiaalia. Muutos peruttiin.',
@@ -159,14 +156,14 @@ export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' |
     }
     return targets.flatMap((body) => {
       let result = keep(createShape(body).asShape3D());
-      const before = measureVolume(result);
+      const before = solidVolume(result);
       for (const cutter of cutters) result = keep(result.cut(cutter));
       if (!shapeIsValid(result)) throw new Error('Leikkaus ei muodosta ehjää kappaletta.');
       const solids = result.solids,
         hasSolids = solids.length > 0;
       solids.forEach((s) => s.delete());
-      if (!hasSolids || measureVolume(result) < 1e-7) return [];
-      if (Math.abs(measureVolume(result) - before) < Math.max(1e-7, before * 1e-12)) return [body];
+      if (!hasSolids || solidVolume(result) < 1e-7) return [];
+      if (Math.abs(solidVolume(result) - before) < Math.max(1e-7, before * 1e-12)) return [body];
       return [bodyFromShape(body, result)];
     });
   } finally {

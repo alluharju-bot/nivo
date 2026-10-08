@@ -3,14 +3,13 @@ import {
   makeLine,
   cast,
   getOC,
-  measureVolume,
   measureArea,
   basicFaceExtrusion,
   Vector,
   type AnyShape,
   type Shape3D,
 } from 'replicad';
-import { bodyFromShape, createShape, meshBody, shapeIsValid } from './kernel';
+import { bodyFromShape, createShape, meshBody, shapeIsValid, solidVolume } from './kernel';
 import {
   makeBody,
   corners,
@@ -93,8 +92,7 @@ export function splitWithPath(body: Body, ref: FaceRef, path: Body): SplitResult
     if (
       !shapeIsValid(result) ||
       (featureIsSolid(body.feature) &&
-        Math.abs(measureVolume(result.asShape3D()) - before.volume) >
-          Math.max(1e-5, before.volume * 1e-8))
+        Math.abs(solidVolume(result) - before.volume) > Math.max(1e-5, before.volume * 1e-8))
     )
       throw new Error('Pinnan jakaminen ei säilyttänyt ehjää kappaletta. Muutos peruttiin.');
     const next = bodyFromShape(body, result),
@@ -266,13 +264,13 @@ export function cutOpening(profile: Body, targets: Body[]): OpeningResult {
       const source = createShape(body);
       let result: AnyShape | undefined;
       try {
-        const before = measureVolume(source.asShape3D());
+        const before = solidVolume(source);
         result = source.asShape3D().cut(cutter.asShape3D());
         if (!shapeIsValid(result)) throw new Error('Aukko ei muodosta ehjää leikkausta.');
         const solids = result.solids,
           empty = solids.length === 0;
         solids.forEach((s) => s.delete());
-        const volume = empty ? 0 : measureVolume(result.asShape3D());
+        const volume = empty ? 0 : solidVolume(result);
         if (Math.abs(volume - before) < Math.max(1e-7, before * 1e-10)) bodies.push(body);
         else {
           if (body.locked)

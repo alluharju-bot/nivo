@@ -1,6 +1,6 @@
 import { cast, getOC, makeLine, type AnyShape } from 'replicad';
-import { createShape, meshBody } from './kernel';
-import { featureIsSolid, type Body, type FaceRef, type Vec3 } from '../model/project';
+import { createShape, meshBody, solidFaceIds } from './kernel';
+import { type Body, type FaceRef, type Vec3 } from '../model/project';
 import { add, sub, scale, dot } from '../model/geometry';
 import type { FaceSpan } from './protocol';
 
@@ -14,7 +14,13 @@ export function measureFaceSpan(body: Body, ref: FaceRef, point?: Vec3): FaceSpa
     const normal = face.normal;
     let start = point ?? face.center;
     start = sub(start, scale(normal, dot(sub(start, face.center), normal)));
-    const solid = featureIsSolid(body.feature);
+    const faces = shape.faces;
+    let solid: boolean;
+    try {
+      solid = solidFaceIds(shape).has(faces[face.index].hashCode);
+    } finally {
+      faces.forEach((face) => face.delete());
+    }
     if (!solid) return { start, end: start, depth: 0, solid: false };
     const reach = Math.hypot(body.feature.width, body.feature.depth, body.feature.height) + 1;
     const measure = (p: Vec3): FaceSpan | undefined => {

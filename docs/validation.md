@@ -4,6 +4,30 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.22.1 — offsetatun piirustuspinnan kehän säilyminen
+
+**306 yksikkö-/CAD-testiä hyväksytty (59 tiedostoa)**. TypeScript ja `/nivo/`-build
+hyväksytty. Alkuperäinen virhe toistettiin: 1000 × 1000 mm paksuudeton neliö,
+250 mm offset ja sisäpinnan 400 mm pursotus jättivät vain 500 × 500 mm keskiosan.
+Pintakappaleen pursotus korvasi koko kappaleen valitusta pinnasta tehdyllä prismalla.
+
+Korjaus säilyttää muut pinnat ja käsittelee tilavuuden sekä paksuudettomat alueet
+erikseen. Tilavuus lasketaan suljetuista osista; jäljelle jäävän kehän alkupaksuus
+on nolla, vaikka samaan kappaleeseen kuuluu nyt myös nostettu keskiosa.
+
+Yhdeksän uutta CAD-tapausta tarkistavat ulkomitat, pinta-alan ja tilavuuden,
+keskiosan jatkopursotuksen ja madaltamisen, kehän pursotuksen molempiin suuntiin,
+vinon siirretyn piirustustason, ympyrän kehän sekä kehän jakamisen ja rajauksen
+kumittamisen. Mukana on vertailu alun perin 18 mm paksuun levyyn sekä
+projektitiedoston tallennus ja uudelleenlukeminen.
+
+Kaikki kahdeksan kohdennettua offset-/pursotusselaintestiä hyväksyttiin desktopilla
+ja Chromiumin tablettiprofiilissa. Uusi koe tekee käyttäjän O 250 → E 400
+-ketjun, tarttuu säilyneeseen kehään ja pursottaa sitä 100 mm, tarkistaa
+Peru/Palauta-toiminnot sekä lataa projektin uudelleen. Lopputuloksen kuva
+tarkistettiin: tasainen 250 mm kehä ympäröi nostettua keskiosaa. Sama uusi koe
+hyväksyttiin molemmilla profiileilla myös julkaistavasta `/nivo/`-tuotantobundlesta.
+
 ## V0.22.0 — PBR-pinnat, nopea päivitys ja renderin viimeistely
 
 **297 yksikkö-/CAD-testiä hyväksytty (58 tiedostoa)**. TypeScript, `/nivo/`-build

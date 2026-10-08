@@ -15,6 +15,8 @@ import {
   basicFaceExtrusion,
   Vector,
   makePolygon,
+  cast,
+  type Face,
   type AnyShape,
   type Shape3D,
   type Sketch,
@@ -148,6 +150,79 @@ export function shapeIsValid(shape: AnyShape): boolean {
     check.delete();
   }
 }
+/** Open faces may coexist with solids after a divided sketch is extruded.
+ * Integrating their unclosed surfaces as a volume gives an invalid result. */
+export function solidVolume(shape: AnyShape): number {
+  const solids = shape.solids;
+  try {
+    return solids.reduce((sum, solid) => sum + measureVolume(solid), 0);
+  } finally {
+    solids.forEach((solid) => solid.delete());
+  }
+}
+/** The same body can contain closed volumes and unfinished surface regions. */
+export function solidFaceIds(shape: AnyShape): Set<number> {
+  const solids = shape.solids;
+  const ids = new Set<number>();
+  try {
+    for (const solid of solids) {
+      const faces = solid.faces;
+      try {
+        faces.forEach((face) => ids.add(face.hashCode));
+      } finally {
+        faces.forEach((face) => face.delete());
+      }
+    }
+    return ids;
+  } finally {
+    solids.forEach((solid) => solid.delete());
+  }
+}
+
+/** Boolean operations on solids and loose faces must run separately: OCCT
+ * cannot fuse a mixed-dimensional compound with a solid. Trim covered surface
+ * regions afterwards so internal or coincident faces are not left behind. */
+function extrudeSurfaceRegion(
+  shape: AnyShape,
+  faces: Face[],
+  target: Face,
+  prism: AnyShape,
+  distance: number,
+  solidFaces: Set<number>,
+): AnyShape {
+  const solids = shape.solids;
+  let base: Shape3D | undefined, volume: Shape3D | undefined;
+  let surfaces: AnyShape | undefined, remainder: AnyShape | undefined;
+  try {
+    if (solids.length) base = makeCompound(solids.map((solid) => solid.clone())).asShape3D();
+    volume = base
+      ? solidFaces.has(target.hashCode) && distance < 0
+        ? base.cut(prism.asShape3D())
+        : base.fuse(prism.asShape3D())
+      : prism.clone().asShape3D();
+    const untouched = faces.filter(
+      (face) => !solidFaces.has(face.hashCode) && !face.isSame(target),
+    );
+    if (!untouched.length) return volume.clone();
+    surfaces = makeCompound(untouched.map((face) => face.clone()));
+    const cut = new (getOC().BRepAlgoAPI_Cut)(surfaces.wrapped, volume.wrapped);
+    try {
+      remainder = cast(cut.Shape());
+    } finally {
+      cut.delete();
+    }
+    const remainingFaces = remainder.faces;
+    const hasSurface = remainingFaces.length > 0;
+    remainingFaces.forEach((face) => face.delete());
+    return hasSurface ? makeCompound([volume.clone(), remainder.clone()]) : volume.clone();
+  } finally {
+    remainder?.delete();
+    surfaces?.delete();
+    volume?.delete();
+    base?.delete();
+    solids.forEach((solid) => solid.delete());
+  }
+}
 export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   if (!shapeIsValid(shape)) throw new Error('Geometriasta ei syntynyt ehjää kappaletta.');
   const mesh = shape.mesh({ tolerance: 0.15, angularTolerance: 0.1 });
@@ -249,7 +324,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     normals: mesh.normals,
     edges: shape.meshEdges({ tolerance: 0.15 }).lines,
     faces,
-    volume: featureIsSolid(body.feature) ? measureVolume(shape.asShape3D()) : 0,
+    volume: featureIsSolid(body.feature) ? solidVolume(shape) : 0,
     verticesCAD,
     midpointsCAD,
     edgesCAD,
@@ -279,8 +354,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
     solids = shape.solids,
     solid = solids.length > 0;
   solids.forEach((s) => s.delete());
-  if (solid && measureVolume(shape.asShape3D()) < 1e-7)
-    throw new Error('Työstö poistaisi koko kappaleen.');
+  if (solid && solidVolume(shape) < 1e-7) throw new Error('Työstö poistaisi koko kappaleen.');
   const edges = shape.edges,
     points: Vec3[] = [],
     linearEdges: [Vec3, Vec3][] = [];
@@ -409,12 +483,13 @@ export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
     } finally {
       vector.delete();
     }
-    result = featureIsSolid(body.feature)
-      ? distance > 0
+    const solidFaces = solidFaceIds(shape);
+    result = faces.some((face) => !solidFaces.has(face.hashCode))
+      ? extrudeSurfaceRegion(shape, faces, faces[target.index], prism, distance, solidFaces)
+      : distance > 0
         ? shape.asShape3D().fuse(prism.asShape3D())
-        : shape.asShape3D().cut(prism.asShape3D())
-      : prism.clone();
-    if (!shapeIsValid(result) || measureVolume(result.asShape3D()) < 1e-7)
+        : shape.asShape3D().cut(prism.asShape3D());
+    if (!shapeIsValid(result) || solidVolume(result) < 1e-7)
       throw new Error('Pursotus ei muodosta ehjää tilavuuskappaletta.');
     return bodyFromShape(body, result);
   } finally {
