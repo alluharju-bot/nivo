@@ -4,6 +4,39 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.24.0 — metallit, harjaus ja puunsyyn suunta
+
+**313 yksikkö-/CAD-testiä hyväksytty (60 tiedostoa)**. TypeScript, lisenssiluettelo
+ja `/nivo/`-tuotantobuild hyväksytty. **26 tuotantoversion selaintapausta hyväksytty**
+desktopilla ja Chromiumin tablettiprofiilissa. Kaksi tarkentuvan renderin tapausta
+ajettiin vain desktopilla; niiden tablettivastineet ohitettiin tarkoituksella.
+
+- 13 metallipresetiä: neljän aiemman lisäksi kupari, hapettunut kupari, musta kromi
+  ja kuusi anodisoitua alumiinia. Kokoelma yhteensä 105 materiaalia / 28 PBR-pintaa.
+- Kromin sininen uudelleenmaalaus tarkistetaan tallennuksesta ja kuvan pikseleistä.
+  Testi paljasti aiemman täysin mustan metallin mallinnusnäkymässä. Syy oli puuttuva
+  heijastusympäristö; nyt metallit jakavat yhden laiskasti luotavan studioympäristön.
+- Messingin harjaus, sininen sävy ja silkinhimmeä pintakäsittely säilyvät maalatessa.
+  Kuviointi ei muuta metallisuutta, väriä tai käyttäjän kiiltoasetusta.
+- Patinan maski kytkee vihreän hapettuman karheaan epämetalliseen pintaan ja
+  kuparikohdat sileämpään metallipintaan. Värin vaihto säilyttää maskit ja kuvion.
+  Kaikki metallit tarkistettu myös fyysisen M1 Pro / Metal -GPU:n tarkentuvassa
+  renderissä; tarkistuskohtaus ei tuottanut GPU-virheitä.
+- Saarni ja valkotammi maalataan erikseen X- ja Y-pitkille levyille. Tallentunut
+  kulma, valmis kuva ja myöhempi sävyn vaihto tarkistettu. Yksikkötestit kattavat
+  myös pystysuuntaiset osat ja osan oman kierretyn koordinaatiston.
+- Renderin yhteinen materiaalivalinta suuntaa eri pituiset levyt osakohtaisesti.
+  Jo asetetun kuvion suuntaus säilyttää siirtymän; Peru palauttaa lähtökulman.
+  Vapaa tekstuurin kierto, siirto, skaalaus ja linkitettyjen kopioiden hajonta
+  tarkistettu uudelleen. Käsin annetun nollakulman palautus säilyy mahdollisena.
+- Kolmen uuden pähkinäpinnan kaikki neljä karttaa vastaavat Poly Havenin
+  tarkistussummia. Alkuperäiset kuvat säilyvät; amerikkalainen ja eurooppalainen
+  pähkinä nimetään lähteen mukaan. Koko materiaalihakemisto on noin 54 Mt.
+
+Uudet metallisävyt ja proseduraalinen patina ovat visuaalisia malleja, eivät
+valmistajan mittaustietoon perustuvia pinnoitteita. Auringon lisäsäädöt,
+esityskuvan terävyyden säätö ja kiinnikevalikko ovat backlogissa.
+
 ## V0.23.0 — pintakokoelma ja maalipensselin sävytys
 
 **309 yksikkö-/CAD-testiä hyväksytty (59 tiedostoa)**. TypeScript, lisenssiluettelo

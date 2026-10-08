@@ -5,7 +5,7 @@ import { makeBody } from '../src/model/project';
 import { asComponent } from '../src/model/components';
 import { defaultAppearance } from '../src/model/materials';
 
-for (const preset of ['pine', 'pbr-coated_pine']) {
+for (const preset of ['pine', 'pbr-coated_pine', 'chrome', 'copper-patina', 'brass']) {
   test(`P brush applies a new tint when repainting a ${preset} component`, async ({
     page,
   }, info) => {
@@ -15,6 +15,10 @@ for (const preset of ['pine', 'pbr-coated_pine']) {
     const p = point(300, 200, 30);
     await page.keyboard.press('p');
     await page.getByLabel('Pensselin materiaali', { exact: true }).selectOption(preset);
+    if (preset === 'brass') {
+      await page.getByLabel('Metallin kuviointi', { exact: true }).selectOption('brushed');
+      await page.getByLabel('Pintakäsittely', { exact: true }).selectOption('satin');
+    }
     await click(page, p);
     expect((await save(page)).bodies[0].appearance?.preset).toBe(preset);
     const pixel = async () => {
@@ -36,6 +40,11 @@ for (const preset of ['pine', 'pbr-coated_pine']) {
       color: '#2244bb',
       appearance: { preset },
     });
+    if (preset === 'brass')
+      expect((await save(page)).bodies[0].appearance).toMatchObject({
+        metalFinish: 'brushed',
+        roughness: 0.55,
+      });
     await expect
       .poll(async () => {
         const rgb = await pixel();

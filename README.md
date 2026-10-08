@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.24.0** lisää kuparin, hapettuneen kuparin, mustan kromin ja kuusi
+anodisoidun alumiinin sävyä. Metallin **sileä / harjattu** kuviointi, väri ja kiilto
+säätyvät erikseen. Metallien kevyt studioheijastus näyttää värin jo mallintaessa.
+Puun materiaali suuntautuu maalatessa osan pitkän sivun mukaan; olemassa oleville
+pinnoille on **Suuntaa puunsyyt pituussuuntaan**. Kolme pähkinäviilua täydentävät
+kokoelmaa: ruskea amerikanpähkinä sekä lämmin ja tumma euroopanpähkinä.
+Aiemmat tekstuurit ja tallennetut sävyt säilyvät. Yhteensä 105 materiaalia, 28 PBR-pintaa.
+
 Versio **0.23.0** laajentaa **Pintakokoelman** 25 PBR-pintaan ja 12 maalisävyyn.
 Mukana ovat saarni, vaahtera, kirsikka, tiikki, bambu sekä lisää tammea ja pähkinää,
 pellava, nahka, graniitti, terrazzo ja terrakotta. Puut, seinäpinnat, kivet ja laatat,

@@ -74,6 +74,13 @@ export function TexturePanel({
     <section className="texture-editor" aria-label="Tekstuurin sijoittelu">
       <h3>{name ?? 'Tekstuurin sijoittelu'}</h3>
       <p>Napsauta teksturoitua osaa. Vedä kuviota pinnasta: ↗ koko · ↻ kierto.</p>
+      <button
+        className="button outlined full"
+        disabled={disabled || !count}
+        onClick={() => onVary({ spread: 0, rotation: 0, alignWood: true })}
+      >
+        Suuntaa puunsyyt pituussuuntaan
+      </button>
       {texture && (
         <fieldset disabled={disabled} className="texture-placement-fields">
           <div className="texture-fields">

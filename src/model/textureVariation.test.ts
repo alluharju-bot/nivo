@@ -3,7 +3,39 @@ import * as THREE from 'three';
 import { freshProject, makeBody, projectSchema } from './project';
 import { defaultAppearance } from './materials';
 import { asComponent, synchronizeComponents } from './components';
-import { hasTexture, varyTextures, woodGrainRotation } from './textureVariation';
+import { hasTexture, placeMaterial, varyTextures, woodGrainRotation } from './textureVariation';
+
+it('places a newly painted wood along each part and preserves later hand placement and zero rotation', () => {
+  for (const [size, uAngle] of [
+    [[1000, 95, 18], 0],
+    [[95, 1000, 18], 90],
+    [[18, 95, 1000], 90],
+    [[18, 1000, 95], 0],
+  ] as const) {
+    const body = makeBody(...size);
+    for (const [preset, angle] of [
+      ['pbr-ash_veneer', uAngle],
+      ['pbr-white_oak_veneer', 90 - uAngle],
+    ] as const) {
+      const appearance = placeMaterial(body, defaultAppearance(preset));
+      expect(appearance.texture.rotation).toBe(angle);
+      const placed = { ...body, appearance };
+      const manual = {
+        ...appearance,
+        texture: { ...appearance.texture, rotation: 33, offsetX: 42 },
+      };
+      expect(placeMaterial(placed, manual)).toBe(manual);
+      expect(
+        placeMaterial({ ...body, appearance: manual }, defaultAppearance(preset), undefined, true)
+          .texture,
+      ).toEqual(manual.texture);
+      const reset = { ...appearance, texture: { ...appearance.texture, rotation: 0 } };
+      expect(placeMaterial(placed, reset)).toBe(reset);
+    }
+  }
+  const tile = defaultAppearance('tile-white-gloss');
+  expect(placeMaterial(makeBody(95, 2400, 18), tile)).toBe(tile);
+});
 
 it('recognizes real PBR textures and follows their actual horizontal or vertical grain', () => {
   const panel = makeBody(2400, 95, 19);

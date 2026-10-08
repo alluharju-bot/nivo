@@ -16,6 +16,7 @@ import { createPointDimensions } from './pointDimensions';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { bounds, featureIsSolid, type Vec3, type View } from '../model/project';
 import { guidePoints, guideMeasurement } from '../model/guides';
 import { formatLength } from '../model/units';
@@ -68,6 +69,18 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
+  let metalEnvironment: THREE.WebGLRenderTarget | undefined;
+  const metalReflections = () => {
+    if (!metalEnvironment) {
+      const room = new RoomEnvironment();
+      const generator = new THREE.PMREMGenerator(renderer);
+      metalEnvironment = generator.fromScene(room, 0.04);
+      metalEnvironment.texture.userData.nivoSharedEnvironment = true;
+      room.dispose();
+      generator.dispose();
+    }
+    return metalEnvironment.texture;
+  };
   renderer.domElement.setAttribute('aria-label', '3D-mallinnusalue');
   renderer.domElement.setAttribute('data-testid', 'viewport');
   renderer.domElement.tabIndex = 0;
@@ -448,6 +461,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           visible: display !== 'wireframe',
         });
         if (material instanceof THREE.MeshStandardMaterial) {
+          if (material.metalness > 0) {
+            material.envMap = metalReflections();
+            material.envMapIntensity = 0.7;
+          }
           material.userData.baseEmissive = material.emissive.getHex();
           material.userData.baseEmissiveIntensity = material.emissiveIntensity;
         }
@@ -1500,6 +1517,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         }
       });
       materialLibrary.dispose();
+      metalEnvironment?.dispose();
       key.shadow.dispose();
       renderer.dispose();
       renderer.domElement.remove();

@@ -10,6 +10,7 @@ export const texturePlacementSchema = z.object({
   lockAspect: z.boolean(),
 });
 export const appearanceSchema = z.object({
+  metalFinish: z.enum(['smooth', 'brushed']).optional(),
   textureTint: z.enum(['multiply', 'colorize']).optional(),
   mirrorSide: z.enum(['front', 'back', 'both']).optional(),
   preset: z.string().min(1).max(100),
@@ -89,6 +90,7 @@ export type MaterialPreset = {
     | 'birch'
     | 'pine'
     | 'brushed'
+    | 'patina'
     | 'granite'
     | 'marble'
     | 'slate'
@@ -206,6 +208,51 @@ export const materialPresets: MaterialPreset[] = [
     roughness: 0.25,
     metalness: 1,
   },
+  {
+    id: 'copper',
+    name: 'Kupari',
+    category: 'Metallit',
+    color: '#e5a27d',
+    roughness: 0.24,
+    metalness: 1,
+  },
+  {
+    id: 'copper-patina',
+    name: 'Hapettunut kupari',
+    category: 'Metallit',
+    color: '#ffffff',
+    roughness: 1,
+    metalness: 1,
+    pattern: 'patina',
+    size: [500, 500],
+    relief: 0.12,
+  },
+  {
+    id: 'chrome-black',
+    name: 'Musta kromi',
+    category: 'Metallit',
+    color: '#454951',
+    roughness: 0.07,
+    metalness: 1,
+  },
+  ...[
+    { id: 'silver', name: 'hopea', color: '#c7cbd0' },
+    { id: 'black', name: 'musta', color: '#30343a' },
+    { id: 'champagne', name: 'samppanja', color: '#c9b48b' },
+    { id: 'bronze', name: 'pronssi', color: '#8b6748' },
+    { id: 'blue', name: 'sininen', color: '#365b91' },
+    { id: 'red', name: 'punainen', color: '#974044' },
+  ].map((tone): MaterialPreset => ({
+    id: `aluminum-anodized-${tone.id}`,
+    name: `Anodisoitu alumiini · ${tone.name}`,
+    category: 'Metallit',
+    color: tone.color,
+    roughness: 0.42,
+    metalness: 1,
+    pattern: 'brushed',
+    size: [150, 300],
+    relief: 0.008,
+  })),
   {
     id: 'glass-clear',
     name: 'Kirkas lasi',
@@ -702,9 +749,28 @@ export const legacyPresets: MaterialPreset[] = [
 ];
 export const findPreset = (id: string) =>
   [...materialPresets, ...legacyPresets].find((p) => p.id === id) ?? legacyPresets[0];
+/** Brushing changes the surface pattern, independently of its colour and gloss. */
+export function appearancePreset(appearance: Appearance): MaterialPreset {
+  const preset = findPreset(appearance.preset);
+  if (
+    !appearance.metalFinish ||
+    preset.category !== 'Metallit' ||
+    preset.pattern === 'patina' ||
+    appearance.assetId
+  )
+    return preset;
+  return {
+    ...preset,
+    id: `${preset.id}:${appearance.metalFinish}`,
+    pattern: appearance.metalFinish === 'brushed' ? 'brushed' : undefined,
+    relief: 0.025,
+  };
+}
 export const defaultAppearance = (preset = 'matte'): Appearance => ({
   preset,
-  ...(findPreset(preset).pbr ? { textureTint: 'colorize' as const } : {}),
+  ...(findPreset(preset).pbr || findPreset(preset).pattern === 'patina'
+    ? { textureTint: 'colorize' as const }
+    : {}),
   texture: {
     ...textureDefaults,
     width: findPreset(preset).size?.[0] ?? textureDefaults.width,
@@ -712,7 +778,7 @@ export const defaultAppearance = (preset = 'matte'): Appearance => ({
   },
 });
 export const hasAppearanceTexture = (appearance: Appearance) => {
-  const preset = findPreset(appearance.preset);
+  const preset = appearancePreset(appearance);
   return !!(appearance.assetId || preset.pattern || preset.pbr);
 };
 export function emissionSettings(appearance: Appearance, color: string) {

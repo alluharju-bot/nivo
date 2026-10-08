@@ -2,6 +2,41 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.24.0 — metallit ja puunsyyn suunta
+
+- Kupari, hapettunut kupari, musta kromi sekä anodisoitu alumiini: hopea, musta,
+  samppanja, pronssi, sininen ja punainen. Kaikki löytyvät Metallit-osiosta.
+- Sileä / harjattu kuviointi toimii mm. messingille, kuparille, kromille ja alumiinille.
+  Väri ja kiilto säätyvät erikseen. Hapettuneen kuparin oma patinakuvio säilyy;
+  sen väri, karheus, korkeus ja metallisuus perustuvat samaan proseduraaliseen maskiin.
+  Nämä ovat visuaalisia materiaalimalleja, eivät mitattuja valmistajareseptejä.
+- Mallinnuksen metalleille kevyt, kerran luotava heijastusympäristö. Kiiltävä kromi
+  ei enää näy mustana, kun suorat valot eivät osu heijastussuuntaan.
+- Uuden puumateriaalin asettelu huomioi osan oman koordinaatiston ja pitkän sivun
+  maalipensselissä, ominaisuuksissa ja renderin materiaalivalinnassa. Sävyn ja
+  kiillon muutos säilyttävät käsin tehdyn asettelun. Vanhoille pinnoille suora
+  suuntauspainike, joka ei vaihtele tekstuurin lähtöpistettä.
+- Amerikanpähkinä · ruskea viilu ja Euroopanpähkinä · lämmin / tumma viilu.
+  Kaikki aiemmat kuvat säilyvät. Harmaanruskea viilu saa väriä kuvaavan nimen;
+  tummanruskeaksi sävytetyt käyttäjän materiaalit säilyvät muuttumattomina.
+
+## Backlog — valaistus ja esityskuvan viimeistely
+
+- Yhteinen Valaistus-näkymä: auringon suunta ja korkeus visuaalisella säätimellä,
+  väri / värilämpötila, voimakkuus sekä varjojen pehmeys. Erottele aurinko,
+  studiovalo ja ympäristövalo ymmärrettävästi; nykyinen päävalo on studiovalo.
+- Yhtenäinen nopean ja tarkentuvan näkymän valon suunta. Varjon fysikaalinen
+  pehmeys erilleen kohinanpoistosta; materiaalin syyt ja pienet yksityiskohdat
+  säilyttävä terävyyden säätö. Vältä vaaleita reunuksia ja yliterävöitystä.
+
+## Backlog — kiinnikkeet ja pyörähdysprofiilit
+
+- Kupukanta, linssikanta ja tavallisimmat pultinkannat yksinkertaisesta
+  kiinnikevalikosta: halkaisija, kannan korkeus, varren pituus ja upotus / kantaura.
+- Profiilin pyöräytys akselin ympäri tarkkoja pyörähdyskappaleita varten.
+- Kevyt kierreetön oletus kalustevisualisointiin; tarkka kierre tarvittaessa.
+  Toistettavat linkitetyt kiinnikkeet, asettelu pinnalle ja leikkauslistan rajaus.
+
 ## V0.23.0 — pintakokoelma ja tekstuurin värisävy
 
 - Yhteinen **Pintakokoelma** korvaa Aidot pinnat -nimen. Kokoelman sisäinen

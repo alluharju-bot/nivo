@@ -944,5 +944,116 @@
         "bytes": 207014
       }
     }
+  },
+  {
+    "id": "black_walnut_veneer_02",
+    "name": "Black Walnut Veneer 02",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/black_walnut_veneer_02",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_walnut_veneer_02/black_walnut_veneer_02_diff_1k.jpg",
+        "file": "black_walnut_veneer_02/color.jpg",
+        "md5": "c3a69027cf0e76bd7c3b70307e5a69e7",
+        "bytes": 578708
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_walnut_veneer_02/black_walnut_veneer_02_nor_gl_1k.jpg",
+        "file": "black_walnut_veneer_02/normal.jpg",
+        "md5": "c0c6e98576374b8aae8d2a270de7725f",
+        "bytes": 401633
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_walnut_veneer_02/black_walnut_veneer_02_rough_1k.jpg",
+        "file": "black_walnut_veneer_02/roughness.jpg",
+        "md5": "f538862668397a49212484812b1a0653",
+        "bytes": 647234
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/black_walnut_veneer_02/black_walnut_veneer_02_disp_1k.jpg",
+        "file": "black_walnut_veneer_02/height.jpg",
+        "md5": "a1746a46a286afac5df5dfb442110240",
+        "bytes": 156627
+      }
+    }
+  },
+  {
+    "id": "european_walnut_veneer_05",
+    "name": "European Walnut Veneer 05",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/european_walnut_veneer_05",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_05/european_walnut_veneer_05_diff_1k.jpg",
+        "file": "european_walnut_veneer_05/color.jpg",
+        "md5": "4e3684dd122be2618b6d10a1a4002349",
+        "bytes": 491549
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_05/european_walnut_veneer_05_nor_gl_1k.jpg",
+        "file": "european_walnut_veneer_05/normal.jpg",
+        "md5": "2f583cefdd6d59c53fef7ad3e4ec02af",
+        "bytes": 391580
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_05/european_walnut_veneer_05_rough_1k.jpg",
+        "file": "european_walnut_veneer_05/roughness.jpg",
+        "md5": "9a43bc928c47220a361f49cfcba666f0",
+        "bytes": 499199
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_05/european_walnut_veneer_05_disp_1k.jpg",
+        "file": "european_walnut_veneer_05/height.jpg",
+        "md5": "843b4e7396eb80d7e70e2770a636f371",
+        "bytes": 147606
+      }
+    }
+  },
+  {
+    "id": "european_walnut_veneer_04",
+    "name": "European Walnut Veneer 04",
+    "authors": {
+      "Jenelle van Heerden": "All"
+    },
+    "sizeMm": [1000, 1000],
+    "source": "https://polyhaven.com/a/european_walnut_veneer_04",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-08",
+    "maps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_04/european_walnut_veneer_04_diff_1k.jpg",
+        "file": "european_walnut_veneer_04/color.jpg",
+        "md5": "3cc970e0c17fb29e574ea0f90f53c143",
+        "bytes": 534251
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_04/european_walnut_veneer_04_nor_gl_1k.jpg",
+        "file": "european_walnut_veneer_04/normal.jpg",
+        "md5": "7379ad85a520e55b9fa64f9f02fe17b7",
+        "bytes": 379600
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_04/european_walnut_veneer_04_rough_1k.jpg",
+        "file": "european_walnut_veneer_04/roughness.jpg",
+        "md5": "a626b6bdd6a099e4b22e51858344a1fe",
+        "bytes": 722433
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/european_walnut_veneer_04/european_walnut_veneer_04_disp_1k.jpg",
+        "file": "european_walnut_veneer_04/height.jpg",
+        "md5": "67a5fd14a57e62eafcaab01fa9f0ff28",
+        "bytes": 147680
+      }
+    }
   }
 ]

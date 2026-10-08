@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { BodyMesh } from '../cad/protocol';
 import { textureFrameMatrix } from '../render/materials';
 import { bodyLocked } from './groups';
-import { defaultAppearance, findPreset, hasAppearanceTexture } from './materials';
+import { defaultAppearance, findPreset, hasAppearanceTexture, type Appearance } from './materials';
 import type { Body, Project } from './project';
 
 export interface TextureVariation {
@@ -32,6 +32,34 @@ export function woodGrainRotation(body: Body, mesh?: Pick<BodyMesh, 'vertices'>)
   const rotation = longest === v ? 0 : 90;
   const preset = findPreset((body.appearance ?? defaultAppearance(body.material)).preset);
   return preset.grainAxis === 'u' ? 90 - rotation : rotation;
+}
+
+/** Resolve a newly chosen preset per part. Later colour/finish edits keep its placement. */
+export function placeMaterial(
+  body: Body,
+  appearance: Appearance,
+  mesh?: Pick<BodyMesh, 'vertices'>,
+  repaint = false,
+): Appearance {
+  if (body.appearance?.preset === appearance.preset) {
+    return repaint ? { ...appearance, texture: body.appearance.texture } : appearance;
+  }
+  const preset = findPreset(appearance.preset);
+  const wood =
+    !!preset.grainAxis || ['oak', 'pine', 'birch', 'walnut'].includes(preset.pattern ?? '');
+  if (
+    !wood ||
+    appearance.assetId ||
+    JSON.stringify(appearance.texture) !== JSON.stringify(defaultAppearance(preset.id).texture)
+  )
+    return appearance;
+  return {
+    ...appearance,
+    texture: {
+      ...appearance.texture,
+      rotation: woodGrainRotation({ ...body, appearance }, mesh),
+    },
+  };
 }
 
 /** Instance-local placement: geometry links stay intact and unselected copies are untouched. */

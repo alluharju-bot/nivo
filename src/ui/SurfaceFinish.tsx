@@ -27,7 +27,10 @@ export function SurfaceFinish({
   const mappedFinish =
     appearance.roughness === undefined &&
     appearance.surfaceDetail !== false &&
-    !!(appearance.maps?.roughness || (preset.pbr && !appearance.assetId));
+    !!(
+      appearance.maps?.roughness ||
+      ((preset.pbr || preset.pattern === 'patina') && !appearance.assetId)
+    );
   const committed = useRef(percent);
   useEffect(() => {
     setGloss(percent);
@@ -55,7 +58,35 @@ export function SurfaceFinish({
   };
   return (
     <div className="surface-finish">
-      {(preset.pbr || appearance.assetId) && (
+      {preset.category === 'Metallit' && (
+        <small>Väri vaihtaa metallin sävyä. Pintakäsittely säätää kiiltoa.</small>
+      )}
+      {preset.category === 'Metallit' && preset.pattern !== 'patina' && !appearance.assetId && (
+        <label>
+          Metallin kuviointi
+          <select
+            aria-label="Metallin kuviointi"
+            value={appearance.metalFinish ?? 'native'}
+            disabled={busy}
+            onChange={(e) => {
+              const { metalFinish: _, ...base } = appearance;
+              onChange(
+                e.target.value === 'native'
+                  ? base
+                  : {
+                      ...base,
+                      metalFinish: e.target.value as 'smooth' | 'brushed',
+                    },
+              );
+            }}
+          >
+            <option value="native">Materiaalin oma</option>
+            <option value="smooth">Sileä</option>
+            <option value="brushed">Harjattu</option>
+          </select>
+        </label>
+      )}
+      {(preset.pbr || preset.pattern === 'patina' || appearance.assetId) && (
         <label>
           Tekstuurin sävytys
           <select

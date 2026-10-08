@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { pbrMapUrl } from '../model/pbrCatalog';
-import { derivedCanvas } from './surfaceMaps';
+import { derivedCanvas, sourceSize } from './surfaceMaps';
+import { patinaCanvases } from './patina';
 import {
-  findPreset,
+  appearancePreset,
   defaultAppearance,
   emissionSettings,
   surfaceDepth,
@@ -15,6 +16,7 @@ import type { Body } from '../model/project';
 
 /** Deterministic, offline patterns; the species have different grain and pore structure. */
 export function patternCanvas(preset: MaterialPreset) {
+  if (preset.pattern === 'patina') return patinaCanvases(preset.seed).color;
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
@@ -196,7 +198,8 @@ export function materialUV(geometry: THREE.BufferGeometry, body: Body) {
 }
 
 export function disposeMaterial(material: THREE.Material) {
-  for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
+  for (const value of Object.values(material))
+    if (value instanceof THREE.Texture && !value.userData.nivoSharedEnvironment) value.dispose();
   material.dispose();
 }
 // Materials cloned for individual CAD faces share their colour texture. The
@@ -212,10 +215,11 @@ export function setMaterialColor(
   if (material.map) colorTints.get(material.map)?.(new THREE.Color(tintColor));
 }
 
-function luminanceCanvas(image: HTMLImageElement): HTMLCanvasElement {
+function luminanceCanvas(image: HTMLImageElement | HTMLCanvasElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+  const size = sourceSize(image, Infinity);
+  canvas.width = size.width;
+  canvas.height = size.height;
   const context = canvas.getContext('2d')!;
   context.drawImage(image, 0, 0);
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -239,6 +243,7 @@ function luminanceCanvas(image: HTMLImageElement): HTMLCanvasElement {
 export function createMaterialLibrary(draw: () => void) {
   const patterns = new Map<string, HTMLCanvasElement>(),
     images = new Map<string, HTMLImageElement>();
+  const patinas = new Map<string, ReturnType<typeof patinaCanvases>>();
   const normals = new Map<string, HTMLCanvasElement>(),
     roughness = new Map<string, HTMLCanvasElement>();
   const sources = new WeakMap<object, THREE.Source<CanvasImageSource>>();
@@ -258,7 +263,7 @@ export function createMaterialLibrary(draw: () => void) {
   let disposed = false;
   let redraw = 0;
   const decoded = new WeakMap<HTMLImageElement, Promise<void>>();
-  const luminances = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
+  const luminances = new WeakMap<HTMLImageElement | HTMLCanvasElement, HTMLCanvasElement>();
   const placeholders = new Map<string, HTMLCanvasElement>();
   const placeholder = (normal: boolean) => {
     const key = normal ? '#8080ff' : '#ffffff';
@@ -336,7 +341,7 @@ export function createMaterialLibrary(draw: () => void) {
     },
     create(body: Body, assets: Record<string, TextureAsset> = {}) {
       const appearance = body.appearance ?? defaultAppearance(body.material),
-        preset = findPreset(appearance.preset);
+        preset = appearancePreset(appearance);
       const placement = appearance.texture;
       const physical = {
         width: placement.width,
@@ -361,6 +366,7 @@ export function createMaterialLibrary(draw: () => void) {
       };
       let map: THREE.Texture | null = null,
         pattern: HTMLCanvasElement | undefined;
+      let patina: ReturnType<typeof patinaCanvases> | undefined;
       const imageMap = (
         id: string | undefined,
         color = false,
@@ -442,7 +448,38 @@ export function createMaterialLibrary(draw: () => void) {
       };
       if (appearance.assetId) map = imageMap(appearance.assetId, true);
       else if (preset.pbr) map = imageMap(`builtin:${pbrMapUrl(preset.pbr, 'color')}`, true);
-      else if (preset.pattern) {
+      else if (preset.pattern === 'patina') {
+        patina = patinas.get(preset.id);
+        if (!patina) {
+          patina = patinaCanvases(preset.seed);
+          patinas.set(preset.id, patina);
+        }
+        pattern = patina.height;
+        map = texture(patina.color, true, placement);
+        if (appearance.textureTint === 'colorize') {
+          const image = patina.color,
+            colorMap = map;
+          const applyTint = (color: THREE.Color) => {
+            let target = image;
+            if (color.getHex() !== 0xffffff) {
+              let gray = luminances.get(image);
+              if (!gray) {
+                gray = luminanceCanvas(image);
+                luminances.set(image, gray);
+              }
+              target = gray;
+            }
+            const source = sourceFor(target);
+            if (colorMap.source !== source) {
+              colorMap.dispose();
+              colorMap.source = source;
+              colorMap.needsUpdate = true;
+            }
+          };
+          colorTints.set(map, applyTint);
+          applyTint(new THREE.Color(body.color));
+        }
+      } else if (preset.pattern) {
         pattern = patterns.get(preset.id);
         if (!pattern) {
           pattern = patternCanvas(preset);
@@ -457,6 +494,7 @@ export function createMaterialLibrary(draw: () => void) {
           ? imageMap(appearance.maps.normal)
           : imageMap(appearance.maps?.bump, false, 'normal', appearance.bumpDepth === undefined);
         roughnessMap = imageMap(appearance.maps?.roughness);
+        if (patina) roughnessMap ??= texture(patina.roughness, false, placement);
         // A custom color image must not inherit an unrelated built-in relief.
         if (preset.pbr && !appearance.assetId) {
           normalMap ??=
@@ -506,7 +544,9 @@ export function createMaterialLibrary(draw: () => void) {
           strength,
           appearance.maps?.normal && appearance.normalFormat === 'directx' ? -strength : strength,
         ),
-        metalnessMap: imageMap(appearance.maps?.metalness),
+        metalnessMap:
+          imageMap(appearance.maps?.metalness) ??
+          (patina ? texture(patina.metalness, false, placement) : null),
       });
       if (
         !appearance.maps?.normal &&
@@ -536,6 +576,7 @@ export function createMaterialLibrary(draw: () => void) {
       if (redraw) cancelAnimationFrame(redraw);
       placeholders.clear();
       patterns.clear();
+      patinas.clear();
       images.clear();
       normals.clear();
       roughness.clear();

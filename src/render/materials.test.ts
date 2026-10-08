@@ -1,7 +1,18 @@
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
-import { texturePlacement, textureFrameMatrix, createMaterialLibrary } from './materials';
-import { defaultAppearance, materialPresets } from '../model/materials';
+import {
+  texturePlacement,
+  textureFrameMatrix,
+  createMaterialLibrary,
+  setMaterialColor,
+} from './materials';
+import {
+  appearancePreset,
+  appearanceSchema,
+  defaultAppearance,
+  hasAppearanceTexture,
+  materialPresets,
+} from '../model/materials';
 import { makeBody, freshProject, parseProject } from '../model/project';
 import { snapOnSketchPlane, snapPoint } from '../model/snap';
 import { sketchFrame } from '../model/sketch';
@@ -55,9 +66,9 @@ it('keeps millimeter offsets independent of rotation and per-object texture scal
   a.dispose();
   b.dispose();
 });
-it('ships 93 distinct presets and rejects a missing imported image', () => {
-  expect(materialPresets).toHaveLength(93);
-  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(93);
+it('ships 105 distinct presets and rejects a missing imported image', () => {
+  expect(materialPresets).toHaveLength(105);
+  expect(new Set(materialPresets.map((p) => p.id)).size).toBe(105);
   expect(
     new Set(materialPresets.filter((p) => p.category === 'Massiivipuut').map((p) => p.pattern))
       .size,
@@ -75,6 +86,35 @@ it('ships 93 distinct presets and rejects a missing imported image', () => {
       }),
     ),
   ).toThrow();
+});
+it('recolours polished metal without losing its reflectance or chosen finish', () => {
+  const library = createMaterialLibrary(() => {});
+  for (const preset of ['chrome', 'chrome-black', 'copper']) {
+    const material = library.create({ ...makeBody(), appearance: defaultAppearance(preset) });
+    const roughness = material.roughness;
+    setMaterialColor(material, '#2244bb');
+    expect(material.color.getHexString()).toBe('2244bb');
+    expect(material.metalness).toBe(1);
+    expect(material.roughness).toBe(roughness);
+    material.dispose();
+  }
+  library.dispose();
+});
+it('keeps brushing, colour and gloss independent and preserves the native oxidized coating', () => {
+  for (const preset of ['brass', 'copper', 'chrome', 'chrome-black', 'aluminum-anodized-black']) {
+    const appearance = appearanceSchema.parse({
+      ...defaultAppearance(preset),
+      metalFinish: 'brushed',
+      roughness: 0.55,
+    });
+    expect(appearancePreset(appearance)).toMatchObject({ pattern: 'brushed', metalness: 1 });
+    expect(appearance.roughness).toBe(0.55);
+    expect(hasAppearanceTexture(appearance)).toBe(true);
+    expect(hasAppearanceTexture({ ...appearance, metalFinish: 'smooth' })).toBe(false);
+  }
+  expect(
+    appearancePreset({ ...defaultAppearance('copper-patina'), metalFinish: 'smooth' }).pattern,
+  ).toBe('patina');
 });
 it('uses configurable grid spacing while keeping geometric targets exact', () => {
   const body = makeBody(80, 50, 20, [257.375, 143.625, 0]);

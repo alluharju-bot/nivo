@@ -5,6 +5,7 @@ import { SurfaceFinish } from './SurfaceFinish';
 import { useColorDraft } from './useColorDraft';
 import {
   defaultAppearance,
+  appearancePreset,
   findPreset,
   hasAppearanceTexture,
   surfaceDepth,
@@ -40,7 +41,7 @@ export function SurfaceMaps({
   busy: boolean;
   onChange: MaterialChange;
 }) {
-  const preset = findPreset(appearance.preset);
+  const preset = appearancePreset(appearance);
   const defaultStrength = surfaceStrength(appearance);
   const depth = appearance.bumpDepth ?? surfaceDepth(preset);
   const legacyBump = !!appearance.maps?.bump && appearance.bumpDepth === undefined;

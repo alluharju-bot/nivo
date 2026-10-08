@@ -26,7 +26,7 @@ test('surface collection filters woods, upholstery and paints, applies a finish 
   const group = page.getByLabel('Pintakokoelman pinnat', { exact: true });
   await expect(group).toHaveValue('Puut');
   const swatches = page.locator('.material-swatches');
-  await expect(swatches.getByRole('button')).toHaveCount(12);
+  await expect(swatches.getByRole('button')).toHaveCount(15);
   await swatches.getByRole('button', { name: 'Valkotammi · viilu', exact: true }).click();
   expect((await save(page)).bodies[0].appearance?.texture.width).toBe(500);
   await group.selectOption('Tekstiilit ja nahka');
@@ -47,7 +47,7 @@ test('surface collection filters woods, upholstery and paints, applies a finish 
   expect((await save(page)).bodies[0].appearance?.preset).toBe('pbr-ash_veneer');
   await page.getByLabel('Etsi materiaalia', { exact: true }).fill('');
   await expect(group).toHaveValue('Puut');
-  await expect(swatches.getByRole('button')).toHaveCount(12);
+  await expect(swatches.getByRole('button')).toHaveCount(15);
   await page.screenshot({ path: info.outputPath('surface-collection-woods.png') });
   expect(errors).toEqual([]);
 });

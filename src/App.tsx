@@ -19,7 +19,12 @@ import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, dimensionEnvelope, type PointDimension } from './model/project';
 import { PaintPanel } from './ui/PaintPanel';
 import { TexturePanel } from './ui/TexturePanel';
-import { hasTexture, varyTextures, type TextureVariation } from './model/textureVariation';
+import {
+  hasTexture,
+  placeMaterial,
+  varyTextures,
+  type TextureVariation,
+} from './model/textureVariation';
 import { ContextActions, type QuickAction } from './ui/ContextActions';
 import { CommandSearch } from './ui/CommandSearch';
 import type { Command } from './ui/commands';
@@ -860,7 +865,11 @@ export default function App() {
             JSON.stringify(old.texture) !== JSON.stringify(appearance.texture);
           return {
             ...b,
-            appearance,
+            appearance: placeMaterial(
+              b,
+              appearance,
+              editor.meshes.find((m) => m.id === b.id),
+            ),
             color: color ?? b.color,
             localTexture: textureOnly ? true : b.localTexture,
           };
@@ -3277,7 +3286,19 @@ export default function App() {
       {
         ...project,
         bodies: project.bodies.map((b) =>
-          ids.includes(b.id) ? { ...b, ...brush, localMaterial: !paintLinked } : b,
+          ids.includes(b.id)
+            ? {
+                ...b,
+                ...brush,
+                appearance: placeMaterial(
+                  b,
+                  brush.appearance,
+                  editor.meshes.find((m) => m.id === b.id),
+                  true,
+                ),
+                localMaterial: !paintLinked,
+              }
+            : b,
         ),
       },
       `${ids.length} osan materiaali päivitetty.`,

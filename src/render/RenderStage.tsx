@@ -21,6 +21,7 @@ import {
   type TexturePlacement,
 } from '../model/materials';
 import { patternCanvas } from './materials';
+import { woodGrainRotation } from '../model/textureVariation';
 import { pbrMapUrl } from '../model/pbrCatalog';
 import {
   surfaceCollectionName,
@@ -161,7 +162,18 @@ export function RenderStage(props: Props) {
           return;
         }
         setError('');
-        void props.onAppearance([id], brush.appearance, brush.color);
+        const body = bodies.find((b) => b.id === id)!;
+        void props.onAppearance(
+          [id],
+          {
+            ...brush.appearance,
+            texture:
+              body.appearance?.preset === brush.appearance.preset
+                ? body.appearance.texture
+                : brush.appearance.texture,
+          },
+          brush.color,
+        );
       } else void selectTarget(id);
     },
     assets: props.assets,
@@ -746,6 +758,30 @@ export function RenderStage(props: Props) {
                     Vedä kuviota tai kahvoja: ↗ koko, ↻ kierto. Veto tallentuu heti; Enter hyväksyy
                     luvut. Oikea painike kiertää kameraa.
                   </p>
+                  {(preset.grainAxis ||
+                    ['oak', 'pine', 'birch', 'walnut'].includes(preset.pattern ?? '')) &&
+                    !appearance.assetId && (
+                      <button
+                        className="button outlined full"
+                        disabled={busy}
+                        onClick={() => {
+                          const body = bodies.find((b) => b.id === textureDraft.id)!;
+                          const next = {
+                            ...textureDraft.appearance,
+                            texture: {
+                              ...textureDraft.appearance.texture,
+                              rotation: woodGrainRotation(
+                                body,
+                                meshes.find((m) => m.id === body.id),
+                              ),
+                            },
+                          };
+                          void props.onAppearance([body.id], next);
+                        }}
+                      >
+                        Suuntaa puunsyyt pituussuuntaan
+                      </button>
+                    )}
                   <div className="texture-fields">
                     {(['width', 'height', 'offsetX', 'offsetY', 'rotation'] as const).map((key) => (
                       <label key={key}>
