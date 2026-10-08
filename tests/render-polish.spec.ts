@@ -99,7 +99,7 @@ test('PBR changes retain geometry, exposure retains samples and prepared renderi
   expect(matte.clearcoat).toBe(0);
   await page.getByLabel('Pintakäsittely', { exact: true }).selectOption('native');
   await expect(status).toContainText('Tavoite saavutettu', { timeout: native ? 20000 : 120000 });
-  await page.getByText('Studion valaistus', { exact: true }).click();
+  await page.getByRole('button', { name: 'Valaistus', exact: true }).click();
   const exposure = page.getByLabel('Valotus', { exact: true });
   const before = await canvas.screenshot();
   await exposure.focus();

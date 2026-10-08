@@ -3851,6 +3851,195 @@ p {
 .render-tab-content[hidden] {
   display: none;
 }
+.lighting-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-size: 12px;
+}
+.lighting-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.lighting-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fffefa;
+  text-align: left;
+  font-size: 12px;
+}
+.lighting-preset:hover:not(:disabled) {
+  background: #eef2e8;
+  border-color: #9aaf9b;
+}
+.lighting-preset[aria-pressed='true'] {
+  background: #e9eee3;
+  border-color: #9aaf9b;
+}
+.lighting-preset svg {
+  color: #697d65;
+}
+.lighting-preset small {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #68746b;
+}
+.lighting-range {
+  display: block;
+}
+.lighting-range > span {
+  display: block;
+}
+.lighting-range output {
+  font-size: 11px;
+}
+.lighting-panel input[type='range'] {
+  margin-top: 9px;
+}
+.lighting-toggle,
+.lighting-toggle > span,
+.lighting-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.lighting-toggle input {
+  accent-color: #487261;
+}
+.sun-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.sun-controls > .lighting-toggle {
+  font-weight: 600;
+}
+.sun-direction-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.light-compass {
+  width: 138px;
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+  border-radius: 50%;
+}
+.light-compass:active {
+  cursor: grabbing;
+}
+.light-compass:focus-visible {
+  outline: 2px solid #658671;
+  outline-offset: 3px;
+}
+.light-compass svg {
+  display: block;
+  width: 100%;
+}
+.compass-track {
+  fill: #f3f1e7;
+  stroke: #d9dccf;
+  stroke-width: 1.5;
+}
+.compass-axis {
+  fill: none;
+  stroke: #d9dccf;
+  stroke-dasharray: 2 4;
+}
+.compass-model {
+  fill: #e1e9de;
+  stroke: #a9b9a4;
+}
+.compass-ray {
+  stroke: #cca960;
+  stroke-width: 2;
+}
+.compass-sun {
+  fill: #eed294;
+  stroke: #ad8540;
+  stroke-width: 2;
+}
+.light-compass text {
+  fill: #7a877c;
+  font-size: 9px;
+}
+.sun-direction-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.45;
+}
+.sun-direction-caption strong {
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.sun-direction-caption span {
+  font-size: 11px;
+}
+.sun-direction-caption small {
+  color: #748075;
+  font-size: 10px;
+}
+.lighting-color input {
+  width: 54px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: white;
+}
+.light-color-presets {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: -9px;
+}
+.light-color-presets button {
+  width: 25px;
+  height: 25px;
+  border: 1px solid #7c755333;
+  border-radius: 50%;
+}
+.light-color-presets button:hover {
+  outline: 2px solid #83957a;
+  outline-offset: 2px;
+}
+.lighting-studio > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.lighting-studio > :not(summary) {
+  margin-top: 18px;
+}
+.lighting-help,
+.image-look small {
+  color: #737e74;
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0;
+}
+.image-look small {
+  display: block;
+  margin-top: 8px;
+}
+.image-look {
+  font-size: 12px;
+}
 .trace-badge {
   position: absolute;
   bottom: 48px;
@@ -4071,24 +4260,11 @@ p {
   gap: 10px;
   margin: 14px 0;
 }
-.trace-options label,
-.studio-controls > label {
+.trace-options label {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 12px;
-}
-.studio-controls {
-  margin: 14px 0;
-}
-.studio-controls summary {
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 14px;
-}
-.studio-controls > label {
-  margin: 12px 0;
 }
 .render-job-card {
   position: fixed;
@@ -4188,8 +4364,7 @@ p {
 .model-materials select {
   width: 100%;
 }
-.surface-maps,
-.studio-lighting {
+.surface-maps {
   margin-top: 12px;
 }
 .surface-maps > p {
@@ -4239,8 +4414,7 @@ p {
   outline: 2px solid #618b65;
   outline-offset: 1px;
 }
-.surface-maps > summary,
-.studio-lighting > summary {
+.surface-maps > summary {
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;

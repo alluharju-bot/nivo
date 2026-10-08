@@ -30,7 +30,7 @@ test('render materials and lighting persist without changing geometry or Hold', 
     'true',
   );
   await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
-  await page.getByText('Studion valaistus', { exact: true }).click();
+  await page.getByRole('button', { name: 'Valaistus', exact: true }).click();
   await page.getByRole('combobox', { name: 'Valaistus', exact: true }).selectOption('warm');
   await expect(page.getByRole('combobox', { name: 'Valaistus', exact: true })).toHaveValue('warm');
   await page.getByRole('checkbox', { name: 'Varjot', exact: true }).uncheck();
@@ -38,15 +38,15 @@ test('render materials and lighting persist without changing geometry or Hold', 
   const exposure = page.getByRole('slider', { name: 'Valotus', exact: true });
   await exposure.focus();
   await exposure.press('ArrowRight');
-  await expect(exposure).toHaveValue('1.1');
+  await expect(exposure).toHaveValue('1.05');
   const result = await save(page);
   expect(result.bodies[0]).toEqual({ ...base, locked: false, material: 'wood', color: '#bc8874' });
   expect(result.bodies.slice(1)).toEqual([hidden, construction]);
-  expect(result.settings.render).toEqual({ environment: 'warm', exposure: 1.1, shadows: false });
+  expect(result.settings.render).toEqual({ environment: 'warm', exposure: 1.05, shadows: false });
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   await expect(exposure).toHaveValue('1');
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
-  await expect(exposure).toHaveValue('1.1');
+  await expect(exposure).toHaveValue('1.05');
   // Modeling shortcuts must not modify the scene in presentation mode.
   await page.getByRole('button', { name: 'Sovita malli', exact: true }).click();
   await page.keyboard.press('e');
@@ -58,7 +58,7 @@ test('render materials and lighting persist without changing geometry or Hold', 
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Materiaali', exact: true })).toHaveValue('wood');
   await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
-  await page.getByText('Studion valaistus', { exact: true }).click();
+  await page.getByRole('button', { name: 'Valaistus', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Valaistus', exact: true })).toHaveValue('warm');
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('render-canvas')).toHaveCount(0);

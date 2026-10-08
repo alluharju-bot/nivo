@@ -318,6 +318,18 @@ export const projectSchema = z
             lightPower: z.number().finite().min(0).max(4).optional(),
             environmentPower: z.number().finite().min(0).max(4).optional(),
             ground: z.boolean().optional(),
+            studioSoftness: z.number().finite().min(0.1).max(3).optional(),
+            look: z.enum(['standard', 'filmic']).optional(),
+            sun: z
+              .object({
+                enabled: z.boolean(),
+                azimuth: z.number().finite().min(0).max(360),
+                elevation: z.number().finite().min(5).max(85),
+                power: z.number().finite().min(0).max(5),
+                color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+                softness: z.number().finite().min(0.1).max(10),
+              })
+              .optional(),
           })
           .optional(),
       })

@@ -1,6 +1,7 @@
 import { installTextureEditing } from '../viewport/textureEditing';
 import { canUpdateSurfaces, surfaceKey, type RenderModel } from './sceneChanges';
 import { loadStudioEnvironment } from './environment';
+import { createSunLighting, imageToneMapping } from './lighting';
 import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, createTraceLights, previewLightLimit } from './lights';
 import { progressiveRenderer, type TraceStatus } from './progressive';
@@ -60,7 +61,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
   const canvas = renderer.domElement;
@@ -102,6 +103,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     softFill = new THREE.RectAreaLight();
   studioPanels.add(softKey, softFill);
   scene.add(studioPanels);
+  const sunLighting = createSunLighting(scene);
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
     new THREE.MeshStandardMaterial({ color: '#dce1dc', roughness: 0.95 }),
@@ -403,8 +405,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     prepareTimer = window.setTimeout(() => progressive.prepare(), 600);
   };
   let previousLighting = '';
+  let previousEnvironment: RenderSettings['environment'] | undefined;
   const settingsOnly = () => {
-    renderer.shadowMap.needsUpdate = true;
     const settings = current().settings;
     const color = { studio: '#e8ece9', warm: '#eee3d2', dark: '#25313a' }[settings.environment];
     scene.background = new THREE.Color(color);
@@ -435,7 +437,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       panel.position.copy(source.position);
       panel.up.set(0, 0, 1);
       panel.lookAt(center);
-      panel.width = panel.height = extent * size;
+      panel.width = panel.height = extent * size * (settings.studioSoftness ?? 1);
       panel.color.copy(source.color);
       // Preserve roughly the same incident light at the model centre as its
       // directional preview, independently of scene units and model size.
@@ -443,22 +445,44 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         (source.intensity * source.position.distanceToSquared(center)) /
         (panel.width * panel.height);
     }
+    key.shadow.radius = Math.max(0.5, (settings.studioSoftness ?? 1) * 2);
+    sunLighting.update(settings.sun, center, extent);
     const ground = settings.ground ?? true;
-    if (floor.visible !== ground) progressive.invalidate(true);
+    if (floor.visible !== ground) {
+      progressive.invalidate(true);
+      renderer.shadowMap.needsUpdate = true;
+    }
     floor.visible = ground;
     const lighting = JSON.stringify([
       settings.environment,
       settings.environmentPower,
       settings.lightPower,
       settings.lightRotation,
+      settings.studioSoftness,
+      settings.sun,
     ]);
     if (lighting !== previousLighting) {
       previousLighting = lighting;
+      renderer.shadowMap.needsUpdate = true;
       progressive.lighting();
-      progressive.invalidate(false, true);
+      // Only a background change also recolors the floor material. Sun and
+      // studio gestures must not repack every PBR texture in the project.
+      progressive.invalidate(false, settings.environment !== previousEnvironment);
     }
+    previousEnvironment = settings.environment;
     renderer.toneMappingExposure = settings.exposure;
+    renderer.toneMapping = imageToneMapping(settings.look);
+    if (renderer.shadowMap.enabled !== settings.shadows) renderer.shadowMap.needsUpdate = true;
     renderer.shadowMap.enabled = settings.shadows;
+    canvas.dataset.lighting = JSON.stringify({
+      rotation: settings.lightRotation ?? 0,
+      studioPower: settings.lightPower ?? 1,
+      environmentPower: settings.environmentPower ?? 1,
+      softness: settings.studioSoftness ?? 1,
+      sun: settings.sun ?? null,
+      sunDirection: sunLighting.preview.position.clone().sub(center).normalize().toArray(),
+      look: settings.look ?? 'standard',
+    });
     draw(false, false);
   };
   const textureEditor = installTextureEditing({
@@ -529,9 +553,15 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     settings: settingsOnly,
     trace: progressive,
     capture: async () => {
-      await library.ready();
+      await Promise.all([environmentReady, library.ready()]);
       if (disposed) throw new Error('Renderöintinäkymä suljettiin ennen kuvan aloitusta.');
-      return captureRenderScene(scene, camera, camera.aspect, renderer.toneMappingExposure);
+      return captureRenderScene(
+        scene,
+        camera,
+        camera.aspect,
+        renderer.toneMappingExposure,
+        renderer.toneMapping,
+      );
     },
     appearance(ids: string[], appearance: Appearance) {
       for (const object of model.children)
@@ -569,7 +599,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       textureEditor.update();
     },
     async exportPNG(width: number) {
-      await library.ready();
+      await Promise.all([environmentReady, library.ready()]);
+      if (disposed) throw new Error('Renderöintinäkymä suljettiin ennen kuvan tallentamista.');
       const size = renderer.getSize(new THREE.Vector2()),
         pixelRatio = renderer.getPixelRatio();
       const height = Math.max(1, Math.round(width / camera.aspect));
@@ -610,6 +641,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       floor.geometry.dispose();
       floor.material.dispose();
       key.shadow.dispose();
+      sunLighting.dispose();
       env.dispose();
       studioEnvironment?.dispose();
       library.dispose();

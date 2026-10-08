@@ -126,7 +126,7 @@ export function progressiveRenderer(
   const present = () => {
     if (!tracer || dirty || tracer.samples < 1) return;
     if (options.denoise !== false && displayedOpacity >= 1 && tracer.samples >= 8)
-      denoise.draw(renderer, tracer.target.texture);
+      denoise.draw(renderer, tracer.target.texture, tracer.samples);
   };
   const initialize = () => {
     if (tracer) return;

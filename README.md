@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.25.0** kokoaa esityskuvan **Materiaali / Valaistus / Kuva** -näkymiin.
+Vedä aurinkoa suuntakehällä ja säädä korkeutta, sävyä, voimakkuutta sekä varjojen
+pehmeyttä. Studio, päivänvalo, iltavalo ja omat valaisimet antavat neljä lähtökohtaa.
+**Filminen** kuvailme ja kuvan tarkentuessa kevenevä kohinan pehmennys viimeistelevät
+kuvaa. Valaistussäätö säilyttää geometrian ja PBR-kartat; kuvanvienti odottaa myös
+heijastusympäristön valmistumisen. [Renderipassin toteutus](docs/overnight-2026-10-08-render.md).
+
 Versio **0.24.2** nopeuttaa apuviivojen pisteiden ja mittatekstien näkyvyystarkistusta.
 Käyttäjän pyöristetyllä 12 kaapin mallilla kamerakierto nousi testissä noin
 20 → 120 kuvaan/s samoilla materiaaleilla ja apuviivoilla. Piirron yksityiskohdat säilyvät.

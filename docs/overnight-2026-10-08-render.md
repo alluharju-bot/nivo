@@ -3,6 +3,46 @@
 Tavoite: ensimmäinen kuva ilman ylimääräistä odottamista, materiaalien ja kameran
 päivitys ilman geometrian uudelleenrakennusta sekä aidot, yksityiskohtaiset pinnat.
 
+## Jatkopassi 0.25.0 — valaistus ja viimeistely
+
+Renderöi-näkymässä materiaalit, koko kohtauksen valaistus ja kuvan viimeistely
+ovat nyt omilla välilehdillään. Osan muuttaminen LEDiksi tai spotiksi säilyy
+materiaalin yhteydessä myös mallinnusnäkymässä.
+
+- **Valaistus → Päivänvalo**: vedä aurinkoa suuntakehällä. Nuolinäppäimet
+  muuttavat suuntaa 5° kerrallaan. Korkeus, voimakkuus, sävy ja pehmeys säätyvät
+  heti. **Iltavalo** antaa lämpimän, matalan valon. **Studio** käyttää pehmeitä
+  studiovaloja. **Omat valaisimet** sammuttaa studiovalot mallin valoja varten.
+- **Studio ja ympäristö**: studion suunta, teho ja varjon pehmeys,
+  ympäristövalon teho, taustan tunnelma, lattia ja esikatselun varjot.
+- **Kuva → Kuvan ilme → Filminen** käyttää AgX-sävykartoitusta. Vanha
+  ACES-ilme säilyy Tasapainoinen-vaihtoehtona ja vanhojen projektien oletuksena.
+  Molemmat kulkevat nopeaan PNG-vientiin sekä erilliseen tarkkaan laskentaan.
+- Säädön esikatselu on välitön, hyväksytty veto on yksi Peru-askel ja
+  keskeneräisen säädön voi perua Escillä. Valon liikuttaminen ei rakenna
+  mallia tai sen PBR-karttoja uudelleen. Valotus ei laske varjokarttoja uudelleen.
+- Kuvanvienti odottaa myös HDRI:n latautumisen. Erillinen laskenta omistaa
+  valaistuksen, kameran, materiaalit ja kuvailmeen, vaikka mallia muutetaan.
+- Taustalla laskettava kuva ei odota yhtä näytönpäivitystä jokaisen pienen
+  laatan välissä: enintään neljän laatan työerä ja 6 ms:n CPU-budjetti
+  rajaavat kerralla tehtävää työtä. GPU:lle sallitaan korkeintaan kaksi
+  keskeneräistä työerää. Lopullinen kuva yhdistetään kerran,
+  ei uudelleen jokaisen laatan jälkeen. Laskennan voi edelleen keskeyttää.
+- Reunat huomioivan kohinan pehmennyksen säde ja voimakkuus vähenevät
+  asteittain 8–512 näytteen välillä. Hienot puunsyyt ja normal-karttojen
+  yksityiskohdat eivät jää jatkuvasti yhtä voimakkaan suodatuksen alle.
+
+Aurinko on kaukainen valopinta, jonka koko määrää tarkentuvan kuvan varjon
+pehmeyden. Voimakkuus normalisoidaan valon kokoa muutettaessa. Nopea esikatselu
+käyttää suuntavaloa ja varjokarttaa: pehmeän varjon muoto on siinä likimääräinen.
+Teho on suhteellinen, ei aurinkoisuuden, kellonajan tai lumenien mitta.
+
+Alla uusi 1 600 px / 1 024 näytteen PNG suoraan sovelluksesta: pähkinäviilu,
+marmoripinta, messinkivetimet, aurinko ja filmisen kuvailmeen valinta. Kuvaa ei
+ole jälkikäsitelty. Tämä kahdeksan osan koemalli on luotu testausta varten.
+
+![Aurinko ja filmisen kuvailmeen renderikuva](images/nivo-sun-studio-v025.png)
+
 ## Toteutus ja tarkistus
 
 - [x] Erota laitteiston ja ohjelmistopiirron mittaukset. M1 Pro / Chromium: sama

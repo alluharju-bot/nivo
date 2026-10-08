@@ -7,6 +7,7 @@ export type RenderSnapshot = {
   camera: THREE.Camera;
   aspect: number;
   exposure: number;
+  toneMapping: THREE.ToneMapping;
   dispose: () => void;
 };
 /** Own the copied resources so a model edit or leaving Render cannot alter an in-flight image. */
@@ -15,6 +16,7 @@ export function captureRenderScene(
   camera: THREE.Camera,
   aspect: number,
   exposure: number,
+  toneMapping: THREE.ToneMapping = THREE.ACESFilmicToneMapping,
 ): RenderSnapshot {
   scene.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
@@ -66,6 +68,7 @@ export function captureRenderScene(
     camera: camera.clone(),
     aspect,
     exposure,
+    toneMapping,
     dispose: () => {
       if (disposed) return;
       disposed = true;

@@ -19,7 +19,15 @@ test('a finite render continues in Model using its frozen scene and downloads a 
   page.on('pageerror', (e) => errors.push(e.message));
   await ready(page, [source]);
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
+  await page.getByRole('button', { name: 'Valaistus', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Iltavalo Lämmin valo ja pitkät varjot', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
+  await page.getByLabel('Kuvan ilme', { exact: true }).selectOption('filmic');
+  await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
+  await page.getByLabel('Kohinan pehmennys', { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Nopea', exact: true }).click();
   await page.getByLabel('Kuvan leveys', { exact: true }).selectOption('800');
   await page.getByLabel('Kuvan laskenta', { exact: true }).selectOption('path');
   await page.getByLabel('Kuvan näytemäärä', { exact: true }).selectOption('8');
@@ -75,11 +83,13 @@ test('render cancellation releases the job and preview reaches a sample target a
   });
   await page.getByRole('button', { name: 'Nopea', exact: true }).click();
   await page.getByRole('button', { name: 'Materiaali', exact: true }).click();
-  await page.getByText('Studion valaistus', { exact: true }).click();
-  await page.getByText('Studion säädöt', { exact: true }).click();
-  await page.getByLabel('Studiovalon suunta', { exact: true }).selectOption('90');
-  await page.getByLabel('Studiovalojen voimakkuus', { exact: true }).selectOption('2');
-  await page.getByLabel('Ympäristövalon voimakkuus', { exact: true }).selectOption('0.5');
+  await page.getByRole('button', { name: 'Valaistus', exact: true }).click();
+  await page.getByLabel('Studiovalon suunta', { exact: true }).fill('90');
+  await page.getByLabel('Studiovalon suunta', { exact: true }).dispatchEvent('pointerup');
+  await page.getByLabel('Studiovalojen voimakkuus', { exact: true }).fill('2');
+  await page.getByLabel('Studiovalojen voimakkuus', { exact: true }).dispatchEvent('pointerup');
+  await page.getByLabel('Ympäristövalon voimakkuus', { exact: true }).fill('0.5');
+  await page.getByLabel('Ympäristövalon voimakkuus', { exact: true }).dispatchEvent('pointerup');
   await page.getByRole('checkbox', { name: 'Studion lattia', exact: true }).uncheck();
   expect((await save(page)).settings.render).toMatchObject({
     lightRotation: 90,

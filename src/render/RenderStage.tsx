@@ -38,6 +38,7 @@ import { BodyColor } from '../ui/BodyColor';
 import type { ColorPreview } from '../model/colorPreview';
 import { downloadFile, safeFilename } from '../storage/projects';
 import { createRenderScene, materialNames, type RenderSettings } from './scene';
+import { LightingPanel } from './LightingPanel';
 
 type Props = {
   onStartRender: (snapshot: RenderSnapshot, options: RenderJobOptions, name: string) => void;
@@ -106,13 +107,34 @@ export function RenderStage(props: Props) {
   const [target, setTarget] = useState(
     selectedIds.some((id) => bodies.some((b) => b.id === id)) ? 'selection' : 'all',
   );
-  const [exposure, setExposure] = useState(settings.exposure);
+  const [lightingDraft, setLightingDraft] = useState<RenderSettings>();
+  const lightingDraftRef = useRef<RenderSettings>(undefined);
+  const lightingCommitRef = useRef<RenderSettings>(undefined);
+  const effectiveSettings = lightingDraft ?? settings;
+  const previewLighting = (next: RenderSettings) => {
+    lightingDraftRef.current = next;
+    setLightingDraft(next);
+  };
+  const commitLighting = async (next = lightingDraftRef.current) => {
+    if (busy || !next || lightingCommitRef.current === next) return;
+    lightingCommitRef.current = next;
+    previewLighting(next);
+    try {
+      if (JSON.stringify(next) !== JSON.stringify(settings)) await props.onSettings(next);
+    } finally {
+      if (lightingDraftRef.current === next) {
+        lightingDraftRef.current = undefined;
+        setLightingDraft(undefined);
+      }
+      lightingCommitRef.current = undefined;
+    }
+  };
   const [width, setWidth] = useState(2400);
   const [jobSamples, setJobSamples] = useState(64);
   const [exportMode, setExportMode] = useState<'quick' | 'path'>('quick');
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
-  const [renderTab, setRenderTab] = useState<'material' | 'image'>('material');
+  const [renderTab, setRenderTab] = useState<'material' | 'lighting' | 'image'>('material');
   const [traceOptions, setTraceOptions] = useState<TraceOptions>(traceDefaults);
   const [trace, setTrace] = useState<TraceStatus>({ state: 'off', samples: 0 });
   const [tool, setTool] = useState<'select' | 'texture' | 'paint'>('select');
@@ -133,6 +155,7 @@ export function RenderStage(props: Props) {
   const committing = useRef(false);
   const [materialName, setMaterialName] = useState('');
   const imageInput = useRef<HTMLInputElement>(null);
+  const panelScroll = useRef<HTMLDivElement>(null);
   const changeTexture = (texture: TexturePlacement) => {
     const old = draftRef.current;
     if (!old) return;
@@ -153,7 +176,7 @@ export function RenderStage(props: Props) {
   latest.current = {
     bodies,
     meshes,
-    settings: { ...settings, exposure },
+    settings: effectiveSettings,
     onPick: (id) => {
       if (busy) return;
       if (tool === 'paint') {
@@ -203,10 +226,9 @@ export function RenderStage(props: Props) {
   useEffect(() => {
     api.current?.color(props.colorPreview);
   }, [props.colorPreview]);
-  useEffect(() => setExposure(settings.exposure), [settings.exposure]);
   useEffect(() => {
     api.current?.settings();
-  }, [settings, exposure]);
+  }, [settings, lightingDraft]);
   useEffect(() => {
     if (
       target !== 'all' &&
@@ -245,6 +267,7 @@ export function RenderStage(props: Props) {
     if (next === 'paint') setBrush({ appearance: structuredClone(appearance), color });
     setTool(next);
     setRenderTab('material');
+    if (panelScroll.current) panelScroll.current.scrollTop = 0;
   };
   // A tool outlives its selected surface, committed gestures and material changes.
   useEffect(() => {
@@ -273,6 +296,13 @@ export function RenderStage(props: Props) {
   }, [textureDraft, target, selectedIds, tool, busy]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && lightingDraftRef.current && !lightingCommitRef.current) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        lightingDraftRef.current = undefined;
+        setLightingDraft(undefined);
+        return;
+      }
       if (tool === 'select') return;
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -376,9 +406,6 @@ export function RenderStage(props: Props) {
       setExporting(false);
     }
   };
-  const commitExposure = () => {
-    if (!busy && exposure !== settings.exposure) props.onSettings({ ...settings, exposure });
-  };
   return (
     <section className="render-workspace" aria-label="Renderöinti">
       <div className="render-view">
@@ -387,7 +414,10 @@ export function RenderStage(props: Props) {
           <button
             className="button subtle"
             onClick={async () => {
-              if (await acceptTexture()) props.onClose();
+              if (await acceptTexture()) {
+                await commitLighting();
+                props.onClose();
+              }
             }}
           >
             <ArrowLeft size={16} />
@@ -457,6 +487,7 @@ export function RenderStage(props: Props) {
             {(
               [
                 ['material', 'Materiaali'],
+                ['lighting', 'Valaistus'],
                 ['image', 'Kuva'],
               ] as const
             ).map(([id, label]) => (
@@ -464,11 +495,12 @@ export function RenderStage(props: Props) {
                 key={id}
                 aria-pressed={renderTab === id}
                 onClick={async () => {
-                  if (id === 'image') {
+                  if (id !== 'material') {
                     if (!(await acceptTexture())) return;
                     setTool('select');
                   }
                   setRenderTab(id);
+                  if (panelScroll.current) panelScroll.current.scrollTop = 0;
                 }}
               >
                 {label}
@@ -497,7 +529,7 @@ export function RenderStage(props: Props) {
             </select>
           </label>
         </div>
-        <div className="render-panel-scroll">
+        <div className="render-panel-scroll" ref={panelScroll}>
           <div className="render-tab-content" hidden={renderTab !== 'material'}>
             {tool !== 'paint' && targets.some((b) => b.locked) && (
               <p className="muted" role="status">
@@ -898,120 +930,34 @@ export function RenderStage(props: Props) {
                 />
               </details>
             </fieldset>
-            <details className="studio-lighting">
-              <summary>Studion valaistus</summary>
-              <label>
-                Valaistus
-                <select
-                  aria-label="Valaistus"
-                  value={settings.environment}
-                  disabled={busy}
-                  onChange={(e) =>
-                    props.onSettings({
-                      ...settings,
-                      environment: e.target.value as RenderSettings['environment'],
-                    })
-                  }
-                >
-                  <option value="studio">Studio</option>
-                  <option value="warm">Lämmin</option>
-                  <option value="dark">Tumma</option>
-                </select>
-              </label>
-              <label>
-                Valotus <output>{exposure.toFixed(1)}</output>
-                <input
-                  aria-label="Valotus"
-                  type="range"
-                  min="0.3"
-                  max="2.5"
-                  step="0.1"
-                  value={exposure}
-                  disabled={busy}
-                  onChange={(e) => setExposure(Number(e.target.value))}
-                  onPointerUp={commitExposure}
-                  onKeyUp={commitExposure}
-                  onBlur={commitExposure}
-                />
-              </label>
-              <details className="studio-controls">
-                <summary>Studion säädöt</summary>
-                <label>
-                  Valon suunta
-                  <select
-                    aria-label="Studiovalon suunta"
-                    value={settings.lightRotation ?? 0}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void props.onSettings({ ...settings, lightRotation: Number(e.target.value) })
-                    }
-                  >
-                    {[0, 45, 90, 135, 180, 225, 270, 315].map((value) => (
-                      <option key={value} value={value}>
-                        {value}°
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Studiovalot
-                  <select
-                    aria-label="Studiovalojen voimakkuus"
-                    value={settings.lightPower ?? 1}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void props.onSettings({ ...settings, lightPower: Number(e.target.value) })
-                    }
-                  >
-                    {[0, 0.25, 0.5, 1, 2, 4].map((value) => (
-                      <option key={value} value={value}>
-                        {value === 0 ? 'Pois' : `${value * 100} %`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Ympäristövalo
-                  <select
-                    aria-label="Ympäristövalon voimakkuus"
-                    value={settings.environmentPower ?? 1}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void props.onSettings({
-                        ...settings,
-                        environmentPower: Number(e.target.value),
-                      })
-                    }
-                  >
-                    {[0, 0.25, 0.5, 1, 2, 4].map((value) => (
-                      <option key={value} value={value}>
-                        {value === 0 ? 'Pois' : `${value * 100} %`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="render-check">
-                  <CommitCheckbox
-                    label="Studion lattia"
-                    checked={settings.ground ?? true}
-                    disabled={busy}
-                    onChange={(ground) => props.onSettings({ ...settings, ground })}
-                  />{' '}
-                  Studion lattia
-                </label>
-              </details>
-              <label className="render-check">
-                <CommitCheckbox
-                  label="Varjot"
-                  checked={settings.shadows}
-                  disabled={busy}
-                  onChange={(shadows) => props.onSettings({ ...settings, shadows })}
-                />
-                Varjot
-              </label>
-            </details>
+          </div>
+          <div className="render-tab-content" hidden={renderTab !== 'lighting'}>
+            <LightingPanel
+              settings={effectiveSettings}
+              busy={busy}
+              onPreview={previewLighting}
+              onCommit={(next) => void commitLighting(next)}
+            />
           </div>
           <div className="render-tab-content" hidden={renderTab !== 'image'}>
+            <label className="image-look">
+              Kuvan ilme
+              <select
+                aria-label="Kuvan ilme"
+                value={effectiveSettings.look ?? 'standard'}
+                disabled={busy}
+                onChange={(e) =>
+                  void commitLighting({
+                    ...effectiveSettings,
+                    look: e.target.value as RenderSettings['look'],
+                  })
+                }
+              >
+                <option value="standard">Tasapainoinen</option>
+                <option value="filmic">Filminen</option>
+              </select>
+              <small>Filminen ilme pehmentää kirkkaita sävyjä ja säilyttää värien vivahteet.</small>
+            </label>
             <section className="trace-controls" aria-label="Tarkentuva renderöinti">
               <div className="trace-buttons">
                 <button

@@ -4,6 +4,57 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.25.0 — valaistus ja esityskuvan viimeistely
+
+**322 yksikkö-/CAD-testiä hyväksytty (62 tiedostoa)**. TypeScript,
+lisenssiluettelo ja `/nivo/`-tuotantobuild hyväksytty.
+
+Renderipassin 39 eri selaintapausta hyväksytty desktopilla ja Chromiumin
+kosketusemuloinnissa. Metallien tarkentuvan kuvan tablettivastine ohitetaan edelleen
+nimenomaisesti. Viimeinen renderiin rajattu 20 tapauksen kierros hyväksytty myös
+taustalaskennan muutoksen jälkeen.
+
+- Suuntakehän veto muuttaa kuvaa ennen vapautusta. Yksi Peru palauttaa koko
+  liikkeen, Palauta tekee sen uudelleen. Esc peruu keskeneräisen valotuksen.
+  Auringon sävy, teho, pehmeys ja kuvailme säilyvät latauksessa ja tallennuksessa.
+- Aurinko, kymmenen spottia (kahdeksan esikatselun budjetissa), PBR ja lasi
+  toimivat samanaikaisesti ilman WebGL-virheitä.
+- Valon suunta ei muuta scene-/BVH-rakennusten tai PBR-latausten määrää.
+  Valotus ja kuvailme säilyttävät tarkennuksen näytteet. Täysi tarkkuus ja
+  256 näytettä tarkistettu molemmissa profiileissa.
+- HDRI:n verkkovastaus pysäytettiin tarkoituksella: heti käynnistetty PNG-vienti
+  odotti ympäristön valmistumista eikä tallentanut puutteellisia heijastuksia.
+- Filmisen auringonvalon sisältävä erillinen kuva valmistuu alkuperäisestä
+  tilannekuvasta, vaikka käyttäjä palaa malliin ja aloittaa uuden projektin.
+  Ladattu PNG sisältää geometrian ja sävyt myös ilman kohinan pehmennystä;
+  laskennan keskeytys vapauttaa työn.
+- Normal-/korkeuskartat, DirectX-normalit, PBR-kokoelman kaikki resurssit,
+  valopinnat, tekstuurien siirto/kierto/koko, Peru, materiaalimaalaus ja
+  pitkän sivun mukainen puunsuuntaus tarkistettu samalla renderipassilla.
+
+Ennakkoon valmistellun PBR-testikohtauksen 8 näytettä: desktop 329 ms,
+tablettiprofiili 265 ms. Materiaalinvaihto vastaavasti 502 / 468 ms.
+Nämä ovat yksittäisen valmistellun kohtauksen havaintoja; eivät kylmän
+käynnistyksen tai kaikkien mallien suorituskykylupauksia.
+
+Erillisen 1 600 px / 64 näytteen kahdeksan osan materiaalikohtauksen laskenta
+kesti samassa Chrome 154 -vertailussa 24,5 s vanhalla ajoituksella ja 23,1 s
+rajatuilla työerillä. Ero on pieni eikä osoita yleistä nopeuskerrointa.
+Uuden ajon 600 käyttöliittymäruudun mediaani oli 8,4 ms ja p95 9,7 ms.
+Työjono rajoitetaan kahteen keskeneräiseen GPU-erään, ja kuvan loppukoostaminen
+tehdään kerran. Valmistelua ja GPU:n varsinaista laskentatyötä ei poisteta.
+
+Lopullinen 1 600 px / 1 024 näytteen PNG valmistui samasta koemallista 356 sekunnissa
+ilman selain- tai WebGL-virheitä. Ajon alun 600 ruutuvälin mediaani oli 8,3 ms,
+p95 9,9 ms ja pisin väli 153 ms; kaksi väliä ylitti 32 ms. Tämä ei tarkoita,
+että kaikkien mallien navigointi olisi nykimätöntä. Suuren materiaalikuvan
+laskennan jatko-optimointi pysyy backlogissa. Valmis kuva on yöpassin selosteessa.
+
+Nopean esikatselun varjokartta arvioi pehmeyden likimääräisesti. Tarkentuva
+kuva käyttää valopinnan todellista kokoa ja epäsuoraa valaistusta. Kohinan
+pehmennys on paikallinen kuvasuodatin, ei hermoverkkopohjainen denoiser.
+Fyysinen Safari/iPad ja suurten sisätilojen stressikokeet jäävät jatkoon.
+
 ## V0.24.2 — apuviivojen näkyvyyshaku pyöristetyissä kaapeissa
 
 **318 yksikkö-/CAD-testiä hyväksytty (61 tiedostoa)**. TypeScript,

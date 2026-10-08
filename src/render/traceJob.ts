@@ -49,6 +49,7 @@ export async function renderSnapshot(
   let renderer: THREE.WebGLRenderer | undefined,
     tracer: WebGLPathTracer | undefined,
     environment: GradientEquirectTexture | undefined;
+  const pendingGPU: WebGLSync[] = [];
   const { width, samples: target } = options,
     height = Math.max(1, Math.round(width / snapshot.aspect));
   const started = performance.now();
@@ -93,7 +94,7 @@ export async function renderSnapshot(
       throw new Error('Näytönohjain ei tue valittua kuvakokoa.');
     renderer.setPixelRatio(1);
     renderer.setSize(width, height, false);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMapping = snapshot.toneMapping;
     renderer.toneMappingExposure = snapshot.exposure;
     environment = new GradientEquirectTexture(256);
     configureTraceEnvironment(environment, snapshot.scene);
@@ -108,6 +109,9 @@ export async function renderSnapshot(
     tracer.fadeDuration = 0;
     tracer.renderDelay = 0;
     tracer.rasterizeScene = false;
+    // The offscreen job only needs its final composite, not a full-resolution
+    // canvas copy after every tile of every sample.
+    tracer.renderToCanvas = false;
     tracer.textureSize.set(1024, 1024);
     const images = new Set<HTMLImageElement>();
     snapshot.scene.traverse((object) => {
@@ -129,21 +133,51 @@ export async function renderSnapshot(
     configureEmitterSampling(tracer);
     checkTraceUpload(renderer);
     let lastReport = 0;
+    let checkedFirstSample = false;
+    const gl = renderer.getContext() as WebGL2RenderingContext;
     while (tracer.samples < target) {
       await animationFrame(signal);
       check();
       if (document.hidden) continue;
       if (renderer.getContext().isContextLost())
         throw new Error('Näytönohjaimen yhteys katkesi. Kokeile pienempää kuvakokoa.');
-      tracer.renderSample();
-      if (tracer.samples === 1) checkTraceUpload(renderer);
+      // Do not let the refresh rate impose one animation frame per tiny tile.
+      // Keep batches short and wait without blocking for the previous GPU batch
+      // so a background export cannot build an unbounded command queue.
+      while (pendingGPU.length) {
+        const state = gl.clientWaitSync(pendingGPU[0], 0, 0);
+        if (state === gl.TIMEOUT_EXPIRED) break;
+        gl.deleteSync(pendingGPU.shift()!);
+        if (state === gl.WAIT_FAILED)
+          throw new Error('Kuvan laskennan synkronointi epäonnistui. Aloita laskenta uudelleen.');
+      }
+      // Allow one batch of overlap. Draining the entire GPU pipeline after
+      // every batch loses throughput even when the device has spare capacity.
+      if (pendingGPU.length >= 2) continue;
+      const batchStart = performance.now();
+      for (let tile = 0; tile < 4 && tracer.samples < target; tile++) {
+        tracer.renderSample();
+        if (performance.now() - batchStart >= 6) break;
+      }
+      const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+      if (!fence) throw new Error('Kuvan laskenta katkesi. Kokeile pienempää kuvakokoa.');
+      pendingGPU.push(fence);
+      gl.flush();
+      if (!checkedFirstSample && tracer.samples >= 1) {
+        checkTraceUpload(renderer);
+        checkedFirstSample = true;
+      }
       if (performance.now() - lastReport > 400) {
         report('rendering');
         lastReport = performance.now();
       }
     }
     report('saving');
-    if (options.denoise !== false && target >= 8) denoise.draw(renderer, tracer.target.texture);
+    tracer.renderToCanvas = true;
+    tracer.pausePathTracing = true;
+    tracer.renderSample();
+    if (options.denoise !== false && target >= 8)
+      denoise.draw(renderer, tracer.target.texture, target);
     check();
     const blob = await new Promise<Blob>((resolve, reject) =>
       renderer!.domElement.toBlob(
@@ -154,6 +188,10 @@ export async function renderSnapshot(
     check();
     return blob;
   } finally {
+    if (renderer) {
+      const gl = renderer.getContext() as WebGL2RenderingContext;
+      pendingGPU.forEach((fence) => gl.deleteSync(fence));
+    }
     tracer?.dispose();
     denoise.dispose();
     environment?.dispose();

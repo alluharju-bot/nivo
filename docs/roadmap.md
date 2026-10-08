@@ -2,15 +2,31 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
-## Yöpassi — valaistus ja esityskuvan viimeistely, 8.–9.10.2026
+## V0.25.0 — valaistus ja esityskuvan viimeistely, 8.–9.10.2026
 
-1. Julkaise käyttäjän kaappimallilla varmennettu apuviivojen näkyvyyshaun korjaus.
-2. Yhteinen selkeä valaistusnäkymä: studio, ympäristö ja säädettävä aurinko;
-   suunta, korkeus, voimakkuus, väri ja varjojen pehmeys. Nopea kuva ja tarkentuva
-   kuva sekä kuvanvienti käyttävät samoja asetuksia.
-3. Kuvan ilme, yksityiskohdat ja käyttöliittymän järjestys: materiaalit pysyvät
-   helposti saatavilla, valaistus ja kuvan viimeistely löytyvät omista paikoistaan.
-4. Testaa tallennus, Peru, välitön esikatselu ja kuvanvienti; julkaise valmis kokonaisuus.
+- Renderin kolme näkymää: Materiaali, Valaistus ja Kuva. Työkalun tai välilehden
+  vaihto avaa asetuspaneelin alusta; osan omat valonlähdeasetukset säilyvät materiaaleissa.
+- Neljä valaistuspohjaa: Studio, Päivänvalo, Iltavalo ja Omat valaisimet.
+  Auringon suuntaa voi vetää kehällä tai säätää nuolinäppäimillä; korkeus,
+  voimakkuus, valon väri ja varjon pehmeys näkyvät heti. Sama suunta säilyy
+  nopeassa, tarkentuvassa ja erikseen tallennettavassa kuvassa.
+- Studiovalojen suunta, teho ja pehmeys sekä ympäristö, valotus ja lattia samassa
+  kokonaisuudessa. Yksi liukusäätimen/auringon veto on yksi historian askel.
+  Esc peruu keskeneräisen esikatselun. Asetukset tallentuvat projektiin.
+- Tasapainoinen / Filminen kuvailme. Vanha kuvailme säilyy oletuksena.
+  Kuvailmeen ja valotuksen vaihto säilyttävät lasketut näytteet. Kohinan
+  pehmennys kevenee näytemäärän kasvaessa, jotta pintadetaljit säilyvät.
+- Valon suunta ja voimakkuus eivät lataa kaikkia PBR-karttoja uudelleen.
+  Valotuksen säätö ei laske varjokarttoja uudelleen. Kuvanvienti ja erillinen
+  laskenta odottavat heijastusympäristön sekä materiaalien valmistumisen.
+- Erillinen kuvanlaskenta käsittelee enintään neljä 256 px laattaa lyhyessä
+  työerässä. Työerien välissä annetaan aikaa käyttöliittymälle. Koko kuva
+  yhdistetään tallennettavaksi vasta lopussa, ei jokaisen laatan jälkeen.
+- Auringon ja studion tehot ovat suhteellisia. Nopea kuva käyttää varjokarttoja;
+  tarkentuva kuva laskee valopintojen koon mukaiset varjot ja epäsuoran valon.
+
+Jatko: fyysisen Safari/iPad-laitteen varmennus, kapeiden valoaukkojen kohinan
+vähentäminen, mitatut valotehot sekä suurten sisätilojen renderin suorituskyky.
 
 ## V0.24.2 — apuviivojen näkyvyyshaun korjaus
 
