@@ -1,8 +1,36 @@
-# Validointi — 8.10.2026
+# Validointi — 9.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.26.0 — Bézier ja muotojen läpi
+
+**330 yksikkö-/CAD-testiä hyväksytty (63 tiedostoa)**. TypeScript,
+lisenssiluettelo ja `/nivo/`-tuotantobuild hyväksytty.
+
+130 eri rajattua selaintapausta hyväksytty desktopilla ja Chromiumin
+kosketusemuloinnissa: käyrät ja uusi pintatyökalu, rakennusmuodot, aiempi
+veitsi/Bézier, kynän suuntamitat, Shift-viitehaku, pinnan jakaminen,
+komponenttien risteykset, mittatyökalun jatkuva ketju ja apuviivojen näkyvyys.
+Rakennussuorakulmion testin sanamuoto päivitettiin odottamaan oikean viivan
+”Viivan piste” -tartuntaa aiemman täyttöpinnan ”Verteksi”-sanan sijaan.
+
+- Poikkileikkausten kartiomainen tilavuus vastaa analyyttista tilavuutta.
+  Yhdestä kallistetusta ympyrästä tehty kartio toimii normaaliin ja vastasuuntaan.
+- Suoran ja käyrän yhdistelmä, suorakulmio–ympyrä-siirtymä sekä neljän sivukäyrän
+  ympäripinta ja umpiosa muodostavat kelvollisen CAD-geometrian.
+- Kehän neljännespisteet, prosenttipiste, lisättyjen pisteiden tallennus,
+  käyräpisteiden jälkimuokkaus ja kierto tarkistettu. Shift poimii mittapituuden
+  kehän pisteestä lukittuun diagonaalisuuntaan ilman koordinaattien pyöristystä.
+- Esikatselu, hyväksyminen, Esc, yksi Peru/Palauta, lähtömuotojen säilyminen,
+  nollakorkeuden hylkäys ja projektin uudelleenlataus tarkistettu selaimessa.
+- Esimerkin kuvallinen tarkistus: pullo neljästä sivukäyrästä, neljän
+  poikkileikkauksen pinta sekä terävä kartio. Esimerkki on synteettinen;
+  käyttäjän yksityistä mallia ei käytetty julkaistavissa tiedostoissa.
+
+Tämä ei ole koko selainregressiopaketin hyväksyntä eikä fyysisen iPadin varmennus.
+Prototyypin rajat ja seuraavat työvaiheet: [Muotojen läpi](through-shapes.fi.md).
 
 ## V0.25.0 — valaistus ja esityskuvan viimeistely
 

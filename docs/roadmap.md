@@ -2,6 +2,43 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.26.0 — käyrien kautta mallintaminen, 9.10.2026
+
+- Bézierin oletus on napsautettujen pisteiden kautta kulkeva kuutiollinen käyrä.
+  Kaksi pistettä muodostaa suoran; Enter viimeistelee ja alkupiste sulkee muodon.
+  Aiempi ohjauspistetapa säilyy valittavana. Shift-viitehaku, akselit ja mitat
+  käyttävät kynän yhteistä vuorovaikutusta.
+- Käyrän ja ympyrän neljännespisteet sekä kaari itse osallistuvat yhteiseen
+  tartuntahakuun. Valitulle käyrälle voi lisätä prosenttikohdan tai 4/8/16 jaon.
+  Pisteet näkyvät viivoissa; täytetyn kaaren pisteet näkyvät sen ollessa valittu.
+  Asetukset, kopiointi, kierto ja tallennus säilyttävät tiedot.
+- Bézier-pisteiden X/Y/Z-muokkaus oikealla. Muutos on yksi peruttava toiminto;
+  Hold ja linkitettyjen osien säännöt pysyvät voimassa.
+- Rakennusympyrä, ellipsi ja suorakulmio ovat nollapaksuisina oikeita CAD-viivoja.
+- Muodot → Muotojen läpi: järjestetty profiililista, suunta, pehmeä/suora
+  siirtymä, sivujen sulkeminen ympäri ja päätyjen sulkeminen. Kärkeen päättäminen
+  tekee myös varsinaisen kartion. Esikatselu ei muuta mallia; hyväksyntä on yksi
+  historian askel. Lähtömuodot säilytetään ja voidaan piilottaa hyväksyessä.
+- Mukana julkinen, synteettinen pullo-, poikkileikkaus- ja kartioesimerkki.
+
+[Työnkulku ja rajat](through-shapes.fi.md).
+
+## Backlog — käyräpintojen jatko
+
+- Hiirellä siirrettävät käyräpisteet ja tangenttikahvat, tangenttijatkuvuuden
+  hallinta sekä pistekohtainen suora/kaareva kulma.
+- Poikkileikkausten ja sivuohjaimien yhdistäminen samaan pintaratkaisuun;
+  tässä prototyypissä ne ovat kaksi erillistä rakennustapaa. Pullon ympyrät
+  toimivat sivukäyrien asetteluviitteinä, eivät koko kehän lisärajoitteina.
+- Suljetun sivupinnan sauman G1/G2-jatkuvuus, profiilien aloituskohdan ja
+  vastaavuuksien näkyvä ohjaus, risteävien pintojen lisätarkistus.
+- Parametrinen riippuvuus lähtökäyristä valmiiseen pintaan. Nyt tulos on
+  itsenäinen CAD-kappale: lähtömuodon muutos ei päivitä tulosta automaattisesti.
+- Tartuntapisteen sijoitus hiirellä ja jako tarkalla kaaripituudella.
+  Prosenttikohta käyttää nyt käyrän parametria, ei millimetripituutta.
+- Kuoren paksuus, valitut päätykannet ja reiälliset profiilit; sweep ja revolve
+  erillisinä jatkotyökaluina. Vapaaverkon deformointi ei korvaa CAD-pintaa.
+
 ## V0.25.0 — valaistus ja esityskuvan viimeistely, 8.–9.10.2026
 
 - Renderin kolme näkymää: Materiaali, Valaistus ja Kuva. Työkalun tai välilehden

@@ -109,8 +109,17 @@ export class CadClient {
   sphere(center: Vec3, radius: number, name: string) {
     return this.request<Body>({ type: 'sphere', center, radius, name });
   }
-  bezier(points: Vec3[], name: string, closed = false) {
-    return this.request<Body>({ type: 'bezier', points, name, closed });
+  bezier(
+    points: Vec3[],
+    name: string,
+    closed = false,
+    mode: 'smooth' | 'bezier' = 'bezier',
+    outline = false,
+  ) {
+    return this.request<Body>({ type: 'bezier', points, name, closed, mode, outline });
+  }
+  throughShapes(profiles: Body[], options: import('./throughShapes').ThroughShapesOptions) {
+    return this.request<EdgeDetailResult>({ type: 'through-shapes', profiles, options });
   }
   knife(targets: Body[], rays: import('./modeling').KnifeRay[], curveNormal?: Vec3) {
     return this.request<import('./modeling').KnifeResult>({

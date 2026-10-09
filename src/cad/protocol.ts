@@ -52,6 +52,7 @@ export interface BodyMesh {
   verticesCAD: { point: Vec3; anchor: VertexAnchor }[];
   midpointsCAD: Vec3[];
   edgesCAD: CadEdge[];
+  curveEdges?: CadEdge[];
   boundaries: FaceBoundary[];
   sourceDetailEdges?: { index: number; lines: number[] }[];
   detailEdges?: { index: number; lines: number[] }[];
@@ -84,7 +85,19 @@ export interface SectionResult {
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
   | { type: 'sphere'; center: Vec3; radius: number; name: string }
-  | { type: 'bezier'; points: Vec3[]; name: string; closed: boolean }
+  | {
+      type: 'bezier';
+      points: Vec3[];
+      name: string;
+      closed: boolean;
+      mode?: 'smooth' | 'bezier';
+      outline?: boolean;
+    }
+  | {
+      type: 'through-shapes';
+      profiles: Body[];
+      options: import('./throughShapes').ThroughShapesOptions;
+    }
   | { type: 'knife'; targets: Body[]; rays: import('./modeling').KnifeRay[]; curveNormal?: Vec3 }
   | { type: 'pen-path'; points: Vec3[]; name: string }
   | { type: 'split-path'; body: Body; face: FaceRef; path: Body }

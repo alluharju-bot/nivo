@@ -90,8 +90,11 @@ const profileFeature = z
     profile: profileSchema,
     frame: frameSchema,
     distance: z.number().finite().min(-100_000).max(100_000),
+    outline: z.boolean().optional(),
   })
   .superRefine((f, ctx) => {
+    if (f.outline && Math.abs(f.distance) > 1e-8)
+      ctx.addIssue({ code: 'custom', message: 'Ääriviivalla ei voi olla paksuutta.' });
     const { min, max } = profileBounds(f.profile, f.frame, f.distance),
       sizes = [f.width, f.depth, f.height];
     if (min.some((n) => Math.abs(n) > 1e-5) || max.some((n, i) => Math.abs(n - sizes[i]) > 1e-5))
@@ -146,6 +149,14 @@ export const bodySchema = z.object({
   name: z.string().min(1).max(120),
   kind: z.literal('cad'),
   feature: featureSchema,
+  curve: z
+    .object({
+      points: z.array(pointSchema).min(2).max(301),
+      mode: z.enum(['smooth', 'bezier']),
+      closed: z.boolean(),
+    })
+    .optional(),
+  curveSnaps: z.array(z.number().finite().min(0).max(1)).max(64).optional(),
   edgeTreatment: z
     .object({
       id,
@@ -672,6 +683,7 @@ export function makeProfileBody(
       profile,
       frame: { ...frame, origin: frame.origin.map((n, i) => n - min[i]) },
       distance,
+      ...(purpose === 'construction' && !distance ? { outline: true } : {}),
     },
   });
 }

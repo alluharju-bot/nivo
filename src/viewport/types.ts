@@ -115,6 +115,7 @@ export interface ViewportProps {
   onEditBlocked: (position: { x: number; y: number }) => void;
   detailTarget?: EdgeDetailTarget;
   detailPreview?: EdgeDetailResult;
+  surfacePreview?: EdgeDetailResult;
   detailSize: number;
   detailSizeLocked: boolean;
   detailOperation: 'fillet' | 'chamfer';
@@ -179,6 +180,7 @@ export interface ViewportProps {
   onDimensionPreview: (dimension?: PointDimension) => void;
   onDimensionCommit: (dimension: PointDimension) => void;
   penMode: 'line' | 'bezier';
+  bezierStyle: 'smooth' | 'bezier';
   spherePreview: boolean;
   penPoints: Vec3[];
   penHover?: Vec3;

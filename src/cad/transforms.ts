@@ -30,6 +30,15 @@ export function rotateBodies(bodies: Body[], pivot: Vec3, axis: Vec3, angle: num
       ];
       return bodySchema.parse({
         ...next,
+        curve: body.curve
+          ? {
+              ...body.curve,
+              points: body.curve.points.map((p) =>
+                sub(rotatePoint(add(body.origin, p), pivot, direction, angle), next.origin),
+              ),
+            }
+          : undefined,
+        curveSnaps: body.curveSnaps,
         component: body.component
           ? {
               id: body.component.id,

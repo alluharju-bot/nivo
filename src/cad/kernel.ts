@@ -96,7 +96,11 @@ export function createShape(body: Body): AnyShape {
         drawing = pen.close();
       }
       const sketch = drawing.sketchOnPlane(plane) as Sketch;
-      return distance ? sketch.extrude(distance) : sketch.face();
+      return distance
+        ? sketch.extrude(distance)
+        : body.feature.outline
+          ? sketch.wire
+          : sketch.face();
     } finally {
       plane.delete();
     }
@@ -261,12 +265,15 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   const verticesCAD: BodyMesh['verticesCAD'] = [];
   const midpointsCAD: Vec3[] = [];
   const edgesCAD: BodyMesh['edgesCAD'] = [];
+  const curveEdges: NonNullable<BodyMesh['curveEdges']> = [];
   const detailEdges: NonNullable<BodyMesh['detailEdges']> = [];
   const seen = new Set<string>();
   const boxCorners = corners(body);
   const edges = shape.edges;
+  let hasCurvedEdge = false;
   try {
     for (const [index, edge] of edges.entries()) {
+      hasCurvedEdge ||= edge.geomType !== 'LINE';
       detailEdges.push({ index, lines: edge.meshEdges({ tolerance: 0.15 }).lines });
       const a = edge.startPoint,
         b = edge.endPoint;
@@ -317,6 +324,51 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   } finally {
     edges.forEach((edge) => edge.delete());
   }
+  // Drawing curves share the regular picker. Tessellation is never promoted to
+  // vertices: only explicit stations (and actual CAD vertices) are point snaps.
+  if (!featureIsSolid(body.feature) && faces.length <= 1 && (hasCurvedEdge || body.curveSnaps)) {
+    const wires = shape.wires;
+    try {
+      if (wires.length === 1) {
+        const wire = wires[0];
+        const anchor = (point: Vec3) => {
+          const local = sub(point, body.origin);
+          return {
+            bodyId: body.id,
+            key:
+              body.feature.type === 'brep'
+                ? `brep:${body.feature.topologyId}:${local.join(',')}`
+                : `profile:${local.join(',')}`,
+            local,
+          };
+        };
+        const fractions = body.curveSnaps ?? [0, 0.25, 0.5, 0.75, 1];
+        for (const t of fractions) {
+          const p = wire.pointAt(t);
+          const point = p.toTuple();
+          p.delete();
+          if (!verticesCAD.some((v) => Math.hypot(...sub(v.point, point)) < 1e-6))
+            verticesCAD.push({ point, anchor: anchor(point) });
+        }
+        const parts = wire.edges;
+        try {
+          for (const edge of parts) {
+            if (edge.geomType === 'LINE') continue;
+            const lines = edge.meshEdges({ tolerance: 0.01 }).lines;
+            for (let i = 0; i < lines.length; i += 6) {
+              const start = lines.slice(i, i + 3) as Vec3,
+                end = lines.slice(i + 3, i + 6) as Vec3;
+              curveEdges.push({ start, end, from: anchor(start), to: anchor(end) });
+            }
+          }
+        } finally {
+          parts.forEach((p) => p.delete());
+        }
+      }
+    } finally {
+      wires.forEach((w) => w.delete());
+    }
+  }
   return {
     id: body.id,
     vertices: mesh.vertices,
@@ -328,6 +380,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     verticesCAD,
     midpointsCAD,
     edgesCAD,
+    ...(curveEdges.length ? { curveEdges } : {}),
     detailEdges,
     sourceDetailEdges: body.edgeTreatment
       ? (() => {
@@ -405,6 +458,8 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
         ? { ...body.component, offset: sub(add(body.origin, body.component.offset), origin) }
         : undefined,
       edgeTreatment: undefined,
+      curve: undefined,
+      curveSnaps: undefined,
       textureFrame: {
         offset: sub(add(body.origin, body.textureFrame?.offset ?? [0, 0, 0]), origin),
         rotation: body.textureFrame?.rotation ?? [0, 0, 0, 1],

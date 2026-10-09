@@ -21,6 +21,13 @@ export function translateMesh(mesh: BodyMesh, id: string, delta: Vec3): BodyMesh
       from: anchor(edge.from),
       to: anchor(edge.to),
     })),
+    curveEdges: mesh.curveEdges?.map((edge) => ({
+      ...edge,
+      start: point(edge.start),
+      end: point(edge.end),
+      from: anchor(edge.from),
+      to: anchor(edge.to),
+    })),
     boundaries: mesh.boundaries.map((boundary) => ({
       ...boundary,
       lines: positions(boundary.lines),

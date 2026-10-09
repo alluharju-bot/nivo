@@ -15,9 +15,10 @@ import { bodyFromShape, createShape, shapeIsValid } from './kernel';
 import { makeBody, uid, featureIsSolid, corners, type Body, type Vec3 } from '../model/project';
 import { add, sub, scale, dot, unit } from '../model/geometry';
 import { cross } from '../model/transforms';
+import { throughPoints } from '../model/bezier';
 
 /** Keep the control arrays and builders scoped; only the returned CAD edge owns geometry. */
-function makeBezierCurve(points: Vec3[]): Edge {
+export function makeBezierCurve(points: Vec3[]): Edge {
   const oc = getOC(),
     array = new oc.NCollection_Array1_gp_Pnt(1, points.length);
   let curve: InstanceType<typeof oc.Geom_BezierCurve> | undefined;
@@ -57,7 +58,24 @@ export function sphereBody(center: Vec3, radius: number, name: string): Body {
   }
 }
 
-export function bezierPath(points: Vec3[], name: string, closed = false): Body {
+export function bezierPath(
+  input: Vec3[],
+  name: string,
+  closed = false,
+  mode: 'smooth' | 'bezier' = 'bezier',
+  outline = false,
+): Body {
+  if (
+    input.length < 2 ||
+    input.length > (mode === 'smooth' ? 100 : 301) ||
+    input.some((p) => p.some((n) => !Number.isFinite(n) || Math.abs(n) > 100000))
+  )
+    throw new Error(
+      mode === 'smooth'
+        ? 'Valitse 2–100 käyräpistettä sallituissa mitoissa.'
+        : 'Tarkista Bézier-käyrän ohjauspisteet.',
+    );
+  const points = mode === 'smooth' ? throughPoints(input, closed) : input;
   if (
     points.length < 4 ||
     points.length > 301 ||
@@ -76,13 +94,14 @@ export function bezierPath(points: Vec3[], name: string, closed = false): Body {
     if (closed) {
       if (Math.hypot(...sub(points[0], points.at(-1)!)) > 1e-5)
         throw new Error('Sulje käyrä palaamalla alkupisteeseen.');
-      face = makeFace(wire as ReturnType<typeof assembleWire>);
+      if (!outline) face = makeFace(wire as ReturnType<typeof assembleWire>);
     }
-    return bodyFromShape(
+    const body = bodyFromShape(
       { ...makeBody(1, 1, 0), name, purpose: closed ? 'model' : 'drawing' },
       face ?? wire,
       [],
     );
+    return { ...body, curve: { points: input.map((p) => sub(p, body.origin)), mode, closed } };
   } finally {
     face?.delete();
     wire?.delete();

@@ -19,6 +19,137 @@
   --green: #284d3e;
   --accent: #d9e8b1;
 }
+.through-shapes-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.loft-content {
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.through-shapes-panel .selection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.through-shapes-panel .selection-heading button {
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 20px;
+}
+.loft-footer {
+  flex-shrink: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+.loft-footer > p {
+  font-size: 12px;
+  margin-bottom: 8px !important;
+}
+.loft-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+.loft-footer-actions .full {
+  width: auto;
+  flex: 1;
+}
+.through-shapes-panel .checkbox-label {
+  color: #52634f;
+  min-height: 32px;
+}
+@media (pointer: coarse) {
+  .through-shapes-panel .checkbox-label {
+    min-height: 44px;
+  }
+}
+.through-shapes-panel h2 {
+  margin: 0;
+  font-size: 19px;
+}
+.through-shapes-panel p {
+  margin: 0;
+  line-height: 1.5;
+}
+.loft-profiles {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 5px;
+}
+.loft-profiles li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff90;
+}
+.loft-profiles li > span {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.loft-row-actions {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.loft-row-actions button {
+  border-radius: 5px;
+  min-width: 24px;
+  min-height: 30px;
+}
+.loft-row-actions button:hover,
+.loft-row-actions button[aria-pressed='true'] {
+  background: var(--accent);
+}
+.curve-snap-controls {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  margin: 10px 0;
+}
+.curve-snap-controls label {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.curve-snap-controls input {
+  width: 100%;
+}
+.curve-snap-controls button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  min-height: 34px;
+}
+.curve-coordinate-row {
+  display: grid;
+  grid-template-columns: 16px repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  align-items: center;
+  margin: 6px 0;
+}
+.curve-coordinate-row input {
+  width: 100%;
+  min-width: 0;
+}
+.curve-points-panel {
+  margin-block: 12px;
+}
 * {
   box-sizing: border-box;
 }

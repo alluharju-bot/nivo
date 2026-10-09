@@ -5,6 +5,8 @@ import { displayLabels, displayModes, setModelDisplay, type DisplayMode } from '
 import { DisplayControls } from './ui/DisplayControls';
 import { selectionDescription } from './model/activity';
 import { bezierInstruction } from './model/bezier';
+import { ThroughShapesPanel } from './ui/ThroughShapesPanel';
+import { CurvePointsPanel } from './ui/CurvePointsPanel';
 import { upsertGuide } from './model/guideMerge';
 import { GuidePointMenu } from './ui/GuidePointMenu';
 import { guideEndAnchor, moveGuideEndpoint, type GuideEndpoint } from './model/guideEditing';
@@ -354,6 +356,10 @@ export default function App() {
   const [knifeUnique, setKnifeUnique] = useState(false);
   const [knifeCommand, setKnifeCommand] = useState<{ id: number; action: 'finish' | 'clear' }>();
   const [penMode, setPenMode] = useState<'line' | 'bezier'>('line');
+  const [bezierStyle, setBezierStyle] = useState<'smooth' | 'bezier'>('smooth');
+  const [loftOpen, setLoftOpen] = useState(false);
+  const [loftIds, setLoftIds] = useState<string[]>([]);
+  const [loftPreview, setLoftPreview] = useState<import('./cad/protocol').EdgeDetailResult>();
   const [penPoints, setPenPoints] = useState<Vec3[]>([]);
   const penRef = useRef<Vec3[]>([]);
   const penSplitRequest = useRef(0);
@@ -511,10 +517,10 @@ export default function App() {
     );
   };
   const actionContext: SelectionContext = {
-    ids: selectedIds,
-    guideIds: selectedGuideIds,
-    primary: selected,
-    groupId: selectedGroupId,
+    ids: loftOpen ? loftIds : selectedIds,
+    guideIds: loftOpen ? [] : selectedGuideIds,
+    primary: loftOpen ? loftIds[0] : selected,
+    groupId: loftOpen ? undefined : selectedGroupId,
     editingBodyId,
     openedAssembly,
   };
@@ -1081,6 +1087,17 @@ export default function App() {
     );
   };
   const select = (id?: string, face?: FaceRef, additive = false, force = false) => {
+    if (loftOpen && !force) {
+      if (id) {
+        const candidate = project.bodies.find((b) => b.id === id);
+        if (candidate && !featureIsSolid(candidate.feature))
+          setLoftIds((ids) =>
+            ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id],
+          );
+        else editor.setMessage('Valitse viiva tai tasomuoto pintatyökalun profiiliksi.');
+      }
+      return;
+    }
     if (id && !force && !inAssembly(project, id, openedAssembly)) {
       editor.setMessage('Sulje avoin kokoonpano valitaksesi sen ulkopuolisia osia.');
       return;
@@ -1267,6 +1284,8 @@ export default function App() {
   };
   const begin = (next: Tool) => {
     if (busy) return;
+    setLoftOpen(false);
+    setLoftPreview(undefined);
     if (next !== 'select' && next !== 'navigate') activityHistory.prepare(actionContext);
     setPartsOpen(false);
     if (editingBodyId && next === 'boolean') {
@@ -1404,7 +1423,12 @@ export default function App() {
           id: draftId,
         };
       }
-      if (frame.normal[2] < 0.999999 || Math.abs(frame.u[0] - 1) > 1e-6 || distance < 0)
+      if (
+        shapePurpose === 'construction' ||
+        frame.normal[2] < 0.999999 ||
+        Math.abs(frame.u[0] - 1) > 1e-6 ||
+        distance < 0
+      )
         return {
           ...makeProfileBody(
             { kind: 'rectangle', width, depth },
@@ -1689,7 +1713,12 @@ export default function App() {
     try {
       const path = {
         ...(await (penMode === 'bezier'
-          ? editor.cad.bezier(points, shapeName || `Bézier ${project.bodies.length + 1}`)
+          ? editor.cad.bezier(
+              points,
+              shapeName || `Bézier ${project.bodies.length + 1}`,
+              false,
+              bezierStyle,
+            )
           : editor.cad.penPath(points, shapeName || `Kynäviiva ${project.bodies.length + 1}`))),
         groupId: openedAssembly,
       };
@@ -1898,8 +1927,14 @@ export default function App() {
             revision = editor.revision();
           const first = penRef.current[0];
           const points = [...penRef.current];
-          if (points.length % 3 === 0) points.push(first);
-          let curve = await editor.cad.bezier(points, shapeName || 'Bézier-muoto', true);
+          if (bezierStyle === 'bezier' && points.length % 3 === 0) points.push(first);
+          let curve = await editor.cad.bezier(
+            points,
+            shapeName || 'Bézier-muoto',
+            true,
+            bezierStyle,
+            constructionLine,
+          );
           const thickness = parseLength(fieldsRef.current.thickness, true, true);
           if (thickness) curve = await editor.cad.pushPull(curve, 'surface:0', thickness);
           if (revision !== editor.revision() || originalPoints !== penRef.current) return;
@@ -2889,14 +2924,18 @@ export default function App() {
       changeView('iso', true);
     }
   };
-  const finishedExample = async () => {
+  const finishedExample = async (curves = false) => {
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}examples/viimeistelty-kaappi.nivo`);
+      const response = await fetch(
+        `${import.meta.env.BASE_URL}examples/${curves ? 'muotojen-lapi' : 'viimeistelty-kaappi'}.nivo`,
+      );
       if (!response.ok) throw new Error('Esimerkkiprojektia ei saatu avattua.');
       if (
         await editor.transact(
           parseProject(await response.text()),
-          'Viimeistelty kaappiesimerkki avattu. Tutki reunakäsittelyjä F:llä, mittoja ja renderin tekstuureja.',
+          curves
+            ? 'Käyräesimerkki avattu. Lähtömuodot löytyvät piilotettuina mallilistasta. Muodot → Muotojen läpi luo uuden pinnan.'
+            : 'Viimeistelty kaappiesimerkki avattu. Tutki reunakäsittelyjä F:llä, mittoja ja renderin tekstuureja.',
         )
       ) {
         setEditingBodyId(undefined);
@@ -2932,6 +2971,8 @@ export default function App() {
     if (fileInput.current) fileInput.current.value = '';
   };
   const openRender = () => {
+    setLoftOpen(false);
+    setLoftPreview(undefined);
     setPartsOpen(false);
     resetGesture();
     setEditingBodyId(undefined);
@@ -2947,6 +2988,8 @@ export default function App() {
     setTool('select');
   };
   const openDrawing = () => {
+    setLoftOpen(false);
+    setLoftPreview(undefined);
     setPartsOpen(false);
     setRenderOpen(false);
     resetGesture();
@@ -3011,6 +3054,15 @@ export default function App() {
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || cabinetOpen || actionMenu) return;
+      if (loftOpen) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          if (busy) editor.cancel();
+          setLoftOpen(false);
+          setLoftPreview(undefined);
+        }
+        return;
+      }
       if (measureMenu || guidePointMenu) return;
       if (
         commandOpen ||
@@ -3176,9 +3228,13 @@ export default function App() {
     <ObjectTree
       bodies={project.bodies}
       groups={project.groups}
-      selected={selectedIds}
+      selected={loftOpen ? loftIds : selectedIds}
       busy={busy}
       onSelect={(id, additive) => {
+        if (loftOpen) {
+          select(id);
+          return;
+        }
         // An explicit part row names the intended part. Open its assembly visibly;
         // viewport clicks still select a closed assembly as a single unit.
         if (tool === 'select' && !editingBodyId && !editing && !additive && !multiSelect) {
@@ -4469,6 +4525,19 @@ export default function App() {
                 setTool('select');
                 setCabinetOpen(true);
               }}
+              onThroughShapes={() => {
+                begin('select');
+                resetGesture();
+                setEditingBodyId(undefined);
+                setSurfaceMode('new');
+                setPanelOpen(true);
+                setLoftIds(
+                  selectedIds.filter((id) =>
+                    project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
+                  ),
+                );
+                setLoftOpen(true);
+              }}
               onShape={(shape) => {
                 if (shape === 'bezier') {
                   setPenMode('bezier');
@@ -4806,6 +4875,7 @@ export default function App() {
               onCalibrationPoint={workspace.onCalibrationPoint}
               detailTarget={detailTarget}
               detailPreview={tool === 'detail' ? detailPreview.result : undefined}
+              surfacePreview={loftOpen ? loftPreview : undefined}
               detailSize={offsetDistance}
               detailSizeLocked={locked.has('offset')}
               detailOperation={detailOperation}
@@ -4929,7 +4999,7 @@ export default function App() {
               groups={project.groups}
               meshes={visibleMeshes}
               selected={selected}
-              selectedIds={selectedIds}
+              selectedIds={loftOpen ? loftIds : selectedIds}
               moveHoveredIds={openingDraft?.included ?? moveHoveredIds}
               selectionHoveredIds={selectionHoveredIds}
               onSelectionHover={setSelectionHovered}
@@ -4961,12 +5031,21 @@ export default function App() {
               }}
               penPoints={penPoints}
               penMode={penMode}
+              bezierStyle={bezierStyle}
               penHover={penHover}
               reference={reference}
               pickReference={pickReference}
               epoch={epoch}
               onSelect={select}
               onSelectMany={(ids, additive, guideIds = []) => {
+                if (loftOpen) {
+                  setLoftIds(
+                    [...new Set([...(additive ? loftIds : []), ...ids])].filter((id) =>
+                      project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
+                    ),
+                  );
+                  return;
+                }
                 if (tool === 'boolean') {
                   const solid = new Set(
                     project.bodies.filter((b) => featureIsSolid(b.feature)).map((b) => b.id),
@@ -5308,6 +5387,13 @@ export default function App() {
                   >
                     Viimeistelty kaappi · mitat ja materiaalit <span>↗</span>
                   </button>
+                  <button
+                    className="welcome-example"
+                    disabled={busy}
+                    onClick={() => void finishedExample(true)}
+                  >
+                    Käyräesimerkki · pullo ja kartio <span>↗</span>
+                  </button>
                   <div className="welcome-meta">
                     <span>01 — Piirrä</span>
                     <span>02 — Muotoile</span>
@@ -5394,7 +5480,45 @@ export default function App() {
           )}
         </main>
 
-        {panelOpen && mode === 'model' && (
+        {panelOpen && mode === 'model' && loftOpen && (
+          <aside className="inspector" aria-label="Ominaisuudet">
+            <ThroughShapesPanel
+              bodies={project.bodies}
+              ids={loftIds}
+              onIds={setLoftIds}
+              cad={editor.cad}
+              busy={busy}
+              onPreview={setLoftPreview}
+              onClose={() => {
+                if (busy) editor.cancel();
+                setLoftOpen(false);
+                setLoftPreview(undefined);
+              }}
+              onCommit={async (result, ids, hide) => {
+                const next = { ...result.body, groupId: openedAssembly };
+                activityHistory.prepare(actionContext);
+                const ok = await editor.transact(
+                  {
+                    ...project,
+                    bodies: [
+                      ...project.bodies.map((b) =>
+                        hide && ids.includes(b.id) ? { ...b, hidden: true } : b,
+                      ),
+                      next,
+                    ],
+                  },
+                  `Muotojen läpi · ${ids.length} profiilia. Lähtömuodot säilyvät mallilistassa.`,
+                );
+                if (ok) {
+                  setLoftOpen(false);
+                  setLoftPreview(undefined);
+                  select(next.id, undefined, false, true);
+                }
+              }}
+            />
+          </aside>
+        )}
+        {panelOpen && mode === 'model' && !loftOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
             <div
               ref={inspectorDetails}
@@ -5748,10 +5872,29 @@ export default function App() {
                           Bézier
                         </button>
                         {penMode === 'bezier' && (
-                          <p>
-                            {bezierInstruction(penPoints.length)} Valmis kaari: 4 pistettä, jatko: 3
-                            pistettä. Enter viimeistelee, Backspace poistaa viimeisen pisteen.
-                          </p>
+                          <>
+                            <label className="modeling-field">
+                              Käyrän piirtotapa
+                              <select
+                                aria-label="Bézierin piirtotapa"
+                                value={bezierStyle}
+                                onChange={(e) => {
+                                  resetGesture();
+                                  setBezierStyle(e.target.value as typeof bezierStyle);
+                                }}
+                              >
+                                <option value="smooth">Pisteiden kautta · helppo</option>
+                                <option value="bezier">Ohjauspisteillä · tarkka</option>
+                              </select>
+                            </label>
+                            <p>
+                              {bezierStyle === 'smooth'
+                                ? 'Napsauta pisteet, joiden kautta käyrä kulkee. Kaksi pistettä tekee suoran, kolmas taivuttaa käyrää.'
+                                : bezierInstruction(penPoints.length)}{' '}
+                              Enter viimeistelee. Shift pitää suunnan ja poimii viitemitan, X/Y/Z
+                              lukitsee akselin. Backspace poistaa viimeisen pisteen.
+                            </p>
+                          </>
                         )}
                       </div>
                     )}
@@ -5907,7 +6050,7 @@ export default function App() {
                         <button
                           className="button outlined"
                           disabled={
-                            (penMode === 'bezier'
+                            (penMode === 'bezier' && bezierStyle === 'bezier'
                               ? penPoints.length < 3 || penPoints.length % 3 !== 0
                               : penPoints.length < 3) || busy
                           }
@@ -5918,7 +6061,7 @@ export default function App() {
                         <button
                           className="button outlined"
                           disabled={
-                            (penMode === 'bezier'
+                            (penMode === 'bezier' && bezierStyle === 'bezier'
                               ? penPoints.length < 4 || (penPoints.length - 1) % 3 !== 0
                               : penPoints.length < 2) || busy
                           }
@@ -6039,6 +6182,67 @@ export default function App() {
                     </p>
                   )}
                   {canDivideSurface && surfaceActions}
+                  {body &&
+                    selectedIds.length === 1 &&
+                    !featureIsSolid(body.feature) &&
+                    (body.curve ||
+                      editor.meshes.find((m) => m.id === body.id)?.curveEdges?.length) && (
+                      <CurvePointsPanel
+                        key={`${body.id}:${JSON.stringify(body.curve)}:${body.origin.join(',')}`}
+                        body={body}
+                        disabled={busy || !!movementBlocked}
+                        onSnaps={(curveSnaps) => void patchBodies([body.id], { curveSnaps })}
+                        onCurve={async (points) => {
+                          if (!body.curve || movementBlocked) return;
+                          await editor.transact(async () => {
+                            requireMovable([body], project.groups);
+                            const updated = await editor.cad.bezier(
+                              points,
+                              body.name,
+                              body.curve!.closed,
+                              body.curve!.mode,
+                              !editor.meshes.find((m) => m.id === body.id)?.faces.length,
+                            );
+                            return {
+                              ...project,
+                              bodies: project.bodies.map((b) =>
+                                b.id === body.id
+                                  ? {
+                                      ...body,
+                                      ...updated,
+                                      id: body.id,
+                                      name: body.name,
+                                      color: body.color,
+                                      appearance: body.appearance,
+                                      purpose: body.purpose,
+                                      groupId: body.groupId,
+                                      component: body.component
+                                        ? {
+                                            ...body.component,
+                                            offset: sub(
+                                              add(body.origin, body.component.offset),
+                                              updated.origin,
+                                            ),
+                                          }
+                                        : undefined,
+                                      textureFrame: body.textureFrame
+                                        ? {
+                                            ...body.textureFrame,
+                                            offset: sub(
+                                              add(body.origin, body.textureFrame.offset),
+                                              updated.origin,
+                                            ),
+                                          }
+                                        : undefined,
+                                      curveSnaps: body.curveSnaps,
+                                    }
+                                  : b,
+                              ),
+                            };
+                          }, 'Käyrän pisteet päivitetty.');
+                        }}
+                      />
+                    )}
                   {selectedIds.length > 1 && !selectedGroup && (
                     <div className="selection-collection-actions">
                       <button
@@ -6747,11 +6951,21 @@ export default function App() {
               taitetun reitin. Esc peruu luonnoksen; Peru palauttaa koko leikkauksen.
             </p>
             <p>
-              <strong>Bézier ja pallo:</strong> Muodot-valikon Bézier-käyrä piirretään neljällä
-              pisteellä: alku, kaksi ohjauspistettä ja loppu. Jatko tarvitsee kolme pistettä. Enter
-              tallentaa viivan, alkupisteeseen palaaminen sulkee pinnan. Pallo sijoitetaan
-              keskipisteestä; kirjoitettava mitta on halkaisija. Osan valikosta Pehmennä reunat avaa
-              kaikkien reunojen pyöristyksen esikatselun ja säteen säädön.
+              <strong>Bézier:</strong> Napsauta pisteet, joiden kautta käyrä kulkee, ja paina Enter.
+              Shift pitää suunnan ja poimii viitteen. Valitun käyrän tartuntapisteitä voi lisätä ja
+              pisteiden mittoja muuttaa oikealta. Tarkassa ohjauspistetilassa kaari piirretään
+              neljällä pisteellä: alku, kaksi ohjauspistettä ja loppu. Jatko tarvitsee kolme
+              pistettä. Enter tallentaa viivan, alkupisteeseen palaaminen sulkee pinnan. Pallo
+              sijoitetaan keskipisteestä; kirjoitettava mitta on halkaisija. Osan valikosta Pehmennä
+              reunat avaa kaikkien reunojen pyöristyksen esikatselun ja säteen säädön.
+            </p>
+            <p>
+              <strong>Muotojen läpi:</strong> Muodot-valikosta avautuva pintatyökalu yhdistää
+              poikkileikkauksia tai vierekkäisiä sivukäyriä. Valitse profiilit järjestyksessä,
+              tarkista esikatselu ja Luo pinta. Pullon ympyrät voivat toimia sivukäyrien
+              tartunta-apuina. Sivukäyrät-tilassa valitse vain sivukäyrät kiertojärjestyksessä ja
+              Sulje sivut ympäri. Poikkileikkauksen voi myös päättää kärkeen, jolloin yhdestä
+              ympyrästä syntyy kartio. Lähtömuodot säilyvät, ja Peru palauttaa koko toiminnon.
             </p>
             <p>
               <strong>Viivojen valinta:</strong> valintaruutu poimii myös apu- ja mittaviivat;

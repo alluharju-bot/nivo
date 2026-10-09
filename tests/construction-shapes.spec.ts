@@ -38,7 +38,7 @@ test('construction rectangle overlays an edited face without splitting it and re
   await page.keyboard.press('t');
   await click(page, p(50, 50, 40));
   await page.mouse.move(p(150, 150, 40).x, p(150, 150, 40).y);
-  await expect(page.getByTestId('snap-hint')).toHaveText('Verteksi');
+  await expect(page.getByTestId('snap-hint')).toHaveText('Viivan piste');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies).toEqual([body]);

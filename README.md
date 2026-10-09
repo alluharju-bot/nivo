@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.26.0** lisää **Muodot → Muotojen läpi** -pintatyökalun: yhdistä
+poikkileikkauksia tai vierekkäisiä sivukäyriä, tarkista esikatselu ja hyväksy
+pinta tai umpiosa. Ympyrästä voi tehdä myös kartion kärkeen päättämällä.
+Bézier kulkee nyt oletuksena napsautettujen pisteiden kautta. Käyriin voi lisätä
+tartuntapisteitä ja niiden pisteitä muuttaa jälkikäteen. Rakennusympyrät ovat
+oikeita ääriviivoja ilman täyttöpintaa.
+[Käyttöohje, pullon esimerkki ja prototyypin rajat](docs/through-shapes.fi.md).
+
 Versio **0.25.0** kokoaa esityskuvan **Materiaali / Valaistus / Kuva** -näkymiin.
 Vedä aurinkoa suuntakehällä ja säädä korkeutta, sävyä, voimakkuutta sekä varjojen
 pehmeyttä. Studio, päivänvalo, iltavalo ja omat valaisimet antavat neljä lähtökohtaa.

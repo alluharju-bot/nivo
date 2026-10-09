@@ -38,6 +38,7 @@ test('Bézier uses the shared surface and snapping, remains separate as a drawin
   await ready(page, bodies);
   const p = await view(page, bodies);
   await shape(page, 'Bézier-käyrä');
+  await page.getByRole('combobox', { name: 'Bézierin piirtotapa' }).selectOption('bezier');
   await page.getByRole('combobox', { name: 'Muodon käyttö' }).selectOption('drawing');
   for (const xy of [
     [200, 0],
@@ -184,6 +185,7 @@ test('a closed Bézier contour makes a planar face and the saved curve can cut a
   await ready(page, [body]);
   const p = await view(page, [body]);
   await shape(page, 'Bézier-käyrä');
+  await page.getByRole('combobox', { name: 'Bézierin piirtotapa' }).selectOption('bezier');
   for (const xy of [
     [200, 100],
     [300, 100],

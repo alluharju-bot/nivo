@@ -639,15 +639,22 @@ export function installInteractions({
     mesh: BodyMesh;
     edge: BodyMesh['edgesCAD'][number];
     synthetic?: boolean;
+    curve?: boolean;
     key: string;
   };
   // All tools see the same CAD edges and trimmed surface-surface intersections.
   // Scope limits edits, never the availability of visible reference geometry.
   const referenceEdges = (event: PointerEvent, excluded: string[] = []): ReferenceEdge[] => {
     const meshes = nearby(event).filter((m) => !excluded.includes(m.id));
-    const edges: ReferenceEdge[] = meshes.flatMap((mesh) =>
-      mesh.edgesCAD.map((edge, i) => ({ mesh, edge, key: `${mesh.id}:edge:${i}` })),
-    );
+    const edges: ReferenceEdge[] = meshes.flatMap((mesh) => [
+      ...mesh.edgesCAD.map((edge, i) => ({ mesh, edge, key: `${mesh.id}:edge:${i}` })),
+      ...(mesh.curveEdges ?? []).map((edge, i) => ({
+        mesh,
+        edge,
+        curve: true,
+        key: `${mesh.id}:curve-edge:${i}`,
+      })),
+    ]);
     const props = current(),
       towardCamera = camera().getWorldDirection(new THREE.Vector3()).negate().toArray() as Vec3;
     for (let i = 0; i < meshes.length; i++)
@@ -1183,7 +1190,7 @@ export function installInteractions({
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
     const candidates = referenceEdges(event)
-      .map(({ mesh, edge, synthetic, key }) => {
+      .map(({ mesh, edge, synthetic, curve, key }) => {
         const point = new THREE.Vector3();
         raycaster.ray.distanceSqToSegment(
           new THREE.Vector3(...edge.start),
@@ -1196,6 +1203,7 @@ export function installInteractions({
           edge,
           mesh,
           synthetic,
+          curve,
           key,
           point: point.toArray() as Vec3,
           depth: projected.z,
@@ -1219,12 +1227,13 @@ export function installInteractions({
       point: p,
       direction: unit(delta),
       length,
-      label: found.synthetic ? 'Pintojen risteys' : 'Reuna',
-      anchor: found.synthetic
-        ? referenceAnchor(bodyById.get(found.mesh.id)!, p)
-        : ({
-            edge: { from: found.edge.from, to: found.edge.to, t },
-          } as Anchor),
+      label: found.synthetic ? 'Pintojen risteys' : found.curve ? 'Käyrä' : 'Reuna',
+      anchor:
+        found.synthetic || found.curve
+          ? referenceAnchor(bodyById.get(found.mesh.id)!, p)
+          : ({
+              edge: { from: found.edge.from, to: found.edge.to, t },
+            } as Anchor),
     };
   };
   const guideEndpointsAt = (event: PointerEvent): GuideEndpoint[] => {
@@ -1368,7 +1377,7 @@ export function installInteractions({
           });
       }
     if (near.length) {
-      for (const { mesh, edge, synthetic, key } of referenceEdges(event, excludedBodies))
+      for (const { mesh, edge, synthetic, curve, key } of referenceEdges(event, excludedBodies))
         for (const guide of near) {
           const point = guideEdgeIntersection(guide.source, edge);
           if (
@@ -1391,18 +1400,19 @@ export function installInteractions({
             kind: 'intersection',
             priority: -1,
             intersection: true,
-            anchor: synthetic
-              ? referenceAnchor(bodyById.get(mesh.id)!, point)
-              : {
-                  edge: {
-                    from: edge.from,
-                    to: edge.to,
-                    t: Math.max(
-                      0,
-                      Math.min(1, dot(sub(point, edge.start), delta) / dot(delta, delta)),
-                    ),
+            anchor:
+              synthetic || curve
+                ? referenceAnchor(bodyById.get(mesh.id)!, point)
+                : {
+                    edge: {
+                      from: edge.from,
+                      to: edge.to,
+                      t: Math.max(
+                        0,
+                        Math.min(1, dot(sub(point, edge.start), delta) / dot(delta, delta)),
+                      ),
+                    },
                   },
-                },
           });
         }
     }

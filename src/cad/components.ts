@@ -55,6 +55,15 @@ export function instantiateComponents(source: Body, targets: Body[]): Body[] {
       const next = bodyFromShape(target, placed);
       return bodySchema.parse({
         ...next,
+        curve: source.curve
+          ? {
+              ...source.curve,
+              points: source.curve.points.map((p) =>
+                sub(transform(add(source.origin, p)), next.origin),
+              ),
+            }
+          : undefined,
+        curveSnaps: source.curveSnaps,
         component: { ...target.component, offset: sub(to, next.origin) },
         edgeTreatment: source.edgeTreatment
           ? {

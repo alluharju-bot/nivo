@@ -1,4 +1,5 @@
 import { sphereBody, bezierPath, knifeBodies } from './modeling';
+import { throughShapes } from './throughShapes';
 import { penPath, splitWithPath, cutOpening, divideSurfaces } from './paths';
 import { translateMesh } from './translateMesh';
 import { sectionBodies } from './sections';
@@ -29,7 +30,7 @@ function build(bodies: Body[]): Entry[] {
     for (const body of bodies) {
       const key = bodyMeshKey(body);
       const previous = cache.get(body.id);
-      const templateKey = JSON.stringify([body.feature, body.edgeTreatment]);
+      const templateKey = JSON.stringify([body.feature, body.edgeTreatment, body.curveSnaps]);
       if (previous?.key === key) next.set(body.id, previous);
       else {
         const template = templates.get(templateKey);
@@ -88,7 +89,15 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
       } else if (request.type === 'sphere')
         reply.result = sphereBody(request.center, request.radius, request.name);
       else if (request.type === 'bezier')
-        reply.result = bezierPath(request.points, request.name, request.closed);
+        reply.result = bezierPath(
+          request.points,
+          request.name,
+          request.closed,
+          request.mode,
+          request.outline,
+        );
+      else if (request.type === 'through-shapes')
+        reply.result = throughShapes(request.profiles, request.options);
       else if (request.type === 'knife')
         reply.result = knifeBodies(request.targets, request.rays, request.curveNormal);
       else if (request.type === 'pen-path') reply.result = penPath(request.points, request.name);

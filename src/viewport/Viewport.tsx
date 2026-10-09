@@ -1,7 +1,7 @@
 import { installKnife } from './knife';
 import { installTextureEditing } from './textureEditing';
 import { bodyDisplayMode } from '../model/display';
-import { sampleBezier } from '../model/bezier';
+import { sampleBezier, throughPoints } from '../model/bezier';
 import { pointMarker } from './pointMarker';
 import { createWorkspaceViews } from './workspaceViews';
 import { prioritizeSurface } from './surfaceDepth';
@@ -729,8 +729,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       outline.renderOrder = 96;
       ghost.add(outline);
     }
-    if (current().tool === 'detail' && current().detailPreview) {
-      const { mesh: data, body } = current().detailPreview!;
+    renderer.domElement.dataset.surfacePreview = current().surfacePreview ? 'true' : 'false';
+    if ((current().tool === 'detail' && current().detailPreview) || current().surfacePreview) {
+      const { mesh: data, body } = current().surfacePreview ?? current().detailPreview!;
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
@@ -1160,7 +1161,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     // Finished open pen paths keep their actual CAD vertices visible too.
     // Avoid tessellation points on circles, fillets and solid model edges.
     for (const mesh of props.meshes) {
-      if (mesh.faces.length) continue;
+      if (mesh.faces.length && !(mesh.curveEdges?.length && props.selectedIds.includes(mesh.id)))
+        continue;
       for (const vertex of mesh.verticesCAD) {
         const marker = pointMarker(vertex.point, '#237b65', 12);
         marker.userData = { annotationPoint: true, xray: false };
@@ -1174,7 +1176,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (props.penHover) points.push(props.penHover);
       if (points.length > 1) {
         const geometry = new LineGeometry();
-        geometry.setPositions((props.penMode === 'bezier' ? sampleBezier(points) : points).flat());
+        geometry.setPositions(
+          (props.penMode === 'bezier'
+            ? sampleBezier(props.bezierStyle === 'smooth' ? throughPoints(points) : points)
+            : points
+          ).flat(),
+        );
         const path = new Line2(
           geometry,
           new LineMaterial({
@@ -1188,7 +1195,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         path.renderOrder = 90;
         guides.add(path);
       }
-      if (props.penMode === 'bezier' && points.length > 1) {
+      if (props.penMode === 'bezier' && props.bezierStyle === 'bezier' && points.length > 1) {
         const geometry = new LineGeometry();
         geometry.setPositions(points.flat());
         const handles = new Line2(
@@ -1595,6 +1602,7 @@ export function Viewport(props: Props) {
       props.preview,
       props.spherePreview,
       props.detailPreview,
+      props.surfacePreview,
       props.detailPreviewSize,
       props.faceTarget,
       props.faceDistance,
@@ -1632,12 +1640,14 @@ export function Viewport(props: Props) {
       props.guidePreview,
       props.penPoints,
       props.penMode,
+      props.bezierStyle,
       props.penHover,
       props.bodies,
       props.meshes,
       props.guideXray,
       props.selectedGuideId,
       props.selectedGuideIds,
+      props.selectedIds,
     ],
   );
   useEffect(() => {
