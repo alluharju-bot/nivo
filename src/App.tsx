@@ -6251,8 +6251,7 @@ export default function App() {
                   {body &&
                     selectedIds.length === 1 &&
                     !featureIsSolid(body.feature) &&
-                    (body.curve ||
-                      editor.meshes.find((m) => m.id === body.id)?.curveStations) && (
+                    (body.curve || editor.meshes.find((m) => m.id === body.id)?.curveStations) && (
                       <CurvePointsPanel
                         key={`${body.id}:${JSON.stringify(body.curve)}:${body.origin.join(',')}`}
                         body={body}
