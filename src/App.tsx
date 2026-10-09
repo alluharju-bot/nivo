@@ -1,3 +1,5 @@
+import { guideForTool } from './ui/guides/catalog';
+import { GuideBoundary } from './ui/guides/GuideBoundary';
 import { hiddenItems, newlyHidden, revealItems } from './model/visibility';
 import { NewPartPrompt } from './ui/NewPartPrompt';
 import { GroupOptions } from './ui/GroupOptions';
@@ -54,7 +56,16 @@ import { useRenderJob } from './render/useRenderJob';
 import { RenderJobCard } from './ui/RenderJobCard';
 import { dimensionBodyIds } from './model/dimensions';
 import { flushSync } from 'react-dom';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Eye,
   EyeOff,
@@ -226,6 +237,8 @@ const faceNames: Record<FaceRef, string> = {
   'z:min': 'Alapinta',
   'z:max': 'Yläpinta',
 };
+const ToolGuide = lazy(() => import('./ui/guides/ToolGuide'));
+
 const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = [
   { id: 'knife', label: 'Veitsi', icon: <Slice />, shortcut: 'N' },
   { id: 'paint', label: 'Maalipensseli', icon: <Paintbrush />, shortcut: 'P' },
@@ -2439,6 +2452,12 @@ export default function App() {
       if (guide) editGuide(guide);
     }
     if (!guideRef.current) return;
+    // Starting an interactive rotation gives Enter to the model, even after
+    // Save or a panel button held keyboard focus. Other UI controls keep their
+    // normal Enter/Space behavior until this operation is explicitly started.
+    document
+      .querySelector<HTMLCanvasElement>('canvas[data-testid="viewport"]')
+      ?.focus({ preventScroll: true });
     setAxis(undefined);
     constraintRef.current = undefined;
     setPenConstraint(undefined);
@@ -4651,43 +4670,79 @@ export default function App() {
           ? `Muokkaa osaa · ${editingBody.name}`
           : targetName;
   const toolStep =
-    tool === 'paint' && paintMode === 'texture'
-      ? 'Valitse osa ja vedä kuviota tai kierto-/kokokahvaa. Veto tallentuu heti. Esc päättää.'
+    tool === 'paint'
+      ? paintMode === 'texture'
+        ? 'Napsauta teksturoitua osaa ja vedä kuviota tai kahvaa.'
+        : 'Valitse materiaali ja napsauta maalattavaa osaa.'
       : tool === 'move'
         ? selectedIds.length
-          ? 'Tartu valinnan korostettuun pisteeseen ja vedä. Shift lisää osia valintaan.'
+          ? 'Tartu valinnan korostettuun pisteeseen ja vedä.'
           : 'Osoita osaa ja tartu korostettuun pisteeseen.'
         : tool === 'extrude'
           ? faceTarget
-            ? 'Vedä pintaa tai kirjoita mitta. Shift poimii tavoitteen toisesta pisteestä tai pinnasta.'
+            ? 'Vedä pintaa tai kirjoita mitta. Shift poimii tavoitteen.'
             : 'Osoita pintaa ja vedä siitä.'
           : tool === 'offset'
             ? faceTarget
-              ? 'Säädä sisennystä hiirellä tai kirjoita mitta. Klikkaus tai Enter hyväksyy.'
+              ? 'Säädä sisennystä hiirellä tai kirjoita mitta.'
               : 'Osoita pintaa ja napsauta tai vedä.'
             : tool === 'rectangle'
               ? awaitingStart
                 ? 'Napsauta alkukulmaa näkymästä.'
-                : 'Napsauta vastakulmaa tai kirjoita mitat. Enter hyväksyy.'
+                : 'Napsauta vastakulmaa tai kirjoita mitat.'
               : tool === 'circle'
                 ? awaitingStart
                   ? 'Napsauta keskipistettä näkymästä.'
-                  : 'Napsauta reunaa tai kirjoita halkaisija. Enter hyväksyy.'
-                : tool === 'detail'
-                  ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
-                  : tool === 'measure'
-                    ? measureMode === 'area'
-                      ? 'Piirrä suorakulmioita samaan tasoon. Enter yhdistää alueen; päällekkäisyys lasketaan kerran.'
-                      : measureMode === 'note'
-                        ? 'Poimi kohdepiste ja sijoita tekstilaatikko napsauttamalla.'
-                        : guidePointEdit
-                          ? 'Siirrä valitun viivan päätä. Muut viivat jäävät paikoilleen. Klikkaus tai Enter hyväksyy, Esc peruu.'
-                          : measureMode === 'dimension'
-                            ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
-                            : measureMode === 'free'
-                              ? 'Napsauta alkupistettä ja jatka pisteestä pisteeseen. Shift pitää suunnan lukittuna ja poimii pituuden toisesta pisteestä. X/Y/Z valitsee akselin. Enter tai Esc päättää ketjun.'
-                              : instructions.measure
-                    : instructions[tool];
+                  : shapeKind === 'ellipse'
+                    ? 'Osoita reuna tai kirjoita leveys ja syvyys.'
+                    : 'Osoita reuna tai kirjoita halkaisija.'
+                : tool === 'pen'
+                  ? !penPoints.length
+                    ? 'Napsauta alkupistettä näkymästä.'
+                    : penMode === 'bezier'
+                      ? bezierStyle === 'smooth'
+                        ? 'Napsauta seuraava käyrän piste. Enter viimeistelee.'
+                        : bezierInstruction(penPoints.length)
+                      : 'Napsauta seuraava piste tai osoita suunta ja kirjoita pituus.'
+                  : tool === 'rotate'
+                    ? rotation
+                      ? rotation.picking === 'edge'
+                        ? 'Osoita suoraa reunaa kiertoakseliksi.'
+                        : rotation.picking === 'point'
+                          ? 'Napsauta kiertopiste näkymästä.'
+                          : 'Vedä kiertorengasta tai kirjoita kulma.'
+                      : 'Valitse kierrettävä osa näkymästä tai listasta.'
+                    : tool === 'detail'
+                      ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
+                      : tool === 'knife'
+                        ? knifeMode === 'free'
+                          ? 'Vedä viilto. Vapautus leikkaa.'
+                          : knifeMode === 'curve'
+                            ? 'Napsauta alku, kaksi ohjauspistettä ja loppu.'
+                            : knifeMode === 'polyline'
+                              ? 'Napsauta reitin pisteet. Enter leikkaa.'
+                              : 'Vedä leikkausviiva osien yli.'
+                        : tool === 'erase'
+                          ? 'Napsauta pintojen jakoviivaa tai apuviivaa.'
+                          : tool === 'boolean'
+                            ? booleanActive === 'targets'
+                              ? 'Valitse muokattavat kohdeosat.'
+                              : 'Valitse työstökappaleet ja hyväksy.'
+                            : tool === 'measure'
+                              ? measureMode === 'area'
+                                ? 'Piirrä suorakulmioita. Enter yhdistää pinta-alueen.'
+                                : measureMode === 'note'
+                                  ? 'Poimi kohdepiste ja sijoita tekstilaatikko.'
+                                  : guidePointEdit
+                                    ? 'Aseta viivan pää. Muut viivat jäävät paikalleen.'
+                                    : measureMode === 'dimension'
+                                      ? 'Poimi kaksi pistettä ja sijoita mittaviiva sivulle.'
+                                      : measureMode === 'free'
+                                        ? 'Jatka pisteestä pisteeseen. Enter päättää ketjun.'
+                                        : guideDraft
+                                          ? 'Osoita etäisyys tai kirjoita mitta.'
+                                          : 'Tartu reunaan tai pisteeseen ja vedä apuviiva.'
+                              : instructions[tool];
   const linkTarget =
     tool === 'knife' || (tool === 'circle' && shapeKind === 'sphere')
       ? undefined
@@ -4708,7 +4763,7 @@ export default function App() {
         <Link2 size={15} />
         <strong>{linkedCount} linkitettyä osaa</strong>
       </div>
-      <p>Muodon muokkaus päivittyy kaikkiin. Sijainti ja kierto koskevat tätä osaa.</p>
+      <p>Muodon muutos päivittyy kaikkiin kopioihin.</p>
       <button
         className="button subtle full"
         disabled={busy || bodyLocked(linkTarget, project.groups)}
@@ -4751,12 +4806,10 @@ export default function App() {
       key={`object:${colorContext}`}
       body={{ ...body, locked: bodyLocked(body, project.groups) }}
       groups={project.groups}
-      count={selectedIds.length}
       mixedColor={project.bodies.some(
         (b) => selectedIdSet.has(b.id) && b.color.toLowerCase() !== body.color.toLowerCase(),
       )}
       busy={busy}
-      onChange={(patch) => void patchBodies([body.id], patch)}
       onPreviewColor={(color) => previewColor(selectedIds.length ? selectedIds : [body.id], color)}
       onColor={(color) =>
         void patchBodies(selectedIds.length ? selectedIds : [body.id], {
@@ -4769,10 +4822,6 @@ export default function App() {
         })
       }
       onOrigin={(reference) => void originSelected(reference)}
-      onRotate={() => begin('rotate')}
-      onHold={holdSelected}
-      editing={!!editingBodyId}
-      onEdit={() => openBodyEdit(body.id)}
     />
   );
   const numericInput = !markupMode &&
@@ -5788,6 +5837,7 @@ export default function App() {
               onTexture={previewTexture}
               onTextureCommit={commitTexture}
               modalOpen={
+                help ||
                 commandOpen ||
                 measureMenu ||
                 !!guidePointMenu ||
@@ -6369,6 +6419,7 @@ export default function App() {
         {panelOpen && mode === 'model' && loftOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
             <ThroughShapesPanel
+              onHelp={() => setHelp(true)}
               bodies={project.bodies}
               ids={loftIds}
               onIds={setLoftIds}
@@ -6418,8 +6469,9 @@ export default function App() {
                   status={[
                     axis ? `${axis.toUpperCase()}-akseli` : '',
                     copyMove && tool === 'move' ? 'Kopio' : '',
-                    editing ? snapLabel : 'Valmis aloitukseen',
+                    editing && !awaitingStart && !snapLabel.startsWith('Ruudukko') ? snapLabel : '',
                   ].filter(Boolean)}
+                  onHelp={() => setHelp(true)}
                   onFinish={() => cancel(true)}
                 />
               )}
@@ -6506,11 +6558,6 @@ export default function App() {
                     />
                   ) : (
                     <>
-                      <p>
-                        {measureMode === 'area'
-                          ? 'Napsauta suorakulmion vastakkaisia kulmia. Jatka seuraavalla suorakulmiolla ja paina Enter yhdistääksesi alueen. X/Y/Z vaihtaa piirtotasoa.'
-                          : 'Napsauta reunaa, kulmaa tai muuta kohdepistettä. Sijoita sitten tekstilaatikko napsauttamalla.'}
-                      </p>
                       <label>
                         {measureMode === 'area' ? 'Alueen nimi' : 'Huomautuksen teksti'}
                         <input
@@ -6561,42 +6608,36 @@ export default function App() {
                                 : 0,
                             )}
                           </strong>
-                          <p className="muted">
-                            Päällekkäisyys lasketaan kerran. Alue on mittamerkintä, joka ei leikkaa
-                            mallia. Shift poimii viitteen omaan tasoon. Piirtotason vaihto kääntää
-                            keskeneräisen alueen aloituskulman ympäri.
-                          </p>
                         </>
                       )}
-                      <div className="annotation-buttons">
-                        <button
-                          disabled={
-                            busy ||
-                            !markupDraft ||
-                            (markupDraft.kind === 'area' && !markupDraft.rectangles.length)
-                          }
-                          onClick={() =>
-                            setMarkupCommand({ id: performance.now(), action: 'finish' })
-                          }
-                        >
-                          {measureMode === 'area' ? 'Yhdistä alue · Enter' : 'Valmis · Enter'}
-                        </button>
-                        {measureMode === 'area' && (
+                      {markupDraft && (
+                        <div className="annotation-buttons">
                           <button
-                            disabled={busy || !markupDraft}
+                            disabled={
+                              busy ||
+                              !markupDraft ||
+                              (markupDraft.kind === 'area' && !markupDraft.rectangles.length)
+                            }
                             onClick={() =>
-                              setMarkupCommand({ id: performance.now(), action: 'back' })
+                              setMarkupCommand({ id: performance.now(), action: 'finish' })
                             }
                           >
-                            Poista viimeinen suorakulmio
+                            {measureMode === 'area' ? 'Yhdistä alue · Enter' : 'Valmis · Enter'}
                           </button>
-                        )}
-                      </div>
+                          {measureMode === 'area' && (
+                            <button
+                              disabled={busy || !markupDraft}
+                              onClick={() =>
+                                setMarkupCommand({ id: performance.now(), action: 'back' })
+                              }
+                            >
+                              Poista viimeinen suorakulmio
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
-                  <button className="button subtle" onClick={() => setMeasureMenu(true)}>
-                    Vaihda mittaustilaa
-                  </button>
                 </section>
               ) : tool === 'select' && selectedMarkup && !selectedIds.length ? (
                 <MarkupProperties
@@ -6619,11 +6660,6 @@ export default function App() {
                 </section>
               ) : tool === 'measure' && measureMode === 'dimension' ? (
                 <section className="dimension-tool-panel" aria-label="Dimensio">
-                  <h2>Kahden pisteen dimensio</h2>
-                  <p>
-                    Poimi ensimmäinen ja toinen piste. Vie mittaviiva sivulle ja napsauta tai
-                    hyväksy Enterillä. Voit myös vetää toisesta pisteestä ja vapauttaa.
-                  </p>
                   <label className="modeling-field">
                     Mittatapa
                     <select
@@ -6641,16 +6677,9 @@ export default function App() {
                       <option value="z">Z-akselin suunta</option>
                     </select>
                   </label>
-                  <p className="muted">
-                    X, Y ja Z vaihtavat mittatapaa. Sama näppäin uudelleen palauttaa pistevälin.
-                    Valmista mittaviivaa voi siirtää vetämällä tekstiä Valitse-tilassa.
-                  </p>
                   {dimensionDraft && (
                     <p>{formatLength(dimensionValue(project, dimensionDraft) ?? 0)} mm</p>
                   )}
-                  <button className="button outlined full" onClick={() => setMeasureMenu(true)}>
-                    Vaihda mittaustilaa
-                  </button>
                 </section>
               ) : tool === 'knife' ? (
                 <section className="knife-panel" aria-label="Veitsen asetukset">
@@ -6671,19 +6700,7 @@ export default function App() {
                       <option value="free">Vapaa viilto</option>
                     </select>
                   </label>
-                  <p>
-                    {knifeMode === 'line'
-                      ? 'Vedä viiva osien yli tai napsauta alku ja loppu.'
-                      : knifeMode === 'curve'
-                        ? 'Napsauta alku, kaksi ohjauspistettä ja loppu.'
-                        : knifeMode === 'free'
-                          ? 'Pidä painike pohjassa ja piirrä viilto. Vapautus leikkaa.'
-                          : 'Napsauta reitin pisteet ja paina Enter. Alkupisteeseen palaaminen sulkee siluetin ja leikkaa.'}
-                  </p>
-                  <p>
-                    Molemmat puolet jäävät erillisiksi osiksi. Linkitetyt kopiot saavat saman
-                    leikkauksen ja vastaavat palat pysyvät linkitettyinä. Hold estää muokkaamisen.
-                  </p>
+                  <p className="tool-consequence">Molemmat puolet säilyvät erillisinä osina.</p>
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
@@ -6706,9 +6723,6 @@ export default function App() {
                     onClick={() => setKnifeCommand({ id: performance.now(), action: 'clear' })}
                   >
                     Tyhjennä reitti
-                  </button>
-                  <button className="button outlined full" onClick={() => begin('select')}>
-                    Lopeta veitsi · Esc
                   </button>
                 </section>
               ) : tool === 'detail' ? (
@@ -6839,29 +6853,28 @@ export default function App() {
                           />
                           Siirrä kopio · Ctrl vaihtaa
                         </label>
-                        <label className="checkbox-label">
-                          <CommitCheckbox
-                            label="Vapaa siirto (XYZ)"
-                            checked={project.settings.moveMode === 'free'}
-                            onChange={(free) =>
-                              editor.transact(
-                                {
-                                  ...project,
-                                  settings: {
-                                    ...project.settings,
-                                    moveMode: free ? 'free' : 'axis',
+                        <details className="tool-advanced">
+                          <summary>Siirtotapa</summary>
+                          <label className="checkbox-label">
+                            <CommitCheckbox
+                              label="Vapaa siirto (XYZ)"
+                              checked={project.settings.moveMode === 'free'}
+                              onChange={(free) =>
+                                editor.transact(
+                                  {
+                                    ...project,
+                                    settings: {
+                                      ...project.settings,
+                                      moveMode: free ? 'free' : 'axis',
+                                    },
                                   },
-                                },
-                                'Siirtotapa vaihdettu.',
-                              )
-                            }
-                          />
-                          Vapaa siirto (XYZ)
-                        </label>
-                        <p className="muted">
-                          Oletuksena yksi akseli vedon suunnasta. X/Y/Z vaihtaa akselin. Ctrl
-                          painallus vaihtaa siirron ja kopion välillä.
-                        </p>
+                                  'Siirtotapa vaihdettu.',
+                                )
+                              }
+                            />
+                            Vapaa siirto (XYZ)
+                          </label>{' '}
+                        </details>
                       </>
                     )}
                     {['rectangle', 'circle'].includes(tool) && (
@@ -6919,13 +6932,6 @@ export default function App() {
                                 <option value="bezier">Ohjauspisteillä · tarkka</option>
                               </select>
                             </label>
-                            <p>
-                              {bezierStyle === 'smooth'
-                                ? 'Napsauta pisteet, joiden kautta käyrä kulkee. Kaksi pistettä tekee suoran, kolmas taivuttaa käyrää.'
-                                : bezierInstruction(penPoints.length)}{' '}
-                              Enter viimeistelee. Shift pitää suunnan ja poimii viitemitan, X/Y/Z
-                              lukitsee akselin. Backspace poistaa viimeisen pisteen.
-                            </p>
                           </>
                         )}
                       </div>
@@ -6947,7 +6953,6 @@ export default function App() {
                         editingBodyName={editingBody?.name}
                         sides={shapeSides}
                         onSides={setShapeSides}
-                        onOperation={changeOperation}
                         frameLabel={
                           sketchTarget
                             ? `Pinta: ${project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name}`
@@ -6972,19 +6977,7 @@ export default function App() {
                             <span>{spanLoading ? 'Mitataan vastapintaa…' : spanError}</span>
                           )}
                         </div>
-                        <details className="tool-advanced">
-                          <summary>Mitan syöttö ja läpileikkaus</summary>
-                          <p className="muted">
-                            Tab vaihtaa siirtymän ja toteutuvan kokonaismitan välillä ja säilyttää
-                            kirjoittamasi luvun. Miinus työntää sisään, plus vetää ulos. Ilman
-                            etumerkkiä luku seuraa vedon suuntaa.
-                          </p>
-                          <p className="muted">
-                            Vihreä mittaviiva näyttää toteutuvan kokonaismitan tässä kohdassa,
-                            kohtisuoraan valittua pintaa vastaan. Nolla avaa rajatun alueen läpi.
-                            Voit myös vetää pinnan vastapinnan ohi tai valita Leikkaa läpi.
-                          </p>
-                        </details>
+
                         <button
                           className="button outlined full"
                           aria-pressed={pickDepth}
@@ -7014,19 +7007,8 @@ export default function App() {
                         </button>
                       </div>
                     )}
-                    {tool === 'measure' && (
+                    {tool === 'measure' && guideDraft && (
                       <>
-                        <button
-                          className="button outlined"
-                          onClick={() => setMeasureMenu(!measureMenu)}
-                        >
-                          {measureMode === 'dimension'
-                            ? 'Dimensio'
-                            : measureMode === 'guide'
-                              ? 'Apuviiva'
-                              : 'Vapaa mittaviiva'}{' '}
-                          · Vaihda tilaa
-                        </button>
                         <button
                           className="button outlined"
                           onClick={() => rotateGuide()}
@@ -7035,52 +7017,39 @@ export default function App() {
                           <RotateCw size={16} />
                           Kierrä mittaviivaa · R
                         </button>
-                        <p className="muted">
-                          {measureMode === 'free' &&
-                            'Shift pitää suunnan lukittuna vain painamisen ajan. Poimi pituus toisesta pisteestä tai reunasta. '}
-                          R käynnistää hiirellä kierron 22,5° välein. X/Y/Z lukitsee siirtosuunnan;
-                          sama näppäin vapauttaa. Esc peruu vedon; seuraava Esc päättää työkalun.
-                          Shift+R käynnistää vapaan kierron; osoita suunta ja hyväksy.
-                        </p>
-                        <button
-                          className="button outlined"
-                          aria-pressed={freeRotate && guideRotationStep === 0}
-                          disabled={!guideDraft}
-                          onClick={() => rotateGuide(true)}
-                        >
-                          Vapaa kierto · Shift+R
-                        </button>
-                        {guideDraft && (
-                          <label className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={!!guideDraft.xray}
-                              onChange={(e) => {
-                                guideRef.current = {
-                                  ...guideRef.current!,
-                                  xray: e.target.checked,
-                                };
-                                setGuideDraft(guideRef.current);
-                              }}
-                            />
-                            Tämä apuviiva x-ray
-                          </label>
-                        )}
+
+                        <details className="tool-advanced">
+                          <summary>Kierto ja näkyvyys</summary>
+                          <button
+                            className="button outlined"
+                            aria-pressed={freeRotate && guideRotationStep === 0}
+                            disabled={!guideDraft}
+                            onClick={() => rotateGuide(true)}
+                          >
+                            Vapaa kierto · Shift+R
+                          </button>
+                          {guideDraft && (
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={!!guideDraft.xray}
+                                onChange={(e) => {
+                                  guideRef.current = {
+                                    ...guideRef.current!,
+                                    xray: e.target.checked,
+                                  };
+                                  setGuideDraft(guideRef.current);
+                                }}
+                              />
+                              Tämä apuviiva x-ray
+                            </label>
+                          )}
+                        </details>
                       </>
                     )}
-                    {tool === 'pen' && (
+                    {tool === 'pen' && penPoints.length > 0 && (
                       <>
-                        <p className="muted">
-                          {penPoints.length} pistettä.{' '}
-                          {locked.size
-                            ? 'Enter lisää numeroilla määritetyn pisteen.'
-                            : 'Enter päättää viivan.'}{' '}
-                          Palaa alkupisteeseen sulkeaksesi muodon. Reunasta reunaan piirretty viiva
-                          jakaa tavallisen kappaleen tai avatun osan pinnan heti. Suljetun
-                          komponentin pinnalla valitse valmis viiva ja Jaa pinta. Suorilla
-                          kynäviivoilla suljettu alue täyttyy myös aiempien piirrosreunojen väliin,
-                          vaikka reunat ovat eri korkeuksilla.
-                        </p>
+                        <p className="tool-point-count">{penPoints.length} pistettä</p>
                         <button
                           className="button outlined"
                           disabled={
@@ -7115,7 +7084,7 @@ export default function App() {
                             setPenPoints(penRef.current);
                           }}
                         >
-                          Poista viimeinen verteksi
+                          Poista viimeinen piste
                         </button>
                       </>
                     )}
@@ -7138,18 +7107,6 @@ export default function App() {
                           ))}
                         </div>
                       </>
-                    )}
-                    {['rectangle', 'pen', 'move'].includes(tool) && (
-                      <details className="tool-advanced">
-                        <summary>Tartunnat ja viitepisteet</summary>
-                        <p className="muted">
-                          {tool === 'move'
-                            ? 'Poimi korostettu kulma, reuna tai keskipiste. Siirto lukittuu oletuksena yhdelle akselille. X/Y/Z vaihtaa siirron pääakselille. Lukittuna kohdepiste antaa tämän akselin tavoitemitan.'
-                            : tool === 'pen' && penPoints.length
-                              ? 'Shift lukitsee piirtosuunnan pituuden poimimista varten. Erillisen viitepisteen saat Poimi viite -painikkeesta.'
-                              : 'Hae kappaleen piste kohdistimella ja pidä Shift pohjassa: viitepisteen suuntalinjat ohjaavat piirtämistä. Kosketuksella käytä Poimi viite -painiketta.'}
-                        </p>
-                      </details>
                     )}
                   </div>
                 </>
@@ -7424,65 +7381,103 @@ export default function App() {
                           <div className="selection-actions object-quick-actions">
                             <button
                               aria-label="Siirrä valittua"
-                              disabled={busy}
+                              disabled={busy || !!movementBlocked}
                               onClick={() => begin('move')}
                             >
                               <Move3D size={15} /> Siirrä
                             </button>
                             <button
                               aria-label="Kopioi kappale"
-                              disabled={busy}
+                              disabled={busy || !!movementBlocked}
                               onClick={() => void copyBody()}
                             >
                               <Copy size={15} /> Kopioi
                             </button>
                             <button
                               aria-label="Poista kappale"
-                              disabled={busy}
+                              disabled={busy || !!movementBlocked}
                               onClick={() => void removeBody()}
                             >
                               <Trash2 size={15} /> Poista
                             </button>
                           </div>
-                        </>
-                      )}
-                      <div className="selection-actions object-quick-actions">
-                        {mode === 'model' && (
-                          <>
+                          <div className="selection-actions object-quick-actions primary-object-actions">
                             <button
-                              className="button outlined"
-                              disabled={busy}
-                              onClick={() => begin('boolean')}
-                            >
-                              <Scissors size={17} />
-                              Cut / Join
-                            </button>
-                            <button
-                              className="button outlined"
-                              disabled={busy}
-                              onClick={() => begin('extrude')}
-                            >
-                              <ArrowUpFromLine size={17} />
-                              Muokkaa pintaa
-                            </button>
-                            <button
-                              className="button outlined"
-                              aria-label="Yhdistä valitut"
+                              aria-label="Muokkaa osaa"
+                              onClick={() => openBodyEdit(body.id)}
                               disabled={
                                 busy ||
-                                selectedIds.length < 2 ||
-                                project.bodies
-                                  .filter((b) => selectedIdSet.has(b.id))
-                                  .some((b) => !featureIsSolid(b.feature))
+                                !!movementBlocked ||
+                                body.hidden ||
+                                !!editingBodyId ||
+                                selectedIds.length !== 1
                               }
-                              onClick={() => void mergeSelected()}
                             >
-                              <Merge size={15} />
-                              Yhdistä {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
+                              {editingBodyId ? 'Muokkaustila avoinna' : 'Muokkaa osaa'}
                             </button>
-                          </>
-                        )}
-                      </div>
+                            <button
+                              aria-label="Kierrä valittuja"
+                              onClick={() => begin('rotate')}
+                              disabled={busy || !!movementBlocked}
+                            >
+                              <RotateCw size={15} />
+                              Kierrä
+                            </button>
+                            <button
+                              aria-label="Kiinnitä paikalleen"
+                              aria-pressed={!!body.locked}
+                              onClick={holdSelected}
+                              disabled={busy}
+                              title="Kiinnitä / vapauta · G"
+                            >
+                              <LockKeyhole size={15} />
+                              {body.locked ? 'Vapauta' : 'Kiinnitä'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      {mode === 'model' && (
+                        <details className="inspector-disclosure">
+                          <summary>Muotoilutoiminnot</summary>
+                          <div className="selection-actions object-quick-actions">
+                            {mode === 'model' && (
+                              <>
+                                <button
+                                  className="button outlined"
+                                  disabled={busy || !!movementBlocked}
+                                  onClick={() => begin('boolean')}
+                                >
+                                  <Scissors size={17} />
+                                  Cut / Join
+                                </button>
+                                <button
+                                  className="button outlined"
+                                  disabled={busy || !!movementBlocked}
+                                  onClick={() => begin('extrude')}
+                                >
+                                  <ArrowUpFromLine size={17} />
+                                  Muokkaa pintaa
+                                </button>
+                                <button
+                                  className="button outlined"
+                                  aria-label="Yhdistä valitut"
+                                  disabled={
+                                    busy ||
+                                    selectedIds.length < 2 ||
+                                    project.bodies
+                                      .filter((b) => selectedIdSet.has(b.id))
+                                      .some((b) => !featureIsSolid(b.feature))
+                                  }
+                                  onClick={() => void mergeSelected()}
+                                >
+                                  <Merge size={15} />
+                                  Yhdistä {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </details>
+                      )}
                       <ModelMaterials
                         key={`material:${colorContext}`}
                         onPreviewColor={(color) =>
@@ -7499,7 +7494,7 @@ export default function App() {
                         }
                       />
                       {body && !selectedGroup && (
-                        <details className="component-actions">
+                        <details className="component-actions inspector-disclosure">
                           <summary>Komponentti ja linkitys</summary>
                           <p>
                             {body.component
@@ -8015,7 +8010,7 @@ export default function App() {
                     ? 'Napsauta suorakulmioiden kulmat · Enter yhdistää · Esc peruu.'
                     : 'Napsauta kohdepiste ja tekstilaatikon paikka · Valitse-työkalulla voit siirtää laatikkoa.'
                   : editing || tool === 'navigate' || tool === 'boolean'
-                    ? instructions[tool]
+                    ? toolStep
                     : editor.message}
           </span>
         </div>
@@ -8102,296 +8097,34 @@ export default function App() {
       </footer>
 
       {help && (
-        <div className="modal-backdrop" onClick={() => setHelp(false)}>
-          <section
-            className="help-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="help-title"
-            onClick={(e) => e.stopPropagation()}
+        <GuideBoundary onClose={() => setHelp(false)}>
+          <Suspense
+            fallback={
+              <div className="guide-loading" role="status">
+                Avataan ohjetta…<button onClick={() => setHelp(false)}>Sulje</button>
+              </div>
+            }
           >
-            <IconButton label="Sulje ohje" className="modal-close" onClick={() => setHelp(false)}>
-              <X />
-            </IconButton>
-            <span className="eyebrow">TERVETULOA NIVOON</span>
-            <h2 id="help-title">
-              Pienestä muodosta
-              <br />
-              valmiiksi suunnitelmaksi.
-            </h2>
-            <ol>
-              <li>
-                <strong>Piirrä.</strong> Valitse Suorakulmio, Ympyrä (C) tai Kynä. Aloita kappaleen
-                tasopinnalta käyttääksesi sitä piirtotasona. Klikkaa alkupistettä, siirrä osoitinta
-                ja klikkaa loppupistettä. Muotovalikosta löytyvät myös ellipsi ja säännöllinen
-                monikulmio, pallo ja Bézier-käyrä. Myös veto tai Enter hyväksyy.
-              </li>
-              <li>
-                <strong>Muotoile.</strong> Paina E, osoita pintaa ja vedä. Positiivinen siirtymä
-                vetää pintaa ulos ja negatiivinen työntää sisään. Leikkaa läpi tekee aukon, ja Poimi
-                syvyys pinnasta määrää syvyyden toisesta pinnasta.
-              </li>
-              <li>
-                <strong>Mitoita.</strong> Valitse osa ja paina Lisää kokonaismitat. Avaa Mittakuva
-                ja vie SVG.
-              </li>
-            </ol>
-            <p>
-              <strong>Veitsi · N:</strong> vedä leikkaus nykyisestä näkymästä valittujen osien yli.
-              Ilman valintaa käsitellään näkyviä vapaita osia. Suora, taitettu reitti, suljettu
-              siluetti, Bézier-kaari ja vapaa viilto säilyttävät molemmat puolet. Enter viimeistelee
-              taitetun reitin. Esc peruu luonnoksen; Peru palauttaa koko leikkauksen.
-            </p>
-            <p>
-              <strong>Bézier:</strong> Napsauta pisteet, joiden kautta käyrä kulkee, ja paina Enter.
-              Shift pitää suunnan ja poimii viitteen. Valitun käyrän tartuntapisteitä voi lisätä ja
-              pisteiden mittoja muuttaa oikealta. Tarkassa ohjauspistetilassa kaari piirretään
-              neljällä pisteellä: alku, kaksi ohjauspistettä ja loppu. Jatko tarvitsee kolme
-              pistettä. Enter tallentaa viivan, alkupisteeseen palaaminen sulkee pinnan. Pallo
-              sijoitetaan keskipisteestä; kirjoitettava mitta on halkaisija. Osan valikosta Pehmennä
-              reunat avaa kaikkien reunojen pyöristyksen esikatselun ja säteen säädön.
-            </p>
-            <p>
-              <strong>Muotojen läpi:</strong> Muodot-valikosta avautuva pintatyökalu yhdistää
-              poikkileikkauksia tai vierekkäisiä sivukäyriä. Valitse profiilit järjestyksessä,
-              tarkista esikatselu ja Luo pinta. Pullon ympyrät voivat toimia sivukäyrien
-              tartunta-apuina. Sivukäyrät-tilassa valitse vain sivukäyrät kiertojärjestyksessä ja
-              Sulje sivut ympäri. Poikkileikkauksen voi myös päättää kärkeen, jolloin yhdestä
-              ympyrästä syntyy kartio. Lähtömuodot säilyvät, ja Peru palauttaa koko toiminnon.
-            </p>
-            <p>
-              <strong>Viivojen valinta:</strong> valintaruutu poimii myös apu- ja mittaviivat;
-              valitut viivat näkyvät oranssina. Shift lisää valintaan. Delete poistaa valinnan
-              yhtenä peruttavana toimintona. Historia palauttaa myös viivavalinnat. Samalla suoralla
-              päällekkäin piirretyt mittaosuudet yhdistyvät automaattisesti.
-            </p>
-            <p>
-              <strong>Hae ja Valitse toinen:</strong> Hae-painike tai Ctrl/⌘ K löytää työkalut ja
-              valinnan toiminnot. Esc sulkee haun säilyttäen keskeneräisen muodon. Valitse toinen
-              listaa osoitetun kohdan päällekkäiset osat; osoitus korostaa vaihtoehdon ja napsautus
-              valitsee. Kosketuksella vahvista esikorostus Valitse korostettu -painikkeella.
-            </p>
-            <p>
-              <strong>Poikkileikkaus:</strong> avaa Leikkaus ja lisää nimetty leikkaus. Valitse
-              X/Y/Z tai poimi tasopinta. Vedä nuolesta tai kirjoita sijainti; Esc peruu vedon. Avaa
-              leikkaus mittakuvaan, valitse kaksi leikkauspistettä ja sijoita mittaviiva. PDF ja SVG
-              säilyttävät valitun mittakaavan. Leikkaus ei muuta osien geometriaa.
-            </p>
-            <p>
-              <strong>Pohja- ja julkisivukuva:</strong> tuo kuva Pohjakuva-painikkeesta, osoita
-              tunnetun mitan kaksi päätä ja anna todellinen mitta. Kuva lukittuu mittakaavaan. Voit
-              piirtää sen tasolle ja säätää läpinäkyvyyttä; rasteriviivat eivät ole
-              tartuntapisteitä. Eristä valinta näyttää vain työalueen, ja Palauta näkymä palauttaa
-              aiemmat piilotukset.
-            </p>
-            <p>
-              <strong>Monivalinta:</strong> Valitse-tilassa (V) Shift + klikkaus lisää osan
-              valintaan tai poistaa sen valinnasta. M siirtää kaikki valitut yhdessä ilman ryhmän
-              luomista. Tavallinen klikkaus vaihtaa valinnan yhteen osaan, kun Monivalinta ei ole
-              päällä. Muokkaustilassa sulje ensin osan muokkaus valitaksesi muita osia. Muissa
-              työkaluissa Shift käyttää työkalun omaa viitettä tai suuntalukkoa.
-            </p>
-            <p>
-              <strong>Uusi osa vai pinnan muokkaus:</strong> normaalisti piirto tekee uuden osan,
-              myös toisen kappaleen pinnalle. Valitse-työkalulla (V) tuplaklikkaa osaa tai valitse
-              Muokkaa osaa: Muokkaustila-palkki kertoo kohteen, muut osat himmenevät viitteiksi ja
-              piirto jakaa vain avattua osaa. Lopeta muokkaus sulkee muokkaustilan. Myös
-              Valitse-työkalun tuplaklikkaus tyhjään tilaan sulkee sen; yksittäinen napsautus tai
-              kameran liikuttaminen ei poistu muokkaustilasta. Esc peruu ensin keskeneräisen
-              toiminnon, seuraava Esc päättää työkalun ja vielä yksi Esc sulkee muokkaustilan. E/O
-              toimii suoraan myös normaalitilassa.
-            </p>
-            <p>
-              <strong>Poista rajaus (U):</strong> osoita samantasoisten pintojen jakoviivaa ja
-              klikkaa. Korostetut alueet yhdistyvät yhdeksi pinnaksi, myös vanhassa tallennetussa
-              mallissa. Kulmia, syvennyksiä ja aukkoja ei poisteta. Peru palauttaa rajauksen.
-            </p>
-            <p>
-              <strong>Historia:</strong> selaintallennus säilyttää viimeisimmät
-              Peru/Palauta-askeleet sivun päivityksen yli, enintään 20 askelta yhteensä ja 8 Mt.
-              Projektitiedosto sisältää nykyisen mallin; muokkaustila avataan aina erikseen.
-            </p>
-            <p>
-              <strong>Tarkat mitat:</strong> aloita kirjoittamalla numero. Tab siirtyy seuraavaan
-              kenttään. Kirjoitettu mitta säilyy hiiren liikkuessa.
-            </p>
-            <p>
-              <strong>Push/pullin toteutuva kokonaismitta:</strong> siirtymä −150 lyhentää osaa 150
-              mm. Tab siirtää saman luvun Toteutuva kokonaismitta -kenttään: osan mitaksi jää 150
-              mm. Voit myös napsauttaa kenttää ja kirjoittaa esimerkiksi 550. Vihreä mittaviiva
-              näyttää mitan vastapinnasta valitussa kohdassa. Ilman etumerkkiä siirtymä seuraa vedon
-              suuntaa; + vetää ulos ja − työntää sisään. Toteutuva kokonaismitta 0 avaa rajatun
-              alueen vastapinnan läpi.
-            </p>
-            <p>
-              <strong>Tavoitemitan poiminta:</strong> E → klikkaa lähtöpintaa → pidä Shift pohjassa
-              ja osoita kulmaa, keskipistettä, reunaa tai pintaa → klikkaa hyväksyäksesi. Myös vedon
-              vapautus Shift pohjassa korostetun tavoitteen päällä hyväksyy. Ilman Shiftiä veto on
-              vapaa. Lähtöpinta ei kelpaa tavoitteeksi. Shiftin vapautus jatkaa saavutetusta mitasta
-              ilman hyppyä. Kosketuksella käytä Poimi tavoitemitta -painiketta. Piste- tai
-              reunakorostus ja vihjeteksti näyttävät kohteen. Yhdensuuntaiset tasopinnat osuvat
-              samalle tasolle; vinosta tasopinnasta poimitaan osoitetun pisteen taso lähdepinnan
-              normaalin suunnassa. Kirjoitettu mitta ohittaa tartunnan. Esc peruu.
-            </p>
-            <p>
-              <strong>Mitat ja värit:</strong> valitse osa tai useita osia ja paina Lisää
-              kokonaismitat. Mallin X/Y/Z-suuntaiset ulkomitat näkyvät 3D-näkymässä ja Mittakuvassa
-              sekä SVG-viennissä. Ne seuraavat osan muutoksia. Mitat-listasta voit poistaa
-              yksittäisen mitan, ja asetuksista valita 3D-mittojen näkyvyyden. Väripaletti vaihtaa
-              valittujen osien värin; oman värin hyväksyt valitsimen vieressä olevasta painikkeesta.
-            </p>
-            <p>
-              <strong>Offset (O):</strong> osoita vapaata pintaa ja paina O tai valitse työkalu ja
-              vedä pinnasta. Liikuta hiirtä tai syötä esimerkiksi 18 mm. Sininen viiva näyttää
-              sisennyksen. Klikkaus, vedon vapautus tai Enter hyväksyy. E työntää uutta aluetta
-              sisään. Toteutuva kokonaismitta 18 jättää 18 mm takaseinän; Leikkaa läpi tekee aukon.
-            </p>
-            <p>
-              <strong>Valitse ja kopioi:</strong> yksi klikkaus valitsee koko kappaleen. M siirtää
-              tartuntapisteestä. Paina Ctrl (tai Alt) kerran vedon aikana ja vapauta hiiri: kopio
-              asettuu uuteen paikkaan ja alkuperäinen jää paikalleen. Voit myös valita Siirrä kopio
-              ja kirjoittaa siirtymän. Uusi Ctrl-painallus poistaa kopioinnin. Esc peruu
-              keskeneräisen siirron.
-            </p>
-            <p>
-              <strong>Tarkka siirto (M):</strong> odota kulman, reunan tai keskipisteen korostusta,
-              tartu siitä ja vie se kohteen korostettuun pisteeseen. Geometriatartunta ohittaa
-              ruudukon. Oletuksena siirto käyttää yhtä akselia. X/Y/Z vaihtaa akselin. Lukittuna
-              toisesta pisteestä poimitaan vain tämän akselin mitta. Ruudukon askelta voi muuttaa
-              asetuksissa. Siirtymä askeltaa lähtöpisteestä. Vapaa siirto (XYZ) sallii liikkeen
-              usealla akselilla.
-            </p>
-            <p>
-              <strong>Dimensio:</strong> paina T ja valitse aktiivisen mittatyökalun valikosta
-              Dimensio. Poimi kaksi pistettä ja sijoita mittaviiva kolmannella napsautuksella tai
-              vetämällä toisesta pisteestä sivulle. X/Y/Z valitsee akselin suuntaisen mitan.
-              Valitse-tilassa mittatekstin vetäminen muuttaa sijoittelua. Mitta seuraa osia ja näkyy
-              sopivassa mittakuvan näkymässä sekä SVG-viennissä.
-            </p>
-            <p>
-              <strong>Viisteet ja pyöristykset (F):</strong> valitse reunat ja vedä kokoa tai
-              kirjoita mitta. F avaa myöhemmin saman käsittelyn: voit lisätä kohtaavia reunoja,
-              muuttaa mittaa tai poistaa käsittelyn. Pinnan muu muokkaus liittää käsittelyn
-              geometriaan. Muokattava lähde säilyy uusissa käsittelyissä ja projektin
-              tallennuksessa.
-            </p>
-            <p>
-              <strong>Materiaalit ja tekstuurit:</strong> mallin osan Materiaali-valikossa on 53
-              presettiä: myös maalatut seinät, betonit, laatat, kivet, melamiinit, kalustelevyt ja
-              valaisevat materiaalit. Pinnan rakenne -kohdassa voit tuoda normal-, bump-, karheus-
-              ja metallisuuskartat tai luoda rakenteen värikuvasta. Kohokuvion syvyys annetaan
-              millimetreinä ja normal-kartan suunnaksi voi valita OpenGL/DirectX. Valaisimen
-              esiasetukset, väri, voimakkuus ja spotin suunta löytyvät myös mallista.
-              Renderöi-näkymässä säädät studion valoja. Lisää kuva tuo oman PNG-, JPEG- tai
-              WebP-värikuvan. Valitse yksi osa ja Muokkaa tekstuuria. Vedä pintaa siirtääksesi
-              kuviota; kahvat säätävät kokoa ja kiertoa. Mitat voi syöttää myös millimetreinä.
-              Hiiriveto tallentuu heti ja Enter hyväksyy numeroarvot. Työkalu pysyy päällä osaa
-              vaihtaessakin. Esc peruu keskeneräiset numeroarvot ja lopettaa työkalun. Valitse tai
-              Maalaa vaihtaa työkalua. Oikea painike kiertää kameraa. Oman materiaalin voi tallentaa
-              projektin kirjastoon.
-            </p>
-            <p>
-              <strong>Koko näyttö:</strong> yläpalkin Siirry koko näyttöön -painike piilottaa
-              selaimen palkit. Palaa samalla painikkeella tai Escillä. Kapeassa ikkunassa tiedostot,
-              historia ja asetukset löytyvät Lisää toimintoja -painikkeesta.
-            </p>
-            <p>
-              <strong>Kierrä (R):</strong> valitse kappale ja poimi kiertopiste tai reuna. Vedä
-              rengasta tai kirjoita kulma. X/Y/Z vaihtaa akselin ja veto tarttuu 5° välein. Shift
-              kiertää vapaasti. Suorakulmion pikanäppäin on S. G kiinnittää tai vapauttaa kappaleen.
-              Sivupaneelista voit siirtää valinnan origoon, nimetä, piilottaa ja ryhmitellä osia.
-            </p>
-            <p>
-              <strong>Apuviivat:</strong> mittatyökalun painike valitsee viimeksi käytetyn tilan,
-              nuoli avaa tilavalinnan. Reunasta vedetty viiva pysyy reunan suuntaisena. R aloittaa
-              hiirellä kierron 22,5° välein, Shift+R sallii vapaan kierron. X/Y/Z lukitsee akselin
-              ja sama näppäin vapauttaa. Esc peruu toiminnon; seuraava Esc päättää työkalun. Voit
-              myös kirjoittaa asteluvun. X-ray valitaan Viivat-listasta tai kaikille asetuksista.
-            </p>
-            <p>
-              <strong>Vapaa mittaviiva:</strong> napsauta alkupistettä ja jatka pisteestä
-              pisteeseen. Enter tai Esc päättää ketjun. Shift pitää suunnan lukittuna ja poimii
-              pituuden osoitetusta pisteestä. Tuplaklikkaa valmiin viivan päätä siirtääksesi sitä;
-              muut viivat jäävät paikalleen. Yhteisessä päätepisteessä valitse ensin viiva. Oikean
-              napin valikossa voit siirtää päätä tai poistaa kyseisen mittaviivan.
-            </p>
-            <p>
-              <strong>Hae viite:</strong> vie kohdistin kappaleen keskipisteen, reunan keskipisteen
-              tai verteksin päälle ja pidä Shift pohjassa. Viitteestä lähtevät suuntalinjat ohjaavat
-              piirtämistä. Kesken kynän viivan Shift lukitsee viivan suunnan: voit poimia pituuden
-              aiemmasta pisteestä. Kosketuksella käytä Poimi viite- ja akselipainikkeita.
-            </p>
-            <p>
-              <strong>Kynän mitat:</strong> kirjoita viivan pituus osoittamaasi suuntaan.
-              Positiivinen mitta jatkaa esikatselun suuntaan myös kameran kiertämisen jälkeen;
-              negatiivinen mitta kääntää etenemän. Tab vie tarvittaessa X/Y/Z-siirtymiin, joissa
-              tyhjä kenttä tarkoittaa nollaa. Enter lisää pisteen ja palauttaa syötön piirtämiseen;
-              seuraava Enter päättää viivan. Shift lukitsee suunnan ja poimii viitteestä pituuden.
-            </p>
-            <p>
-              <strong>Näkymäkuutio:</strong> napsauta nimettyä tahkoa tai kierrä kuutiota vetämällä.
-              Suunnan vaihto säilyttää zoomauksen. Sovita näkymään näyttää koko mallin tai valinnan.
-              Näyttötilat 1–4 (Solid, Tasaväri, Ghost, Wireframe) toimivat Valitse-tilassa;
-              yläreunan kuvakkeet toimivat myös muissa työkaluissa. Valinta rajaa vaikutuksen, ilman
-              valintaa tila koskee koko näkymää. Ghostin läpi voi valita ja siihen voi tarttua.
-            </p>
-            <p>
-              <strong>Mittaviivojen näkyvyys:</strong> näkymän yläreunan viivainpainike piilottaa
-              kaikki tallennetut mitat, mittaviivat ja apuviivat yhdellä kertaa. Sama painike
-              palauttaa ne. Piilotettuihin viivoihin ei tartuta; mittakuvan mitat säilyvät.
-            </p>
-            <p>
-              <strong>Kopioiden linkitys:</strong> malliosan kopiot jakavat muodon ja materiaalin.
-              Sijainti ja kierto koskevat kyseistä esiintymää. Tee uniikiksi irrottaa osan; Tee
-              ryhmä uniikiksi säilyttää ryhmän sisäiset linkit ja irrottaa ulkopuoliset kopiot.
-              Tekstuurin asettelu ja vaihtelu voivat olla osakohtaisia ilman materiaalin
-              irrottamista. Ryhmä järjestää osia, kokoonpano määrittää yhteisen valinnan.
-            </p>
-            <p>
-              <strong>Cut / Join (B):</strong> valitse ensin Kohteet, sitten Työstökappaleet.
-              Molempiin voi poimia useita osia näkymästä tai listasta. Cut vähentää työstökappaleet
-              kohteista, Join yhdistää ne. Vaihda keskenään kääntää leikkauksen. Säilytä
-              työstökappaleet jättää leikkurit jatkokäyttöön. Peru palauttaa lähteet.
-            </p>
-            <p>
-              <strong>Muodon ominaisuudet:</strong> anna nimi, mitat ja paksuus. Kappaleen lisäksi
-              voit tehdä rakentamisen apumuodon, piirroksen tai nimetyn itsenäisen osan.
-              Apumuotoihin voi tarttua, mutta ne eivät tule mittakuvaan.
-            </p>
-            <p>
-              <strong>Kosketus:</strong> napautus valitsee, yksi sormi käyttää työkalua. Kaksi
-              sormea panoroi ja zoomaa. Navigoi-työkalulla yksi sormi kiertää.
-            </p>
-            <p>
-              <strong>Hiiri:</strong> oikea painike kiertää, keskipainike panoroi ja rulla zoomaa
-              kohdistimeen. Kierto alkaa kohdistimen alla olevan pinnan ympäri; pieni rengas näyttää
-              kiertopisteen. Tyhjästä tilasta aloitettu kierto käyttää muokattavan osan tai valinnan
-              keskipistettä. Valinta säilyttää näkymän rajauksen; Sovita näkymään keskittää
-              valinnan. Navigoi-työkalulla myös vasen painike tai yksi sormi kiertää kosketettua
-              kohtaa.
-            </p>
-            <p>
-              <strong>Säilytä työsi:</strong> automaattitallennus palauttaa työn tässä selaimessa.
-              Lataa lisäksi .nivo-projektitiedosto omalle laitteellesi.
-            </p>
-            <p className="muted">
-              Piirtäminen tukee myös vinoja tasopintoja. Suljettavan kynämuodon tulee olla
-              tasomainen. Push/pull ja Offset tukevat tasopintoja. Linkitetyt komponentit tulevat
-              myöhemmin.
-            </p>
-            <a href="https://github.com/alluharju-bot/nivo" target="_blank" rel="noreferrer">
-              Avoin lähdekoodi ↗
-            </a>
-            <a
-              className="license-link"
-              href={`${import.meta.env.BASE_URL}licenses/NOTICE.txt`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Kirjastot ja lisenssit ↗
-            </a>
-          </section>
-        </div>
+            <ToolGuide
+              initial={
+                workspace.panel === 'section'
+                  ? 'section'
+                  : workspace.panel === 'image'
+                    ? 'reference'
+                    : guideForTool(tool, {
+                        shape: shapeKind,
+                        pen: penMode,
+                        measure: measureMode,
+                        paint: paintMode,
+                        detail: detailOperation,
+                        operation: booleanOperation,
+                        loft: loftOpen,
+                      })
+              }
+              onClose={() => setHelp(false)}
+            />
+          </Suspense>
+        </GuideBoundary>
       )}
     </div>
   );

@@ -1,5 +1,21 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.30.0 — ohjeet erillään mallinnuksen päivityksistä, 10.10.2026
+
+Ohjekirjaston käyttöliittymä ja SVG-animaatiot ladataan vasta avattaessa:
+noin **20,0 kt JavaScriptiä / 6,7 kt gzip** ja **5,2 kt CSS / 1,6 kt gzip**.
+Ohjeiden tekstit ja toimintatavan valinta ovat pääpaketissa. Vanhan pitkän
+tekstiohjeen poistuminen pitää pääpaketin hieman aiempaa pienempänä.
+
+Vain valittu esimerkki on DOMissa. Toisto päivittää omaa paikallista tilaansa
+noin 30 Hz ja pysähtyy 12 sekunnin kohdalla. Se ei käy läpi projektin osia,
+tee CAD-kutsuja tai lisää historiaa. Sulkeminen peruu animaatiosilmukan;
+piilotettu välilehti ja reduced-motion estävät tarpeettoman automaattitoiston.
+
+Paneelien tekstivertailu on [erillisessä auditissa](tool-guides.fi.md),
+jonka mittaus toistetaan `scripts/audit-tool-panels.mjs`-komennolla.
+Tässä passissa ei mitattu suuren mallin FPS-parannusta.
+
 ## V0.29.1 — pinta-alan esikatselu ja huomautuksen värit, 9.10.2026
 
 Pinta-alan osoitintapahtumat yhdistetään kerran animaatioruudussa. Viimeinen

@@ -233,7 +233,6 @@ export function DynamicInput({
           </button>
         </div>
       )}
-      <p className="numeric-hint">Numero aloittaa · Tab vaihtaa kenttää · Esc peruu</p>
     </div>
   );
 }

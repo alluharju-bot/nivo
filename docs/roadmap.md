@@ -2,6 +2,29 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.30.0 — rauhallisemmat työkalupaneelit ja havainneohjeet, 10.10.2026
+
+- 33 työkalun ja toimintatavan kolmivaiheiset, 12 sekunnin havainneanimaatiot.
+  Aktiivisen työkalun **Näytä esimerkki** ja yläpalkin **Käyttöohje** avaavat saman
+  haettavan kirjaston. Pysäytys, kelaus, vaihevalinta, alusta toisto ja kosketusnäkymä.
+- Paneelissa yksi lyhyt seuraava askel. Toistuvat käsikirjatekstit, aloitusvaiheen
+  tarpeettomat hyväksynnät ja päällekkäiset työkaluvaihdot poistuvat. Mallinnuksen
+  näppäimet eivät toimi ohjeikkunan läpi, ja keskeneräinen muoto säilyy suljettaessa.
+- Valinnan Siirrä / Kopioi / Poista ja Muokkaa osaa / Kierrä / Kiinnitä ovat ennen
+  avattavia osioita. Muotoilutoiminnot, vapaa siirto, kiertopisteen koordinaatit,
+  tekstuurin vaihtelu ja nykyisen reunakäsittelyn hallinta avautuvat tarvittaessa.
+- Pallolla ei ole paksuuskenttää. Piirtotapa-valinta näytetään vain osan muokkauksessa,
+  jossa on todella kaksi vaihtoehtoa. Cut/Join näyttää täyden listan vain aktiivisessa
+  kohde-/työstöryhmässä, toisessa jo valitut osat.
+- Mittaviivan R/Shift+R-kierto ja kiertopainikkeet palauttavat kohdistuksen
+  mallinnukseen: Enter hyväksyy kierron myös tallennuspainikkeen käytön jälkeen.
+- Ohjeet ladataan avattaessa. Vain näkyvä animaatio päivittyy; piilotettu välilehti ja
+  vähennetty liike pysäyttävät automaattisen toiston. Ohjeen latausvirhe on eristetty
+  mallinnuksesta. Tämä versio sisältää havainneanimaatiot, ei ruutunauhoituksia.
+- Automaattisesti ensimmäisellä käyttökerralla avautuva ohjekortti jää jatkotyöksi:
+  ohje avataan nyt käyttäjän pyynnöstä, jotta selkeytyspassi ei lisää keskeytyksiä.
+  Säännölliset käytettävyys- ja optimointipassit jatkuvat.
+
 ## V0.29.1 — merkintöjen sujuvuus ja mallilistan järjestäminen, 9.–10.10.2026
 
 - Pinta-ala priorisoi osoitettua pintaa myös perspektiivissä ja negatiivisilla
@@ -466,14 +489,15 @@ joka laskee jyrkemmin pyöreälle kaivolle. Tämä ei vielä ole toteutettu omin
 
 ## Backlog 7.10.2026 — Valinta-paneelin selkeytys ja usean pinnan käsittely
 
-- **Valinta-paneelin toiminnot kahdelle yhtenäiselle riville:** Siirrä / Kopioi /
+- **Toteutettu v0.30.0: Valinta-paneelin toiminnot kahdelle yhtenäiselle riville:** Siirrä / Kopioi /
   Poista; niiden alle samalla rivityksellä Muokkaa osaa / Kierrä / Kiinnitä.
   Jälkimmäiset eivät kuulu sisennettyinä Materiaali- tai Komponentti ja linkitys
   -osioiden jatkoksi. Avattavien osioiden rakenteen pitää pysyä siistinä.
 - **Valinta-paneelin yläosa rauhallisemmaksi:** nimi, ryhmä ja keskeiset tilat
   selkeästi omille paikoilleen. Yhdellä vilkaisulla tulee ymmärtää, mitä on valittu
   ja mistä tärkeimmät toiminnot löytyvät. Vähennetään kilpailevia painikkeita ja
-  sisennyksiä. Tämä on seuraavan käyttöliittymäpassin työ, ei vielä toteutettu.
+  sisennyksiä. V0.30.0 yhtenäistää päätoiminnot ja siirtää muotoilun avattavaan
+  osioon; laajempi tilojen ja ryhmävalinnan selkeytys jatkuu.
 - **Usean pinnan yhteinen push/pull:** suunnitellaan pintojen kerääminen ennen
   E-toimintoa. Push/pullin aikana **Shift on aina viitehaku**, ei monivalinta.
   Myös muut yhteiset pintamuokkaukset huomioidaan. Valintatapaa ei ole vielä
@@ -653,6 +677,9 @@ sen yli. Epäselvästä toiminnasta kysytään ennen kyseisen muutoksen toteutus
   ja varsinainen kuormitus-/lujuuslaskenta ovat erillisiä mahdollisia jatkotöitä.
 
 ### Visuaaliset työkalujen ohjeet ja toistuva selkeytys
+
+**V0.30.0:** haettava 33 havainneanimaation kirjasto ja työkalukohtainen
+avauspainike toteutettu. Alla mainittu automaattinen ensikäyttökortti on jatkotyö.
 
 - Ensimmäisellä työkalun käyttökerralla oikeaan reunaan avautuu selkeä pieni
   visuaalinen ohjekortti: aloitus, osoitus/veto, tarkka mitta, hyväksyntä ja

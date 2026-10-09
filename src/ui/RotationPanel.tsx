@@ -17,14 +17,9 @@ export function RotationPanel({
   onCenter: () => void;
   onError: (message: string) => void;
 }) {
-  if (!rotation)
-    return <p className="panel-description">Valitse kierrettävä kappale listasta tai näkymästä.</p>;
+  if (!rotation) return null;
   return (
     <section className="rotation-panel" aria-label="Kierron asetukset">
-      <p className="muted">
-        Vedä värillistä rengasta tai kirjoita kulma. Veto tarttuu 5° välein, vahvemmin pääsuuntiin.
-        Shift vapauttaa tartunnan. Enter tai vedon päättäminen hyväksyy.
-      </p>
       <div className="axis-switch" aria-label="Kiertoakseli">
         {(['x', 'y', 'z'] as const).map((axis, i) => (
           <button
@@ -61,43 +56,39 @@ export function RotationPanel({
           Poimi kiertoakseli reunasta
         </button>
       </div>
-      <div className="rotation-coordinates">
-        {rotation.pivot.map((value, i) => (
-          <label key={i}>
-            {['X', 'Y', 'Z'][i]}
-            <input
-              key={value}
-              aria-label={`Kiertopiste ${['X', 'Y', 'Z'][i]}`}
-              defaultValue={Number(value.toFixed(3))}
-              disabled={busy}
-              inputMode="decimal"
-              onBlur={(e) => {
-                try {
-                  const pivot = [...rotation.pivot] as Vec3;
-                  pivot[i] = parseLength(e.target.value, true, true);
-                  onChange({ pivot });
-                } catch (error) {
-                  onError((error as Error).message);
-                  e.target.value = String(value);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  e.currentTarget.blur();
-                }
-              }}
-            />
-          </label>
-        ))}
-      </div>
-      {rotation.picking && (
-        <p className="rotation-pick-hint">
-          {rotation.picking === 'edge'
-            ? 'Osoita suoraa reunaa: se määrää kiertoakselin.'
-            : 'Poimi verteksi, reuna, pinnan kohta tai vapaa piste.'}
-        </p>
-      )}
+      <details className="tool-advanced">
+        <summary>Kiertopisteen koordinaatit</summary>
+        <div className="rotation-coordinates">
+          {rotation.pivot.map((value, i) => (
+            <label key={i}>
+              {['X', 'Y', 'Z'][i]}
+              <input
+                key={value}
+                aria-label={`Kiertopiste ${['X', 'Y', 'Z'][i]}`}
+                defaultValue={Number(value.toFixed(3))}
+                disabled={busy}
+                inputMode="decimal"
+                onBlur={(e) => {
+                  try {
+                    const pivot = [...rotation.pivot] as Vec3;
+                    pivot[i] = parseLength(e.target.value, true, true);
+                    onChange({ pivot });
+                  } catch (error) {
+                    onError((error as Error).message);
+                    e.target.value = String(value);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+            </label>
+          ))}
+        </div>
+      </details>
     </section>
   );
 }

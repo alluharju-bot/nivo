@@ -12,7 +12,7 @@ import {
 } from '../src/model/project';
 
 async function ready(page: Page, bodies: Body[] = [], guides: Guide[] = []) {
-  await page.goto('/');
+  await page.goto(process.env.NIVO_BASE_PATH ?? '/');
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
   if (bodies.length || guides.length) {
     await page.getByTestId('project-file').setInputFiles({
@@ -126,6 +126,8 @@ test('drag an edge-parallel guide, rotate after creation, lock and unlock a tran
   expect(guide.direction![1]).toBeCloseTo(0, 6);
   expect(guide.offset![1]).toBeCloseTo(-80, 1);
   await page.keyboard.press('r');
+  // Saving focused a toolbar button. R must give Enter back to the model.
+  await expect(page.getByTestId('viewport')).toBeFocused();
   const rotated = point(180, 60);
   await page.mouse.move(rotated.x, rotated.y);
   await expect(page.getByTestId('snap-hint')).toContainText('22,5° askel');
@@ -135,6 +137,13 @@ test('drag an edge-parallel guide, rotate after creation, lock and unlock a tran
   await expect(page.locator('.guide-list>div')).toHaveCount(1);
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   await page.keyboard.press('Shift+R');
+  await expect(page.getByTestId('viewport')).toBeFocused();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Kierto ja näkyvyys$/ })
+    .click();
+  await page.getByRole('button', { name: 'Vapaa kierto · Shift+R', exact: true }).click();
+  await expect(page.getByTestId('viewport')).toBeFocused();
   await expect(
     page.getByRole('button', { name: 'Vapaa kierto · Shift+R', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');

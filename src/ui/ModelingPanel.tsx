@@ -60,18 +60,7 @@ export function BooleanPanel({
 }) {
   return (
     <section className="modeling-panel" aria-label="Muotoile">
-      <div className="panel-title">
-        <div>
-          <span className="eyebrow">MUOTOILE</span>
-          <h2>{operation === 'cut' ? 'Leikkaa kappaleilla' : 'Yhdistä kappaleet'}</h2>
-        </div>
-      </div>
       <OperationSelect value={operation} onChange={onOperation} disabled={busy} />
-      <p className="muted">
-        {operation === 'cut'
-          ? 'Työstökappaleiden tilavuus poistetaan jokaisesta kohteesta.'
-          : 'Kohteet ja työstökappaleet yhdistetään yhdeksi osaksi.'}
-      </p>
       {(['targets', 'tools'] as const).map((group) => {
         const ids = group === 'targets' ? targets : tools,
           title = group === 'targets' ? 'Kohteet' : 'Työstökappaleet';
@@ -86,24 +75,23 @@ export function BooleanPanel({
               <span>{title}</span>
               <strong>{ids.length}</strong>
             </button>
-            <small>
-              {group === 'targets' ? 'Target bodies' : 'Tool bodies'} · valitse listasta tai
-              näkymästä
-            </small>
+
             <div className="body-set-list">
-              {bodies.map((b) => (
-                <label key={b.id} className={!featureIsSolid(b.feature) ? 'unavailable' : ''}>
-                  <input
-                    type="checkbox"
-                    aria-label={`${group === 'targets' ? 'Kohde' : 'Työstökappale'}: ${b.name}`}
-                    checked={ids.includes(b.id)}
-                    disabled={busy || !featureIsSolid(b.feature)}
-                    onChange={() => onToggle(b.id, group)}
-                  />
-                  <span>{b.name}</span>
-                  {!featureIsSolid(b.feature) && <small>Tarvitsee paksuuden</small>}
-                </label>
-              ))}
+              {bodies
+                .filter((b) => active === group || ids.includes(b.id))
+                .map((b) => (
+                  <label key={b.id} className={!featureIsSolid(b.feature) ? 'unavailable' : ''}>
+                    <input
+                      type="checkbox"
+                      aria-label={`${group === 'targets' ? 'Kohde' : 'Työstökappale'}: ${b.name}`}
+                      checked={ids.includes(b.id)}
+                      disabled={busy || !featureIsSolid(b.feature)}
+                      onChange={() => onToggle(b.id, group)}
+                    />
+                    <span>{b.name}</span>
+                    {!featureIsSolid(b.feature) && <small>Tarvitsee paksuuden</small>}
+                  </label>
+                ))}
             </div>
           </div>
         );
@@ -154,7 +142,6 @@ export function ShapeProperties({
   editingBodyName,
   sides,
   onSides,
-  onOperation,
   frameLabel,
   onAccept,
 }: {
@@ -173,7 +160,6 @@ export function ShapeProperties({
   editingBodyName?: string;
   sides: number;
   onSides: (sides: number) => void;
-  onOperation: (op: Operation) => void;
   frameLabel: string;
   onAccept: () => void;
 }) {
@@ -220,18 +206,19 @@ export function ShapeProperties({
           />
         </label>
       )}
-      <label className="modeling-field">
-        {tool === 'circle' && kind === 'sphere'
-          ? 'Pallo · koko määritetään halkaisijalla'
-          : 'Paksuus · mm'}
-        <input
-          aria-label="Muodon paksuus"
-          disabled={constructionLine || (tool === 'circle' && kind === 'sphere')}
-          inputMode="decimal"
-          value={thickness}
-          onChange={(e) => onField('thickness', e.target.value)}
-        />
-      </label>
+      {!(tool === 'circle' && kind === 'sphere') && (
+        <label className="modeling-field">
+          Paksuus · mm
+          <input
+            aria-label="Muodon paksuus"
+            disabled={constructionLine}
+            inputMode="decimal"
+            value={thickness}
+            onChange={(e) => onField('thickness', e.target.value)}
+          />
+        </label>
+      )}
+
       <label className="modeling-field">
         Käyttö
         <select
@@ -245,22 +232,25 @@ export function ShapeProperties({
           <option value="component">Nimetty osa</option>
         </select>
       </label>
-      <label className="modeling-field">
-        Piirtotapa
-        <select
-          aria-label="Piirtotapa"
-          disabled={constructionLine || (tool === 'circle' && kind === 'sphere')}
-          value={surfaceMode}
-          onChange={(e) => onSurfaceMode(e.target.value as typeof surfaceMode)}
-        >
-          <option value="new">Uusi osa</option>
-          <option value="region" disabled={!editingBodyName}>
-            Pinnan alue
-          </option>
-        </select>
-      </label>
+      {editingBodyName && !(tool === 'circle' && kind === 'sphere') && (
+        <label className="modeling-field">
+          Piirtotapa
+          <select
+            aria-label="Piirtotapa"
+            disabled={constructionLine || (tool === 'circle' && kind === 'sphere')}
+            value={surfaceMode}
+            onChange={(e) => onSurfaceMode(e.target.value as typeof surfaceMode)}
+          >
+            <option value="new">Uusi osa</option>
+            <option value="region" disabled={!editingBodyName}>
+              Pinnan alue
+            </option>
+          </select>
+        </label>
+      )}
+
       <details className="tool-advanced">
-        <summary>Lisäasetukset</summary>
+        <summary>Nimi ja käyttötapa</summary>
         <label className="modeling-field">
           Nimi
           <input
@@ -270,14 +260,13 @@ export function ShapeProperties({
             onChange={(e) => onName(e.target.value)}
           />
         </label>
-        <OperationSelect value="new" onChange={onOperation} />
         <p className="muted">{frameLabel}.</p>
         <p className="muted">
           {constructionLine
             ? 'Rakennusviiva ei jaa eikä leikkaa pintaa. Se tarjoaa tartunnat piirtämiselle.'
             : editingBodyName && surfaceMode === 'region'
               ? 'Paksuus 0 jakaa pinnan. Positiivinen lisää materiaalia, negatiivinen leikkaa.'
-              : 'Muoto syntyy omaksi osaksi. Pinnan jakamista varten avaa osa ensin tuplaklikkauksella.'}
+              : 'Uusi osa. Valmiin tasomuodon Jaa pinta tai Leikkaa aukko muokkaa alla olevaa osaa.'}
         </p>
         {purpose === 'component' && (
           <p className="muted">Kopiot ovat linkitettyjä. Tee uniikiksi irrottaa linkin.</p>

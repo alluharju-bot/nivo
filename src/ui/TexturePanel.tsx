@@ -73,7 +73,6 @@ export function TexturePanel({
   return (
     <section className="texture-editor" aria-label="Tekstuurin sijoittelu">
       <h3>{name ?? 'Tekstuurin sijoittelu'}</h3>
-      <p>Napsauta teksturoitua osaa. Vedä kuviota pinnasta: ↗ koko · ↻ kierto.</p>
       <button
         className="button outlined full"
         disabled={disabled || !count}
@@ -136,7 +135,7 @@ export function TexturePanel({
           ensin vapauttaa.
         </p>
       )}
-      <details className="texture-variation" open>
+      <details className="texture-variation">
         <summary>Vaihtele tekstuuria · {count} osaa</summary>
         <p>Anna valituille osille eri lähtökohdat. Kuvion koko ja osien sijainnit säilyvät.</p>
         <label>

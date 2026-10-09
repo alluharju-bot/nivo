@@ -59,6 +59,10 @@ test('retained fillet reopens, adds a meeting edge, changes size and can be remo
     page.getByRole('button', { name: 'Kiinnitä ryhmä: Ovilevyt', exact: true }),
   ).toBeEnabled();
   await page.keyboard.press('f');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Nykyinen reunakäsittely$/ })
+    .click();
   await page.getByRole('button', { name: 'Poista käsittely', exact: true }).click();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   expect((await save(page)).bodies[0].edgeTreatment).toBeUndefined();
@@ -126,6 +130,10 @@ test('move uses the same visible grab point and exact destination with grid enab
   const p = await view(page, [a, b]);
   await selectListed(page, a.id);
   await page.keyboard.press('m');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Siirtotapa$/ })
+    .click();
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const start = p(100, 80, 20),
     end = p(257.375, 143.625, 20);
@@ -248,6 +256,10 @@ test('move snaps edge points and axis references and obeys a saved grid step', a
   await page.locator('.viewport-settings summary').click();
   await selectListed(page, a.id);
   await page.keyboard.press('m');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Siirtotapa$/ })
+    .click();
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const start = p(27, 80, 20),
     end = p(284.375, 143.625, 20);
@@ -267,6 +279,10 @@ test('move snaps edge points and axis references and obeys a saved grid step', a
   await page.keyboard.press('Escape');
   await selectListed(page, a.id);
   await page.keyboard.press('m');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Siirtotapa$/ })
+    .click();
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const corner = p(100, 80, 20);
   await page.mouse.move(corner.x, corner.y);

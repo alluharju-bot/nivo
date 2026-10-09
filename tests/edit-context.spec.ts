@@ -59,7 +59,7 @@ test('a contained sketch is a new part by default, including after a direct E or
   const source = (await save(page)).bodies[0];
   await expect(page.getByTestId('edit-context')).toHaveCount(0);
   await page.keyboard.press('s');
-  await expect(page.getByRole('combobox', { name: 'Piirtotapa', exact: true })).toHaveValue('new');
+  await expect(page.getByRole('combobox', { name: 'Piirtotapa', exact: true })).toHaveCount(0);
   await click(page, point(80, 80, 30));
   await click(page, point(160, 120, 30));
   await expect(page.locator('.object-list .object-select')).toHaveCount(2);

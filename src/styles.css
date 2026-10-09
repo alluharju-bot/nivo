@@ -5560,14 +5560,6 @@ p {
 .tool-advanced > p {
   margin-top: 10px;
 }
-.tool-inspector .paint-panel > h2,
-.tool-inspector .edge-detail-panel > h2,
-.tool-inspector .edge-detail-panel > p:first-of-type,
-.tool-inspector .modeling-panel > .panel-title,
-.tool-inspector .dimension-tool-panel > h2,
-.tool-inspector .dimension-tool-panel > p:first-of-type {
-  display: none;
-}
 .numeric-hint {
   margin: 8px 0 0;
   font-size: 10px;
@@ -6459,4 +6451,126 @@ p {
   font-size: 11px;
   padding: 10px;
   color: inherit;
+}
+
+/* One current action per panel; explanations live in the animated guide. */
+.tool-context {
+  padding: 14px 18px 12px;
+}
+.tool-context h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.tool-context .tool-next-step {
+  margin: 7px 0;
+  line-height: 1.5;
+}
+.tool-context .tool-example,
+.through-shapes-panel .tool-example {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  height: auto;
+  min-height: 28px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  color: #527654;
+  cursor: pointer;
+}
+.tool-context .tool-example:hover,
+.through-shapes-panel .tool-example:hover {
+  color: #294f2e;
+  text-decoration: underline;
+  background: transparent;
+}
+.tool-context-status {
+  margin-top: 6px;
+}
+.tool-point-count,
+.tool-consequence {
+  margin: 0;
+  font-size: 11px;
+  color: #6b7864;
+}
+.tool-inspector > .tool-fields {
+  gap: 12px;
+}
+.tool-fields > .shape-properties {
+  padding: 0;
+}
+.tool-inspector .tool-advanced {
+  margin-top: 2px;
+  padding-top: 7px;
+}
+.rotation-panel > .tool-advanced {
+  width: 100%;
+}
+.inspector-details .selection-actions.object-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 7px 0;
+}
+.inspector-details .selection-actions.object-quick-actions button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 4px;
+  font-size: 10px;
+  justify-content: center;
+}
+.guide-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #eef2e9ed;
+  color: #3e5c3b;
+}
+.guide-loading section {
+  max-width: 420px;
+  margin: 24px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 16px;
+}
+.inspector-details .component-actions.inspector-disclosure {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+.inspector-details .component-actions.inspector-disclosure > summary {
+  padding: 12px 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #52634d;
+}
+.guide-loading p {
+  line-height: 1.6;
+}
+.guide-loading button {
+  padding: 10px 16px;
+  border: 1px solid #ccd6c8;
+  border-radius: 8px;
+  background: #f3f6ef;
+  color: inherit;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .tool-context .tool-example,
+  .through-shapes-panel .tool-example {
+    min-height: 40px;
+  }
+  .inspector-details .selection-actions.object-quick-actions button {
+    min-height: 44px;
+  }
 }

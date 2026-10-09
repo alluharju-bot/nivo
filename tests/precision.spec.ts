@@ -32,6 +32,10 @@ test('move ignores guides attached to the moving part but still snaps to fixed g
   await revealBrowser(page);
   await page.getByTestId(`body-${a.id}`).click();
   await page.keyboard.press('m');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Siirtotapa$/ })
+    .click();
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   await page.mouse.move(p(60, 60, 20).x, p(60, 60, 20).y);
   await page.mouse.down();
@@ -41,7 +45,16 @@ test('move ignores guides attached to the moving part but still snaps to fixed g
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   expect((await save(page)).bodies[0].origin).toEqual([170, 90, 0]);
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
-  await page.mouse.move(p(60, 60, 20).x, p(60, 60, 20).y);
+  // Undo's viewport update completes asynchronously. Wait for the returned
+  // corner to be pickable before starting another drag (not an empty marquee).
+  await expect
+    .poll(async () => {
+      const start = p(60, 60, 20);
+      await page.mouse.move(start.x + 1, start.y);
+      await page.mouse.move(start.x, start.y);
+      return page.getByTestId('viewport').getAttribute('data-move-hovered');
+    })
+    .toBe(JSON.stringify([a.id]));
   await page.mouse.down();
   await page.mouse.move(p(253, 304, 20).x, p(253, 304, 20).y, { steps: 6 });
   await expect(page.getByTestId('snap-hint')).toContainText('Tartunta · Apuviiva');

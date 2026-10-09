@@ -3,6 +3,15 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.30.0** selkeyttää työkalujen oikeaa paneelia ja lisää **33 lyhyttä
+havainneanimaatiota**. Työkalun **Näytä esimerkki** avaa juuri sen ohjeen;
+yläpalkin **Käyttöohje** avaa saman haettavan kirjaston. Animaation voi pysäyttää,
+kelata tai katsoa vaihe kerrallaan. Ohje ei muuta mallia tai keskeneräistä piirrosta.
+Paneelissa säilyvät seuraava askel, mitat ja tärkeimmät toiminnot; toistuvat
+selitykset siirtyvät ohjeisiin ja harvemmin käytetyt asetukset avattaviin osioihin.
+Valinnan kuusi päätoimintoa löytyvät kahdelta riviltä ennen materiaalia ja linkitystä.
+[Selkeytyspassin havainnot ja rajat](docs/tool-guides.fi.md).
+
 Versio **0.29.1** sujuvoittaa merkintöjä ja mallilistaa. Pinta-ala ottaa tason
 osoitetusta lattiasta tai seinästä; **Z = XY**, **Y = XZ**, **X = YZ** vaihtaa
 keskeneräisen alueen tasoa. Huomautuksen sijoitus ja veto avaavat tekstin

@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-10",
+  "before": "0.29.1 / fa2c6e1",
+  "after": "0.30.0",
+  "viewport": [1440, 960],
+  "project": "empty",
+  "method": "DOM innerText word count includes native select options; visible button count includes disabled buttons; no pixel-area or frame-rate claim",
+  "rows": [
+    {
+      "tool": "rectangle",
+      "beforeWords": 41,
+      "afterWords": 34,
+      "beforeButtons": 1,
+      "afterButtons": 2,
+      "beforeText": "TYÖKALU\nSuorakulmio\n\nUusi osa\n\nNapsauta alkukulmaa näkymästä.\n\nValmis aloitukseen\nPiirtotaso\nPinnan mukaan\nYZ-taso · X\nXZ-taso · Y\nXY-taso · Z\nPaksuus · mm\nKäyttö\nMallinnettava kappale\nRakentamisen apumuoto\nPiirros\nNimetty osa\nPiirtotapa\nUusi osa\nPinnan alue\nLisäasetukset\nTartunnat ja viitepisteet",
+      "afterText": "Suorakulmio\n\nUusi osa\n\nNapsauta alkukulmaa näkymästä.\n\nNäytä esimerkki\nPiirtotaso\nPinnan mukaan\nYZ-taso · X\nXZ-taso · Y\nXY-taso · Z\nPaksuus · mm\nKäyttö\nMallinnettava kappale\nRakentamisen apumuoto\nPiirros\nNimetty osa\nNimi ja käyttötapa"
+    },
+    {
+      "tool": "pen",
+      "beforeWords": 109,
+      "afterWords": 28,
+      "beforeButtons": 9,
+      "afterButtons": 7,
+      "beforeText": "TYÖKALU\nKynä\n\nUusi osa\n\nOsoita suunta ja kirjoita viivan pituus. + jatkaa osoitettuun suuntaan, − vastakkaiseen. Enter lisää pisteen. Tab vie X/Y/Z-siirtymiin. Shift lukitsee suunnan ja poimii viitepituuden.\n\nRuudukko · 10 mm\nSuoratBézier\nPaksuus · mm\nKäyttö\nMallinnettava kappale\nRakentamisen apumuoto\nPiirros\nNimetty osa\nPiirtotapa\nUusi osa\nPinnan alue\nLisäasetukset\n\n0 pistettä. Enter päättää viivan. Palaa alkupisteeseen sulkeaksesi muodon. Reunasta reunaan piirretty viiva jakaa tavallisen kappaleen tai avatun osan pinnan heti. Suljetun komponentin pinnalla valitse valmis viiva ja Jaa pinta. Suorilla kynäviivoilla suljettu alue täyttyy myös aiempien piirrosreunojen väliin, vaikka reunat ovat eri korkeuksilla.\n\nSulje muoto\nValmis viiva\nPoista viimeinen verteksi\nLukitse vetosuunta\nX\nY\nZ\nTartunnat ja viitepisteet",
+      "afterText": "Kynä\n\nUusi osa\n\nNapsauta alkupistettä näkymästä.\n\nNäytä esimerkki\nSuoratBézier\nPaksuus · mm\nKäyttö\nMallinnettava kappale\nRakentamisen apumuoto\nPiirros\nNimetty osa\nNimi ja käyttötapa\nLukitse vetosuunta\nX\nY\nZ"
+    },
+    {
+      "tool": "move",
+      "beforeWords": 43,
+      "afterWords": 20,
+      "beforeButtons": 4,
+      "afterButtons": 5,
+      "beforeText": "TYÖKALU\nSiirrä\n\nOsoita osaa ja tartu korostettuun pisteeseen.\n\nRuudukko · 10 mm\nSiirrä kopio · Ctrl vaihtaa\nVapaa siirto (XYZ)\n\nOletuksena yksi akseli vedon suunnasta. X/Y/Z vaihtaa akselin. Ctrl painallus vaihtaa siirron ja kopion välillä.\n\nLukitse vetosuunta\nX\nY\nZ\nTartunnat ja viitepisteet",
+      "afterText": "Siirrä\n\nOsoita osaa ja tartu korostettuun pisteeseen.\n\nNäytä esimerkki\nSiirrä kopio · Ctrl vaihtaa\nSiirtotapa\nLukitse vetosuunta\nX\nY\nZ"
+    },
+    {
+      "tool": "rotate",
+      "beforeWords": 40,
+      "afterWords": 9,
+      "beforeButtons": 1,
+      "afterButtons": 2,
+      "beforeText": "TYÖKALU\nKierrä\n\nR · Poimi kiertopiste tai reuna. Vedä rengasta tai anna kulma. X/Y/Z valitsee akselin; veto tarttuu 5° välein. Shift kiertää vapaasti. Esc peruu toiminnon; seuraava Esc päättää työkalun.\n\nRuudukko · 10 mm\n\nValitse kierrettävä kappale listasta tai näkymästä.",
+      "afterText": "Kierrä\n\nValitse kierrettävä osa näkymästä tai listasta.\n\nNäytä esimerkki"
+    },
+    {
+      "tool": "extrude",
+      "beforeWords": 13,
+      "afterWords": 10,
+      "beforeButtons": 1,
+      "afterButtons": 2,
+      "beforeText": "TYÖKALU\nPush / pull\n\nOsoita pintaa ja vedä siitä.\n\nRuudukko · 10 mm",
+      "afterText": "Push / pull\n\nOsoita pintaa ja vedä siitä.\n\nNäytä esimerkki"
+    },
+    {
+      "tool": "offset",
+      "beforeWords": 12,
+      "afterWords": 9,
+      "beforeButtons": 1,
+      "afterButtons": 2,
+      "beforeText": "TYÖKALU\nOffset\n\nOsoita pintaa ja napsauta tai vedä.\n\nRuudukko · 10 mm",
+      "afterText": "Offset\n\nOsoita pintaa ja napsauta tai vedä.\n\nNäytä esimerkki"
+    },
+    {
+      "tool": "detail",
+      "beforeWords": 74,
+      "afterWords": 34,
+      "beforeButtons": 6,
+      "afterButtons": 7,
+      "beforeText": "TYÖKALU\nReunat\n\nValitse reunat tai vedä reunasta säätääksesi kokoa.\n\nRuudukko · 10 mm\nMitat\nTab →\nSäde\nmm\n\nNumero aloittaa · Tab vaihtaa kenttää · Esc peruu\n\nReunakäsittely\nPyöristys\nViiste\n\nValitse osa mallista · 0 reunaa valittu\n\nKaikki reunat\nTyhjennä reunavalinta\nHyväksy reunakäsittely\nPeru · Esc\n\nPyöristyksen mitta on säde. Viiste käyttää samaa etäisyyttä reunan molemmilla pinnoilla. Valitusta reunasta vetäminen säätää koko reunavalintaa. Vastakkainen vetosuunta pienentää mittaa. Kirjoitettu mitta pysyy lukittuna vedon loppuun asti.",
+      "afterText": "Reunat\n\nValitse reunat tai vedä reunasta säätääksesi kokoa.\n\nNäytä esimerkki\nMitat\nTab →\nSäde\nmm\nReunakäsittely\nPyöristys\nViiste\n\nValitse osa mallista · 0 reunaa valittu\n\nKaikki reunat\nTyhjennä reunavalinta\nHyväksy reunakäsittely\nPeru · Esc"
+    },
+    {
+      "tool": "measure",
+      "beforeWords": 72,
+      "afterWords": 15,
+      "beforeButtons": 7,
+      "afterButtons": 5,
+      "beforeText": "TYÖKALU\nApuviiva\n\nVedä verteksistä tai reunasta. X/Y/Z lukitsee siirtosuunnan. Esc peruu toiminnon; seuraava Esc päättää työkalun. R aloittaa hiirellä kierron 22,5° välein, Shift+R vapaasti.\n\nRuudukko · 10 mm\nApuviiva · Vaihda tilaa\nKierrä mittaviivaa · R\n\nR käynnistää hiirellä kierron 22,5° välein. X/Y/Z lukitsee siirtosuunnan; sama näppäin vapauttaa. Esc peruu vedon; seuraava Esc päättää työkalun. Shift+R käynnistää vapaan kierron; osoita suunta ja hyväksy.\n\nVapaa kierto · Shift+R\nLukitse vetosuunta\nX\nY\nZ",
+      "afterText": "Apuviiva\n\nTartu reunaan tai pisteeseen ja vedä apuviiva.\n\nNäytä esimerkki\nLukitse vetosuunta\nX\nY\nZ"
+    },
+    {
+      "tool": "paint",
+      "beforeWords": 358,
+      "afterWords": 329,
+      "beforeButtons": 3,
+      "afterButtons": 4,
+      "beforeText": "TYÖKALU\nMaalipensseli\n\nP · Valitse materiaali ja napsauta osia maalataksesi. Kohdevalinta kertoo, maalataanko koko valinta. Esc päättää.\n\nValmis aloitukseen\nMaalaa\nTekstuurin asettelu\n\nValitse pinta ja napsauta maalattavaa osaa. P · Esc päättää.\n\nMateriaali\nMänty · lakattu\nTammi · viilu\nValkotammi · viilu\nTammi · musta viilu\nSaarni · viilu\nVaahtera · vaalea viilu\nKirsikka · viilu\nTiikki · viilu\nBambu · viilu\nPähkinä · harmaanruskea viilu\nPähkinä · savustettu viilu\nAmerikanpähkinä · harmaa viilu\nAmerikanpähkinä · ruskea viilu\nEuroopanpähkinä · lämmin viilu\nEuroopanpähkinä · tumma viilu\nKipsipinta · sileä\nRappaus · karkea\nRappaus · harmaa\nBetoni · raaka\nBetoni · liipattu\nMarmorilaatta · vaalea\nSeinälaatta · valkoinen\nTerrazzo · lämmin\nGraniittilaatta · harmaa\nTerrakottalaatta · patinoitu\nPellava · siniharmaa\nNahka · ruskea\nNahka · valkoinen\nMaali · liitu\nMaali · pellava\nMaali · hiekka\nMaali · harmaabeige\nMaali · savi\nMaali · terrakotta\nMaali · puuteriroosa\nMaali · salvia\nMaali · oliivi\nMaali · usvansininen\nMaali · mustesininen\nMaali · hiili\nMaali · tasainen väri\nPeili\nLuonnontammi\nVaalea tammi\nSavutammi\nPähkinä\nKoivu\nMänty\nPähkinä · öljytty\nHarjattu alumiini\nHarjattu ruostumaton teräs\nKromi\nMessinki\nKupari\nHapettunut kupari\nMusta kromi\nAnodisoitu alumiini · hopea\nAnodisoitu alumiini · musta\nAnodisoitu alumiini · samppanja\nAnodisoitu alumiini · pronssi\nAnodisoitu alumiini · sininen\nAnodisoitu alumiini · punainen\nKirkas lasi\nSavulasi\nHuurrelasi\nMatta ABS\nKiiltävä ABS\nKirkas akryyli\nHuurteinen akryyli\nGraniitti\nMarmori\nLiuskekivi\nTravertiini\nKalkkikivi\nHiekkakivi\nMusta marmori\nTerrazzo · vaalea\nKiiltävä valkoinen posliini\nMatta valkoinen posliini\nTumma lasitettu posliini\nValkoinen melamiini\nHarmaa laminaatti\nMaalattu kalustepinta\nLED · lämmin valkoinen\nLED · neutraali valkoinen\nLED · viileä valkoinen\nMelamiini · lämmin valkoinen\nMelamiini · puhdas valkoinen\nMelamiini · vaaleanharmaa\nMelamiini · grafiitti\nMelamiini · tammikuvio\nMDF · käsittelemätön\nMDF · maalattu valkoinen\nKoivuvaneri · pinta\nLastulevy · käsittelemätön\nLaminaatti · mattamusta\nMaalattu kipsi · sileä\nMaalattu kipsi · karkea\nTasoitettu seinä\nRaaka betoni\nLiipattu betoni\nLaatta · valkoinen kiiltävä\nSeinälaatta · valkoinen 100 × 200 mm\nLaatta · harmaa matta\nLaatta · terrakotta\nVäri\nPintakäsittely\nMateriaalin oma\nSäädetty\nMatta\nSilkinhimmeä\nPuolikiiltävä\nKiiltävä\nKiilto\n45 %\nMatta\nKiiltävä\nKomponentin materiaali\nMyös linkitetyt kopiot\nVain maalattavat esiintymät\n\nMaalaus säilyttää geometrian ja sijainnin. Peru kumoaa yhden maalauksen.",
+      "afterText": "Maalipensseli\n\nValitse materiaali ja napsauta maalattavaa osaa.\n\nNäytä esimerkki\nMaalaa\nTekstuurin asettelu\nMateriaali\nMänty · lakattu\nTammi · viilu\nValkotammi · viilu\nTammi · musta viilu\nSaarni · viilu\nVaahtera · vaalea viilu\nKirsikka · viilu\nTiikki · viilu\nBambu · viilu\nPähkinä · harmaanruskea viilu\nPähkinä · savustettu viilu\nAmerikanpähkinä · harmaa viilu\nAmerikanpähkinä · ruskea viilu\nEuroopanpähkinä · lämmin viilu\nEuroopanpähkinä · tumma viilu\nKipsipinta · sileä\nRappaus · karkea\nRappaus · harmaa\nBetoni · raaka\nBetoni · liipattu\nMarmorilaatta · vaalea\nSeinälaatta · valkoinen\nTerrazzo · lämmin\nGraniittilaatta · harmaa\nTerrakottalaatta · patinoitu\nPellava · siniharmaa\nNahka · ruskea\nNahka · valkoinen\nMaali · liitu\nMaali · pellava\nMaali · hiekka\nMaali · harmaabeige\nMaali · savi\nMaali · terrakotta\nMaali · puuteriroosa\nMaali · salvia\nMaali · oliivi\nMaali · usvansininen\nMaali · mustesininen\nMaali · hiili\nMaali · tasainen väri\nPeili\nLuonnontammi\nVaalea tammi\nSavutammi\nPähkinä\nKoivu\nMänty\nPähkinä · öljytty\nHarjattu alumiini\nHarjattu ruostumaton teräs\nKromi\nMessinki\nKupari\nHapettunut kupari\nMusta kromi\nAnodisoitu alumiini · hopea\nAnodisoitu alumiini · musta\nAnodisoitu alumiini · samppanja\nAnodisoitu alumiini · pronssi\nAnodisoitu alumiini · sininen\nAnodisoitu alumiini · punainen\nKirkas lasi\nSavulasi\nHuurrelasi\nMatta ABS\nKiiltävä ABS\nKirkas akryyli\nHuurteinen akryyli\nGraniitti\nMarmori\nLiuskekivi\nTravertiini\nKalkkikivi\nHiekkakivi\nMusta marmori\nTerrazzo · vaalea\nKiiltävä valkoinen posliini\nMatta valkoinen posliini\nTumma lasitettu posliini\nValkoinen melamiini\nHarmaa laminaatti\nMaalattu kalustepinta\nLED · lämmin valkoinen\nLED · neutraali valkoinen\nLED · viileä valkoinen\nMelamiini · lämmin valkoinen\nMelamiini · puhdas valkoinen\nMelamiini · vaaleanharmaa\nMelamiini · grafiitti\nMelamiini · tammikuvio\nMDF · käsittelemätön\nMDF · maalattu valkoinen\nKoivuvaneri · pinta\nLastulevy · käsittelemätön\nLaminaatti · mattamusta\nMaalattu kipsi · sileä\nMaalattu kipsi · karkea\nTasoitettu seinä\nRaaka betoni\nLiipattu betoni\nLaatta · valkoinen kiiltävä\nSeinälaatta · valkoinen 100 × 200 mm\nLaatta · harmaa matta\nLaatta · terrakotta\nVäri\nPintakäsittely\nMateriaalin oma\nSäädetty\nMatta\nSilkinhimmeä\nPuolikiiltävä\nKiiltävä\nKiilto\n45 %\nMatta\nKiiltävä\nKomponentin materiaali\nMyös linkitetyt kopiot\nVain maalattavat esiintymät"
+    },
+    {
+      "tool": "knife",
+      "beforeWords": 74,
+      "afterWords": 38,
+      "beforeButtons": 4,
+      "afterButtons": 4,
+      "beforeText": "TYÖKALU\nVeitsi\n\nPiirrä leikkaus nykyisestä näkymästä. Molemmat puolet säilyvät. Esc peruu reitin; seuraava Esc päättää työkalun.\n\nValmis aloitukseen\n\nNäkyvät osat · 0 muokattavaa kohdetta\n\nReitti\nSuora\nTaitettu / siluetti\nBézier-kaari\nVapaa viilto\n\nVedä viiva osien yli tai napsauta alku ja loppu.\n\nMolemmat puolet jäävät erillisiksi osiksi. Linkitetyt kopiot saavat saman leikkauksen ja vastaavat palat pysyvät linkitettyinä. Hold estää muokkaamisen.\n\nTee kohteista uniikkeja · muuta vain valittuja\nLeikkaa reitti · EnterTyhjennä reittiLopeta veitsi · Esc",
+      "afterText": "Veitsi\n\nVedä leikkausviiva osien yli.\n\nNäytä esimerkki\n\nNäkyvät osat · 0 muokattavaa kohdetta\n\nReitti\nSuora\nTaitettu / siluetti\nBézier-kaari\nVapaa viilto\n\nMolemmat puolet säilyvät erillisinä osina.\n\nTee kohteista uniikkeja · muuta vain valittuja\nLeikkaa reitti · EnterTyhjennä reitti"
+    },
+    {
+      "tool": "boolean",
+      "beforeWords": 52,
+      "afterWords": 26,
+      "beforeButtons": 6,
+      "afterButtons": 7,
+      "beforeText": "TYÖKALU\nLeikkaa\n\nValitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.\n\nValmis aloitukseen\nToiminto\nUusi muoto\nCut — Leikkaa\nJoin — Yhdistä\n\nTyöstökappaleiden tilavuus poistetaan jokaisesta kohteesta.\n\nKohteet\n0\nTarget bodies · valitse listasta tai näkymästä\nTyöstökappaleet\n0\nTool bodies · valitse listasta tai näkymästä\nVaihda keskenään\nSäilytä työstökappaleet\nPeruuta\nHyväksy Cut",
+      "afterText": "Leikkaa\n\nValitse muokattavat kohdeosat.\n\nNäytä esimerkki\nToiminto\nUusi muoto\nCut — Leikkaa\nJoin — Yhdistä\nKohteet\n0\nTyöstökappaleet\n0\nVaihda keskenään\nSäilytä työstökappaleet\nPeruuta\nHyväksy Cut"
+    }
+  ]
+}

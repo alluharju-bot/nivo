@@ -13,7 +13,7 @@ import {
 } from '../src/model/project';
 import { sketchFrame, fromUV } from '../src/model/sketch';
 async function ready(page: Page, bodies: Body[] = []) {
-  await page.goto('/');
+  await page.goto(process.env.NIVO_BASE_PATH ?? '/');
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
   if (bodies.length) {
     await page.getByTestId('project-file').setInputFiles({
@@ -230,6 +230,7 @@ test('viewport group picking, reverse Cut with kept tool, and Join use the same 
   await page.keyboard.press('b');
   await page.getByRole('combobox', { name: 'Toiminto', exact: true }).selectOption('join');
   await page.getByRole('checkbox', { name: 'Kohde: A', exact: true }).check();
+  await page.getByRole('button', { name: 'Työstökappaleet 0', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Työstökappale: B', exact: true }).check();
   await page.getByRole('checkbox', { name: 'Säilytä työstökappaleet', exact: true }).uncheck();
   await page.getByRole('button', { name: 'Hyväksy Join', exact: true }).click();
@@ -250,7 +251,7 @@ test('ellipse, regular polygon and construction roles keep precise dimensions an
   await ready(page);
   await page.keyboard.press('c');
   await page.getByRole('combobox', { name: 'Muoto', exact: true }).selectOption('ellipse');
-  await page.getByText('Lisäasetukset', { exact: true }).click();
+  await page.getByText('Nimi ja käyttötapa', { exact: true }).click();
   await page.getByRole('textbox', { name: 'Muodon nimi', exact: true }).fill('Ovaali osa');
   await page.getByRole('textbox', { name: 'Muodon nimi', exact: true }).blur();
   await page.keyboard.type('120');
@@ -308,6 +309,7 @@ test('disjoint cuts report the problem atomically and flat sketches cannot be cu
   await ready(page, [a, b, flat]);
   await page.keyboard.press('b');
   await page.getByRole('checkbox', { name: 'Kohde: Kohde', exact: true }).check();
+  await page.getByRole('button', { name: 'Työstökappaleet 0', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Työstökappale: Irrallinen', exact: true }).check();
   await expect(
     page.getByRole('checkbox', { name: 'Työstökappale: Luonnos', exact: true }),

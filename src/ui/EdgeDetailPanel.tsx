@@ -36,30 +36,6 @@ export function EdgeDetailPanel({
 }) {
   return (
     <section className="edge-detail-panel" aria-label="Viisteet ja pyöristykset">
-      <h2>{retained ? 'Muokkaa reunakäsittelyä' : 'Viimeistele reunat'}</h2>
-      {retained && (
-        <>
-          <p>
-            Valitse alkuperäisiä reunoja: kohtaavat kulmat lasketaan yhdessä. Napsautus lisää tai
-            poistaa reunan käsittelystä.
-          </p>
-          <div className="object-quick-actions">
-            <button disabled={busy} onClick={onRemove}>
-              Poista käsittely
-            </button>
-            <button disabled={busy} onClick={onFinalize}>
-              Viimeistele ja aloita uusi
-            </button>
-          </div>
-          <p className="muted">
-            Pinnan muu muokkaus (E, O, Cut tai Join) liittää tämän käsittelyn geometriaan.
-          </p>
-        </>
-      )}
-      <p>
-        Vedä reunasta säätääksesi kokoa. Vapautus hyväksyy. Voit myös napsauttaa useita reunoja
-        valintaan ja kirjoittaa tarkan mitan. Enter hyväksyy, Esc peruu.
-      </p>
       <label className="modeling-field">
         Reunakäsittely
         <select
@@ -93,6 +69,22 @@ export function EdgeDetailPanel({
           Tyhjennä reunavalinta
         </button>
       </div>
+      {retained && (
+        <details className="tool-advanced">
+          <summary>Nykyinen reunakäsittely</summary>
+          <p>
+            Kohtaavat reunat lasketaan yhdessä. Muu pintamuokkaus liittää käsittelyn geometriaan.
+          </p>
+          <div className="object-quick-actions">
+            <button disabled={busy} onClick={onRemove}>
+              Poista käsittely
+            </button>
+            <button disabled={busy} onClick={onFinalize}>
+              Viimeistele ja aloita uusi
+            </button>
+          </div>
+        </details>
+      )}
       {loading && <p role="status">Lasketaan esikatselua…</p>}
       {error && (
         <p role="alert" className="detail-error">
@@ -109,11 +101,6 @@ export function EdgeDetailPanel({
       <button className="button outlined full" onClick={onCancel}>
         <X size={16} /> Peru · Esc
       </button>
-      <p className="muted">
-        Pyöristyksen mitta on säde. Viiste käyttää samaa etäisyyttä reunan molemmilla pinnoilla.
-        Valitusta reunasta vetäminen säätää koko reunavalintaa. Vastakkainen vetosuunta pienentää
-        mittaa. Kirjoitettu mitta pysyy lukittuna vedon loppuun asti.
-      </p>
     </section>
   );
 }

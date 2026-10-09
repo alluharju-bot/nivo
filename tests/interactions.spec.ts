@@ -180,6 +180,10 @@ test('construction guide attracts both drawing and moving, follows its source an
   await page.getByRole('button', { name: 'Näytä mallilista', exact: true }).click();
   await page.locator('.object-list .object-select').nth(1).click();
   await page.getByRole('button', { name: 'Siirrä', exact: true }).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Siirtotapa$/ })
+    .click();
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   const a = point(320, 0),
     b = point(240, 243);

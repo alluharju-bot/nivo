@@ -4,6 +4,46 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.30.0 — selkeät työkalupaneelit ja havainneanimaatiot
+
+**360 yksikkö-/CAD-testiä hyväksytty (69 tiedostoa)**. TypeScript,
+`/nivo/`-tuotantobuild, lisenssit ja muutettujen tiedostojen muotoilu hyväksytty.
+**112 eri kohdennettua selaintapausta hyväksytty** työpöytä- ja tablettiprofiileissa.
+Kaksi vain kosketukselle tarkoitettua tapausta ohitetaan työpöydällä.
+Viimeisteltyjen ohjeiden ja paneelien 20 tapausta sekä kierron kaksi
+kohdistusregressiota hyväksytty loppuajossa.
+
+- Jokainen 33 ohjeesta ja kaikki kolme vaihetta piirtyvät. Haku toimii myös
+  ilman ääkkösiä; tyhjä hakutulos on selkeä. Mallin tallennettu sisältö säilyy.
+- Automaattinen toisto, pysäytys, kelaus loppuun, uudelleentoisto, vähennetty
+  liike, 390 × 844 näkymä, kohdistuksen kierto ja Escape. Kuvista tarkistettu
+  työpöytä-/mobiiliohjeet, kaikkien aiheiden tuloskuvat ja valinnan päätoiminnot.
+- Keskeneräinen 222 mm suorakulmio säilyy ohjeen aikana: X/Y/Z, E, H ja numerot
+  eivät vuoda mallinnukseen. Reunakäsittelyn viistetila avaa juuri viisteohjeen.
+- Ohjemoduulin lataus katkaistaan testissä: virheikkuna on suljettavissa ja
+  mallinnus sekä tallennus toimivat. CAD-osat ja aktiivinen työkalu säilyvät.
+- Kynän aloitus on tiivis, pallolla ei ole paksuutta, Piirtotapa näkyy vain
+  muokkaustilassa. Päätoiminnot ovat ennen materiaalia. Vapaa siirto ja kiertopisteen
+  koordinaatit löytyvät avattavista osioista ja muuttavat oikeita asetuksia.
+- Offset hiirellä/numerolla, reunojen monivalinta ja veto, virheestä palautuminen,
+  kosketusperuminen, Hold, nykyisen reunakäsittelyn poisto ja Undo. Muokkaustilan
+  rajaus, kumitus, vinon/kohtisuoran pinnan piirto ja pursotus sekä tallennettu historia.
+- Monikohteinen Cut/Join, käännetty leikkaus, leikkureiden säilytys ja Undo,
+  tyhjän leikkauksen virhe sekä ellipsin/monikulmion tarkat mitat.
+- Kopiointi, alkuperäisen sijainnin säilyminen, linkitetty kopio, peruminen,
+  omaan osaan sidotun apuviivan ohittaminen ja kiinteään apuviivaan tarttuminen.
+  Undo-testissä odotetaan, että palautunut nurkka on osoitettavissa ennen vetoa.
+- Mittaviivan R- ja Shift+R-kierto sekä vapaan kierron painike palauttavat
+  kohdistuksen näkymään. Tallennuspainikkeeseen jäänyt kohdistus ei enää estä
+  Enter-hyväksyntää. Testi tarkistaa kierron tallennuksen ja jatkuvan mittatyökalun.
+- Tekstuurin asettelu ja vaihtelu, pinta-ala ja huomautus, merkintöjen roskakorit,
+  hakutoiminto ja päällekkäisten osien valinta jatkavat toimintaansa.
+- Kopiotestien odotukset päivitettiin nykyiseen linkitettyyn komponenttimalliin;
+  piiloon liukuneen mallilistan testi avaa listan ennen napsautusta. Siirretyt
+  lisäasetukset avataan niiden uusista nimetyistä osioista.
+
+[Auditin havainnot, mittaukset ja ohjeiden rajat](tool-guides.fi.md).
+
 ## V0.29.1 — merkintöjen vaste ja mallilistan pikatoiminnot
 
 **360 yksikkö-/CAD-testiä hyväksytty (69 tiedostoa)**. TypeScript,

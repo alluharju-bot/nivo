@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { bounds, freshProject, makeBody, type Body, type Project } from '../src/model/project';
 
 async function ready(page: Page, bodies: Body[]) {
-  await page.goto('/');
+  await page.goto(process.env.NIVO_BASE_PATH ?? '/');
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
   await page.getByTestId('project-file').setInputFiles({
     name: 'interaction.nivo',
@@ -38,7 +38,7 @@ test('one compact header, native fullscreen and narrow-screen actions', async ({
   await page.getByRole('button', { name: 'Käyttöohje', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(
-    await page.evaluate(() => !!document.elementFromPoint(20, 20)?.closest('.modal-backdrop')),
+    await page.evaluate(() => !!document.elementFromPoint(20, 20)?.closest('.guide-backdrop')),
   ).toBe(true);
   await page.getByRole('button', { name: 'Sulje ohje', exact: true }).click();
   for (const name of [
@@ -149,6 +149,10 @@ test('whole-object selection and late Ctrl copy keep the grabbed corner and orig
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-selection-kind', 'object');
   await expect(page.locator('.selection-tag')).toHaveText('CAD-kappale');
   await page.keyboard.press('m');
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Siirtotapa$/ })
+    .click();
   await page.getByRole('checkbox', { name: 'Vapaa siirto (XYZ)', exact: true }).check();
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
@@ -162,7 +166,9 @@ test('whole-object selection and late Ctrl copy keep the grabbed corner and orig
   await page.keyboard.up('Control');
   await expect(page.locator('.object-list .object-select')).toHaveCount(3);
   const model = await save(page);
-  expect(model.bodies[0]).toEqual(source);
+  expect(model.bodies[0]).toMatchObject({ ...source, purpose: 'component' });
+  expect(model.bodies[0].component?.id).toBeTruthy();
+  expect(model.bodies[2].component?.id).toBe(model.bodies[0].component!.id);
   expect(model.bodies[1]).toEqual(target);
   expect(model.bodies[2].id).not.toBe(source.id);
   expect(model.bodies[2].feature).toEqual(source.feature);
@@ -188,6 +194,7 @@ test('copy can be cancelled and the copy checkbox supports an exact numeric plac
   await page.mouse.up();
   await page.keyboard.up('Control');
   expect((await save(page)).bodies).toEqual([source]);
+  await page.getByRole('button', { name: 'Näytä mallilista', exact: true }).press('Enter');
   await page.getByTestId(`body-${source.id}`).click();
   await page.keyboard.press('m');
   await page.getByRole('checkbox', { name: 'Siirrä kopio', exact: true }).check();
@@ -195,7 +202,9 @@ test('copy can be cancelled and the copy checkbox supports an exact numeric plac
   await page.getByTestId('move-x').press('Enter');
   await expect(page.locator('.object-list .object-select')).toHaveCount(2);
   const model = await save(page);
-  expect(model.bodies[0]).toEqual(source);
+  expect(model.bodies[0]).toMatchObject({ ...source, purpose: 'component' });
+  expect(model.bodies[0].component?.id).toBeTruthy();
+  expect(model.bodies[1].component?.id).toBe(model.bodies[0].component!.id);
   expect(model.bodies[1].origin).toEqual([652, 0, 0]);
   expect(model.bodies[1].feature).toEqual(source.feature);
 });

@@ -1,72 +1,31 @@
 import { GroupOptions } from './GroupOptions';
 import { useState } from 'react';
-import { Crosshair, LockKeyhole, RotateCw, Unlock } from 'lucide-react';
+import { Crosshair } from 'lucide-react';
 import type { Body, BodyGroup } from '../model/project';
 import { BodyColor } from './BodyColor';
 
 export function ObjectActions({
   body,
   groups,
-  count,
   mixedColor,
   busy,
-  onChange,
   onGroup,
   onOrigin,
-  onRotate,
-  onHold,
   onColor,
   onPreviewColor,
-  onEdit,
-  editing,
 }: {
   body: Body;
   groups: BodyGroup[];
-  count: number;
   mixedColor: boolean;
   busy: boolean;
-  onChange: (patch: Partial<Body>) => void;
   onGroup: (groupId?: string) => void;
   onOrigin: (reference: 'min' | 'center') => void;
-  onRotate: () => void;
-  onHold: () => void;
   onColor: (color: string) => void;
   onPreviewColor?: (color?: string) => void;
-  onEdit: () => void;
-  editing: boolean;
 }) {
   const [reference, setReference] = useState<'min' | 'center'>('min');
   return (
     <section className="object-actions-panel" aria-label="Kappaleen toiminnot">
-      <div className="object-quick-actions">
-        <button
-          aria-label="Muokkaa osaa"
-          onClick={onEdit}
-          disabled={busy || body.locked || body.hidden || editing}
-        >
-          {editing ? 'Muokkaustila avoinna' : 'Muokkaa osaa'}
-        </button>
-        <button aria-label="Kierrä valittuja" onClick={onRotate} disabled={busy || body.locked}>
-          <RotateCw size={16} /> Kierrä · R
-        </button>
-        <button
-          aria-label="Kiinnitä paikalleen"
-          aria-pressed={body.locked}
-          className={body.locked ? 'held' : ''}
-          title={body.locked ? 'Vapauta Hold ennen muokkaamista' : 'Hold estää osan muokkaamisen'}
-          onClick={onHold}
-          disabled={busy}
-        >
-          {body.locked ? <LockKeyhole size={16} /> : <Unlock size={16} />}
-          {body.locked ? 'Vapauta Hold' : 'Kiinnitä'} · G
-        </button>
-      </div>
-      {count > 1 && (
-        <p className="muted">
-          Siirto, kopiointi, väri, kierto, kiinnitys, origoon siirto ja ryhmä koskevat kaikkia{' '}
-          {count} valittua.
-        </p>
-      )}
       <details className="inspector-disclosure">
         <summary>Ryhmä</summary>
         <div className="disclosure-content">

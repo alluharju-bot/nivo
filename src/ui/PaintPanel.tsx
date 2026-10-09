@@ -27,8 +27,6 @@ export function PaintPanel({
 }) {
   return (
     <section className="paint-panel" aria-label="Maalipensselin paletti">
-      <h2>Maalipensseli</h2>
-      <p className="muted">Valitse pinta ja napsauta maalattavaa osaa. P · Esc päättää.</p>
       <label>
         Materiaali
         <select
@@ -75,9 +73,7 @@ export function PaintPanel({
         </label>
       )}
       {hasAppearanceTexture(appearance) && (
-        <p className="muted">
-          Väri sävyttää tekstuuria. Valkoinen säilyttää kuvan alkuperäiset värit.
-        </p>
+        <p className="muted">Valkoinen säilyttää tekstuurin alkuperäiset värit.</p>
       )}
       <SurfaceFinish appearance={appearance} onChange={(value) => onChange(value, color)} />
       <label>
@@ -91,9 +87,6 @@ export function PaintPanel({
           <option value="local">Vain maalattavat esiintymät</option>
         </select>
       </label>
-      <p className="muted">
-        Maalaus säilyttää geometrian ja sijainnin. Peru kumoaa yhden maalauksen.
-      </p>
     </section>
   );
 }

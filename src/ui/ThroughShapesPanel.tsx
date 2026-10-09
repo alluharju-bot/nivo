@@ -14,6 +14,7 @@ export function ThroughShapesPanel({
   onPreview,
   onCommit,
   onClose,
+  onHelp,
 }: {
   bodies: Body[];
   ids: string[];
@@ -23,6 +24,7 @@ export function ThroughShapesPanel({
   onPreview: (result?: EdgeDetailResult) => void;
   onCommit: (result: EdgeDetailResult, ids: string[], hide: boolean) => Promise<void>;
   onClose: () => void;
+  onHelp: () => void;
 }) {
   const [options, setOptions] = useState<ThroughShapesOptions>({
     mode: 'sections',
@@ -79,10 +81,14 @@ export function ThroughShapesPanel({
             ×
           </button>
         </div>
-        <p className="muted">
-          Napsauta muotoja järjestyksessä näkymästä tai listalta. Napsauta uudelleen poistaaksesi
-          valinnasta.
-        </p>
+        <p className="muted">Valitse profiilit järjestyksessä näkymästä tai listasta.</p>
+        <button
+          className="tool-example"
+          onClick={onHelp}
+          aria-label="Näytä esimerkki: Muotojen läpi"
+        >
+          Näytä esimerkki
+        </button>
         <label className="modeling-field">
           Rakennustapa
           <select
@@ -100,11 +106,7 @@ export function ThroughShapesPanel({
             <option value="sides">Sivukäyrät</option>
           </select>
         </label>
-        <p className="muted">
-          {options.mode === 'sections'
-            ? 'Ympyrät, suorakulmiot tai muut profiilit peräkkäin. Eri kokoiset ympyrät muodostavat kartiomaisen siirtymän.'
-            : 'Kaksi viivaa muodostaa pintakaistaleen. Valitse pullon sivukäyrät kiertojärjestyksessä, kaikki alhaalta ylöspäin.'}
-        </p>
+
         <ol className="loft-profiles">
           {profiles.map((body, i) => (
             <li key={body.id}>

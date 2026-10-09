@@ -90,6 +90,10 @@ test('selected linked panels get independent, undoable texture origins while til
   await page.keyboard.press('p');
   await page.getByRole('button', { name: 'Tekstuurin asettelu', exact: true }).click();
   await expect(page.getByText('Vaihtele tekstuuria · 8 osaa', { exact: true })).toBeVisible();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Vaihtele tekstuuria/ })
+    .click();
   await page.getByRole('button', { name: 'Vaihtele valitut tekstuurit', exact: true }).click();
   const varied = await save(page);
   expect(new Set(varied.bodies.slice(0, 8).map((b) => b.appearance!.texture.offsetX)).size).toBe(8);
