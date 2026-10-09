@@ -105,7 +105,13 @@ export type CadRequest =
   | { type: 'pen-path'; points: Vec3[]; name: string }
   | { type: 'pen-regions'; path: Body; boundaries: Body[]; previous: Body[] }
   | { type: 'split-path'; body: Body; face: FaceRef; path: Body }
-  | { type: 'cut-opening'; profile: Body; targets: Body[] }
+  | {
+      type: 'cut-opening';
+      profile: Body;
+      targets: Body[];
+      options?: import('../model/openingPattern').OpeningPattern;
+    }
+  | { type: 'face-profile'; body: Body; face: FaceRef }
   | { type: 'section'; bodies: Body[]; section: Section; drawing: boolean }
   | { type: 'instances'; source: Body; targets: Body[] }
   | { type: 'sync'; updates: Body[]; order: string[] }

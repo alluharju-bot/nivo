@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import init from 'replicad-opencascadejs';
 import { setOC } from 'replicad';
 import { createShape, meshBody, pushPullFace } from './kernel';
-import { removeBoundary } from './operations';
-import { penPath, splitWithPath, cutOpening, divideSurfaces } from './paths';
+import { removeBoundary, splitFace } from './operations';
+import { penPath, splitWithPath, cutOpening, divideSurfaces, faceProfile } from './paths';
 import { makeBody, makeProfileBody, freshProject, parseProject, type Body } from '../model/project';
 import { sketchFrame } from '../model/sketch';
 import { rotateBodies } from './transforms';
@@ -115,7 +115,7 @@ it('cuts round and pen openings on rotated planes and can remove a fully covered
     },
     sketchFrame([0, 0, 80]),
   );
-  expect(cutOpening(polygon, [part])).toEqual({ bodies: [], affected: [part.id] });
+  expect(cutOpening(polygon, [part])).toMatchObject({ bodies: [], affected: [part.id] });
   expect(() =>
     cutOpening(
       penPath(
@@ -165,4 +165,43 @@ it('explicit surface division applies standalone lines and partly overhanging ci
   const [rotated, drawing] = rotateBodies([plate, line], [0, 0, 0], [1, 1, 0], 37);
   expect(divideSurfaces(drawing, [rotated])).toHaveLength(1);
   expect(() => divideSurfaces(line, [{ ...plate, locked: true }])).toThrow('Hold');
+});
+
+it('repeats a captured push/pull opening, keeps the opposite wall and persists the exact result', () => {
+  const front = makeBody(120, 3, 60),
+    back = makeBody(120, 3, 60, [0, 100, 0]);
+  const circle = makeProfileBody(
+    { kind: 'circle', radius: 2 },
+    sketchFrame([20, 0, 30], [0, -1, 0]),
+  );
+  const split = splitFace(front, 'y:min', circle);
+  const profile = faceProfile(split.body, split.face);
+  const first = pushPullFace(split.body, split.face, -3);
+  const result = cutOpening(profile, [first, back], {
+    count: 5,
+    spacing: 10,
+    direction: 'x',
+    first: 1,
+    depth: 3,
+  });
+  expect(result.affected).toEqual([front.id]);
+  expect(result.bodies[1]).toBe(back);
+  expect(mesh(roundtrip(result.bodies[0])).volume).toBeCloseTo(
+    120 * 3 * 60 - 6 * Math.PI * 4 * 3,
+    4,
+  );
+  expect(result.meshes).toHaveLength(1);
+  expect(result.meshes[0].volume).toBeCloseTo(mesh(result.bodies[0]).volume, 5);
+});
+it('validates a complete opening series atomically, supports negative spacing and rejects Hold', () => {
+  const body = makeBody(120, 80, 3),
+    profile = makeProfileBody({ kind: 'circle', radius: 2 }, sketchFrame([100, 20, 3]));
+  const options = { count: 6, spacing: -10, direction: 'x' as const, first: 0 as const };
+  const result = cutOpening(profile, [body], options);
+  expect(mesh(result.bodies[0]).volume).toBeCloseTo(120 * 80 * 3 - 6 * Math.PI * 4 * 3, 4);
+  expect(() => cutOpening(profile, [{ ...body, locked: true }], options)).toThrow('Hold');
+  expect(() => cutOpening(profile, [body], { ...options, count: 101 })).toThrow();
+  expect(() => cutOpening(profile, [body], { ...options, direction: 'z' })).toThrow('suunta');
+  expect(() => cutOpening(profile, [body], { ...options, spacing: 0 })).toThrow('nolla');
+  expect(mesh(body).volume).toBeCloseTo(120 * 80 * 3, 5);
 });

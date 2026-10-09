@@ -59,12 +59,13 @@ test('measurement endpoints and crossings outrank nearby geometry and start a pe
   p = await projected(page, [173, 98, 13]);
   await page.mouse.move(p.x + 2, p.y + 3);
   await expect(page.getByTestId('snap-hint')).toHaveText('Mittaviivojen risteys');
+  await expect.poll(() => snapped(page)).toEqual([173, 98, 13]);
+  await expect(page.getByTestId('guide-length')).toHaveValue('125');
   await click(page, { x: p.x + 2, y: p.y + 3 });
   const result = await save(page);
-  expect(guidePoints(result.bodies, result.guides.at(-1)!)).toEqual([
-    [48, 98, 13],
-    [173, 98, 13],
-  ]);
+  // This exact segment is already inside `plan`: duplicate normalization keeps
+  // the original measurement instead of adding an overlapping shorter line.
+  expect(result.guides).toEqual([plan, crossing]);
   await page.keyboard.press('Escape');
   await page.keyboard.press('k');
   p = await projected(page, [348, 98, 13]);

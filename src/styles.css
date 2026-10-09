@@ -5908,6 +5908,24 @@ p {
   overflow: auto;
   margin: 16px 0;
 }
+.opening-pattern-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.opening-pattern-fields .modeling-field {
+  margin: 0;
+  min-width: 0;
+}
+.opening-pattern-fields p,
+.opening-pattern-fields label:has(select) {
+  grid-column: 1 / -1;
+}
+.opening-pattern-fields input,
+.opening-pattern-fields select {
+  width: 100%;
+  min-width: 0;
+}
 .opening-targets label {
   display: flex;
   gap: 8px;

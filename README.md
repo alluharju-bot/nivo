@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.28.0** lisää tarkat puolipyöreät päät nykyiseen Reunat-työkaluun
+sekä aukkosarjat suoraan **Leikkaa aukko** -toimintoon. Myös Push/Pullilla
+tehdyn leikkauksen voi heti toistaa määrällä, välillä ja suunnalla. Rajattu
+leikkaussyvyys säästää kotelon vastakkaisen seinän. Pienen reunan tarkasti
+osoitettu keskipiste voittaa kauempana olevan kulman; Cut/Join löytyy suoraan
+osan toiminnoista. [Kotelotestin korjaukset ja käyttö](docs/enclosure-tools.fi.md).
+
 Versio **0.27.0** korjaa valmiiden pintojen ja käyräreunojen 3D-tartunnat.
 Kynä ja vapaa mittaviiva voivat kulkea eri korkeuksien välillä; Shift poimii
 viitemitan omaan lukittuun suuntaan myös alemmasta reunasta. Suorat kynäviivat

@@ -1,7 +1,7 @@
 import { sphereBody, bezierPath, knifeBodies } from './modeling';
 import { throughShapes } from './throughShapes';
 import { fillPenRegions } from './penRegions';
-import { penPath, splitWithPath, cutOpening, divideSurfaces } from './paths';
+import { penPath, splitWithPath, cutOpening, divideSurfaces, faceProfile } from './paths';
 import { translateMesh } from './translateMesh';
 import { sectionBodies } from './sections';
 import initOpenCascade from 'replicad-opencascadejs';
@@ -107,7 +107,9 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
       else if (request.type === 'split-path')
         reply.result = splitWithPath(request.body, request.face, request.path);
       else if (request.type === 'cut-opening')
-        reply.result = cutOpening(request.profile, request.targets);
+        reply.result = cutOpening(request.profile, request.targets, request.options);
+      else if (request.type === 'face-profile')
+        reply.result = faceProfile(request.body, request.face);
       else if (request.type === 'divide-surfaces')
         reply.result = divideSurfaces(request.profile, request.targets);
       else if (request.type === 'instances')

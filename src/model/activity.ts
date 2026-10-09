@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { uid } from './project';
+import { uid, bodySchema } from './project';
+import { openingPatternSchema } from './openingPattern';
 
 const id = z.string().min(1).max(100);
 export const selectionContextSchema = z.object({
@@ -17,6 +18,8 @@ export const operationContextSchema = z.object({
   targetIds: z.array(id).max(10000),
   keep: z.boolean(),
   unique: z.boolean().optional(),
+  pattern: openingPatternSchema.optional(),
+  profile: bodySchema.optional(),
 });
 export type OperationContext = z.infer<typeof operationContextSchema>;
 export const actionInfoSchema = z.object({
@@ -64,7 +67,8 @@ export function sameSelection(a?: SelectionContext, b?: SelectionContext) {
   );
 }
 
-/** This journal retains only labels and selection IDs, never CAD snapshots. */
+/** Bounded journal: labels, selection IDs and operation parameters, never whole model snapshots.
+ * A repeated opening may retain its small source face after push/pull removes it. */
 export class ActivityJournal {
   entries: Activity[] = [];
   constructor(

@@ -54,6 +54,7 @@ import {
 import {
   modelSnapPoints,
   snapPriority,
+  snapScore,
   onSnapLine,
   closestOnSnapLine,
   guideEdgeIntersection,
@@ -767,7 +768,7 @@ export function installInteractions({
       )
       .sort(
         (a, b) =>
-          a.priority - b.priority ||
+          snapScore(a.distance, a.priority) - snapScore(b.distance, b.priority) ||
           (Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance),
       )
       .find((p) =>
@@ -1143,7 +1144,7 @@ export function installInteractions({
         }
     }
     candidates.sort((a, b) =>
-      Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
+      Math.abs(a.distance - b.distance) < 0.25 ? a.depth - b.depth : a.distance - b.distance,
     );
     return candidates.find(({ point }) => {
       const p = new THREE.Vector3(...point),
@@ -1393,7 +1394,7 @@ export function installInteractions({
                 ? 'Mittaviivojen risteys'
                 : 'Apuviivojen risteys',
             kind: 'intersection',
-            priority: -1,
+            priority: -2,
             intersection: true,
             anchor: { point },
           });
@@ -1446,9 +1447,10 @@ export function installInteractions({
         }
     }
     return candidates
+      .map((c) => ({ ...c, distance: distance(c.point) }))
       .sort(
         (a, b) =>
-          a.priority - b.priority ||
+          snapScore(a.distance, a.priority) - snapScore(b.distance, b.priority) ||
           (Math.hypot(...sub(a.point, b.point)) < 1e-5
             ? Number(b.intersection) - Number(a.intersection)
             : distance(a.point) - distance(b.point)),
@@ -1471,11 +1473,18 @@ export function installInteractions({
     if (point && point.priority >= 0 && point.distance > 6 && !onAimedEdge(point.point))
       point = nearest(event, false, (p) => accepts(p) && onAimedEdge(p), surfaceOnly);
     const guide = guideAt(event, [], accepts);
-    if (guide && (!point || guide.priority < point.priority)) {
+    if (
+      guide &&
+      (!point ||
+        snapScore(guide.distance, guide.priority) < snapScore(point.distance, point.priority))
+    ) {
       highlightEdge();
       return { guide };
     }
-    if (point) {
+    if (
+      point &&
+      (!edge || snapScore(point.distance, point.priority) <= snapScore(edge.distance, 2))
+    ) {
       highlightEdge();
       return { point };
     }
@@ -1686,7 +1695,7 @@ export function installInteractions({
     }
     const found = candidates.sort(
       (a, b) =>
-        a.priority - b.priority ||
+        snapScore(a.distance, a.priority) - snapScore(b.distance, b.priority) ||
         (Math.hypot(...sub(a.point, b.point)) <= 1e-5
           ? (b.surfacePriority ?? 0) - (a.surfacePriority ?? 0)
           : 0) ||
@@ -1944,7 +1953,10 @@ export function installInteractions({
     });
     const guideCandidate = guideAt(event, [source.bodyId], (p) => !!pointDepthSnap(source, p));
     const guide =
-      guideCandidate && (!point || guideCandidate.priority < point.priority)
+      guideCandidate &&
+      (!point ||
+        snapScore(guideCandidate.distance, guideCandidate.priority) <
+          snapScore(point.distance, point.priority))
         ? guideCandidate
         : undefined;
     if (guide) point = undefined;

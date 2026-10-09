@@ -9,6 +9,8 @@ import { booleanBodies } from './operations';
 import { detailEdges, removeEdgeTreatment } from './details';
 import { rotateBodies } from './transforms';
 import { pushPullFace } from './kernel';
+import { filletPrism } from './prismFillet';
+import { profileCorners } from '../model/profileCorners';
 
 beforeAll(async () =>
   setOC(
@@ -19,6 +21,124 @@ beforeAll(async () =>
 );
 
 describe('exact fillets and chamfers', () => {
+  it.each([false, true])(
+    'makes exact semicircular ends at half width, including a rotated saved prism (%s)',
+    (rotated) => {
+      let body = makeBody(4, 24, 6);
+      if (rotated) body = rotateBodies([body], [0, 0, 0], [1, 2, 3], 37)[0];
+      const shape = createShape(body),
+        mesh = meshBody(body, shape);
+      shape.delete();
+      const indices = mesh
+        .detailEdges!.filter(
+          (e) =>
+            e.lines.length === 6 &&
+            Math.abs(Math.hypot(...e.lines.slice(0, 3).map((n, i) => n - e.lines[i + 3])) - 6) <
+              1e-5,
+        )
+        .map((e) => e.index);
+      expect(indices).toHaveLength(4);
+      const result = detailEdges(body, indices, 'fillet', 2);
+      expect(result.mesh.volume).toBeCloseTo((4 * 20 + Math.PI * 4) * 6, 5);
+      const restored = parseProject(JSON.stringify({ ...freshProject(), bodies: [result.body] }))
+        .bodies[0];
+      const savedShape = createShape(restored);
+      expect(shapeIsValid(savedShape)).toBe(true);
+      savedShape.delete();
+      expect(detailEdges(restored, indices, 'fillet', 1, true).mesh.volume).toBeGreaterThan(
+        result.mesh.volume,
+      );
+      expect(() => detailEdges(restored, indices, 'fillet', 2.01, true)).toThrow('Pienennä');
+    },
+  );
+  it('rounds a square extrusion completely into a cylinder without leaving tiny flat faces', () => {
+    const body = makeBody(4, 4, 24),
+      shape = createShape(body);
+    const indices = meshBody(body, shape)
+      .detailEdges!.filter((e) => Math.abs(e.lines[5] - e.lines[2]) > 23)
+      .map((e) => e.index);
+    shape.delete();
+    const result = detailEdges(body, indices, 'fillet', 2);
+    expect(result.mesh.volume).toBeCloseTo(Math.PI * 4 * 24, 5);
+    expect(result.mesh.faces.filter((f) => f.planar)).toHaveLength(2);
+  });
+  it('keeps a through-hole when rebuilding one semicircular end, and refuses a blind pocket', () => {
+    const original = makeBody(4, 24, 6);
+    const cutter = makeProfileBody({ kind: 'circle', radius: 0.5 }, sketchFrame([2, 12, 0]), 6);
+    const body = booleanBodies([original], [cutter], 'cut')[0];
+    const shape = createShape(body),
+      edges = shape.edges;
+    try {
+      const indices = meshBody(body, shape)
+        .detailEdges!.filter(
+          (e) =>
+            e.lines.length === 6 &&
+            Math.abs(e.lines[5] - e.lines[2]) > 5.99 &&
+            Math.abs(e.lines[1]) < 1e-6,
+        )
+        .map((e) => e.index);
+      expect(indices).toHaveLength(2);
+      const rounded = filletPrism(
+        shape,
+        indices.map((i) => edges[i]),
+        2,
+      )!;
+      expect(rounded).toBeDefined();
+      try {
+        expect(shapeIsValid(rounded)).toBe(true);
+        expect(meshBody(body, rounded).volume).toBeCloseTo(
+          (4 * 22 + Math.PI * 2 - Math.PI * 0.25) * 6,
+          5,
+        );
+      } finally {
+        rounded.delete();
+      }
+    } finally {
+      edges.forEach((e) => e.delete());
+      shape.delete();
+    }
+    const pocket = booleanBodies([original], [{ ...cutter, origin: [2, 12, 5] }], 'cut')[0];
+    const pocketShape = createShape(pocket),
+      pocketEdges = pocketShape.edges;
+    try {
+      const indices = meshBody(pocket, pocketShape)
+        .detailEdges!.filter(
+          (e) => e.lines.length === 6 && Math.abs(e.lines[5] - e.lines[2]) > 5.99,
+        )
+        .map((e) => e.index);
+      expect(
+        filletPrism(
+          pocketShape,
+          indices.map((i) => pocketEdges[i]),
+          2,
+        ),
+      ).toBeUndefined();
+      expect(shapeIsValid(pocketShape)).toBe(true);
+    } finally {
+      pocketEdges.forEach((e) => e.delete());
+      pocketShape.delete();
+    }
+  });
+  it('finds extrusion corners and the exact half-width after retaining and rotating a treatment', () => {
+    const body = makeProfileBody(
+      { kind: 'rectangle', width: 4, depth: 24 },
+      sketchFrame([4, 8, 12], [0, -1, 0]),
+      6,
+    );
+    const shape = createShape(body);
+    const corners = profileCorners(body, meshBody(body, shape))!;
+    shape.delete();
+    expect(corners.indices).toHaveLength(4);
+    expect(corners.halfWidth).toBe(2);
+    const rounded = detailEdges(body, corners.indices, 'fillet', 2).body;
+    const rotated = rotateBodies([rounded], [0, 0, 0], [2, 3, 4], 71)[0];
+    const resultShape = createShape(rotated);
+    try {
+      expect(profileCorners(rotated, meshBody(rotated, resultShape))).toEqual(corners);
+    } finally {
+      resultShape.delete();
+    }
+  });
   it.each(['fillet', 'chamfer'] as const)(
     'finishes every box edge with %s and survives serialization',
     (operation) => {

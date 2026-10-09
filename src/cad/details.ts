@@ -4,6 +4,7 @@ import { bodyFromShape, createShape, meshBody, shapeIsValid } from './kernel';
 import { add, sub } from '../model/geometry';
 import { detailSourceShape } from './detailSource';
 import type { EdgeDetailResult } from './protocol';
+import { filletPrism } from './prismFillet';
 
 export function detailEdges(
   body: Body,
@@ -29,10 +30,22 @@ export function detailEdges(
       throw new Error('Valitse vähintään yksi kappaleen reuna.');
     const chosen = [...new Set(indices)].map((i) => edges[i]);
     const solid = shape.asShape3D();
-    result =
-      operation === 'fillet'
-        ? solid.fillet(size, (finder) => finder.inList(chosen))
-        : solid.chamfer(size, (finder) => finder.inList(chosen));
+    try {
+      result =
+        operation === 'fillet'
+          ? solid.fillet(size, (finder) => finder.inList(chosen))
+          : solid.chamfer(size, (finder) => finder.inList(chosen));
+      if (!shapeIsValid(result)) {
+        result.delete();
+        result = undefined;
+      }
+    } catch {
+      result?.delete();
+      result = undefined;
+      // Exact prismatic limit below; never silently reduce the radius.
+    }
+    if (!result && operation === 'fillet') result = filletPrism(shape, chosen, size);
+    if (!result) throw new Error('Reunakäsittely epäonnistui.');
     if (!shapeIsValid(result)) throw new Error('Reunakäsittely ei muodosta ehjää kappaletta.');
     const next = bodyFromShape(body, result);
     if (!featureIsSolid(next.feature))

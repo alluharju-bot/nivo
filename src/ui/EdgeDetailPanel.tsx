@@ -14,6 +14,8 @@ export function EdgeDetailPanel({
   error,
   onAccept,
   onCancel,
+  onCorners,
+  onFullRound,
 }: {
   retained: boolean;
   onRemove: () => void;
@@ -29,6 +31,8 @@ export function EdgeDetailPanel({
   error?: string;
   onAccept: () => void;
   onCancel: () => void;
+  onCorners?: () => void;
+  onFullRound?: () => void;
 }) {
   return (
     <section className="edge-detail-panel" aria-label="Viisteet ja pyöristykset">
@@ -72,6 +76,16 @@ export function EdgeDetailPanel({
         {bodyName ?? 'Valitse osa mallista'} · {count} reunaa valittu
       </p>
       <div className="object-quick-actions">
+        {onCorners && (
+          <button disabled={busy} onClick={onCorners}>
+            Muodon nurkat
+          </button>
+        )}
+        {onFullRound && operation === 'fillet' && (
+          <button disabled={busy} onClick={onFullRound}>
+            Puolipyöreäksi
+          </button>
+        )}
         <button disabled={!bodyName || busy} onClick={all}>
           Kaikki reunat
         </button>

@@ -1,3 +1,6 @@
+import { openingOffsets, singleOpening, type OpeningPattern } from './model/openingPattern';
+import { OpeningPatternFields } from './ui/OpeningPatternFields';
+import { profileCorners } from './model/profileCorners';
 import { applySplitResult } from './model/splitReferences';
 import { preserveRegionReferences } from './model/penRegionReferences';
 import { colorPreviewTargets, type ColorPreview } from './model/colorPreview';
@@ -455,6 +458,15 @@ export default function App() {
   const [groupDestination, setGroupDestination] = useState('');
   const [openingDraft, setOpeningDraft] = useState<{
     profile: Body;
+    pattern: OpeningPattern;
+    validPattern: OpeningPattern;
+    normal: Vec3;
+    meshes: import('./cad/protocol').BodyMesh[];
+    candidates: Body[];
+    transient?: boolean;
+    pending?: boolean;
+    error?: string;
+    requestedTargets?: string[];
     bodies: Body[];
     affected: string[];
     included: string[];
@@ -463,6 +475,12 @@ export default function App() {
     unique?: boolean;
   }>();
   const [openingBusy, setOpeningBusy] = useState(false);
+  const [repeatOpening, setRepeatOpening] = useState<{
+    profile: Body;
+    targetIds: string[];
+    pattern: OpeningPattern;
+    revision: number;
+  }>();
   const [surfaceSplitDraft, setSurfaceSplitDraft] = useState<{
     profile: Body;
     results: SplitResult[];
@@ -831,6 +849,18 @@ export default function App() {
     offsetDistance,
   );
   const detailSource = project.bodies.find((b) => b.id === detailTarget?.bodyId);
+  const detailCorners = profileCorners(
+    detailSource,
+    editor.meshes.find((m) => m.id === detailSource?.id),
+  );
+  const selectProfileCorners = (full = false) => {
+    if (!detailSource || !detailCorners) return;
+    setDetailTarget({ bodyId: detailSource.id, indices: detailCorners.indices });
+    if (full && detailCorners.halfWidth) {
+      setDetailOperation('fillet');
+      writeFields({ offset: String(detailCorners.halfWidth) });
+    }
+  };
   const detailPreview = useEdgeDetailPreview(
     editor.cad,
     tool === 'detail' && detailSource && !bodyLocked(detailSource, project.groups) && !busy
@@ -1909,16 +1939,38 @@ export default function App() {
           return;
         }
         committing.current = true;
+        let repeatProfile: Body | undefined;
         if (
           await editor.transact(async () => {
+            if (
+              distance < 0 &&
+              featureIsSolid(source.feature) &&
+              editor.meshes
+                .find((m) => m.id === source.id)
+                ?.faces.find((f) => f.ref === target.face)?.planar
+            ) {
+              try {
+                repeatProfile = await editor.cad.faceProfile(source, target.face);
+              } catch {
+                /* Optional repetition must never prevent the face edit itself. */
+              }
+            }
             const next = await editor.cad.pushPull(source, target.face, distance);
             return {
               ...project,
               bodies: project.bodies.map((b) => (b.id === next.id ? next : b)),
             };
           }, 'Pintaa muokattu.')
-        )
+        ) {
           finishOperation(source.id);
+          if (repeatProfile)
+            setRepeatOpening({
+              profile: repeatProfile,
+              targetIds: [source.id],
+              pattern: { ...singleOpening, first: 1, depth: -distance },
+              revision: editor.revision(),
+            });
+        }
       } else if (tool === 'pen') {
         if (!forceClose && lockRef.current.size && hoverRef.current) {
           const point = precisePenPoint(hoverRef.current);
@@ -3546,10 +3598,12 @@ export default function App() {
     targetIds: [...draft.included],
     keep: draft.keep,
     unique: draft.unique,
+    pattern: draft.validPattern,
+    profile: draft.transient ? draft.profile : undefined,
   });
   const openingContext = (draft: NonNullable<typeof openingDraft>): SelectionContext => ({
-    ids: [draft.profile.id, ...draft.included],
-    primary: draft.profile.id,
+    ids: [...(draft.transient ? [] : [draft.profile.id]), ...draft.included],
+    primary: draft.transient ? draft.included[0] : draft.profile.id,
     openedAssembly,
   });
   const lastOpening = useRef<OperationContext | undefined>(undefined);
@@ -3588,14 +3642,20 @@ export default function App() {
           !bodyLocked(b, model.groups) &&
           (model !== project || visibleBodies.some((visible) => visible.id === b.id)),
       );
-      const result = await editor.cad.cutOpening(profile, targets);
+      const pattern = settings?.pattern ?? singleOpening;
+      const result = await editor.cad.cutOpening(profile, targets, pattern);
       if (revision !== editor.revision() || request !== openingRequest.current) return;
-      if (!result.affected.length) {
+      if (!result.affected.length && !settings?.profile) {
         editor.setMessage('Muodon kohdalla ei ole leikattavia näkyviä, vapaita osia.');
         return;
       }
       setOpeningDraft({
         profile,
+        pattern,
+        validPattern: pattern,
+        candidates: targets,
+        transient: !!settings?.profile,
+        requestedTargets: settings?.targetIds,
         ...result,
         included: settings
           ? result.affected.filter((id) => settings.targetIds.includes(id))
@@ -3610,23 +3670,110 @@ export default function App() {
       if (request === openingRequest.current) setOpeningBusy(false);
     }
   };
+  useEffect(() => {
+    const draft = openingDraft;
+    if (!draft?.pending) return;
+    const request = ++openingRequest.current;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await editor.cad.cutOpening(draft.profile, draft.candidates, draft.pattern);
+        if (cancelled || request !== openingRequest.current || draft.revision !== editor.revision())
+          return;
+        setOpeningDraft(
+          (current) =>
+            current && {
+              ...current,
+              ...result,
+              validPattern: draft.pattern,
+              pending: false,
+              error: undefined,
+              included: current.requestedTargets
+                ? result.affected.filter((id) => current.requestedTargets!.includes(id))
+                : result.affected,
+            },
+        );
+      } catch (e) {
+        if (!cancelled && request === openingRequest.current)
+          setOpeningDraft(
+            (current) => current && { ...current, pending: false, error: (e as Error).message },
+          );
+      }
+    }, 220);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [openingDraft?.profile, openingDraft?.pattern, openingDraft?.revision]);
+  useEffect(() => {
+    if (openingDraft && openingDraft.revision !== editor.revision()) {
+      openingRequest.current++;
+      setOpeningDraft(undefined);
+      editor.setMessage('Malli muuttui. Valitse Leikkaa aukko uudelleen.');
+    }
+  }, [project, openingDraft?.revision]);
+  const openingPreviewBodies = useMemo(() => {
+    if (!openingDraft || openingDraft.error) return visibleBodies;
+    const changed = new Map(openingDraft.bodies.map((b) => [b.id, b]));
+    return visibleBodies.flatMap((b) =>
+      b.id === openingDraft.profile.id
+        ? []
+        : openingDraft.included.includes(b.id)
+          ? changed.has(b.id)
+            ? [{ ...changed.get(b.id)!, locked: b.locked }]
+            : []
+          : [b],
+    );
+  }, [openingDraft, visibleBodies]);
+  const openingPreviewMeshes = useMemo(() => {
+    if (!openingDraft || openingDraft.error) return visibleMeshes;
+    const changed = new Map(openingDraft.meshes.map((m) => [m.id, m]));
+    return visibleMeshes.flatMap((m) =>
+      m.id === openingDraft.profile.id
+        ? []
+        : openingDraft.included.includes(m.id)
+          ? changed.has(m.id)
+            ? [changed.get(m.id)!]
+            : []
+          : [m],
+    );
+  }, [openingDraft, visibleMeshes]);
+  const canRepeatOpening =
+    repeatOpening &&
+    repeatOpening.revision === editor.revision() &&
+    selectedIds.some((id) => repeatOpening.targetIds.includes(id)) &&
+    !openingDraft &&
+    !gestureActive.current;
+  const prepareRepeatedOpening = () => {
+    if (!canRepeatOpening || !repeatOpening) return;
+    void prepareOpening(repeatOpening.profile, project, {
+      kind: 'opening',
+      profileId: repeatOpening.profile.id,
+      targetIds: repeatOpening.targetIds,
+      keep: false,
+      profile: repeatOpening.profile,
+      pattern: repeatOpening.pattern,
+    });
+  };
   const restoreOpening = async (entry: Activity) => {
     if (!entry.operation || busy || openingBusy) return;
     resetGesture();
     const model = entry.actionId ? await editor.restoreAction(entry.actionId) : project;
     if (!model) return;
-    const profile = model.bodies.find((b) => b.id === entry.operation!.profileId);
+    const profile =
+      model.bodies.find((b) => b.id === entry.operation!.profileId) ?? entry.operation.profile;
     if (!profile) return;
     setIsolated(undefined);
     setEditingBodyId(undefined);
     setSurfaceMode('new');
     setOpenedAssembly(entry.context?.openedAssembly);
     setTool('select');
-    setSelected(profile.id);
-    setSelectedIds([
-      profile.id,
+    const selection = [
+      ...(entry.operation.profile ? [] : [profile.id]),
       ...entry.operation.targetIds.filter((id) => model.bodies.some((b) => b.id === id)),
-    ]);
+    ];
+    setSelected(selection[0]);
+    setSelectedIds(selection);
     setSelectedGroupId(undefined);
     setSelectedFace(undefined);
     setAwaitingStart(true);
@@ -3634,7 +3781,7 @@ export default function App() {
   };
   const acceptOpening = async () => {
     const draft = openingDraft;
-    if (!draft || busy || !draft.included.length) return;
+    if (!draft || busy || draft.pending || draft.error || !draft.included.length) return;
     if (draft.revision !== editor.revision()) {
       setOpeningDraft(undefined);
       editor.setMessage('Malli muuttui. Valitse Leikkaa aukko uudelleen.');
@@ -3642,7 +3789,7 @@ export default function App() {
     }
     const results = new Map(draft.bodies.map((b) => [b.id, b]));
     const removed = draft.included.filter((id) => !results.has(id));
-    if (!draft.keep) removed.push(draft.profile.id);
+    if (!draft.keep && !draft.transient) removed.push(draft.profile.id);
     const cleaned = removeSelection(project, removed);
     const candidate = {
       ...cleaned,
@@ -3656,7 +3803,7 @@ export default function App() {
     if (
       await editor.transact(
         next,
-        `Aukko leikattu läpi ${draft.included.length} osasta.`,
+        `${draft.pattern.count > 1 ? 'Aukkosarja' : 'Aukko'} leikattu · ${draft.pattern.count} aukkoa · ${draft.included.length} osaa.`,
         'commit',
         {
           context: openingContext(draft),
@@ -3667,6 +3814,13 @@ export default function App() {
       lastOpening.current = openingOperation(draft);
       setOpeningDraft(undefined);
       finishOperation(draft.included.find((id) => results.has(id)));
+      const lastOffset = openingOffsets(draft.pattern, draft.normal).at(-1)!;
+      setRepeatOpening({
+        profile: { ...draft.profile, origin: add(draft.profile.origin, lastOffset) },
+        targetIds: draft.included.filter((id) => results.has(id)),
+        pattern: { ...draft.pattern, count: 1, first: 1 },
+        revision: editor.revision(),
+      });
     }
   };
   const quickActions: QuickAction[] =
@@ -3713,6 +3867,29 @@ export default function App() {
               reason: movementBlocked,
               disabled: busy || !body,
             },
+            ...(body && featureIsSolid(body.feature)
+              ? [
+                  { label: 'Cut / Join', run: () => begin('boolean'), disabled: busy },
+                  ...(selectedIds.length > 1
+                    ? [
+                        {
+                          label: 'Yhdistä valitut',
+                          run: () => void mergeSelected(),
+                          disabled: busy || !!movementBlocked,
+                        },
+                      ]
+                    : []),
+                ]
+              : []),
+            ...(canRepeatOpening
+              ? [
+                  {
+                    label: 'Toista aukko…',
+                    run: prepareRepeatedOpening,
+                    disabled: busy || openingBusy,
+                  },
+                ]
+              : []),
             ...(canDivideSurface
               ? [{ label: 'Jaa pinta', run: () => void prepareSurfaceSplit() }]
               : []),
@@ -5059,9 +5236,9 @@ export default function App() {
               }}
               onRemoveGuide={(id) => void removeGuide(id)}
               assets={project.assets}
-              bodies={visibleBodies}
+              bodies={openingPreviewBodies}
               groups={project.groups}
-              meshes={visibleMeshes}
+              meshes={openingPreviewMeshes}
               selected={selected}
               selectedIds={loftOpen ? loftIds : selectedIds}
               moveHoveredIds={openingDraft?.included ?? moveHoveredIds}
@@ -5075,7 +5252,7 @@ export default function App() {
               }}
               selectedGroupId={selectedGroupId}
               selectedFace={selectedFace}
-              tool={tool}
+              tool={openingDraft ? 'navigate' : tool}
               preview={preview}
               axis={axis}
               gridSnap={gridSnap}
@@ -5653,6 +5830,18 @@ export default function App() {
                   onRepeat={() => void repeatLast()}
                 />
               )}
+              {canRepeatOpening && !faceTarget && (
+                <section className="repeat-panel" aria-label="Toista aukko">
+                  <button
+                    className="button outlined full"
+                    disabled={busy || openingBusy}
+                    onClick={prepareRepeatedOpening}
+                  >
+                    Toista aukko…
+                  </button>
+                  <p className="muted">Tee samasta leikkauksesta sarja. Määrä, väli ja suunta.</p>
+                </section>
+              )}
               {tool === 'paint' ? null : tool === 'measure' && measureMode === 'dimension' ? (
                 <section className="dimension-tool-panel" aria-label="Dimensio">
                   <h2>Kahden pisteen dimensio</h2>
@@ -5749,6 +5938,10 @@ export default function App() {
                 </section>
               ) : tool === 'detail' ? (
                 <EdgeDetailPanel
+                  onCorners={detailCorners ? () => selectProfileCorners() : undefined}
+                  onFullRound={
+                    detailCorners?.halfWidth ? () => selectProfileCorners(true) : undefined
+                  }
                   operation={detailOperation}
                   onOperation={setDetailOperation}
                   count={detailTarget?.indices.length ?? 0}
@@ -6406,6 +6599,43 @@ export default function App() {
                           </div>
                         </>
                       )}
+                      <div className="selection-actions object-quick-actions">
+                        {mode === 'model' && (
+                          <>
+                            <button
+                              className="button outlined"
+                              disabled={busy}
+                              onClick={() => begin('boolean')}
+                            >
+                              <Scissors size={17} />
+                              Cut / Join
+                            </button>
+                            <button
+                              className="button outlined"
+                              disabled={busy}
+                              onClick={() => begin('extrude')}
+                            >
+                              <ArrowUpFromLine size={17} />
+                              Muokkaa pintaa
+                            </button>
+                            <button
+                              className="button outlined"
+                              aria-label="Yhdistä valitut"
+                              disabled={
+                                busy ||
+                                selectedIds.length < 2 ||
+                                project.bodies
+                                  .filter((b) => selectedIdSet.has(b.id))
+                                  .some((b) => !featureIsSolid(b.feature))
+                              }
+                              onClick={() => void mergeSelected()}
+                            >
+                              <Merge size={15} />
+                              Yhdistä {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
+                            </button>
+                          </>
+                        )}
+                      </div>
                       <ModelMaterials
                         key={`material:${colorContext}`}
                         onPreviewColor={(color) =>
@@ -6504,41 +6734,6 @@ export default function App() {
                           >
                             <Ruler size={16} /> Lisää kokonaismitat
                           </button>
-                          {mode === 'model' && (
-                            <>
-                              <button
-                                className="button outlined full"
-                                disabled={busy}
-                                onClick={() => begin('boolean')}
-                              >
-                                <Scissors size={17} />
-                                Cut / Join
-                              </button>
-                              <button
-                                className="button outlined full"
-                                disabled={busy}
-                                onClick={() => begin('extrude')}
-                              >
-                                <ArrowUpFromLine size={17} />
-                                Muokkaa pintaa
-                              </button>
-                              <button
-                                className="button outlined full"
-                                aria-label="Yhdistä valitut"
-                                disabled={
-                                  busy ||
-                                  selectedIds.length < 2 ||
-                                  project.bodies
-                                    .filter((b) => selectedIdSet.has(b.id))
-                                    .some((b) => !featureIsSolid(b.feature))
-                                }
-                                onClick={() => void mergeSelected()}
-                              >
-                                <Merge size={15} />
-                                Yhdistä {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
-                              </button>
-                            </>
-                          )}
                         </div>
                       </details>
                     </div>
@@ -6646,10 +6841,20 @@ export default function App() {
       )}
       {openingDraft && (
         <SelectionDialog side title="Leikkaa aukko" onClose={() => !busy && cancelOpening()}>
-          <p>
-            Muoto leikkaa kohtisuoraan molempiin suuntiin kaikkien valittujen osien läpi. Korostetut
-            osat ja niiden linkitetyt kopiot muuttuvat. Hold estää muokkaamisen.
-          </p>
+          <OpeningPatternFields
+            value={openingDraft.pattern}
+            busy={busy}
+            onChange={(pattern) => {
+              openingRequest.current++;
+              setOpeningDraft({ ...openingDraft, pattern, pending: true, error: undefined });
+            }}
+          />
+          <p>Korostetut osat ja niiden linkitetyt kopiot muuttuvat. Hold estää muokkaamisen.</p>
+          {openingDraft.pending && <p role="status">Päivitetään aukkosarjaa…</p>}
+          {openingDraft.error && <p role="alert">{openingDraft.error}</p>}
+          {!openingDraft.pending && !openingDraft.error && !openingDraft.affected.length && (
+            <p>Muuta väliä tai suuntaa: sarja ei osu kohteeseen.</p>
+          )}
           <div className="opening-targets">
             {openingDraft.affected.map((id) => (
               <label key={id}>
@@ -6660,6 +6865,11 @@ export default function App() {
                   onChange={(e) =>
                     setOpeningDraft({
                       ...openingDraft,
+                      requestedTargets: e.target.checked
+                        ? [...(openingDraft.requestedTargets ?? openingDraft.included), id]
+                        : (openingDraft.requestedTargets ?? openingDraft.included).filter(
+                            (v) => v !== id,
+                          ),
                       included: e.target.checked
                         ? [...openingDraft.included, id]
                         : openingDraft.included.filter((v) => v !== id),
@@ -6681,22 +6891,32 @@ export default function App() {
               Tee kohteista uniikkeja · muuta vain valittuja
             </label>
           )}
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={openingDraft.keep}
-              disabled={busy}
-              onChange={(e) => setOpeningDraft({ ...openingDraft, keep: e.target.checked })}
-            />
-            Säilytä piirretty muoto
-          </label>
+          {!openingDraft.transient && (
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={openingDraft.keep}
+                disabled={busy}
+                onChange={(e) => setOpeningDraft({ ...openingDraft, keep: e.target.checked })}
+              />
+              Säilytä piirretty muoto
+            </label>
+          )}
           <div className="object-quick-actions">
             <button
               className="button primary"
-              disabled={busy || !openingDraft.included.length}
+              disabled={
+                busy ||
+                openingDraft.pending ||
+                !!openingDraft.error ||
+                !openingDraft.included.length
+              }
               onClick={() => void acceptOpening()}
             >
-              Leikkaa läpi · {openingDraft.included.length} osaa
+              {openingDraft.pattern.depth !== undefined || openingDraft.pattern.count > 1
+                ? 'Leikkaa aukot'
+                : 'Leikkaa läpi'}{' '}
+              · {openingDraft.included.length} osaa
             </button>
             <button className="button subtle" disabled={busy} onClick={cancelOpening}>
               Peruuta

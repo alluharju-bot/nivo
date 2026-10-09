@@ -146,8 +146,20 @@ export class CadClient {
   divideSurfaces(profile: Body, targets: Body[]) {
     return this.request<SplitResult[]>({ type: 'divide-surfaces', profile, targets });
   }
-  cutOpening(profile: Body, targets: Body[]) {
-    return this.request<import('./paths').OpeningResult>({ type: 'cut-opening', profile, targets });
+  cutOpening(
+    profile: Body,
+    targets: Body[],
+    options?: import('../model/openingPattern').OpeningPattern,
+  ) {
+    return this.request<import('./paths').OpeningResult>({
+      type: 'cut-opening',
+      profile,
+      targets,
+      options,
+    });
+  }
+  faceProfile(body: Body, face: FaceRef) {
+    return this.request<Body>({ type: 'face-profile', body, face });
   }
   split(body: Body, face: FaceRef, profile: Body, allowUnsplit = false) {
     return this.request<SplitResult>({ type: 'split-face', body, face, profile, allowUnsplit });

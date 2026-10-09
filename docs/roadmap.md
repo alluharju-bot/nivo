@@ -2,6 +2,31 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.28.0 — kotelotestin korjaukset, 9.10.2026
+
+- Reunat: **Muodon nurkat** poimii pursotetun suorakulmion tai monikulmion
+  pursotussuunnan kulmareunat. Suorakulmion **Puolipyöreäksi** asettaa säteeksi tasan
+  puolet lyhyestä sivusta. Esim. 4 × 24 mm muoto saa R2-päät, ilman
+  erillistä pitkäreikämuotoa. Esikatselu ja muokattava reunakäsittely säilyvät.
+- CAD-ytimen epäonnistuessa tarkka puolipyöristys rakennetaan todellisesta
+  tasoprofiilista vain, jos sen pursotus vastaa koko alkuperäistä osaa.
+  Reiät säilyvät; sokkoporauksia tai muuta geometriaa ei korvata laatikolla.
+  Liian suuri säde hylätään, sitä ei pienennetä huomaamatta.
+- Tartunnan pisteytyksessä osoittimen etäisyys vaikuttaa yhdessä kohdetyypin
+  kanssa: tarkka keskipiste tai reuna ei häviä kauemmalle kulmalle. Apuviivojen
+  risteyksillä on edelleen vahva etusija aivan viereiseen geometriaan nähden.
+- **Leikkaa aukko**: määrä 1–100, keskeltä keskelle -väli, suunta pinnan
+  tasossa tai X/Y/Z, kaikkien valittujen osien läpi tai annettu syvyys.
+  Geometrinen esikatselu, kohteiden valinta, yksi Peru/Palauta ja historian
+  Palaa leikkaukseen säilyttävät myös sarjan asetukset.
+- **Toista aukko** säilyttää juuri tehdyn Push/Pull-leikkauksen profiilin
+  ja syvyyden, eikä vaadi erillistä leikkurikappaletta. Lisäaukkojen sarja
+  alkaa seuraavasta sijainnista. Sarjan jälkeen toisto jatkaa viimeisestä
+  aukosta samalla välillä ja suunnalla. Muu mallimuutos päättää pikatoiston.
+- Cut/Join ja Yhdistä löytyvät osan näkyvistä toiminnoista ja kontekstivalikosta.
+
+[Työnkulut ja rajat](enclosure-tools.fi.md).
+
 ## V0.27.0 — kaatopintojen tartunnat ja kynärajaukset, 9.10.2026
 
 - Valmiiden loftien, pintojen ja umpiosien kaikki CAD-reunat osallistuvat
@@ -258,7 +283,33 @@ vähentäminen, mitatut valotehot sekä suurten sisätilojen renderin suoritusky
   lisää puu- ja kalustelevypintoja, valokuvavertailu ja suurempien materiaalien
   tarkkuuden valinta hallitulla muistibudjetilla sekä sisätilan valaistusopastus.
 
-## Suunnitteluehdotus — kaatopinnat ja paikalliset korkeudet
+## Suunnitteluehdotus — reunojen siirto ja liittyvien pintojen mukautuminen
+
+Tavoite on **yleinen mallinnustoiminto**, ei vain kaatolattiatyökalu.
+Valitse reuna tai reunaketju (myös koko ympyrän kehä), siirrä M:llä ja
+X/Y/Z-suunnalla tai täsmällisellä mitalla. Reunan molemmin puolin liittyvät
+pinnat mukautuvat; siirtämättömät rajat säilyvät. Esimerkkejä ovat kaatolattia,
+vino katto, kalteva hylly ja osan muotoilu. Push/Pull säilyy erillisenä
+pinnan pursotuksena. Reunan valinta pitää erottaa koko osan valinnasta
+ilman, että Shiftin viitehaku rikkoutuu. Esikatselu kertoo mitä muuttuu;
+itseään leikkaava tai muuten mahdoton tulos hylätään alkuperäistä muuttamatta.
+Muokataan CAD-topologiaa, ei pelkästään näytettävän kolmioverkon pisteitä.
+Pinnan triangulointi/taitteet, kaarevat rajat, sisäaukot ja umpiosan ehjyys
+ovat toteutuksen keskeiset reunatapaukset. Kaatolattia on ensimmäinen
+hyväksymistesti tälle yleiselle toiminnolle.
+
+Täsmennetty työnkulku (9.10.2026): piirrä 2110 × 2750 mm lattia, sijoita
+suihkualue 1000 mm apuviivoilla ja piirrä siihen 900 × 900 mm rajaus.
+Laske sisemmän suorakulmion kehää 10 mm; ympäröivä lattia mukautuu siihen
+ulkoreunan pysyessä paikallaan. Piirrä alueeseen kaivon ympyrä ja laske sen
+kehää vielä 10 mm suhteessa suihkualueeseen. Korkotasot ovat näin 0, −10
+ja −20 mm, kaivon keskusta jää auki. Rajaukset kuuluvat samaan pintaan,
+eivät ole erillisiä siirrettäviä laatikoita. Tämä **ei vielä ole toteutettu**.
+Nykyinen Muotojen läpi ei päivitä ympäröiviä pintoja näin. Tarvitaan yhteisen
+pintatopologian korkeussäätö; sen pitää toimia myös millimetrisyötöllä,
+historialla ja tallennuksella. Näytetään muuttuva kaato sekä tasaiset ja
+vastakaatoiset kohdat. Yhteiseen ulkoreunaan osuvat sisärajaukset pitää
+käsitellä erikseen, eikä samaan pisteeseen voi sitoa kahta eri korkeutta.
 
 Käyttäjän esimerkki: suurempi kylpyhuoneen lattia laskee 1 × 1 m suihkualueelle,
 joka laskee jyrkemmin pyöreälle kaivolle. Tämä ei vielä ole toteutettu ominaisuus.

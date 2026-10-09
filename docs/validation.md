@@ -4,6 +4,48 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.28.0 — puolipyöristykset, aukkosarjat ja pieni geometria
+
+**342 yksikkö-/CAD-testiä hyväksytty (66 tiedostoa)**. TypeScript,
+lisenssit ja `/nivo/`-tuotantobuild hyväksytty. Muutettujen tiedostojen
+Prettier-tarkistus hyväksytty; koko repositorion tarkistus huomauttaa jo
+ennestään tiedostosta `scripts/performance-project.mjs`, jota tämä muutos
+ei muokkaa.
+
+95 eri kohdennettua selaintapausta hyväksytty: 78 desktop-/tablettitapausta
+reunakäsittelystä, aukoista, historiasta ja pintojen tartunnoista sekä 17
+desktopin Siirrä-, Shift Push/Pull- ja kaltevien pintojen tapausta.
+Kaksi vain kosketukselle tarkoitettua testiä ohitetaan desktop-profiilissa.
+Viimeinen `/nivo/`-paketin 11 tapauksen ajo hyväksytty kokonaan.
+
+- 4 × 24 × 6 mm muoto saa tarkat R2-päät ja 4 × 4 × 24 mm muoto muuttuu
+  sylinteriksi: tilavuus vastaa analyyttista tulosta, tasaisia sivusuikaleita
+  ei jää. Kierretty osa, yhden pään pyöristys, aiemman reiän säilytys,
+  liian suuren säteen hylkäys ja muokattavan lähteen tallennus testattu.
+- Pikatoiminnot tunnistavat myös kierretyn, säilytetyn pursotuslähteen.
+  CAD-varamenetelmä hylkää sokkoporauksellisen osan, jota profiilin suora
+  pursotus ei kuvaa kokonaan. Alkuperäistä ei korvata likiarvolla.
+- Kuusi aukkoa, negatiivinen väli, syvyyden rajaus vastakkaista seinää
+  säästäen, Hold, virheellinen suunta/määrä/väli ja tuloksen tallennus.
+- Push/Pull-leikkauksen toisto ilman erillistä muotoa, esikatselun peruminen,
+  kohdevalinnan säilyminen sarjan väliaikaisesti mennessä kohteen ohi sekä
+  Palaa leikkaukseen sivun uudelleenlatauksen jälkeen.
+- 4 mm reunan täsmällinen keskipiste voittaa viereisen kulman. Mittaviivojen
+  risteys säilyy vahvana kohteena, ja poimittu 125 mm osuus pysyy tarkkana.
+  Päällekkäisen mittaviivan vanha selainodotus korjattiin vastaamaan jo
+  olemassa olevaa yhdistämissääntöä: alkuperäisen viivan sisään piirretty
+  osuus ei lisää uutta päällekkäistä viivaa. Piste ja mitta tarkistetaan erikseen.
+
+Kehityspalvelimen ensimmäisiä ajoja häiritsivät tiedostojen päivitykset;
+lopulliset testit ajettiin tuotantopaketilla. Yhteisen esikatselupalvelimen
+sulkeuduttua kesken rinnakkaisen testikomennon seitsemän aloittamatta jäänyttä
+tapausta ajettiin uudelleen omalla palvelimellaan. Näitä ei lasketa
+sovelluksen virheiksi. Käyttäjän yksityisiä malleja ei sisälly julkaisuun.
+
+Yleinen reunan siirto viereisten pintojen mukautuessa on suunnitelma,
+ei tässä versiossa toteutettu ominaisuus. Käyttö ja pyöristyksen rajat:
+[Kotelotestin korjaukset](enclosure-tools.fi.md).
+
 ## V0.27.0 — 3D-tartunnat ja kaatopinnat
 
 **335 yksikkö-/CAD-testiä hyväksytty (66 tiedostoa)**. TypeScript,

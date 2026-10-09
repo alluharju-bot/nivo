@@ -23,6 +23,9 @@ export const snapPriority = (point: { key: string; label: string }) =>
       : /edge|:line/.test(point.key) || point.label === 'Reuna'
         ? 2
         : 0;
+/** Priority is a small acquisition preference, not a veto over a precisely aimed point. */
+export const snapScore = (distance: number, priority: number, preference = 3) =>
+  distance + priority * preference;
 export const gridLength = (value: number, step: number, enabled = true) =>
   enabled ? Number((Math.round(value / step) * step).toPrecision(14)) : value;
 export interface Snap {
@@ -198,8 +201,8 @@ export function snapOnSketchPlane(
     .filter((p) => Math.hypot(...sub(p.point, raw)) < threshold)
     .sort(
       (a, b) =>
-        a.priority - b.priority ||
-        Math.hypot(...sub(a.point, raw)) - Math.hypot(...sub(b.point, raw)),
+        snapScore(Math.hypot(...sub(a.point, raw)), a.priority, threshold * 0.15) -
+        snapScore(Math.hypot(...sub(b.point, raw)), b.priority, threshold * 0.15),
     )[0];
   if (near) {
     if (near.key === 'direction' && grid && start) {
@@ -404,7 +407,11 @@ export function snapPoint(
         c.key === previous.key &&
         distance(c.point, point) < threshold * 1.5 &&
         !eligible.some(
-          (other) => other.priority < c.priority && distance(other.point, point) < threshold,
+          (other) =>
+            distance(other.point, point) < threshold &&
+            snapScore(distance(other.point, point), other.priority, threshold * 0.15) +
+              threshold * 0.05 <
+              snapScore(distance(c.point, point), c.priority, threshold * 0.15),
         ),
     );
   const closest =
@@ -412,7 +419,9 @@ export function snapPoint(
     eligible
       .filter((c) => distance(c.point, point) < threshold)
       .sort(
-        (a, b) => a.priority - b.priority || distance(a.point, point) - distance(b.point, point),
+        (a, b) =>
+          snapScore(distance(a.point, point), a.priority, threshold * 0.15) -
+          snapScore(distance(b.point, point), b.priority, threshold * 0.15),
       )[0];
   if (closest) {
     if (grid && closest.key.startsWith('direction:') && options.inferenceOrigin) {

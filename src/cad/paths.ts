@@ -18,9 +18,10 @@ import {
   type Vec3,
   type FaceRef,
 } from '../model/project';
-import { dot, sub, scale } from '../model/geometry';
+import { add, dot, sub, scale } from '../model/geometry';
+import { openingOffsets, singleOpening, type OpeningPattern } from '../model/openingPattern';
 import { sketchFrame, frameV } from '../model/sketch';
-import type { SplitResult } from './protocol';
+import type { BodyMesh, SplitResult } from './protocol';
 import { splitFace } from './operations';
 
 /** An open pen path is exact wire geometry, never an implicitly closed face. */
@@ -118,6 +119,8 @@ export function splitWithPath(body: Body, ref: FaceRef, path: Body): SplitResult
 export interface OpeningResult {
   bodies: Body[];
   affected: string[];
+  normal: Vec3;
+  meshes: BodyMesh[];
 }
 
 /** Explicitly apply a separate sketch to coplanar supporting faces. No automatic joining. */
@@ -212,7 +215,65 @@ export function divideSurfaces(profile: Body, targets: Body[]): SplitResult[] {
 }
 
 /** Extrude a planar sketch both ways through all supplied parts, preserving each part's identity. */
-export function cutOpening(profile: Body, targets: Body[]): OpeningResult {
+export function cutOpening(
+  profile: Body,
+  targets: Body[],
+  options: OpeningPattern = singleOpening,
+): OpeningResult {
+  const shape = createShape(profile);
+  let offsets: Vec3[];
+  let normal: Vec3;
+  try {
+    const faces = meshBody(profile, shape).faces;
+    if (faces.length !== 1 || !faces[0].planar)
+      throw new Error('Leikkaa aukko tarvitsee yhden suljetun tasomuodon.');
+    normal = faces[0].normal;
+    offsets = openingOffsets(options, normal);
+  } finally {
+    shape.delete();
+  }
+  let bodies = targets;
+  const affected = new Set<string>();
+  for (const offset of offsets) {
+    const origin = add(profile.origin, offset);
+    if (origin.some((n) => Math.abs(n) > 100000))
+      throw new Error('Aukkosarja ylittää sallitun sijaintialueen.');
+    const result = cutSingleOpening({ ...profile, origin }, bodies, options.depth);
+    bodies = result.bodies;
+    result.affected.forEach((id) => affected.add(id));
+  }
+  const meshes = bodies
+    .filter((b) => affected.has(b.id))
+    .map((body) => {
+      const shape = createShape(body);
+      try {
+        return meshBody(body, shape);
+      } finally {
+        shape.delete();
+      }
+    });
+  return { bodies, affected: [...affected], normal, meshes };
+}
+
+/** Preserve a planar region before push/pull removes it, so its cut can be repeated. */
+export function faceProfile(body: Body, ref: FaceRef): Body {
+  const shape = createShape(body),
+    faces = shape.faces;
+  try {
+    const face = meshBody(body, shape).faces.find((f) => f.ref === ref && f.planar);
+    if (!face) throw new Error('Aukkosarja tarvitsee tasopinnan.');
+    return bodyFromShape({ ...makeBody(1, 1, 0), name: 'Aukon muoto' }, faces[face.index]);
+  } finally {
+    faces.forEach((f) => f.delete());
+    shape.delete();
+  }
+}
+
+function cutSingleOpening(
+  profile: Body,
+  targets: Body[],
+  depth?: number,
+): Pick<OpeningResult, 'bodies' | 'affected'> {
   if (featureIsSolid(profile.feature)) throw new Error('Valitse suljettu muoto ilman paksuutta.');
   const sketch = createShape(profile),
     faces = sketch.faces;
@@ -246,6 +307,10 @@ export function cutOpening(profile: Body, targets: Body[]): OpeningResult {
         min = Math.min(min, depth - 1);
         max = Math.max(max, depth + 1);
       }
+    if (depth !== undefined) {
+      min = -depth;
+      max = 1e-5;
+    }
     const face = faces[0].clone().translate(scale(normal, min)),
       vector = new Vector(scale(normal, max - min));
     try {
