@@ -3,6 +3,15 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.29.0** lisää mittatyökalun valikkoon **Pinta-alan** ja **Huomautuksen**.
+Piirrä saman tason suorakulmiot ja paina Enter: saat yhden nimetyn, värillisen
+pinta-alueen, jonka päällekkäisyydet lasketaan vain kerran. Huomautuksessa napsauta
+kohdepiste ja tekstilaatikon paikka. Teksti, kehys, värit ja tekstikoko ovat
+muokattavissa oikealla; laatikkoa voi siirtää vetämällä Valitse-työkalulla.
+**Merkinnät**-listasta löydät ja piilotat alueet sekä huomautukset yksittäin tai
+kaikki kerralla. Merkinnät tallentuvat projektiin, kumoamishistoriaan,
+mallinnuksen PNG-kuvaan ja tavallisiin mittakuviin.
+
 Versio **0.28.2** tekee dimensioista valittavia merkintöjä: napsautus korostaa
 oranssilla, tuplaklikkaus avaa tekstin muokkauksen. **Mitat**- ja **Viivat**-listojen
 silmäkuvakkeilla piilotat ja palautat yksittäisen dimension, mitta- tai apuviivan.

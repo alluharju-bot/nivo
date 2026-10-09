@@ -31,6 +31,7 @@ export function shareProjectData(previous: Project, next: Project): Project {
     groups: reuse(previous.groups, next.groups),
     dimensions: reuse(previous.dimensions, next.dimensions),
     guides: reuse(previous.guides, next.guides),
+    annotations: next.annotations ? reuse(previous.annotations ?? [], next.annotations) : undefined,
     assets: equal(previous.assets, next.assets) ? previous.assets : next.assets,
     sections: next.sections ? reuse(previous.sections ?? [], next.sections) : undefined,
     referenceImages: next.referenceImages

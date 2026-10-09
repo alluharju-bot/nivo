@@ -4,6 +4,32 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.29.0 — pinta-alueet ja tekstihuomautukset
+
+**354 yksikkö-/CAD-testiä hyväksytty (68 tiedostoa)**. TypeScript, lisenssit
+ja `/nivo/`-tuotantobuild hyväksytty. **26 eri kohdennettua selaintapausta**
+työpöytä- ja tablettiprofiileissa: 8 uutta alue-/huomautustapausta sekä 18
+nykyisten mittamerkintöjen, viivavalinnan ja PNG-kuvanviennin regressiota.
+Viimeisteltyjen uusien työkalujen kahdeksan tapausta hyväksytty yhteisajossa.
+
+- Suorakulmioiden tarkka yhdiste: päällekkäisyys, sisäkkäisyys, duplikaatit,
+  aukot, erilliset saarekkeet, negatiiviset koordinaatit ja sisäisten rajojen
+  poistuminen. Selaimessa kaksi päällekkäistä neliömetriä tuottaa 1,5 m².
+- Lattia ja seinä, napsautus- ja vetopiirtäminen, Backspace, Esc, Enter,
+  nimeäminen, yksi kumoamisaskel, palautus, tallennus ja uudelleenlataus.
+- Huomautuksen nurkkatartunta, teksti ja erikoismerkit, kehyksen/tekstikoon
+  muokkaus sekä laatikon vetäminen ankkuria muuttamatta. Osan siirron
+  semanttinen viite ja kadonneen osan varapiste yksikkötestissä.
+- Yksittäinen/yhteinen piilotus ja palautus, valintaruutu, geometriaa ja
+  molempia merkintätyyppejä sisältävän valinnan poisto sekä yhteinen Peru.
+- Huomautus tavallisessa mittakuvassa, SVG-tekstien escapetus, piilotusten
+  vaikutus vientiin ja muuttumattoman geometrian säilyminen. Viimeisten
+  tekstirivitys- ja mittakuvarajausmuutosten 11 kohdennettua yksikkötestiä hyväksytty.
+- Testiautomaatio odottaa kameran/näkymän ja tekstikoon päivittymistä ennen
+  koordinaattikohdistusta. SVG-merkinnät käyttävät lisäksi samoja DOM-elementtejä
+  uudelleen kameran ja tyylin muuttuessa. Mallilistan neljä välilehteä tarkistettu
+  kuvasta: kaikki näkyvät listan leveydellä.
+
 ## V0.28.2 — mittamerkintöjen valinta, teksti ja näkyvyys
 
 **350 yksikkö-/CAD-testiä hyväksytty (67 tiedostoa)**. TypeScript, lisenssit,

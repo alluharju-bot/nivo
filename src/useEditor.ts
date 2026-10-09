@@ -121,6 +121,17 @@ export function useEditor() {
         if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
           ...resolved,
+          annotations: resolved.annotations?.map((m) =>
+            m.kind === 'note'
+              ? {
+                  ...m,
+                  fallback:
+                    resolveAnchor(resolved.bodies, m.anchor) ??
+                    resolveAnchor(history.current.bodies, m.anchor) ??
+                    m.fallback,
+                }
+              : m,
+          ),
           dimensions: resolved.dimensions.map((d) =>
             isPointDimension(d)
               ? {

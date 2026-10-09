@@ -38,7 +38,7 @@ export async function captureModelView(
   }
   // Freeze SVG geometry and computed styles before awaiting image decoding.
   const overlays = [
-    ...host.querySelectorAll<SVGSVGElement>('.model-dimensions, .point-dimensions'),
+    ...host.querySelectorAll<SVGSVGElement>('.model-dimensions, .point-dimensions, .model-markups'),
   ].map((svg) => {
     const copy = svg.cloneNode(true) as SVGSVGElement;
     const sources = [svg, ...svg.querySelectorAll('*')];

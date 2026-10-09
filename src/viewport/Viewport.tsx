@@ -1,3 +1,4 @@
+import { markupSvg, updateMarkupSvg } from './markupSvg';
 import { installKnife } from './knife';
 import { captureModelView } from './capture';
 import { annotationText } from '../model/annotationStyle';
@@ -57,6 +58,11 @@ interface SceneApi {
 }
 
 function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
+  const markupOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  markupOverlay.classList.add('model-markups');
+  markupOverlay.setAttribute('aria-label', 'Pinta-alueet ja huomautukset');
+  let lastMarkupContent = '';
+  container.append(markupOverlay);
   const scene = new THREE.Scene();
   const bodyBatches = createBodyBatches(scene);
   const moveBatches = createBodyBatches(scene, true);
@@ -185,6 +191,29 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       target: controls.target.toArray(),
       zoom: camera.zoom,
     });
+    const markupProps = current();
+    const markupList = [
+      ...(markupProps.markups ?? []).filter((m) => m.id !== markupProps.markupDraft?.id),
+      ...(markupProps.markupDraft ? [markupProps.markupDraft] : []),
+    ];
+    markupOverlay.setAttribute('viewBox', `0 0 ${container.clientWidth} ${container.clientHeight}`);
+    const markupContent = markupSvg(
+      markupList,
+      markupProps.markupBodies ?? markupProps.bodies,
+      (p) => {
+        const v = new THREE.Vector3(...p).project(camera);
+        return [
+          ((v.x + 1) * container.clientWidth) / 2,
+          ((1 - v.y) * container.clientHeight) / 2,
+          v.z,
+        ];
+      },
+      markupProps.selectedMarkupIds,
+    );
+    if (lastMarkupContent !== markupContent) {
+      updateMarkupSvg(markupOverlay, markupContent);
+      lastMarkupContent = markupContent;
+    }
     pointDimensions.update(
       current().bodies,
       current().dimensions,
@@ -1564,6 +1593,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       bodyBatches.dispose();
       workspaceGrid?.dispose();
       modelDimensions.dispose();
+      markupOverlay.remove();
       pointDimensions.dispose();
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh || obj instanceof THREE.Line || obj instanceof THREE.Points) {
@@ -1645,7 +1675,14 @@ export function Viewport(props: Props) {
   );
   useEffect(
     () => api.current?.dimensionDisplay(),
-    [props.dimensions, props.dimensionDisplay, props.selectedDimensionIds],
+    [
+      props.dimensions,
+      props.dimensionDisplay,
+      props.selectedDimensionIds,
+      props.markups,
+      props.markupDraft,
+      props.selectedMarkupIds,
+    ],
   );
   useEffect(
     () => api.current?.preview(),
@@ -1671,6 +1708,7 @@ export function Viewport(props: Props) {
   useEffect(
     () => api.current?.interactionSync(),
     [
+      props.markupCommand,
       props.knifeMode,
       props.knifeCommand,
       props.reference,

@@ -2,6 +2,31 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.29.0 — pinta-alueet ja tekstihuomautukset, 9.10.2026
+
+- **Mittatyökalu → Pinta-ala**: napsauta vastakkaiset kulmat tai vedä suorakulmio.
+  Jatka samalla tasolla ja paina Enter. Päällekkäiset, sisäkkäiset ja toistetut
+  alueet lasketaan kerran; sisäiset jakorajat poistuvat. Myös L-muodot, aukot ja
+  erilliset saarekkeet toimivat. Ensimmäinen pinta määrää tason, myös seinällä;
+  Shift projisoi viitepisteen tähän tasoon. Backspace poistaa keskeneräisen
+  suorakulmion tai edellisen valmiin; Esc peruu tallentamattoman alueen.
+- **Huomautus**: kohdepiste tarttuu nykyisiin kulmiin, keskikohtiin ja reunoihin.
+  Toinen napsautus tai veto sijoittaa tekstilaatikon. Valitse-työkalulla laatikkoa
+  voi vetää säilyttäen kohdepisteen. Osaan sidottu piste seuraa osan siirtoa;
+  kadonnut viite säilyy viimeisessä tunnetussa paikassa punaisella katkoviivalla.
+- Oikealla voi muuttaa alueen nimeä/väriä tai huomautuksen tekstiä, laatikon ja
+  tekstin väriä, kokoa, lihavointia ja kehystä. Shift+Enter lisää tekstirivin.
+- **Merkinnät**-lista sisältää kummatkin tyypit. Yksittäinen ja yhteinen piilotus
+  säilyttävät toistensa asetukset. Napsautus, Shift-monivalinta, valintaruutu,
+  kontekstivalikko, Delete/X, valintahistoria sekä Peru/Palauta ovat mukana.
+- Merkinnät eivät muuta kappaleiden geometriaa. Ne tallentuvat `.nivo`-tiedostoon,
+  selaimeen ja historiaan; näkyvät merkinnät tulevat mallinnuksen PNG-kuvaan ja
+  tavallisiin mittakuviin sekä niiden SVG-/PDF-vientiin. Muokkaaminen mallinäkymässä.
+- Ensiversion rajat: yhdellä pinta-alueella yksi taso ja enintään 64 suorakulmiota,
+  projektissa enintään 1000 aluetta/huomautusta. Alueen suorakulmiot pysyvät
+  tallennuspaikassaan, eivät seuraa kappaleiden muodonmuutoksia. Merkinnät ovat
+  päällimmäisenä piirtyviä suunnittelumerkintöjä, eivät renderimateriaalia.
+
 ## V0.28.2 — mittamerkintöjen valinta, teksti ja näkyvyys, 9.10.2026
 
 - Kaikki 3D-dimensiot ovat valittavissa tekstistä tai viivasta. Oranssi korostus,

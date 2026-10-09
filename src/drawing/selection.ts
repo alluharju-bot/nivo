@@ -1,6 +1,6 @@
 import type { BodyMesh, DrawingView } from '../cad/protocol';
 import type { Anchor, Project, Vec3 } from '../model/project';
-import { dimensionBodyIds } from '../model/dimensions';
+import { anchorBodyId, dimensionBodyIds } from '../model/dimensions';
 import { groupAncestors, groupBodies } from '../model/groups';
 import { projectPoint } from './svg';
 
@@ -23,6 +23,9 @@ export function drawingProject(project: Project, target: string, selectedIds: st
   return {
     ...project,
     bodies,
+    annotations: project.annotations?.filter(
+      (m) => target === 'all' || (m.kind === 'note' && visible.has(anchorBodyId(m.anchor) ?? '')),
+    ),
     dimensions: project.dimensions.filter((d) => {
       const refs = dimensionBodyIds(d, project);
       return refs.every(

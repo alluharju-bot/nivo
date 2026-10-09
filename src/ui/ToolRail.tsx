@@ -10,12 +10,14 @@ import {
   Grip,
   Ruler,
   MoveHorizontal,
+  MessageSquare,
+  Scan,
 } from 'lucide-react';
 import type { Tool } from '../viewport/Viewport';
 
 export type ToolItem = { id: Tool; label: string; icon: ReactNode; shortcut: string };
 export type ToolDock = 'left' | 'right' | 'top' | 'bottom';
-export type MeasureMode = 'guide' | 'free' | 'dimension';
+export type MeasureMode = 'guide' | 'free' | 'dimension' | 'area' | 'note';
 const measureOptions = [
   {
     id: 'guide',
@@ -34,6 +36,18 @@ const measureOptions = [
     label: 'Dimensio',
     description: 'Kaksi pistettä ja sivulle sijoitettava mitta',
     icon: <MoveHorizontal />,
+  },
+  {
+    id: 'area',
+    label: 'Pinta-ala',
+    description: 'Suorakulmioista yhdistetty pinta-alue',
+    icon: <Scan />,
+  },
+  {
+    id: 'note',
+    label: 'Huomautus',
+    description: 'Tekstilaatikko ja viiva kohdepisteeseen',
+    icon: <MessageSquare />,
   },
 ] as const;
 export function ToolRail({
@@ -203,7 +217,7 @@ export function ToolRail({
                         ? 'Mittaviiva'
                         : measureMode === 'guide'
                           ? 'Apuviiva'
-                          : 'Dimensio'}
+                          : measureOptions.find((m) => m.id === measureMode)!.label}
                     </span>
                     <kbd>T</kbd>
                   </button>

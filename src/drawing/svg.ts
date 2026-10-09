@@ -1,3 +1,5 @@
+import { markupSvg } from '../viewport/markupSvg';
+import { markupPoints, markupLabel, markupLabelPosition } from '../model/markups';
 import { annotationText } from '../model/annotationStyle';
 import { pointDimensionGeometry, pointDimensionInView } from '../model/dimensions';
 import {
@@ -133,6 +135,29 @@ function annotationBounds(
       bottom = Math.max(bottom, p[1] + padding);
     }
   }
+  for (const m of project.settings.markupsHidden ? [] : (project.annotations ?? [])) {
+    if (m.hidden) continue;
+    if (
+      m.kind === 'area' &&
+      Math.abs(m.frame.normal[view === 'top' ? 2 : view === 'front' ? 1 : 0]) < 1e-6
+    )
+      continue;
+    for (const point of markupPoints(m, project.bodies)) {
+      const p = projectPoint(point, view);
+      x = Math.min(x, p[0]);
+      right = Math.max(right, p[0]);
+      y = Math.min(y, p[1]);
+      bottom = Math.max(bottom, p[1]);
+    }
+    const p = projectPoint(markupLabelPosition(m, project.bodies), view),
+      label = markupLabel(m);
+    const halfWidth = (label.width * 0.125 + 2) * scale,
+      halfHeight = (label.height * 0.125 + 2) * scale;
+    x = Math.min(x, p[0] - halfWidth);
+    right = Math.max(right, p[0] + halfWidth);
+    y = Math.min(y, p[1] - halfHeight);
+    bottom = Math.max(bottom, p[1] + halfHeight);
+  }
   return [x, y, right - x, bottom - y] as const;
 }
 export function recommendedScale(project: Project, view: DrawingView): number {
@@ -226,10 +251,20 @@ export function createSheet(
     );
   }
   const paths = (list: string[]) => list.map((d) => `<path d="${escapeXml(d)}"/>`).join('');
+  const markupContent = markupSvg(
+    project.settings.markupsHidden ? [] : (project.annotations ?? []),
+    project.bodies,
+    (p) => {
+      const q = projectPoint(p, view);
+      return [q[0] / scale + tx, q[1] / scale + ty, 0];
+    },
+    [],
+    0.25,
+  );
   const content = `  <g transform="translate(${n(tx)} ${n(ty)}) scale(${1 / scale})" fill="none" stroke="#243630" stroke-width="${0.35 * scale}" stroke-linejoin="round">
     ${hidden ? `<g stroke="#7c8580" stroke-width="${0.18 * scale}" stroke-dasharray="${2 * scale} ${scale}">${paths(projection.hidden)}</g>` : ''}
     ${paths(projection.visible)}
-  </g>
+  </g>${markupContent}
   <g fill="none" stroke="#475a51" stroke-width="0.18">${lines.join('').replaceAll('<text ', '<text fill="#243630" stroke="none" font-family="Arial, sans-serif" font-size="3.2" text-anchor="middle" ')}</g>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210" role="img" aria-label="${viewLabels[view]}, mittakaava 1:${scale}">
   <rect width="297" height="210" fill="white"/>

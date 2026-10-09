@@ -4946,10 +4946,19 @@ p {
   flex-shrink: 0;
 }
 .model-browser .panel-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
   flex-shrink: 0;
   background: transparent;
   padding: 0 8px;
   border-bottom-color: #53664a24;
+}
+.model-browser .panel-tabs > button {
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  font-size: 10px;
 }
 .model-browser .object-select,
 .model-browser .group-select,
@@ -6285,4 +6294,114 @@ p {
 }
 .inspector-details > .annotation-properties {
   padding: 4px 20px 20px;
+}
+.model-markups {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+.markup-properties,
+.markup-tool-panel {
+  padding: 16px 20px;
+  display: grid;
+  gap: 12px;
+}
+.markup-properties h2,
+.markup-tool-panel h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.markup-properties label,
+.markup-tool-panel label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.markup-properties input,
+.markup-properties select,
+.markup-properties textarea,
+.markup-tool-panel input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #c6cfc8;
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+}
+.markup-properties textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+.markup-properties input[type='color'],
+.markup-tool-panel input[type='color'] {
+  height: 36px;
+  padding: 3px;
+}
+.markup-properties input[type='checkbox'] {
+  width: auto;
+}
+.markup-properties details > label {
+  margin-top: 12px;
+}
+.markup-properties .annotation-buttons button,
+.markup-tool-panel .annotation-buttons button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #c6cfc8;
+  border-radius: 6px;
+  background: #fff;
+}
+.markup-properties p,
+.markup-tool-panel p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.area-total {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  color: #285f55;
+}
+.markup-list > div {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #43564618;
+}
+.markup-list > div > button:first-child {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 9px;
+  color: inherit;
+}
+.markup-list small {
+  display: block;
+  opacity: 0.65;
+  margin-top: 3px;
+}
+.markup-list .selected {
+  background: #fff0dd;
+  box-shadow: inset 3px 0 #e57820;
+}
+.markup-list .is-hidden > button:first-child {
+  opacity: 0.5;
+}
+.markup-visibility {
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 10px;
+  color: inherit;
 }

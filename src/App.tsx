@@ -1,3 +1,7 @@
+import { MarkupProperties } from './ui/MarkupProperties';
+import { areaText, areaUnion, markupName } from './model/markups';
+import type { Markup } from './model/project';
+import type { MeasureMode } from './ui/ToolRail';
 import { AnnotationProperties } from './ui/AnnotationProperties';
 import { annotationText } from './model/annotationStyle';
 import { openingOffsets, singleOpening, type OpeningPattern } from './model/openingPattern';
@@ -344,8 +348,29 @@ export default function App() {
   const [drawingSectionId, setDrawingSectionId] = useState<string>();
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>();
-  const [measureMode, setMeasureMode] = useState<'guide' | 'free' | 'dimension'>('guide');
+  const [measureMode, setMeasureMode] = useState<MeasureMode>('guide');
   const [measureStart, setMeasureStart] = useState<Pick<Guide, 'anchor' | 'plane'>>();
+  const [markupDraft, setMarkupDraft] = useState<Markup>();
+  const [selectedMarkupIds, setSelectedMarkupIds] = useState<string[]>([]);
+  const selectedMarkup =
+    selectedMarkupIds.length === 1
+      ? project.annotations?.find((m) => m.id === selectedMarkupIds[0])
+      : undefined;
+  const [areaName, setAreaName] = useState('Pinta-alue 1');
+  const [areaColor, setAreaColor] = useState('#428a83');
+  const [noteText, setNoteText] = useState('Huomautus');
+  const [markupCommand, setMarkupCommand] = useState<{ id: number; action: 'finish' | 'back' }>();
+  const markupStyle = {
+    area: { name: areaName.trim() || 'Pinta-alue', color: areaColor },
+    note: {
+      text: noteText.trim() || 'Huomautus',
+      color: '#fff2ce',
+      textColor: '#263c36',
+      shape: 'rounded' as const,
+      fontSize: 14,
+      bold: false,
+    },
+  };
   const [dimensionDraft, setDimensionDraft] = useState<PointDimension>();
   const [measureMenu, setMeasureMenu] = useState(false);
   const [guidePointEdit, setGuidePointEdit] = useState<GuideEndpoint>();
@@ -412,6 +437,12 @@ export default function App() {
       ids.every((id) => existing.has(id)) ? ids : ids.filter((id) => existing.has(id)),
     );
   }, [project.guides]);
+  useEffect(() => {
+    const existing = new Set(project.annotations?.map((m) => m.id));
+    setSelectedMarkupIds((ids) =>
+      ids.every((id) => existing.has(id)) ? ids : ids.filter((id) => existing.has(id)),
+    );
+  }, [project.annotations]);
   const selectedAnnotationsHidden = [
     ...project.dimensions.filter((d) => selectedDimensionSet.has(d.id)),
     ...project.guides.filter((g) => selectedGuideSet.has(g.id)),
@@ -480,6 +511,8 @@ export default function App() {
   const committing = useRef(false);
   const [selectedFace, setSelectedFace] = useState<FaceRef>();
   const [tool, setTool] = useState<Tool>('select');
+  const markupMode = tool === 'measure' && (measureMode === 'area' || measureMode === 'note');
+
   const [renderOpen, setRenderOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
   const [groupMove, setGroupMove] = useState<TreeMove>();
@@ -567,6 +600,7 @@ export default function App() {
     ids: loftOpen ? loftIds : selectedIds,
     guideIds: loftOpen ? [] : selectedGuideIds,
     dimensionIds: loftOpen ? [] : selectedDimensionIds,
+    markupIds: loftOpen ? [] : selectedMarkupIds,
     primary: loftOpen ? loftIds[0] : selected,
     groupId: loftOpen ? undefined : selectedGroupId,
     editingBodyId,
@@ -660,7 +694,7 @@ export default function App() {
       editor.setError('Selain ei sallinut koko näytön tilaa tässä ikkunassa.');
     }
   };
-  const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides'>('objects');
+  const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides' | 'markups'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
   const inspectorDetails = useRef<HTMLDivElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
@@ -1088,6 +1122,8 @@ export default function App() {
     setPenInputAxis('x');
   };
   const resetGesture = () => {
+    setMarkupDraft(undefined);
+    setSelectedMarkupIds([]);
     setAnnotationFocus(0);
     setSelectedDimensionIds([]);
     openingRequest.current++;
@@ -1223,6 +1259,7 @@ export default function App() {
     if (extend) {
       setSelectedGuideIds(selectedGuideIds);
       setSelectedDimensionIds(selectedDimensionIds);
+      setSelectedMarkupIds(selectedMarkupIds);
     }
     if (tool === 'rotate' && id && !force) startRotation(ids);
   };
@@ -1582,7 +1619,7 @@ export default function App() {
 
   const makeGuide = (): Guide | undefined => {
     const draft = guideRef.current;
-    if (!draft || measureMode === 'dimension') return;
+    if (!draft || (measureMode !== 'guide' && measureMode !== 'free')) return;
     const guide: Guide = {
       id: draft.id ?? draftId,
       anchor: draft.anchor,
@@ -1890,6 +1927,10 @@ export default function App() {
           project.bodies.filter((b) => b.id === faceRef.current!.bodyId),
           project.groups,
         );
+      if (markupMode) {
+        setMarkupCommand({ id: performance.now(), action: 'finish' });
+        return;
+      }
       if (tool === 'measure' && measureMode === 'dimension') {
         if (dimensionDraft) await commitDimension(dimensionDraft);
         return;
@@ -2625,6 +2666,7 @@ export default function App() {
   const selectDimension = (id: string, additive = false, editing = false) => {
     if (busy) return;
     if (tool !== 'select') resetGesture();
+    if (!additive) setSelectedMarkupIds([]);
     if (!additive && selectedIds.length + selectedGuideIds.length + selectedDimensionIds.length > 1)
       activityHistory.prepare(actionContext);
     setTool('select');
@@ -2647,6 +2689,66 @@ export default function App() {
     setAnnotationFocus((n) => (editing ? n + 1 : 0));
     editor.setMessage('Dimensio valittu. Muokkaa tekstiä tai näkyvyyttä oikealla.');
   };
+  const selectMarkup = (id: string, additive = false) => {
+    if (busy) return;
+    if (tool !== 'select' && !markupMode) resetGesture();
+    if (!additive) {
+      setSelected(undefined);
+      setSelectedIds([]);
+      setSelectedGroupId(undefined);
+      setSelectedGuideIds([]);
+      setSelectedDimensionIds([]);
+    }
+    if (!markupMode) setTool('select');
+    setSelectedMarkupIds((old) =>
+      additive ? (old.includes(id) ? old.filter((key) => key !== id) : [...old, id]) : [id],
+    );
+    setSelectedFace(undefined);
+    setPanelOpen(true);
+    setTab('markups');
+  };
+  const commitMarkup = async (markup: Markup) => {
+    if (busy) return;
+    const existing = project.annotations?.some((m) => m.id === markup.id);
+    if (
+      await editor.transact(
+        {
+          ...project,
+          annotations: [...(project.annotations ?? []).filter((m) => m.id !== markup.id), markup],
+        },
+        existing
+          ? 'Merkintä päivitetty.'
+          : markup.kind === 'area'
+            ? 'Pinta-alue yhdistetty ja tallennettu.'
+            : 'Huomautus tallennettu.',
+      )
+    ) {
+      resetGesture();
+      setSelected(undefined);
+      setSelectedIds([]);
+      setSelectedGroupId(undefined);
+      setSelectedMarkupIds([markup.id]);
+      setTab('markups');
+      if (markup.kind === 'area' && !existing)
+        setAreaName(
+          `Pinta-alue ${(project.annotations ?? []).filter((m) => m.kind === 'area').length + 2}`,
+        );
+    }
+  };
+  const removeMarkup = (ids: string[]) => {
+    if (!busy)
+      void editor
+        .transact(
+          {
+            ...project,
+            annotations: (project.annotations ?? []).filter((m) => !ids.includes(m.id)),
+          },
+          'Merkinnät poistettu.',
+        )
+        .then((ok) => {
+          if (ok) setSelectedMarkupIds([]);
+        });
+  };
   const selectGuide = (id: string, additive = false) => {
     if (busy) return;
     resetGesture();
@@ -2667,7 +2769,10 @@ export default function App() {
     setAwaitingStart(true);
     setTab('guides');
     setPanelOpen(true);
-    if (additive) setSelectedDimensionIds(selectedDimensionIds);
+    if (additive) {
+      setSelectedDimensionIds(selectedDimensionIds);
+      setSelectedMarkupIds(selectedMarkupIds);
+    }
     editor.setMessage('Viiva valittu. Valitse toiminto viivan valikosta.');
   };
   const removeGuide = async (id: string) => {
@@ -2898,7 +3003,12 @@ export default function App() {
   const removeBody = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
     if (busy) return;
-    if (!ids.length && !selectedGuideIds.length && !selectedDimensionIds.length) {
+    if (
+      !ids.length &&
+      !selectedGuideIds.length &&
+      !selectedDimensionIds.length &&
+      !selectedMarkupIds.length
+    ) {
       if (selectedGroup) await removeGroup(selectedGroup.id);
       return;
     }
@@ -2910,8 +3020,9 @@ export default function App() {
             ...cleaned,
             guides: cleaned.guides.filter((g) => !selectedGuideSet.has(g.id)),
             dimensions: cleaned.dimensions.filter((d) => !selectedDimensionSet.has(d.id)),
+            annotations: cleaned.annotations?.filter((m) => !selectedMarkupIds.includes(m.id)),
           },
-          `${[ids.length ? `${ids.length} osaa` : '', selectedGuideIds.length ? `${selectedGuideIds.length} viivaa` : '', selectedDimensionIds.length ? `${selectedDimensionIds.length} dimensiota` : ''].filter(Boolean).join(' + ')} poistettu. Peru palauttaa koko valinnan.`,
+          `${[ids.length ? `${ids.length} osaa` : '', selectedGuideIds.length ? `${selectedGuideIds.length} viivaa` : '', selectedDimensionIds.length ? `${selectedDimensionIds.length} dimensiota` : '', selectedMarkupIds.length ? `${selectedMarkupIds.length} merkintää` : ''].filter(Boolean).join(' + ')} poistettu. Peru palauttaa koko valinnan.`,
         )
       )
         select(undefined, undefined, false, true);
@@ -3385,6 +3496,11 @@ export default function App() {
         );
         input?.focus();
         input?.setSelectionRange(input.value.length, input.value.length);
+        return;
+      }
+      if (markupMode && (key === 'enter' || key === 'backspace')) {
+        event.preventDefault();
+        setMarkupCommand({ id: performance.now(), action: key === 'enter' ? 'finish' : 'back' });
         return;
       }
       if (key === 'enter' && (editing || tool === 'boolean' || !!dimensionDraft)) {
@@ -3924,178 +4040,194 @@ export default function App() {
       });
     }
   };
-  const quickActions: QuickAction[] = selectedDimensionIds.length
+  const quickActions: QuickAction[] = selectedMarkupIds.length
     ? [
+        { label: 'Merkinnän asetukset', run: () => setPanelOpen(true) },
         {
-          label: 'Muokkaa tekstiä',
+          label: selectedMarkup?.hidden ? 'Näytä merkintä' : 'Piilota merkintä',
           run: () => {
-            setPanelOpen(true);
-            setAnnotationFocus((n) => n + 1);
+            if (selectedMarkup)
+              void commitMarkup({ ...selectedMarkup, hidden: !selectedMarkup.hidden });
           },
-          disabled:
-            selectedDimensionIds.length !== 1 || !!selectedIds.length || !!selectedGuideIds.length,
-        },
-        {
-          label: selectedDimension?.hidden ? 'Näytä dimensio' : 'Piilota dimensiot',
-          run: () =>
-            patchAnnotation('dimensions', selectedDimensionIds, {
-              hidden: !selectedDimension?.hidden,
-            }),
-          disabled: busy,
+          disabled: busy || !selectedMarkup,
         },
         { label: 'Poista valinta', run: () => void removeBody(), disabled: busy },
       ]
-    : selectedGuideIds.length && (selectedGuideIds.length > 1 || selectedIds.length)
-      ? [{ label: 'Poista valinta', run: () => void removeBody(), disabled: busy }]
-      : selectedGuide
-        ? [
-            { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
-            {
-              label: selectedGuide.hidden ? 'Näytä viiva' : 'Piilota viiva',
-              run: () =>
-                patchAnnotation('guides', [selectedGuide.id], { hidden: !selectedGuide.hidden }),
-              disabled: busy,
+    : selectedDimensionIds.length
+      ? [
+          {
+            label: 'Muokkaa tekstiä',
+            run: () => {
+              setPanelOpen(true);
+              setAnnotationFocus((n) => n + 1);
             },
-            {
-              label: 'Poista apuviiva',
-              run: () => void removeGuide(selectedGuide.id),
-              disabled: busy,
-            },
-          ]
-        : [
-            {
-              label: selectedGroup?.kind === 'assembly' ? 'Muokkaa osia' : 'Muokkaa osaa',
-              run: () =>
-                selectedGroup?.kind === 'assembly'
-                  ? openAssembly(selectedGroup.id)
-                  : body && openBodyEdit(body.id),
-              disabled: busy || !body,
-            },
-            {
-              label: 'Eristä valinta',
-              run: isolateSelection,
-              disabled: busy || !selectedIds.length,
-            },
-            {
-              label: 'Siirrä · M',
-              run: () => begin('move'),
-              reason: movementBlocked,
-              disabled: busy || !body,
-            },
-            {
-              label: 'Kopioi ja siirrä',
-              run: copyBody,
-              reason: movementBlocked,
-              disabled: busy || !body,
-            },
-            {
-              label: 'Kierrä · R',
-              run: () => begin('rotate'),
-              reason: movementBlocked,
-              disabled: busy || !body,
-            },
-            ...(body && featureIsSolid(body.feature)
-              ? [
-                  { label: 'Cut / Join', run: () => begin('boolean'), disabled: busy },
-                  ...(selectedIds.length > 1
-                    ? [
-                        {
-                          label: 'Yhdistä valitut',
-                          run: () => void mergeSelected(),
-                          disabled: busy || !!movementBlocked,
-                        },
-                      ]
-                    : []),
-                ]
-              : []),
-            ...(canRepeatOpening
-              ? [
-                  {
-                    label: 'Toista aukko…',
-                    run: prepareRepeatedOpening,
-                    disabled: busy || openingBusy,
-                  },
-                ]
-              : []),
-            ...(canDivideSurface
-              ? [{ label: 'Jaa pinta', run: () => void prepareSurfaceSplit() }]
-              : []),
-            ...(canCutOpening
-              ? [
-                  {
-                    label: 'Leikkaa aukko…',
-                    run: () => void prepareOpening(),
-                    disabled: busy || openingBusy,
-                  },
-                ]
-              : []),
-            {
-              label: 'Pehmennä reunat…',
-              run: softenSelected,
-              reason: movementBlocked,
-              disabled: busy || !body || selectedIds.length !== 1 || !featureIsSolid(body.feature),
-            },
-            {
-              label: 'Veitsi · N',
-              run: () => begin('knife'),
-              reason: movementBlocked,
-              disabled: busy || !body,
-            },
-            { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
-            { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
-            {
-              label: 'Piilota valinta',
-              run: () =>
-                selectedGroup
-                  ? void patchGroup(selectedGroup.id, { hidden: true })
-                  : void patchBodies(selectedIds, { hidden: true }),
-              disabled: busy || !body,
-            },
-            ...(selectedIds.length > 1 && !selectedGroup
-              ? [
-                  {
-                    label: 'Luo kokoonpano',
-                    run: () => void createGroup(openedAssembly, true),
-                    disabled: busy,
-                  },
-                ]
-              : []),
-            {
-              label: 'Siirrä ryhmään…',
-              run: () => {
-                setGroupDestination(selectedGroup?.parentId ?? body?.groupId ?? '');
-                setGroupMove(
-                  selectedGroup
-                    ? { kind: 'group', id: selectedGroup.id }
-                    : { kind: 'bodies', ids: [...selectedIds] },
-                );
+            disabled:
+              selectedDimensionIds.length !== 1 ||
+              !!selectedIds.length ||
+              !!selectedGuideIds.length,
+          },
+          {
+            label: selectedDimension?.hidden ? 'Näytä dimensio' : 'Piilota dimensiot',
+            run: () =>
+              patchAnnotation('dimensions', selectedDimensionIds, {
+                hidden: !selectedDimension?.hidden,
+              }),
+            disabled: busy,
+          },
+          { label: 'Poista valinta', run: () => void removeBody(), disabled: busy },
+        ]
+      : selectedGuideIds.length && (selectedGuideIds.length > 1 || selectedIds.length)
+        ? [{ label: 'Poista valinta', run: () => void removeBody(), disabled: busy }]
+        : selectedGuide
+          ? [
+              { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
+              {
+                label: selectedGuide.hidden ? 'Näytä viiva' : 'Piilota viiva',
+                run: () =>
+                  patchAnnotation('guides', [selectedGuide.id], { hidden: !selectedGuide.hidden }),
+                disabled: busy,
               },
-              disabled:
-                busy ||
-                editing ||
-                !!editingBodyId ||
-                !!openedAssembly ||
-                (!selectedGroup && !selectedIds.length),
-            },
-            ...(selectedGroup
-              ? [
-                  {
-                    label: 'Poista ryhmä',
-                    run: () => void removeGroup(selectedGroup.id),
-                    disabled: busy,
-                  },
-                ]
-              : []),
-            ...(project.bodies.some((b) => selectedIdSet.has(b.id) && b.component)
-              ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }]
-              : []),
-            {
-              label: `Poista valinta (${selectedIds.length})`,
-              run: () => void removeBody(),
-              reason: movementBlocked,
-              disabled: busy || !selectedIds.length,
-            },
-          ];
+              {
+                label: 'Poista apuviiva',
+                run: () => void removeGuide(selectedGuide.id),
+                disabled: busy,
+              },
+            ]
+          : [
+              {
+                label: selectedGroup?.kind === 'assembly' ? 'Muokkaa osia' : 'Muokkaa osaa',
+                run: () =>
+                  selectedGroup?.kind === 'assembly'
+                    ? openAssembly(selectedGroup.id)
+                    : body && openBodyEdit(body.id),
+                disabled: busy || !body,
+              },
+              {
+                label: 'Eristä valinta',
+                run: isolateSelection,
+                disabled: busy || !selectedIds.length,
+              },
+              {
+                label: 'Siirrä · M',
+                run: () => begin('move'),
+                reason: movementBlocked,
+                disabled: busy || !body,
+              },
+              {
+                label: 'Kopioi ja siirrä',
+                run: copyBody,
+                reason: movementBlocked,
+                disabled: busy || !body,
+              },
+              {
+                label: 'Kierrä · R',
+                run: () => begin('rotate'),
+                reason: movementBlocked,
+                disabled: busy || !body,
+              },
+              ...(body && featureIsSolid(body.feature)
+                ? [
+                    { label: 'Cut / Join', run: () => begin('boolean'), disabled: busy },
+                    ...(selectedIds.length > 1
+                      ? [
+                          {
+                            label: 'Yhdistä valitut',
+                            run: () => void mergeSelected(),
+                            disabled: busy || !!movementBlocked,
+                          },
+                        ]
+                      : []),
+                  ]
+                : []),
+              ...(canRepeatOpening
+                ? [
+                    {
+                      label: 'Toista aukko…',
+                      run: prepareRepeatedOpening,
+                      disabled: busy || openingBusy,
+                    },
+                  ]
+                : []),
+              ...(canDivideSurface
+                ? [{ label: 'Jaa pinta', run: () => void prepareSurfaceSplit() }]
+                : []),
+              ...(canCutOpening
+                ? [
+                    {
+                      label: 'Leikkaa aukko…',
+                      run: () => void prepareOpening(),
+                      disabled: busy || openingBusy,
+                    },
+                  ]
+                : []),
+              {
+                label: 'Pehmennä reunat…',
+                run: softenSelected,
+                reason: movementBlocked,
+                disabled:
+                  busy || !body || selectedIds.length !== 1 || !featureIsSolid(body.feature),
+              },
+              {
+                label: 'Veitsi · N',
+                run: () => begin('knife'),
+                reason: movementBlocked,
+                disabled: busy || !body,
+              },
+              { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
+              { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
+              {
+                label: 'Piilota valinta',
+                run: () =>
+                  selectedGroup
+                    ? void patchGroup(selectedGroup.id, { hidden: true })
+                    : void patchBodies(selectedIds, { hidden: true }),
+                disabled: busy || !body,
+              },
+              ...(selectedIds.length > 1 && !selectedGroup
+                ? [
+                    {
+                      label: 'Luo kokoonpano',
+                      run: () => void createGroup(openedAssembly, true),
+                      disabled: busy,
+                    },
+                  ]
+                : []),
+              {
+                label: 'Siirrä ryhmään…',
+                run: () => {
+                  setGroupDestination(selectedGroup?.parentId ?? body?.groupId ?? '');
+                  setGroupMove(
+                    selectedGroup
+                      ? { kind: 'group', id: selectedGroup.id }
+                      : { kind: 'bodies', ids: [...selectedIds] },
+                  );
+                },
+                disabled:
+                  busy ||
+                  editing ||
+                  !!editingBodyId ||
+                  !!openedAssembly ||
+                  (!selectedGroup && !selectedIds.length),
+              },
+              ...(selectedGroup
+                ? [
+                    {
+                      label: 'Poista ryhmä',
+                      run: () => void removeGroup(selectedGroup.id),
+                      disabled: busy,
+                    },
+                  ]
+                : []),
+              ...(project.bodies.some((b) => selectedIdSet.has(b.id) && b.component)
+                ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }]
+                : []),
+              {
+                label: `Poista valinta (${selectedIds.length})`,
+                run: () => void removeBody(),
+                reason: movementBlocked,
+                disabled: busy || !selectedIds.length,
+              },
+            ];
   const chooseOther = () => {
     if (actionMenu?.candidates?.length) {
       setPickList({ ...actionMenu, candidates: actionMenu.candidates });
@@ -4331,7 +4463,13 @@ export default function App() {
               shapeKind
             ]
           : tool === 'measure'
-            ? { dimension: 'Dimensio', guide: 'Apuviiva', free: 'Vapaa mittaviiva' }[measureMode]
+            ? {
+                dimension: 'Dimensio',
+                guide: 'Apuviiva',
+                free: 'Vapaa mittaviiva',
+                area: 'Pinta-ala',
+                note: 'Huomautus',
+              }[measureMode]
             : tool === 'boolean'
               ? booleanOperation === 'cut'
                 ? 'Leikkaa'
@@ -4380,13 +4518,17 @@ export default function App() {
                 : tool === 'detail'
                   ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
                   : tool === 'measure'
-                    ? guidePointEdit
-                      ? 'Siirrä valitun viivan päätä. Muut viivat jäävät paikoilleen. Klikkaus tai Enter hyväksyy, Esc peruu.'
-                      : measureMode === 'dimension'
-                        ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
-                        : measureMode === 'free'
-                          ? 'Napsauta alkupistettä ja jatka pisteestä pisteeseen. Shift pitää suunnan lukittuna ja poimii pituuden toisesta pisteestä. X/Y/Z valitsee akselin. Enter tai Esc päättää ketjun.'
-                          : instructions.measure
+                    ? measureMode === 'area'
+                      ? 'Piirrä suorakulmioita samaan tasoon. Enter yhdistää alueen; päällekkäisyys lasketaan kerran.'
+                      : measureMode === 'note'
+                        ? 'Poimi kohdepiste ja sijoita tekstilaatikko napsauttamalla.'
+                        : guidePointEdit
+                          ? 'Siirrä valitun viivan päätä. Muut viivat jäävät paikoilleen. Klikkaus tai Enter hyväksyy, Esc peruu.'
+                          : measureMode === 'dimension'
+                            ? 'Poimi kaksi pistettä. Vie mittaviiva sivulle ja napsauta.'
+                            : measureMode === 'free'
+                              ? 'Napsauta alkupistettä ja jatka pisteestä pisteeseen. Shift pitää suunnan lukittuna ja poimii pituuden toisesta pisteestä. X/Y/Z valitsee akselin. Enter tai Esc päättää ketjun.'
+                              : instructions.measure
                     : instructions[tool];
   const linkTarget =
     tool === 'knife' || (tool === 'circle' && shapeKind === 'sphere')
@@ -4475,7 +4617,8 @@ export default function App() {
       onEdit={() => openBodyEdit(body.id)}
     />
   );
-  const numericInput = editing &&
+  const numericInput = !markupMode &&
+    editing &&
     (tool !== 'move' || !!body) &&
     (tool !== 'rotate' || !!rotation) &&
     (tool !== 'measure' || !!guideDraft) &&
@@ -4899,6 +5042,11 @@ export default function App() {
                 resetGesture();
                 setAwaitingStart(false);
                 setMeasureMode(mode);
+                if (mode === 'area' || mode === 'note') {
+                  setSelected(undefined);
+                  setSelectedIds([]);
+                  setPanelOpen(true);
+                }
                 setMeasureMenu(false);
               }}
               onCabinet={() => {
@@ -5050,11 +5198,14 @@ export default function App() {
                   <button aria-pressed={tab === 'dimensions'} onClick={() => setTab('dimensions')}>
                     Mitat <span>{project.dimensions.length}</span>
                   </button>
+                  <button aria-pressed={tab === 'markups'} onClick={() => setTab('markups')}>
+                    Merkinnät <span>{project.annotations?.length ?? 0}</span>
+                  </button>
                   <button aria-pressed={tab === 'guides'} onClick={() => setTab('guides')}>
                     Viivat <span>{project.guides.length}</span>
                   </button>
                 </div>
-                {tab !== 'objects' && project.settings.measurementsHidden && (
+                {tab !== 'objects' && tab !== 'markups' && project.settings.measurementsHidden && (
                   <button
                     className="annotation-visibility-notice"
                     onClick={() => void toggleMeasurements()}
@@ -5063,7 +5214,68 @@ export default function App() {
                     Kaikki merkinnät on piilotettu · Näytä merkinnät
                   </button>
                 )}
-                {tab === 'objects' ? (
+                {tab === 'markups' ? (
+                  <div className="markup-list">
+                    <button
+                      className="markup-visibility"
+                      disabled={busy}
+                      onClick={() =>
+                        void editor.transact(
+                          {
+                            ...project,
+                            settings: {
+                              ...project.settings,
+                              markupsHidden: !project.settings.markupsHidden,
+                            },
+                          },
+                          project.settings.markupsHidden
+                            ? 'Merkinnät näkyvät.'
+                            : 'Merkinnät piilotettu.',
+                        )
+                      }
+                    >
+                      {project.settings.markupsHidden ? <EyeOff size={15} /> : <Eye size={15} />}{' '}
+                      {project.settings.markupsHidden
+                        ? 'Näytä pinta-alueet ja huomautukset'
+                        : 'Piilota pinta-alueet ja huomautukset'}
+                    </button>
+                    {(project.annotations ?? []).map((m) => (
+                      <div
+                        key={m.id}
+                        data-testid={`markup-row-${m.id}`}
+                        className={`${selectedMarkupIds.includes(m.id) ? 'selected' : ''} ${m.hidden ? 'is-hidden' : ''}`}
+                      >
+                        <button
+                          onClick={(e) => {
+                            if (tool !== 'select') begin('select');
+                            selectMarkup(m.id, e.shiftKey);
+                          }}
+                        >
+                          <span>
+                            {markupName(m)}
+                            <small>
+                              {m.kind === 'area'
+                                ? areaText(areaUnion(m.rectangles).area)
+                                : 'Tekstihuomautus'}
+                            </small>
+                          </span>
+                        </button>
+                        <IconButton
+                          label={m.hidden ? 'Näytä merkintä' : 'Piilota merkintä'}
+                          disabled={busy}
+                          onClick={() => void commitMarkup({ ...m, hidden: !m.hidden })}
+                        >
+                          {m.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </IconButton>
+                      </div>
+                    ))}
+                    {!project.annotations?.length && (
+                      <p className="empty-list">
+                        Pinta-ala ja Huomautus löytyvät mittatyökalun valikosta.
+                      </p>
+                    )}
+                  </div>
+                ) : tab === 'objects' ? (
                   objectTree
                 ) : tab === 'guides' ? (
                   <div className="guide-list">
@@ -5384,8 +5596,14 @@ export default function App() {
                 setPickOthers(false);
                 setPickList(list);
               }}
-              onContextMenu={({ x, y, bodyId, guideId, dimensionId, candidates }) => {
+              onContextMenu={({ x, y, bodyId, guideId, dimensionId, markupId, candidates }) => {
                 if (busy) return;
+                if (markupId) {
+                  if (!selectedMarkupIds.includes(markupId)) selectMarkup(markupId);
+                  setActionMenu({ x, y, candidates: [] });
+                  setPanelOpen(true);
+                  return;
+                }
                 if (dimensionId) {
                   if (!selectedDimensionSet.has(dimensionId)) selectDimension(dimensionId);
                   setActionMenu({ x, y, candidates: [] });
@@ -5452,6 +5670,26 @@ export default function App() {
               guides={visibleGuides}
               guidePreview={tool === 'measure' ? guidePreview : undefined}
               measureMode={measureMode}
+              markupBodies={project.bodies}
+              markups={
+                project.settings.markupsHidden
+                  ? []
+                  : (project.annotations ?? []).filter((m) => !m.hidden)
+              }
+              markupDraft={
+                markupDraft && !(project.annotations ?? []).some((m) => m.id === markupDraft.id)
+                  ? ({
+                      ...markupDraft,
+                      ...(markupDraft.kind === 'area' ? markupStyle.area : markupStyle.note),
+                    } as Markup)
+                  : markupDraft
+              }
+              selectedMarkupIds={selectedMarkupIds}
+              markupStyle={markupStyle}
+              markupCommand={markupCommand}
+              onMarkupPreview={setMarkupDraft}
+              onMarkupCommit={(m) => void commitMarkup(m)}
+              onMarkupSelect={selectMarkup}
               measureStart={measureStart}
               guidePointEditing={!!guidePointEdit}
               onEditGuidePoint={editGuidePoint}
@@ -5468,7 +5706,7 @@ export default function App() {
               pickReference={pickReference}
               epoch={epoch}
               onSelect={select}
-              onSelectMany={(ids, additive, guideIds = [], dimensionIds = []) => {
+              onSelectMany={(ids, additive, guideIds = [], dimensionIds = [], markupIds = []) => {
                 if (loftOpen) {
                   setLoftIds(
                     [...new Set([...(additive ? loftIds : []), ...ids])].filter((id) =>
@@ -5530,6 +5768,9 @@ export default function App() {
                   ? [...new Set([...selectedGuideIds, ...guideIds])]
                   : guideIds;
                 setSelectedGuideIds(chosenGuides);
+                setSelectedMarkupIds(
+                  additive ? [...new Set([...selectedMarkupIds, ...markupIds])] : markupIds,
+                );
                 const chosenDimensions = additive
                   ? [...new Set([...selectedDimensionIds, ...dimensionIds])]
                   : dimensionIds;
@@ -5539,9 +5780,13 @@ export default function App() {
                   setPanelOpen(true);
                 }
                 if (chosenGuides.length && !next.length) setTab('guides');
+                if (markupIds.length && !next.length) {
+                  setTab('markups');
+                  setPanelOpen(true);
+                }
                 if (tool === 'rotate' && next.length) startRotation(next);
                 editor.setMessage(
-                  `${[next.length ? `${next.length} osaa` : '', chosenGuides.length ? `${chosenGuides.length} viivaa` : '', chosenDimensions.length ? `${chosenDimensions.length} dimensiota` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} valittu.${next.length && !chosenGuides.length ? ' M siirtää valinnan.' : ''}`,
+                  `${[next.length ? `${next.length} osaa` : '', chosenGuides.length ? `${chosenGuides.length} viivaa` : '', chosenDimensions.length ? `${chosenDimensions.length} dimensiota` : '', markupIds.length ? `${markupIds.length} merkintää` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} valittu.${next.length && !chosenGuides.length ? ' M siirtää valinnan.' : ''}`,
                 );
               }}
               radialShape={shapeKind === 'sphere' ? 'circle' : shapeKind}
@@ -5752,7 +5997,8 @@ export default function App() {
                 </button>
               </div>
             )}
-            {(editing || ['rectangle', 'circle'].includes(tool)) &&
+            {!markupMode &&
+              (editing || ['rectangle', 'circle'].includes(tool)) &&
               !['extrude', 'offset', 'rotate', 'detail'].includes(tool) &&
               (tool !== 'move' || !!axis) &&
               !(tool === 'measure' && measureMode === 'dimension') && (
@@ -6045,7 +6291,111 @@ export default function App() {
                   <p className="muted">Tee samasta leikkauksesta sarja. Määrä, väli ja suunta.</p>
                 </section>
               )}
-              {tool === 'paint' ? null : tool === 'measure' && measureMode === 'dimension' ? (
+              {tool === 'paint' ? null : markupMode ? (
+                <section
+                  className="markup-tool-panel"
+                  aria-label={measureMode === 'area' ? 'Pinta-alatyökalu' : 'Huomautustyökalu'}
+                >
+                  {selectedMarkup && !markupDraft ? (
+                    <MarkupProperties
+                      markup={selectedMarkup}
+                      busy={busy}
+                      onChange={(m) => void commitMarkup(m)}
+                      onDelete={() => removeMarkup([selectedMarkup.id])}
+                    />
+                  ) : (
+                    <>
+                      <p>
+                        {measureMode === 'area'
+                          ? 'Napsauta suorakulmion vastakkaisia kulmia. Jatka seuraavalla suorakulmiolla ja paina Enter yhdistääksesi alueen.'
+                          : 'Napsauta reunaa, kulmaa tai muuta kohdepistettä. Sijoita sitten tekstilaatikko napsauttamalla.'}
+                      </p>
+                      <label>
+                        {measureMode === 'area' ? 'Alueen nimi' : 'Huomautuksen teksti'}
+                        <input
+                          aria-label={
+                            measureMode === 'area'
+                              ? 'Uuden alueen nimi'
+                              : 'Uuden huomautuksen teksti'
+                          }
+                          maxLength={measureMode === 'area' ? 120 : 600}
+                          value={measureMode === 'area' ? areaName : noteText}
+                          onChange={(e) =>
+                            measureMode === 'area'
+                              ? setAreaName(e.target.value)
+                              : setNoteText(e.target.value)
+                          }
+                        />
+                      </label>
+                      {measureMode === 'area' && (
+                        <>
+                          <label>
+                            Alueen väri
+                            <input
+                              aria-label="Uuden alueen väri"
+                              type="color"
+                              value={areaColor}
+                              onChange={(e) => setAreaColor(e.target.value)}
+                            />
+                          </label>
+                          <strong className="area-total" data-testid="area-total">
+                            {areaText(
+                              markupDraft?.kind === 'area'
+                                ? areaUnion(markupDraft.rectangles).area
+                                : 0,
+                            )}
+                          </strong>
+                          <p className="muted">
+                            Päällekkäisyys lasketaan kerran. Alue on mittamerkintä, joka ei leikkaa
+                            mallia. Shift poimii viitteen omaan tasoon.
+                          </p>
+                        </>
+                      )}
+                      <div className="annotation-buttons">
+                        <button
+                          disabled={
+                            busy ||
+                            !markupDraft ||
+                            (markupDraft.kind === 'area' && !markupDraft.rectangles.length)
+                          }
+                          onClick={() =>
+                            setMarkupCommand({ id: performance.now(), action: 'finish' })
+                          }
+                        >
+                          {measureMode === 'area' ? 'Yhdistä alue · Enter' : 'Valmis · Enter'}
+                        </button>
+                        {measureMode === 'area' && (
+                          <button
+                            disabled={busy || !markupDraft}
+                            onClick={() =>
+                              setMarkupCommand({ id: performance.now(), action: 'back' })
+                            }
+                          >
+                            Poista viimeinen suorakulmio
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  <button className="button subtle" onClick={() => setMeasureMenu(true)}>
+                    Vaihda mittaustilaa
+                  </button>
+                </section>
+              ) : tool === 'select' && selectedMarkup && !selectedIds.length ? (
+                <MarkupProperties
+                  markup={selectedMarkup}
+                  busy={busy}
+                  onChange={(m) => void commitMarkup(m)}
+                  onDelete={() => removeMarkup([selectedMarkup.id])}
+                />
+              ) : tool === 'select' && selectedMarkupIds.length > 1 && !selectedIds.length ? (
+                <section className="markup-properties">
+                  <h2>{selectedMarkupIds.length} merkintää</h2>
+                  <button onClick={() => void removeBody()} disabled={busy}>
+                    Poista valitut merkinnät
+                  </button>
+                </section>
+              ) : tool === 'measure' && measureMode === 'dimension' ? (
                 <section className="dimension-tool-panel" aria-label="Dimensio">
                   <h2>Kahden pisteen dimensio</h2>
                   <p>
@@ -7400,9 +7750,13 @@ export default function App() {
               ? 'Osat · räjäytyskuva ja leikkauslista · Esc palaa malliin'
               : renderOpen
                 ? 'Renderöinti · materiaalit ja valo · Esc palaa malliin'
-                : editing || tool === 'navigate' || tool === 'boolean'
-                  ? instructions[tool]
-                  : editor.message}
+                : markupMode
+                  ? measureMode === 'area'
+                    ? 'Napsauta suorakulmioiden kulmat · Enter yhdistää · Esc peruu.'
+                    : 'Napsauta kohdepiste ja tekstilaatikon paikka · Valitse-työkalulla voit siirtää laatikkoa.'
+                  : editing || tool === 'navigate' || tool === 'boolean'
+                    ? instructions[tool]
+                    : editor.message}
           </span>
         </div>
         <ActivityHistory
@@ -7431,7 +7785,12 @@ export default function App() {
                 project.dimensions.some((d) => d.id === id && !d.hidden) &&
                 !project.settings.measurementsHidden,
             );
-            if (!ids.length && !guideIds.length && !dimensionIds.length) {
+            const markupIds = (context.markupIds ?? []).filter(
+              (id) =>
+                project.annotations?.some((m) => m.id === id && !m.hidden) &&
+                !project.settings.markupsHidden,
+            );
+            if (!ids.length && !guideIds.length && !dimensionIds.length && !markupIds.length) {
               editor.setMessage('Valinnan kohteet on poistettu tai piilotettu.');
               return;
             }
@@ -7460,11 +7819,13 @@ export default function App() {
             setSelectedFace(undefined);
             setSelectedGuideIds(guideIds);
             setSelectedDimensionIds(dimensionIds);
+            setSelectedMarkupIds(markupIds);
+            if (markupIds.length) setTab('markups');
             if (dimensionIds.length && !ids.length) setTab('dimensions');
             if (guideIds.length && !ids.length) setTab('guides');
             setAwaitingStart(true);
             editor.setMessage(
-              `Valinta palautettu · ${selectionDescription({ ids, guideIds, dimensionIds })}.`,
+              `Valinta palautettu · ${selectionDescription({ ids, guideIds, dimensionIds, markupIds })}.`,
             );
           }}
         />

@@ -1,3 +1,4 @@
+import type { Markup, AreaMarkup, NoteMarkup } from '../model/project';
 import type { GuideEndpoint } from '../model/guideEditing';
 import type { ColorPreview } from '../model/colorPreview';
 import type { ModelDisplay } from '../model/display';
@@ -106,6 +107,7 @@ export interface ViewportProps {
     bodyId?: string;
     guideId?: string;
     dimensionId?: string;
+    markupId?: string;
     candidates?: PickCandidate[];
   }) => void;
   modalOpen?: boolean;
@@ -176,7 +178,20 @@ export interface ViewportProps {
   faceDistance: number;
   extrusionLocked: boolean;
   faceSpan?: FaceSpan;
-  measureMode: 'guide' | 'free' | 'dimension';
+  measureMode: 'guide' | 'free' | 'dimension' | 'area' | 'note';
+  markups?: Markup[];
+  markupBodies?: Body[];
+  markupDraft?: Markup;
+  selectedMarkupIds?: string[];
+  markupStyle?: {
+    area: Pick<AreaMarkup, 'name' | 'color'>;
+    note: Pick<NoteMarkup, 'text' | 'color' | 'textColor' | 'shape' | 'fontSize' | 'bold'>;
+  };
+  markupCommand?: { id: number; action: 'finish' | 'back' };
+  onMarkupPreview?: (markup?: Markup) => void;
+  onMarkupCommit?: (markup: Markup) => void;
+  onMarkupSelect?: (id: string, additive?: boolean) => void;
+
   measureStart?: Pick<Guide, 'anchor' | 'plane'>;
   guidePointEditing?: boolean;
   onEditGuidePoint: (target: GuideEndpoint) => void;
@@ -197,6 +212,7 @@ export interface ViewportProps {
     additive: boolean,
     guideIds?: string[],
     dimensionIds?: string[],
+    markupIds?: string[],
   ) => void;
   onGesture: (gesture: Gesture) => void;
   onAccept: (continueMeasure?: boolean) => void;

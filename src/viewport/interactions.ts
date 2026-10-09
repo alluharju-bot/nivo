@@ -1,3 +1,4 @@
+import { markupInteractions } from './markupInteractions';
 import { bodyDisplayMode } from '../model/display';
 import { dimensionAt, dimensionBoxSelection } from './dimensionPicking';
 import type { GuideEndpoint } from '../model/guideEditing';
@@ -117,7 +118,7 @@ export function installInteractions({
     guideSelectionBounds = undefined;
   };
   const boxSelection = (event: PointerEvent) => {
-    if (!drag) return { ids: [], guideIds: [], dimensionIds: [] };
+    if (!drag) return { ids: [], guideIds: [], dimensionIds: [], markupIds: [] };
     const rect = canvas.getBoundingClientRect(),
       x1 = drag.screenX - rect.left,
       y1 = drag.screenY - rect.top,
@@ -184,6 +185,21 @@ export function installInteractions({
       width: `${Math.abs(x2 - x1)}px`,
       height: `${Math.abs(y2 - y1)}px`,
     });
+    const markupIds =
+      current().tool === 'boolean'
+        ? []
+        : [...container.querySelectorAll<SVGGElement>('.model-markups [data-markup]')]
+            .filter((el) => {
+              const b = el.getBoundingClientRect(),
+                l = Math.min(drag!.screenX, event.clientX),
+                r = Math.max(drag!.screenX, event.clientX),
+                t = Math.min(drag!.screenY, event.clientY),
+                bottom = Math.max(drag!.screenY, event.clientY);
+              return crossing
+                ? b.right >= l && b.left <= r && b.bottom >= t && b.top <= bottom
+                : b.left >= l && b.right <= r && b.top >= t && b.bottom <= bottom;
+            })
+            .map((el) => el.dataset.markup!);
     const dimensionIds =
       current().tool === 'boolean'
         ? []
@@ -195,8 +211,8 @@ export function installInteractions({
             event.clientY,
             crossing,
           );
-    selectionCount.textContent = `${[ids.length ? `${ids.length} osaa` : '', guideIds.length ? `${guideIds.length} viivaa` : '', dimensionIds.length ? `${dimensionIds.length} dimensiota` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} · ${crossing ? 'alueeseen osuvat' : 'kokonaan sisällä'}${drag.extendSelection || event.shiftKey ? ' · lisää valintaan' : ''}`;
-    return { ids, guideIds, dimensionIds };
+    selectionCount.textContent = `${[ids.length ? `${ids.length} osaa` : '', guideIds.length ? `${guideIds.length} viivaa` : '', dimensionIds.length ? `${dimensionIds.length} dimensiota` : '', markupIds.length ? `${markupIds.length} merkintää` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} · ${crossing ? 'alueeseen osuvat' : 'kokonaan sisällä'}${drag.extendSelection || event.shiftKey ? ' · lisää valintaan' : ''}`;
+    return { ids, guideIds, dimensionIds, markupIds };
   };
   const overlay = new THREE.Group();
   const moveAxisLine = new THREE.Mesh(
@@ -1744,6 +1760,36 @@ export function installInteractions({
         }
       : undefined;
   };
+  const markups = markupInteractions({
+    current,
+    host: container,
+    canvas,
+    pick: dimensionPick,
+    start: (event) => {
+      const result = sketchStartAt(event);
+      if (result) show({ point: result.point, key: 'area-start', label: 'Alueen kulma' });
+      return result;
+    },
+    pointOnFrame: (event, frame, grid) => {
+      if (grid) {
+        const target = measureTargetAt(event, () => true);
+        if (
+          target &&
+          (event.shiftKey || Math.abs(dot(sub(target.point, frame.origin), frame.normal)) < 1e-4)
+        ) {
+          show(target);
+          return fromUV(toUV(target.point, frame), frame);
+        }
+      }
+      const point = framePoint(event, frame);
+      if (!point) return;
+      const p = grid ? frameSnap(point, frame, undefined, event) : point;
+      if (grid) show({ point: p, key: 'area-corner', label: 'Alueen kulma' });
+      return p;
+    },
+    viewNormal: () => camera().getWorldDirection(new THREE.Vector3()).negate().toArray() as Vec3,
+  });
+  let markupCommandId: number | undefined;
   const dimensionHit = (event: PointerEvent) => {
     const props = current();
     if (props.dimensionDisplay === 'hidden') return;
@@ -2107,6 +2153,12 @@ export function installInteractions({
   };
   let displayState = current().modelDisplay;
   const sync = () => {
+    markups.sync();
+    const command = current().markupCommand;
+    if (command && command.id !== markupCommandId) {
+      markupCommandId = command.id;
+      markups.command(command.action);
+    }
     canvas.style.cursor = ['pen', 'measure', 'rectangle', 'circle'].includes(current().tool)
       ? 'crosshair'
       : '';
@@ -2747,6 +2799,10 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.modalOpen) return;
+    if (markups.down(event)) {
+      pointers.delete(event.pointerId);
+      return;
+    }
     if (props.pickOthers) {
       // Opening on pointerdown must suppress the canvas default focus, which
       // otherwise steals keyboard focus back from the newly mounted picker.
@@ -3280,6 +3336,7 @@ export function installInteractions({
       show();
       return;
     }
+    if (markups.move(event)) return;
     if (dimensionSession || (props.tool === 'measure' && props.measureMode === 'dimension')) {
       updateDimension(event);
       return;
@@ -3607,10 +3664,11 @@ export function installInteractions({
         !current().busy
       ) {
         const targets = guideEndpointsAt(event);
+        const markup = current().tool === 'select' ? markups.hit(event) : undefined;
         const dimension = current().tool === 'select' ? dimensionHit(event) : undefined;
         const guide = selectableGuideAt(event);
         const picked = faceAt(event);
-        if (targets.length && !dimension)
+        if (targets.length && !dimension && !markup)
           current().onGuidePointMenu({ x: event.clientX, y: event.clientY, targets });
         else
           current().onContextMenu({
@@ -3618,6 +3676,7 @@ export function installInteractions({
             y: event.clientY,
             bodyId: picked?.target.bodyId,
             dimensionId: dimension?.id,
+            markupId: markup?.id,
             guideId: guide?.object.userData.guideId,
             candidates: pickCandidatesAt(event),
           });
@@ -3625,6 +3684,10 @@ export function installInteractions({
       contextStart = undefined;
     }
     if (event.button !== 0) return;
+    if (markups.up(event)) {
+      pointers.delete(event.pointerId);
+      return;
+    }
     showMoveAxis();
     const props = current(),
       active = drag;
@@ -3667,6 +3730,7 @@ export function installInteractions({
             !!active.extendSelection || event.shiftKey,
             selected.guideIds,
             selected.dimensionIds,
+            selected.markupIds,
           );
         } else if (active.extendSelection && active.selectionBodyId)
           props.onSelect(active.selectionBodyId, undefined, true);
@@ -3722,13 +3786,14 @@ export function installInteractions({
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
       } else if (props.tool === 'select' && moved) {
-        const { ids, guideIds, dimensionIds } = boxSelection(event);
+        const { ids, guideIds, dimensionIds, markupIds } = boxSelection(event);
         clearSelectionBox();
         props.onSelectMany(
           ids,
           !!active.extendSelection || event.shiftKey || event.ctrlKey || event.metaKey,
           guideIds,
           dimensionIds,
+          markupIds,
         );
       } else if (props.tool === 'select' && !moved) {
         // Remember modifiers from press time too: releasing Shift just before the
@@ -3843,6 +3908,7 @@ export function installInteractions({
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const props = current(),
       key = event.key.toLowerCase();
+    if (markups.active()) return;
     if (['x', 'y', 'z'].includes(key) && props.tool === 'rotate') {
       event.preventDefault();
       props.onRotationAxis(axisVector(key as Axis));
@@ -4062,6 +4128,11 @@ export function installInteractions({
       event.altKey
     )
       return;
+    const markup = current().tool === 'select' ? markups.hit(event) : undefined;
+    if (markup) {
+      current().onMarkupSelect?.(markup.id);
+      return;
+    }
     const dimension = current().tool === 'select' ? dimensionHit(event as PointerEvent) : undefined;
     if (dimension) {
       current().onSelectDimension?.(dimension.id, false, true);

@@ -247,6 +247,47 @@ export const guideSchema = z.object({
   offset: pointSchema.optional(),
   xray: z.boolean().optional(),
 });
+const markupBase = {
+  id,
+  hidden: z.boolean().optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .default('#428a83'),
+};
+export const areaMarkupSchema = z.object({
+  ...markupBase,
+  kind: z.literal('area'),
+  name: z.string().trim().min(1).max(120),
+  frame: frameSchema,
+  rectangles: z
+    .array(
+      z
+        .tuple([coordinate, coordinate, coordinate, coordinate])
+        .refine((r) => r[2] > r[0] && r[3] > r[1], 'Alueella tulee olla leveys ja korkeus.'),
+    )
+    .min(1)
+    .max(64),
+});
+export const noteMarkupSchema = z.object({
+  ...markupBase,
+  kind: z.literal('note'),
+  text: z.string().trim().min(1).max(600),
+  anchor: anchorSchema,
+  fallback: pointSchema,
+  offset: pointSchema,
+  shape: z.enum(['rounded', 'square', 'plain']).default('rounded'),
+  textColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .default('#263c36'),
+  fontSize: z.number().int().min(10).max(28).default(14),
+  bold: z.boolean().default(false),
+});
+export const markupSchema = z.discriminatedUnion('kind', [areaMarkupSchema, noteMarkupSchema]);
+export type AreaMarkup = z.infer<typeof areaMarkupSchema>;
+export type NoteMarkup = z.infer<typeof noteMarkupSchema>;
+export type Markup = z.infer<typeof markupSchema>;
 const extentDimensionSchema = z.object({
   ...annotationStyle,
   id,
@@ -322,8 +363,10 @@ export const projectSchema = z
     groups: z.array(groupSchema).max(1000).default([]),
     dimensions: z.array(dimensionSchema).max(3000),
     guides: z.array(guideSchema).max(1000),
+    annotations: z.array(markupSchema).max(1000).optional(),
     settings: z
       .object({
+        markupsHidden: z.boolean().optional(),
         activeSectionId: z.string().max(100).optional(),
         guideXray: z.boolean(),
         moveMode: z.enum(['axis', 'free']).optional(),
