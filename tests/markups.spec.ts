@@ -85,6 +85,9 @@ test('callouts anchor, edit, restyle, drag, hide and export without changing the
     .fill('Tähän nurkkaan laattalista');
   for (const p of [at(1000, 800, 20), at(800, 500, 20)]) await page.mouse.click(p.x, p.y);
   await expect(
+    page.getByRole('textbox', { name: 'Huomautuksen teksti', exact: true }),
+  ).toBeFocused();
+  await expect(
     page
       .getByRole('button', { name: 'Toimintohistoria' })
       .getByText('Viimeisin: Huomautus tallennettu.', { exact: true }),
@@ -221,8 +224,9 @@ test('individual and global visibility coexist; a selection box deletes and rest
   await page.screenshot({ path: info.outputPath('markups-list.png') });
   await page.getByRole('button', { name: 'Piilota mallilista', exact: true }).press('Enter');
   const boxAt = await view(page, [body]);
-  const a = boxAt(-100, 1000, 20),
-    b = boxAt(1400, -150, 20);
+  // Start on the empty right side, outside the intentionally hover-expanding model list.
+  const a = boxAt(1400, -150, 20),
+    b = boxAt(-100, 1000, 20);
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
   await page.mouse.move(b.x, b.y, { steps: 5 });

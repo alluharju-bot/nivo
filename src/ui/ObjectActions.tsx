@@ -1,7 +1,7 @@
+import { GroupOptions } from './GroupOptions';
 import { useState } from 'react';
 import { Crosshair, LockKeyhole, RotateCw, Unlock } from 'lucide-react';
 import type { Body, BodyGroup } from '../model/project';
-import { groupPath } from '../model/groups';
 import { BodyColor } from './BodyColor';
 
 export function ObjectActions({
@@ -79,11 +79,7 @@ export function ObjectActions({
               onChange={(e) => onGroup(e.target.value || undefined)}
             >
               <option value="">Ei ryhmää</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {groupPath(groups, g.id)}
-                </option>
-              ))}
+              <GroupOptions groups={groups} />
             </select>
           </label>
         </div>

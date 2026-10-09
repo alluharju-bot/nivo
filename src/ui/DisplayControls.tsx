@@ -1,4 +1,5 @@
-import { Box, Ghost, Square, Boxes, House, Camera } from 'lucide-react';
+import { Box, Ghost, Square, Boxes, House, Camera, Eye } from 'lucide-react';
+import type { MouseEvent } from 'react';
 import {
   commonDisplayMode,
   displayLabels,
@@ -24,6 +25,7 @@ export function DisplayControls({
   onOverview,
   onCapture,
   capturing,
+  onVisibility,
 }: {
   display?: ModelDisplay;
   ids: string[];
@@ -33,6 +35,7 @@ export function DisplayControls({
   onOverview: () => void;
   onCapture: () => void;
   capturing: boolean;
+  onVisibility: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const mode = commonDisplayMode(display, ids.length ? ids : bodyIds);
   const scope = ids.length ? `Valinta · ${ids.length} osaa` : 'Koko näkymä';
@@ -67,6 +70,15 @@ export function DisplayControls({
         );
       })}
       <span className="display-divider" aria-hidden="true" />
+      <button
+        type="button"
+        aria-label="Näkyvyys"
+        aria-haspopup="menu"
+        title="Piilota valinta · H / Näytä viimeksi piilotetut · Shift+H / Näytä kaikki · Alt+H"
+        onClick={onVisibility}
+      >
+        <Eye size={18} aria-hidden="true" />
+      </button>
       <button
         type="button"
         aria-label="Tallenna näkymä PNG"

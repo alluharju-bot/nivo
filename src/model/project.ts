@@ -283,6 +283,7 @@ export const noteMarkupSchema = z.object({
     .default('#263c36'),
   fontSize: z.number().int().min(10).max(28).default(14),
   bold: z.boolean().default(false),
+  leader: z.boolean().optional(),
 });
 export const markupSchema = z.discriminatedUnion('kind', [areaMarkupSchema, noteMarkupSchema]);
 export type AreaMarkup = z.infer<typeof areaMarkupSchema>;

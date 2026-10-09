@@ -1,5 +1,11 @@
-import { useEffect, useRef } from 'react';
-export type QuickAction = { label: string; run: () => void; disabled?: boolean; reason?: string };
+import { useEffect, useRef, useState } from 'react';
+export type QuickAction = {
+  label: string;
+  run: () => void;
+  disabled?: boolean;
+  reason?: string;
+  children?: QuickAction[];
+};
 export function ContextActions({
   x,
   y,
@@ -14,6 +20,8 @@ export function ContextActions({
   onClose: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const [submenu, setSubmenu] = useState<QuickAction>();
+  const items = submenu?.children ?? actions;
   useEffect(() => {
     const menu = host.current!,
       previous = document.activeElement as HTMLElement;
@@ -27,7 +35,8 @@ export function ContextActions({
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
-        onClose();
+        if (submenu) setSubmenu(undefined);
+        else onClose();
       }
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
         e.preventDefault();
@@ -50,7 +59,7 @@ export function ContextActions({
       if (document.activeElement === document.body || menu.contains(document.activeElement))
         previous?.focus();
     };
-  }, [x, y, onClose]);
+  }, [x, y, onClose, submenu]);
   return (
     <div
       ref={host}
@@ -59,19 +68,34 @@ export function ContextActions({
       aria-label="Valinnan toiminnot"
       style={{ left: Math.max(8, Math.min(x, window.innerWidth - 240)), top: y }}
     >
-      <strong>{title}</strong>
-      {actions.map((a) => (
+      {submenu && (
+        <button role="menuitem" onClick={() => setSubmenu(undefined)}>
+          ← Takaisin
+        </button>
+      )}
+      <strong>{submenu?.label ?? title}</strong>
+      {items.map((a) => (
         <button
           role="menuitem"
           key={a.label}
           disabled={a.disabled || !!a.reason}
           title={a.reason}
+          aria-haspopup={a.children ? 'menu' : undefined}
           onClick={() => {
+            if (a.children) {
+              setSubmenu(a);
+              return;
+            }
             onClose();
             a.run();
           }}
         >
           {a.label}
+          {a.children && (
+            <span aria-hidden="true" style={{ float: 'right' }}>
+              ›
+            </span>
+          )}
         </button>
       ))}
     </div>

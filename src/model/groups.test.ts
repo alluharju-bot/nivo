@@ -156,3 +156,34 @@ describe('tree rearrangement', () => {
     expect(next.groups[1].parentId).toBeUndefined();
   });
 });
+
+it('dropping parts onto a part creates a nested folder without changing geometry or references', async () => {
+  const { groupAroundBody } = await import('./groups');
+  const p = frame(),
+    target = p.bodies[6],
+    moved = p.bodies[15];
+  const result = groupAroundBody(p, { kind: 'bodies', ids: [moved.id] }, target.id);
+  expect(result.project.groups.find((g) => g.id === result.groupId)).toMatchObject({
+    parentId: 'child',
+    kind: 'folder',
+  });
+  expect(groupBodies(result.project, result.groupId).map((b) => b.id)).toEqual([
+    target.id,
+    moved.id,
+  ]);
+  expect(result.project.bodies.map(({ groupId, ...b }) => b)).toEqual(
+    p.bodies.map(({ groupId, ...b }) => b),
+  );
+  expect(result.project.dimensions).toBe(p.dimensions);
+  expect(result.project.guides).toBe(p.guides);
+  expect(parseProject(JSON.stringify(result.project)).groups).toEqual(result.project.groups);
+  expect(() => groupAroundBody(p, { kind: 'group', id: 'root' }, target.id)).toThrow();
+  expect(() => groupAroundBody(p, { kind: 'bodies', ids: [target.id] }, target.id)).toThrow();
+  expect(() =>
+    groupAroundBody(
+      { ...p, bodies: p.bodies.map((b) => (b.id === target.id ? { ...b, locked: true } : b)) },
+      { kind: 'bodies', ids: [moved.id] },
+      target.id,
+    ),
+  ).toThrow('Vapauta');
+});

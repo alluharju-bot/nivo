@@ -3,6 +3,18 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.29.1** sujuvoittaa merkintöjä ja mallilistaa. Pinta-ala ottaa tason
+osoitetusta lattiasta tai seinästä; **Z = XY**, **Y = XZ**, **X = YZ** vaihtaa
+keskeneräisen alueen tasoa. Huomautuksen sijoitus ja veto avaavat tekstin
+kirjoittamisen heti. Värit esikatsellaan kevyesti ja kohdistusviivan voi piilottaa.
+Mallilistassa on roskakorit merkinnöille, Shift-rivivälivalinta ja osakohtainen
+keskitä-painike. Osan päälle pudottaminen luo järjestävän ryhmän; osien sijainnit
+säilyvät. Uudelle muodolle tarjotaan valinnainen nimeämiskortti: **Tab** avaa
+nimen, seuraava Tab ryhmän ja **Enter** tallentaa. Jatkaminen sulkee kortin.
+**H** piilottaa valinnan, **Shift+H** palauttaa viimeksi piilotetut ja **Alt+H**
+kaikki piilotetut. Samat komennot löytyvät näkymän silmävalikosta ja oikean
+napin **Näkyvyys**-alavalikosta. Navigoi jää työkalupalkkiin.
+
 Versio **0.29.0** lisää mittatyökalun valikkoon **Pinta-alan** ja **Huomautuksen**.
 Piirrä saman tason suorakulmiot ja paina Enter: saat yhden nimetyn, värillisen
 pinta-alueen, jonka päällekkäisyydet lasketaan vain kerran. Huomautuksessa napsauta
@@ -792,7 +804,8 @@ sen mitat jäävät rikkoutuneiksi viitteiksi, kunnes ne poistetaan tai toiminto
   Kosketuszoomauksessa käytetään sormien keskipistettä.
 - V = valitse, S = suorakulmio, R = kierrä (apuviivaa muokattaessa viivan kierto),
   O = Offset, E = push/pull, G = kiinnitä/vapauta, M = siirrä, K = kynä,
-  C = ympyrä/muut muodot, B = Muotoile (Cut/Join), T = mittatyökalu, H = navigoi.
+  C = ympyrä/muut muodot, B = Muotoile (Cut/Join), T = mittatyökalu, H = piilota valinta.
+  Shift+H = näytä viimeksi piilotetut, Alt+H = näytä kaikki piilotetut.
   X/Y/Z lukitsevat siirron, kynän tai apuviivan akselin. Enter hyväksyy.
   Sama X/Y/Z vapauttaa akselilukon. Esc päättää työkalun myös lukon ollessa päällä.
   Ctrl/Cmd+Z peruu, Ctrl/Cmd+Shift+Z palauttaa.

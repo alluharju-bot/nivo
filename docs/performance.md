@@ -1,5 +1,34 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.29.1 — pinta-alan esikatselu ja huomautuksen värit, 9.10.2026
+
+Pinta-alan osoitintapahtumat yhdistetään kerran animaatioruudussa. Viimeinen
+vapautuskohta käsitellään aina ennen hyväksymistä. Yksi tartuntahaku riittää
+kulman löytämiseen; semanttisen mitta-ankkurin muodostusta ja toista tasohakua ei
+tehdä. Saman kyselyn kamerasäde ja näkymämatriisit käytetään uudelleen.
+
+`scripts/performance-area.mjs` vertaa tuotantopakettia 6 × 6 m lattialla,
+0 tai 120 apu-/mittaviivalla, 1440 × 960 Chromium headless -ikkunassa. Sama
+120 ruudun osoitinreitti, ensimmäiset 11 näytettä pois tilastoista. CPU-profilointi
+päällä kummassakin paketissa. Vertailukohta v0.29.0 (`38e2afe`).
+
+| Animaatioruutujen väli | V0.29.0 mediaani / p95 | V0.29.1 mediaani / p95 |
+| ---------------------- | ---------------------: | ---------------------: |
+| Lattia, ei viivoja     |         23,3 / 25,8 ms |         24,6 / 29,6 ms |
+| Lattia ja 120 viivaa   |         39,2 / 41,0 ms |         34,5 / 36,4 ms |
+
+Viivoja sisältävän kokeen ruutuväli lyheni noin 12 %. Tyhjän lattian kokeessa
+parannusta ei havaittu. Pointermove-käsittelijän kestoa ei pidä verrata suoraan:
+uudessa toteutuksessa varsinainen työ siirtyy animaatioruutuun. Luvut ovat yhden
+paikallisen headless-vertailun tuloksia, eivät laitteiston FPS-lupaus.
+
+Huomautuksen väri-input ei enää tallenna/validoi projektia eikä luo historiaa
+jokaisella tapahtumalla. Viimeisin väri esikatsellaan SVG-merkinnässä kerran
+ruudussa ilman uutta WebGL-piirtoa. Native change/blur tallentaa yhden muutoksen,
+Esc peruu. Selaintestissä 100 osan malli ja 100 peräkkäistä sävyn muutosta:
+tallennettu projektiväri pysyi ennallaan esikatselun aikana, hyväksynnän jälkeen
+yksi Peru palautti alkuvärin. Tämä kattaa myös merkinnän tekstivärin saman komponentin kautta.
+
 ## V0.24.2 — käyttäjän kaappimallin todellinen pullonkaula, 8.10.2026
 
 Käyttäjän tallentama malli toisti hidastumisen: 12 pyöristettyä kaappirunkoa,

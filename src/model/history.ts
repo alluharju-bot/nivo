@@ -1,5 +1,6 @@
 import { parseProject, type Project } from './project';
 import { actionInfoSchema, type ActionInfo } from './activity';
+import { hiddenItems, newlyHidden, type HiddenItems } from './visibility';
 
 const MAX_SAVED_BYTES = 8 * 1024 * 1024;
 const MAX_SAVED_STEPS = 20;
@@ -81,6 +82,20 @@ export class History {
   }
   peekRedo() {
     return this.future.at(-1);
+  }
+  /** Latest still-hidden batch in the active undo branch; survives saved history. */
+  lastHidden(): HiddenItems {
+    const hidden = hiddenItems(this.current);
+    if (!hidden.size) return hidden;
+    let after = this.current;
+    for (let i = this.past.length - 1; i >= 0; i--) {
+      const before = this.past[i];
+      if (before.id !== this.current.id) break;
+      const batch = new Set([...newlyHidden(before, after)].filter((id) => hidden.has(id)));
+      if (batch.size) return batch;
+      after = before;
+    }
+    return new Set();
   }
   undo() {
     const previous = this.past.pop();

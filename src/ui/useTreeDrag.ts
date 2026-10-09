@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { groupContains, type TreeMove } from '../model/groups';
-import type { BodyGroup } from '../model/project';
+import { groupContains, bodyLocked, groupAncestors, type TreeMove } from '../model/groups';
+import type { Body, BodyGroup } from '../model/project';
 
-type Drop = { id: string; name: string; allowed: boolean };
+type Drop = { id: string; name: string; allowed: boolean; bodyId?: string; reason?: string };
 type Drag = { move: TreeMove; label: string; x: number; y: number; drop?: Drop };
 type Pending = Drag & { pointerId: number; startX: number; startY: number; active: boolean };
 
 /** Pointer dragging also supports touch on the row's grip; the name remains scrollable. */
 export function useTreeDrag(
   groups: BodyGroup[],
+  bodies: Body[],
   disabled: boolean,
-  onDrop: (move: TreeMove, parentId?: string) => void,
+  onDrop: (move: TreeMove, parentId?: string, bodyId?: string) => void,
 ) {
   const tree = useRef<HTMLDivElement>(null);
   const pending = useRef<Pending | null>(null);
   const suppressClick = useRef(false);
-  const latest = useRef({ groups, disabled, onDrop });
-  latest.current = { groups, disabled, onDrop };
+  const latest = useRef({ groups, bodies, disabled, onDrop });
+  latest.current = { groups, bodies, disabled, onDrop };
   const [drag, setDrag] = useState<Drag>();
 
   useEffect(() => {
@@ -25,6 +26,35 @@ export function useTreeDrag(
       const el = document.elementFromPoint(p.x, p.y)?.closest<HTMLElement>('[data-tree-drop]');
       if (!el || !tree.current?.contains(el)) return;
       const id = el.dataset.treeDrop!;
+      const body = latest.current.bodies.find((b) => b.id === el.dataset.treeBody);
+      if (body) {
+        const own =
+          p.move.kind === 'bodies'
+            ? p.move.ids.includes(body.id)
+            : groupContains(latest.current.groups, p.move.id, body.groupId);
+        const held =
+          bodyLocked(body, latest.current.groups) ||
+          latest.current.bodies.some(
+            (b) =>
+              (p.move.kind === 'bodies'
+                ? p.move.ids.includes(b.id)
+                : groupContains(latest.current.groups, p.move.id, b.groupId)) &&
+              bodyLocked(b, latest.current.groups),
+          ) ||
+          (p.move.kind === 'group' &&
+            groupAncestors(latest.current.groups, p.move.id).some((g) => g.locked));
+        return {
+          id: body.id,
+          bodyId: body.id,
+          name: `Luo ryhmä: ${body.name}`,
+          allowed: !own && !held,
+          reason: own
+            ? 'Ei omaan osaan tai ryhmään'
+            : held
+              ? 'Vapauta kiinnitetyt osat ensin'
+              : undefined,
+        };
+      }
       return {
         id,
         name: id ? (latest.current.groups.find((g) => g.id === id)?.name ?? '') : 'Päätaso',
@@ -88,7 +118,7 @@ export function useTreeDrag(
       const drop = p.active ? target(p) : undefined;
       finish();
       if (drop?.allowed && !latest.current.disabled)
-        latest.current.onDrop(p.move, drop.id || undefined);
+        latest.current.onDrop(p.move, drop.bodyId ? undefined : drop.id || undefined, drop.bodyId);
     };
     const cancel = () => finish();
     const escape = (e: KeyboardEvent) => {
@@ -115,7 +145,7 @@ export function useTreeDrag(
 
   const start = (e: ReactPointerEvent<HTMLElement>, move: TreeMove, label: string) => {
     suppressClick.current = false;
-    if (disabled || e.button !== 0 || !e.isPrimary) return;
+    if (disabled || e.button !== 0 || !e.isPrimary || e.shiftKey || e.ctrlKey || e.metaKey) return;
     if (e.pointerType === 'touch' && !(e.target as HTMLElement).closest('.tree-drag-grip')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     pending.current = {

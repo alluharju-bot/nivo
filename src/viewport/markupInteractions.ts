@@ -6,10 +6,11 @@ import {
   type NoteMarkup,
   type Anchor,
   type Vec3,
+  type Axis,
 } from '../model/project';
-import { toUV, sketchFrame, type SketchFrame } from '../model/sketch';
+import { toUV, fromUV, sketchFrame, type SketchFrame } from '../model/sketch';
 import { add, sub } from '../model/geometry';
-import { notePosition } from '../model/markups';
+import { notePosition, reframeArea } from '../model/markups';
 type Pick = { point: Vec3; anchor: Anchor };
 export function markupInteractions({
   current,
@@ -24,7 +25,9 @@ export function markupInteractions({
   host: HTMLElement;
   canvas: HTMLCanvasElement;
   pick: (e: PointerEvent) => Pick | undefined;
-  start: (e: PointerEvent) => { point: Vec3; frame: SketchFrame } | undefined;
+  start: (
+    e: PointerEvent,
+  ) => { point: Vec3; frame: SketchFrame; automaticNormal?: Vec3 } | undefined;
   pointOnFrame: (e: PointerEvent, f: SketchFrame, snap: boolean) => Vec3 | undefined;
   viewNormal: () => Vec3;
 }) {
@@ -33,6 +36,20 @@ export function markupInteractions({
     corner: Vec3 | undefined,
     note: NoteMarkup | undefined,
     preview: Markup | undefined;
+  let pivot: Vec3 | undefined, automaticNormal: Vec3 | undefined, lastAxis: Axis | undefined;
+  let lastPointer: PointerEvent | undefined,
+    queued: PointerEvent | undefined,
+    animation = 0;
+  const discardQueued = () => {
+    if (animation) cancelAnimationFrame(animation);
+    animation = 0;
+    queued = undefined;
+  };
+  const flush = () => {
+    const e = queued;
+    discardQueued();
+    if (e) update(e);
+  };
   let press:
     | {
         x: number;
@@ -47,15 +64,54 @@ export function markupInteractions({
     current().tool === 'measure' && ['area', 'note'].includes(current().measureMode);
   const sync = () => {
     if (epoch !== current().epoch) {
+      discardQueued();
       epoch = current().epoch;
       area = undefined;
       corner = undefined;
       note = undefined;
       preview = undefined;
       press = undefined;
+      pivot = undefined;
+      automaticNormal = undefined;
+      lastAxis = current().axis;
+    }
+    if (lastAxis !== current().axis && active() && current().measureMode === 'area') {
+      discardQueued();
+      lastAxis = current().axis;
+      if (area && pivot && automaticNormal) {
+        const normal: Vec3 = lastAxis
+          ? lastAxis === 'x'
+            ? [1, 0, 0]
+            : lastAxis === 'y'
+              ? [0, 1, 0]
+              : [0, 0, 1]
+          : automaticNormal;
+        const before = area.frame,
+          uv = corner ? toUV(corner, before) : undefined,
+          base = toUV(pivot, before);
+        area = reframeArea(area, normal, pivot);
+        if (corner && uv) corner = fromUV([uv[0] - base[0], uv[1] - base[1]], area.frame);
+        const rotated = preview?.kind === 'area' ? reframeArea(preview, normal, pivot) : area;
+        canvas.dataset.sketchPlane = JSON.stringify(normal);
+        publish(rotated);
+      }
+      if (lastPointer) update(lastPointer);
     }
   };
   const publish = (m?: Markup) => {
+    const previous = preview;
+    if (
+      m?.kind === 'area' &&
+      previous?.kind === 'area' &&
+      m.frame === previous.frame &&
+      m.name === previous.name &&
+      m.color === previous.color &&
+      m.rectangles.length === previous.rectangles.length &&
+      m.rectangles.every((r, i) =>
+        r.every((v, j) => Math.abs(v - previous.rectangles[i][j]) < 1e-7),
+      )
+    )
+      return;
     preview = m;
     current().onMarkupPreview?.(m);
   };
@@ -114,8 +170,10 @@ export function markupInteractions({
       return;
     }
     if (active()) {
-      if (current().measureMode === 'area') start(e);
-      else pick(e);
+      if (current().measureMode === 'area') {
+        if (area) pointOnFrame(e, area.frame, true);
+        else start(e);
+      } else pick(e);
     }
   };
   const finishRect = () => {
@@ -128,6 +186,8 @@ export function markupInteractions({
   const down = (e: PointerEvent) => {
     sync();
     if (e.button !== 0 || current().busy) return false;
+    discardQueued();
+    lastPointer = e;
     const candidate =
       current().tool === 'select' || (active() && current().measureMode === 'note' && !note)
         ? hit(e)
@@ -171,15 +231,18 @@ export function markupInteractions({
       const first = area ? undefined : start(e),
         p = area ? pointOnFrame(e, area.frame, true) : first?.point;
       if (!p) return true;
-      if (!area)
+      if (!area) {
         area = { id: uid(), kind: 'area', ...defaults().area, frame: first!.frame, rectangles: [] };
+        pivot = p;
+        automaticNormal = first!.automaticNormal ?? first!.frame.normal;
+      }
       corner = p;
       press = { x: e.clientX, y: e.clientY, stage: 'start' };
       publish(area);
     } else {
       if (note) {
         update(e);
-        if (preview?.kind === 'note') current().onMarkupCommit?.(preview);
+        if (preview?.kind === 'note') current().onMarkupCommit?.(preview, true);
         note = undefined;
         publish();
         press = undefined;
@@ -207,10 +270,19 @@ export function markupInteractions({
     down,
     move(e: PointerEvent) {
       sync();
+      lastPointer = e;
       if (press?.stage === 'drag' && Math.hypot(e.clientX - press.x, e.clientY - press.y) < 4)
         return true;
       if (active() || press?.stage === 'drag') {
-        update(e);
+        queued = e;
+        if (!animation)
+          animation = requestAnimationFrame(() => {
+            animation = 0;
+            const last = queued;
+            queued = undefined;
+            sync();
+            if (last && (active() || press?.stage === 'drag') && !current().busy) update(last);
+          });
         return true;
       }
       return false;
@@ -218,18 +290,19 @@ export function markupInteractions({
     up(e: PointerEvent) {
       sync();
       if (!active() && press?.stage !== 'drag') return false;
+      // The last mouse/touch position is committed even if a paint frame is pending.
+      discardQueued();
+      if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 4) update(e);
       const p = press;
       press = undefined;
       if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 4) {
         if (p.stage === 'drag' && preview?.kind === 'note') {
-          current().onMarkupCommit?.(preview);
+          current().onMarkupCommit?.(preview, true);
           publish();
         } else if (p.stage === 'start') {
-          update(e);
           finishRect();
         } else if (p.stage === 'note') {
-          update(e);
-          if (preview?.kind === 'note') current().onMarkupCommit?.(preview);
+          if (preview?.kind === 'note') current().onMarkupCommit?.(preview, true);
           note = undefined;
           publish();
         }
@@ -238,6 +311,8 @@ export function markupInteractions({
     },
     command(action: 'finish' | 'back') {
       sync();
+      if (action === 'finish') flush();
+      else discardQueued();
       if (action === 'back') {
         if (corner) {
           corner = undefined;
@@ -259,10 +334,11 @@ export function markupInteractions({
           publish();
         }
       } else if (preview?.kind === 'note') {
-        current().onMarkupCommit?.({ ...preview, ...defaults().note });
+        current().onMarkupCommit?.({ ...preview, ...defaults().note }, true);
         note = undefined;
         publish();
       }
     },
+    dispose: discardQueued,
   };
 }

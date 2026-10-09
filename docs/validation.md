@@ -1,8 +1,43 @@
-# Validointi — 9.10.2026
+# Validointi — 10.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.29.1 — merkintöjen vaste ja mallilistan pikatoiminnot
+
+**360 yksikkö-/CAD-testiä hyväksytty (69 tiedostoa)**. TypeScript,
+`/nivo/`-tuotantobuild, lisenssit ja muutettujen tiedostojen muotoilu hyväksytty.
+**59 eri kohdennettua selaintapausta hyväksytty** työpöytä- ja tablettiprofiileissa:
+39 merkintä-/mallilistatapausta, 12 piirtämisen, ryhmävalikon ja PNG-viennin
+regressiota sekä 8 näkyvyystapausta. Yksi pelkän kosketuksen testi ohitetaan työpöydällä tarkoituksella.
+
+- Pinta-ala origon alapuolisella lattialla perspektiivissä, akselin vaihto ennen
+  aloitusta ja kesken piirtämisen, valmiiden osasuorakulmioiden kiertäminen pinta-alan
+  ja ensimmäisen kulman säilyttäen. Myös aiemmat päällekkäisyys-, seinä-, kumoamis-,
+  tallennus- ja monivalintatapaukset.
+- Huomautuksen sijoitus ja veto fokusoivat tekstin. Enter palauttaa piirtämiseen;
+  Esc hylkää kirjoituksen. Kohdistusviivan piilotus säilyy projektissa ja mittakuvassa.
+  Lihavoinnin valintaruudun mitat ja vaakasuuntainen asettelu tarkistettu.
+- Sadan osan projektissa 100 peräkkäistä väri-inputia esikatsellaan tallentamatta.
+  Native change hyväksyy värin, yksi Peru palauttaa lähtövärin, Esc peruu esikatselun.
+  Projektin geometria pysyy muuttumattomana.
+- Merkinnän, dimension ja viivan rivikohtainen roskakori, poistettu tietue,
+  säilyvä geometria ja kumoaminen. Myös yksittäinen/yhteinen piilotus toimii.
+- Shift-riviväli, Ctrl/⌘-yksittäisvalinta, kameran osakohtainen keskitys valintaa
+  muuttamatta, uuden kansion luonti pudotuksella, alaryhmät, sijainnin säilyminen
+  ja kumoaminen. Tuhannen osan virtuaalilista, kosketusveto ja listan vieritys.
+- Ryhmävalikon kaikki neljä koeryhmää polkuineen, myös piilotettu ryhmä.
+  Omat jälkeläiset näkyvät estettyinä; vaihtaminen valittuihin osiin sallii
+  niiden siirron alaryhmään. Hierarkiakierrot ja Hold suojattu myös mallitasolla.
+- Näkyvyysmalli palauttaa piilotuserät myös tallennetusta historiasta, toimii
+  Undo/Redo-haaroissa ja pitää projektien historiat erillään. Palautus avaa
+  tarvittavat yläryhmät, säilyttäen geometrian ja Hold-lukitukset. Selaimessa H,
+  Shift+H, Alt+H, monivalinta, ryhmän erikseen piilotetut jäsenet, kaikki kolme
+  merkintälistaa, silmävalikko ja alavalikko sekä H:n kirjoittaminen tekstikenttään.
+- Valinnainen nimeämiskortti säilyttää piirtofokuksen. Tab siirtyy nimeen ja
+  ryhmään, Enter luo tarvittaessa ryhmän ja tallentaa nimen yhdessä; Peru
+  palauttaa metatiedot hävittämättä juuri piirrettyä osaa.
 
 ## V0.29.0 — pinta-alueet ja tekstihuomautukset
 

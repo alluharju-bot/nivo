@@ -227,3 +227,81 @@ test('group settings still combine the selected parts into one body', async ({ p
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies).toEqual(parts);
 });
+
+test('Shift selects the visible row range, Ctrl toggles one part, and focus preserves selection', async ({
+  page,
+}) => {
+  const parts = Array.from({ length: 6 }, (_, i) =>
+    makeBody(100, 100, 50, [i * 300, 0, 0], `Osa ${i + 1}`),
+  );
+  await ready(page, parts);
+  await page.getByTestId(`body-${parts[1].id}`).click();
+  await page.getByTestId(`body-${parts[4].id}`).click({ modifiers: ['Shift'] });
+  for (let i = 0; i < 6; i++)
+    await expect(page.getByTestId(`body-${parts[i].id}`)).toHaveAttribute(
+      'aria-pressed',
+      String(i >= 1 && i <= 4),
+    );
+  await page.getByTestId(`body-${parts[2].id}`).click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByTestId(`body-${parts[2].id}`)).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'Keskitä: Osa 6', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        JSON.parse((await page.getByTestId('viewport').getAttribute('data-camera'))!).target,
+    )
+    .toEqual([1550, 50, 25]);
+  await expect(page.getByTestId(`body-${parts[1].id}`)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId(`body-${parts[5].id}`)).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('dropping on a part creates a folder; undo and existing parent hierarchy are preserved', async ({
+  page,
+}) => {
+  const parts = [0, 200, 400].map((x, i) => ({
+    ...makeBody(100, 100, 40, [x, 0, 0], `Levy ${i + 1}`),
+    groupId: i === 2 ? 'doors' : undefined,
+  }));
+  await ready(page, parts, [], groups);
+  await page.getByTestId(`body-${parts[0].id}`).click();
+  await page.getByTestId(`body-${parts[1].id}`).click({ modifiers: ['Shift'] });
+  await drag(
+    page,
+    page.getByTestId(`body-${parts[0].id}`),
+    page.getByTestId(`body-${parts[2].id}`),
+    false,
+  );
+  await expect(page.getByTestId('tree-drag-preview')).toContainText('Luo ryhmä: Levy 3');
+  await page.mouse.up();
+  const model = await save(page),
+    g = model.groups.find((g) => g.name === 'Levy 3 · ryhmä')!;
+  expect(g).toMatchObject({ parentId: 'doors', kind: 'folder' });
+  expect(model.bodies.map((b) => b.groupId)).toEqual([g.id, g.id, g.id]);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies).toEqual(parts);
+});
+
+test('move group dialog lists all folders and can move selected parts into a child', async ({
+  page,
+}) => {
+  const parts = [0, 100].map((x) => ({ ...makeBody(50, 50, 50, [x, 0, 0]), groupId: 'cabinet' }));
+  await ready(
+    page,
+    parts,
+    [],
+    [...groups, { id: 'hidden', name: 'Piilotettu', hidden: true, parentId: 'other' }],
+  );
+  await groupButton(page, 'Kaappi').click();
+  await page.getByRole('button', { name: 'Valinnan toiminnot', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Siirrä ryhmään…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Siirrä ryhmään', exact: true }),
+    dest = dialog.getByRole('combobox', { name: 'Kohderyhmä' });
+  await expect(dest.locator('option')).toHaveCount(5);
+  await expect(dest.locator('option[value="doors"]')).toHaveJSProperty('disabled', true);
+  await expect(dest.locator('option[value="hidden"]')).toHaveJSProperty('disabled', false);
+  await dialog.getByRole('combobox', { name: 'Siirrettävä kokonaisuus' }).selectOption('bodies');
+  await expect(dest.locator('option[value="doors"]')).toHaveJSProperty('disabled', false);
+  await dest.selectOption('doors');
+  await dialog.getByRole('button', { name: 'Siirrä', exact: true }).click();
+  expect((await save(page)).bodies.map((b) => b.groupId)).toEqual(['doors', 'doors']);
+});

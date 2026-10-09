@@ -1,7 +1,7 @@
 import type { AreaMarkup, Markup, NoteMarkup, Body, Vec3 } from './project';
 import { resolveAnchor } from './guides';
 import { add } from './geometry';
-import { fromUV } from './sketch';
+import { fromUV, toUV, sketchFrame } from './sketch';
 export type AreaRect = [number, number, number, number];
 type Interval = [number, number];
 export interface AreaUnion {
@@ -59,8 +59,17 @@ export function areaUnion(rectangles: AreaRect[]): AreaUnion {
   cache.set(rectangles, result);
   return result;
 }
-export const areaText = (area: number) =>
-  `${new Intl.NumberFormat('fi-FI', { maximumFractionDigits: 3 }).format(area / 1_000_000)} m²`;
+const areaFormatter = new Intl.NumberFormat('fi-FI', { maximumFractionDigits: 3 });
+export const areaText = (area: number) => `${areaFormatter.format(area / 1_000_000)} m²`;
+/** Rotate the unfinished area around its first picked corner without changing its union. */
+export function reframeArea(area: AreaMarkup, normal: Vec3, pivot: Vec3): AreaMarkup {
+  const uv = toUV(pivot, area.frame);
+  return {
+    ...area,
+    frame: sketchFrame(pivot, normal),
+    rectangles: area.rectangles.map(([x, y, r, b]) => [x - uv[0], y - uv[1], r - uv[0], b - uv[1]]),
+  };
+}
 export function noteTarget(note: NoteMarkup, bodies: Body[]) {
   return resolveAnchor(bodies, note.anchor) ?? note.fallback;
 }
@@ -90,7 +99,10 @@ export function markupLabelPosition(markup: Markup, bodies: Body[]) {
 }
 export function markupPoints(markup: Markup, bodies: Body[]): Vec3[] {
   return markup.kind === 'note'
-    ? [noteTarget(markup, bodies), notePosition(markup, bodies)]
+    ? [
+        ...(markup.leader === false ? [] : [noteTarget(markup, bodies)]),
+        notePosition(markup, bodies),
+      ]
     : areaUnion(markup.rectangles).cells.flatMap(([x, y, r, b]) =>
         [
           [x, y],

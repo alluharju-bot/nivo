@@ -1,7 +1,7 @@
 import { shareProjectData } from './model/sharing';
 import { isPointDimension, type Vec3 } from './model/project';
 import { resolveAnchor } from './model/guides';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CadClient } from './cad/client';
 import type { BodyMesh } from './cad/protocol';
 import {
@@ -32,6 +32,7 @@ export function useEditor() {
   const revision = useRef(0);
   const saveRevision = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const lastHidden = useMemo(() => history.lastHidden(), [history, project]);
 
   const persist = useCallback(
     (next: Project) => {
@@ -203,6 +204,7 @@ export function useEditor() {
   };
   return {
     project,
+    lastHidden,
     activity,
     setActionContext: (context: SelectionContext) => {
       actionContext.current = context;

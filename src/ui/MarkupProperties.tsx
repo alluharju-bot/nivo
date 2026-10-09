@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { MarkupColor } from './MarkupColor';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import type { Markup } from '../model/project';
 import { areaText, areaUnion } from '../model/markups';
@@ -7,12 +8,30 @@ export function MarkupProperties({
   busy,
   onChange,
   onDelete,
+  onPreview,
+  focusRequest,
 }: {
   markup: Markup;
   busy: boolean;
   onChange: (markup: Markup) => void;
   onDelete: () => void;
+  onPreview: (markup?: Markup) => void;
+  focusRequest?: number;
 }) {
+  const textInput = useRef<HTMLTextAreaElement>(null);
+  const skipBlur = useRef(false);
+  const returnToModel = () => {
+    skipBlur.current = true;
+    document
+      .querySelector<HTMLCanvasElement>('canvas[data-testid="viewport"]')
+      ?.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    if (focusRequest && markup.kind === 'note' && !busy) {
+      textInput.current?.focus({ preventScroll: true });
+      textInput.current?.select();
+    }
+  }, [focusRequest]);
   const value = markup.kind === 'area' ? markup.name : markup.text;
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [markup.id, value]);
@@ -34,23 +53,29 @@ export function MarkupProperties({
       <label>
         {markup.kind === 'area' ? 'Alueen nimi' : 'Huomautuksen teksti'}
         <textarea
+          ref={textInput}
           aria-label={markup.kind === 'area' ? 'Alueen nimi' : 'Huomautuksen teksti'}
           rows={markup.kind === 'area' ? 1 : 4}
           maxLength={markup.kind === 'area' ? 120 : 600}
           disabled={busy}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
+          onBlur={() => {
+            if (skipBlur.current) skipBlur.current = false;
+            else commit();
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.preventDefault();
               e.stopPropagation();
               setText(value);
+              returnToModel();
             }
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               e.stopPropagation();
               commit();
+              returnToModel();
             }
           }}
         />
@@ -62,67 +87,82 @@ export function MarkupProperties({
       )}
       <label>
         {markup.kind === 'area' ? 'Alueen väri' : 'Laatikon väri'}
-        <input
-          aria-label={markup.kind === 'area' ? 'Alueen väri' : 'Laatikon väri'}
-          type="color"
+        <MarkupColor
+          label={markup.kind === 'area' ? 'Alueen väri' : 'Laatikon väri'}
           value={markup.color}
           disabled={busy}
-          onChange={(e) => onChange({ ...withText(), color: e.target.value })}
+          onPreview={(color) => onPreview(color ? { ...withText(), color } : undefined)}
+          onCommit={(color) => onChange({ ...withText(), color })}
         />
       </label>
       {markup.kind === 'note' && (
-        <details>
-          <summary>Tekstin ja kehyksen tyyli</summary>
-          <label>
-            Kehys
-            <select
-              aria-label="Tekstilaatikon muoto"
-              value={markup.shape}
-              disabled={busy}
-              onChange={(e) =>
-                onChange({ ...markup, shape: e.target.value as typeof markup.shape })
-              }
-            >
-              <option value="rounded">Pyöristetty</option>
-              <option value="square">Suorakulmio</option>
-              <option value="plain">Pelkkä teksti</option>
-            </select>
-          </label>
-          <label>
-            Tekstin koko
-            <select
-              aria-label="Huomautuksen tekstikoko"
-              value={markup.fontSize}
-              disabled={busy}
-              onChange={(e) => onChange({ ...markup, fontSize: Number(e.target.value) })}
-            >
-              {[10, 12, 14, 16, 20, 24, 28].map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Tekstin väri
-            <input
-              aria-label="Huomautuksen tekstiväri"
-              type="color"
-              value={markup.textColor}
-              disabled={busy}
-              onChange={(e) => onChange({ ...markup, textColor: e.target.value })}
-            />
-          </label>
+        <>
           <label className="checkbox-label">
             <input
               type="checkbox"
-              checked={markup.bold}
+              checked={markup.leader !== false}
               disabled={busy}
-              onChange={(e) => onChange({ ...markup, bold: e.target.checked })}
+              onPointerDown={(e) => e.preventDefault()}
+              onChange={(e) => onChange({ ...withText(), leader: e.target.checked } as Markup)}
             />
-            Lihavoitu
+            Näytä kohdistusviiva
           </label>
-        </details>
+          <details>
+            <summary>Tekstin ja kehyksen tyyli</summary>
+            <label>
+              Kehys
+              <select
+                aria-label="Tekstilaatikon muoto"
+                value={markup.shape}
+                disabled={busy}
+                onChange={(e) =>
+                  onChange({ ...markup, shape: e.target.value as typeof markup.shape })
+                }
+              >
+                <option value="rounded">Pyöristetty</option>
+                <option value="square">Suorakulmio</option>
+                <option value="plain">Pelkkä teksti</option>
+              </select>
+            </label>
+            <label>
+              Tekstin koko
+              <select
+                aria-label="Huomautuksen tekstikoko"
+                value={markup.fontSize}
+                disabled={busy}
+                onChange={(e) => onChange({ ...markup, fontSize: Number(e.target.value) })}
+              >
+                {[10, 12, 14, 16, 20, 24, 28].map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Tekstin väri
+              <MarkupColor
+                label="Huomautuksen tekstiväri"
+                value={markup.textColor}
+                disabled={busy}
+                onPreview={(textColor) =>
+                  onPreview(textColor ? { ...markup, textColor } : undefined)
+                }
+                onCommit={(textColor) => onChange({ ...markup, textColor })}
+              />
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={markup.bold}
+                disabled={busy}
+                onPointerDown={(e) => e.preventDefault()}
+                onChange={(e) => onChange({ ...withText(), bold: e.target.checked } as Markup)}
+              />
+              Lihavoitu
+            </label>
+          </details>
+        </>
       )}
       <div className="annotation-buttons">
         <button

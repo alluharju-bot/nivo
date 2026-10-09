@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { VirtualTreeRows } from './VirtualTreeRows';
 import { createPortal } from 'react-dom';
 import {
@@ -14,8 +14,9 @@ import {
   Layers2,
   Boxes,
   Link2,
+  Focus,
 } from 'lucide-react';
-import { groupAncestors, groupContains, bodyLocked, type TreeMove } from '../model/groups';
+import { groupAncestors, bodyLocked, type TreeMove } from '../model/groups';
 import { bodyVisible } from '../model/transforms';
 import type { Body, BodyGroup } from '../model/project';
 import { useTreeDrag } from './useTreeDrag';
@@ -31,6 +32,8 @@ export function ObjectTree({
   onMultiSelect,
   onSelect,
   onSelectGroup,
+  onSelectRange,
+  onFit,
   onBody,
   onGroup,
   onNewGroup,
@@ -46,24 +49,28 @@ export function ObjectTree({
   onMultiSelect: () => void;
   onSelect: (id: string, additive: boolean) => void;
   onSelectGroup: (id: string) => void;
+  onSelectRange: (ids: string[]) => void;
+  onFit: (id: string) => void;
   onBody: (id: string, patch: Partial<Body>) => void;
   onGroup: (id: string, patch: Partial<BodyGroup>) => void;
   onNewGroup: () => void;
-  onMove: (move: TreeMove, parentId?: string) => void;
+  onMove: (move: TreeMove, parentId?: string, bodyId?: string) => void;
 }) {
+  const rangeAnchor = useRef<string | undefined>(undefined);
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [renaming, setRenaming] = useState<string>();
   const { tree, drag, start, suppressClick } = useTreeDrag(
     groups,
+    bodies,
     busy || arrangingDisabled,
-    (move, parentId) => {
+    (move, parentId, bodyId) => {
       if (parentId)
         setCollapsed((old) => {
           const next = new Set(old);
           next.delete(parentId);
           return next;
         });
-      onMove(move, parentId);
+      onMove(move, parentId, bodyId);
     },
   );
   const selectedSet = useMemo(() => new Set(selected), [selected]);
@@ -140,7 +147,8 @@ export function ObjectTree({
       <div
         key={body.id}
         data-tree-drop={body.groupId ?? ''}
-        className={`object-row ${held ? 'held' : ''} ${visible ? '' : 'hidden-body'} ${drag?.move.kind === 'bodies' && drag.move.ids.includes(body.id) ? 'tree-dragging' : ''}`}
+        data-tree-body={body.id}
+        className={`object-row${dropClass(body.id)} ${held ? 'held' : ''} ${visible ? '' : 'hidden-body'} ${drag?.move.kind === 'bodies' && drag.move.ids.includes(body.id) ? 'tree-dragging' : ''}`}
       >
         {renaming === body.id ? (
           rename(body, 'body')
@@ -157,7 +165,18 @@ export function ObjectTree({
                 ids.length > 1 ? `${ids.length} kappaletta` : body.name,
               )
             }
-            onClick={(e) => onSelect(body.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+            onClick={(e) => {
+              const order = flatRows.flatMap((r) => (r.kind === 'body' ? [r.body.id] : []));
+              const anchor = order.indexOf(rangeAnchor.current ?? selected[0]),
+                end = order.indexOf(body.id);
+              if (e.shiftKey && anchor >= 0 && end >= 0) {
+                if (!rangeAnchor.current) rangeAnchor.current = order[anchor];
+                onSelectRange(order.slice(Math.min(anchor, end), Math.max(anchor, end) + 1));
+              } else {
+                rangeAnchor.current = body.id;
+                onSelect(body.id, e.shiftKey || e.ctrlKey || e.metaKey);
+              }
+            }}
             onDoubleClick={() => setRenaming(body.id)}
             onKeyDown={(e) => {
               if (e.key === 'F2') {
@@ -165,7 +184,7 @@ export function ObjectTree({
                 setRenaming(body.id);
               }
             }}
-            title={`${body.name} · vedä ryhmään · kaksoisnapsauta tai F2 nimeää`}
+            title={`${body.name} · vedä ryhmään tai toisen osan päälle · kaksoisnapsauta tai F2 nimeää`}
           >
             <span className="tree-drag-grip" aria-hidden="true">
               <GripVertical size={15} />
@@ -174,6 +193,15 @@ export function ObjectTree({
             {body.component && <Link2 size={12} aria-label="Linkitetty komponentti" />}
           </button>
         )}
+        <button
+          className="object-action"
+          aria-label={`Keskitä: ${body.name}`}
+          title="Keskitä osa näkymään"
+          disabled={busy || !visible}
+          onClick={() => onFit(body.id)}
+        >
+          <Focus size={14} />
+        </button>
         <button
           className="object-action"
           disabled={busy || inheritedHold}
@@ -238,7 +266,7 @@ export function ObjectTree({
                 setRenaming(group.id);
               }
             }}
-            title={`${group.name} · vedä ryhmään · kaksoisnapsauta tai F2 nimeää`}
+            title={`${group.name} · vedä ryhmään tai toisen osan päälle · kaksoisnapsauta tai F2 nimeää`}
           >
             <span className="tree-drag-grip" aria-hidden="true">
               <GripVertical size={14} />
@@ -322,7 +350,7 @@ export function ObjectTree({
         <button
           aria-pressed={multiSelect}
           onClick={onMultiSelect}
-          title="Valitse useita myös Ctrl- tai Shift-napsautuksella"
+          title="Shift valitsee rivivälin. Ctrl/⌘ lisää tai poistaa yksittäisen osan."
         >
           Monivalinta
         </button>
@@ -392,7 +420,7 @@ export function ObjectTree({
               {drag.drop
                 ? drag.drop.allowed
                   ? `→ ${drag.drop.name}`
-                  : 'Ei oman ryhmän sisään'
+                  : (drag.drop.reason ?? 'Ei oman ryhmän sisään')
                 : 'Vedä ryhmään tai Päätasolle'}
             </span>
           </div>,

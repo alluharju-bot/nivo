@@ -54,6 +54,7 @@ interface SceneApi {
   annotations: () => void;
   interactionSync: () => void;
   dimensionDisplay: () => void;
+  markupDisplay: () => void;
   dispose: () => void;
 }
 
@@ -135,6 +136,31 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         renderNow();
       });
   };
+  const updateMarkups = () => {
+    const markupProps = current();
+    const markupList = [
+      ...(markupProps.markups ?? []).filter((m) => m.id !== markupProps.markupDraft?.id),
+      ...(markupProps.markupDraft ? [markupProps.markupDraft] : []),
+    ];
+    markupOverlay.setAttribute('viewBox', `0 0 ${container.clientWidth} ${container.clientHeight}`);
+    const markupContent = markupSvg(
+      markupList,
+      markupProps.markupBodies ?? markupProps.bodies,
+      (p) => {
+        const v = new THREE.Vector3(...p).project(camera);
+        return [
+          ((v.x + 1) * container.clientWidth) / 2,
+          ((1 - v.y) * container.clientHeight) / 2,
+          v.z,
+        ];
+      },
+      markupProps.selectedMarkupIds,
+    );
+    if (lastMarkupContent !== markupContent) {
+      updateMarkupSvg(markupOverlay, markupContent);
+      lastMarkupContent = markupContent;
+    }
+  };
   const renderNow = () => {
     textureEditor?.update();
     // Keep useful depth precision at CAD scales instead of a fixed 1:10,000,000 range.
@@ -191,29 +217,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       target: controls.target.toArray(),
       zoom: camera.zoom,
     });
-    const markupProps = current();
-    const markupList = [
-      ...(markupProps.markups ?? []).filter((m) => m.id !== markupProps.markupDraft?.id),
-      ...(markupProps.markupDraft ? [markupProps.markupDraft] : []),
-    ];
-    markupOverlay.setAttribute('viewBox', `0 0 ${container.clientWidth} ${container.clientHeight}`);
-    const markupContent = markupSvg(
-      markupList,
-      markupProps.markupBodies ?? markupProps.bodies,
-      (p) => {
-        const v = new THREE.Vector3(...p).project(camera);
-        return [
-          ((v.x + 1) * container.clientWidth) / 2,
-          ((1 - v.y) * container.clientHeight) / 2,
-          v.z,
-        ];
-      },
-      markupProps.selectedMarkupIds,
-    );
-    if (lastMarkupContent !== markupContent) {
-      updateMarkupSvg(markupOverlay, markupContent);
-      lastMarkupContent = markupContent;
-    }
+    updateMarkups();
     pointDimensions.update(
       current().bodies,
       current().dimensions,
@@ -1388,9 +1392,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     if (command.type === 'projection') setProjection(command.projection!);
     else {
       const props = current();
+      const ids = command.ids ?? props.selectedIds;
       const items =
-        command.type === 'fit' && props.selectedIds.length
-          ? props.bodies.filter((b) => props.selectedIds.includes(b.id))
+        command.type === 'fit' && ids.length
+          ? props.bodies.filter((b) => ids.includes(b.id))
           : props.bodies;
       const box = bounds(items),
         min = new THREE.Vector3(...box.min),
@@ -1564,6 +1569,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       knife.sync();
     },
     dimensionDisplay: render,
+    markupDisplay: updateMarkups,
     preview: () => {
       preview();
       workspaceViews?.sync();
@@ -1675,14 +1681,11 @@ export function Viewport(props: Props) {
   );
   useEffect(
     () => api.current?.dimensionDisplay(),
-    [
-      props.dimensions,
-      props.dimensionDisplay,
-      props.selectedDimensionIds,
-      props.markups,
-      props.markupDraft,
-      props.selectedMarkupIds,
-    ],
+    [props.dimensions, props.dimensionDisplay, props.selectedDimensionIds],
+  );
+  useEffect(
+    () => api.current?.markupDisplay(),
+    [props.markups, props.markupDraft, props.selectedMarkupIds, props.markupBodies],
   );
   useEffect(
     () => api.current?.preview(),

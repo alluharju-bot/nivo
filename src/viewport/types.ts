@@ -50,6 +50,7 @@ export type Tool =
 export interface CameraCommand {
   id: number;
   type: 'fit' | 'view' | 'projection' | 'origin' | 'frame';
+  ids?: string[];
   frame?: SketchFrame;
   width?: number;
   height?: number;
@@ -189,7 +190,7 @@ export interface ViewportProps {
   };
   markupCommand?: { id: number; action: 'finish' | 'back' };
   onMarkupPreview?: (markup?: Markup) => void;
-  onMarkupCommit?: (markup: Markup) => void;
+  onMarkupCommit?: (markup: Markup, editText?: boolean) => void;
   onMarkupSelect?: (id: string, additive?: boolean) => void;
 
   measureStart?: Pick<Guide, 'anchor' | 'plane'>;

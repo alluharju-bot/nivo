@@ -2,6 +2,44 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.29.1 — merkintöjen sujuvuus ja mallilistan järjestäminen, 9.–10.10.2026
+
+- Pinta-ala priorisoi osoitettua pintaa myös perspektiivissä ja negatiivisilla
+  korkeuksilla. X/Y/Z ja Piirtotaso-valikko: YZ/XZ/XY. Tason vaihtaminen kiertää
+  koko keskeneräisen alueen ensimmäisen kulman ympäri, pinta-alan säilyttäen.
+  Sama akselinäppäin palauttaa automaattisen tason. Tallennettuja alueita ei muuteta.
+- Hiiritapahtumat yhdistetään ruudun päivitykseen, saman pikselihaun säde ja
+  matriisit käytetään uudelleen ja tarpeettomat ankkuri-/tartuntahaut poistuvat.
+  Viimeinen vapautuskohta hyväksytään myös ennen seuraavaa animaatioruutua.
+- Huomautuksen sijoitus/siirto aktivoi tekstikentän. Enter tallentaa ja Esc
+  peruu tekstimuutoksen; kumpikin palauttaa näppäimistön malliin. Kohdistusviivan
+  voi piilottaa ja palauttaa. Lihavointi ja valintaruutu samalla rivillä.
+- Merkinnän väri ja tekstiväri päivittyvät kevyenä SVG-esikatseluna. Säädön
+  hyväksyntä on yksi historiatoiminto, Esc peruu esikatselun. Värin muuttaminen
+  ei käynnistä jokaisella hiiriliikkeellä projektin validointia tai 3D-piirtoa.
+- Mitat/Merkinnät/Viivat-listojen roskakorit poistavat kyseisen rivin. Peru palauttaa.
+  Kappaleissa Shift lisää näkyvän rivivälin, Ctrl/⌘ vaihtaa yksittäisen osan
+  valinnan. Keskitä-kuvake kohdistaa kameran osaan muuttamatta valintaa.
+- Pudotus toisen osan päälle luo järjestävän kansion kohdeosan nykyiseen
+  ryhmään (tai päätasolle). Kohdeosa ja vedetyt osat/ryhmä tulevat sen sisään.
+  Esikatselu kertoo tulevan ryhmityksen. Hold ja omiin jälkeläisiin pudotus estetään.
+  Ryhmä ja kokoonpano säilyvät eri käsitteinä.
+- Ryhmävalikot näyttävät kaikki ryhmäpolut. Ryhmää siirrettäessä oma ryhmä ja
+  jälkeläiset näkyvät estettyinä syyn kanssa. Siirrä ryhmään -ikkunassa voi vaihtaa
+  koko ryhmästä valittuihin osiin, jotka voi siirtää myös alaryhmään.
+- Uuden kynä-/perusmuodon valinnainen nimeämiskortti ei varasta fokusta. Tab vie
+  nimeen ja ryhmään, Enter tallentaa kummatkin yhdessä. Olemassa olevan ryhmän
+  voi valita tai kirjoittaa uuden ryhmän nimen. Ulkopuolelle napsautus, Esc tai
+  uuden työkalun valinta ohittaa kortin. Kopiosarjat ja tuonti eivät avaa sitä.
+
+- **H** piilottaa valinnan (osat, ryhmät, viivat, dimensiot, merkinnät).
+  **Shift+H** palauttaa viimeisimmän yhä piilotetun erän toimintohistoriasta;
+  toistamalla palautuvat aiemmat erät. Myös listan silmäpainikkeet huomioidaan.
+  **Alt+H** näyttää kaikki, myös yksittäin ja yhteisesti piilotetut mittamerkinnät.
+  Ryhmän palautus säilyttää erikseen piilotetut jäsenet. Näkyvyys on yksi
+  alavalikko oikean napin alla sekä näkymän silmäpainike; Navigoi ei käytä H:ta.
+  Viimeisimmän palautus kattaa muistissa/tallennuksessa säilyvän kumoamishistorian.
+
 ## V0.29.0 — pinta-alueet ja tekstihuomautukset, 9.10.2026
 
 - **Mittatyökalu → Pinta-ala**: napsauta vastakkaiset kulmat tai vedä suorakulmio.

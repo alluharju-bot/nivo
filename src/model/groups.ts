@@ -37,6 +37,41 @@ export const groupPath = (groups: BodyGroup[], id?: string) =>
 
 export type TreeMove = { kind: 'bodies'; ids: string[] } | { kind: 'group'; id: string };
 
+/** Dropping onto a part creates a folder beside that part, preserving world geometry. */
+export function groupAroundBody(
+  project: Project,
+  move: TreeMove,
+  targetId: string,
+): { project: Project; groupId: string } {
+  const target = project.bodies.find((b) => b.id === targetId);
+  if (!target) throw new Error('Kohdeosaa ei löydy.');
+  const members =
+    move.kind === 'bodies'
+      ? project.bodies.filter((b) => move.ids.includes(b.id))
+      : groupBodies(project, move.id);
+  if (members.some((b) => b.id === targetId))
+    throw new Error('Osaa ei voi pudottaa itsensä tai oman ryhmänsä sisään.');
+  if (
+    [target, ...members].some((b) => bodyLocked(b, project.groups)) ||
+    (move.kind === 'group' && groupAncestors(project.groups, move.id).some((g) => g.locked))
+  )
+    throw new Error('Vapauta osat ja ryhmät ennen ryhmittelyä.');
+  const id = uid();
+  let name = `${target.name} · ryhmä`.slice(0, 120),
+    n = 2;
+  const base = name.slice(0, 108);
+  while (project.groups.some((g) => g.name === name)) name = `${base} ${n++}`;
+  const grouped: Project = {
+    ...project,
+    groups: [
+      ...project.groups,
+      { id, name, kind: 'folder', hidden: false, parentId: target.groupId },
+    ],
+    bodies: project.bodies.map((b) => (b.id === targetId ? { ...b, groupId: id } : b)),
+  };
+  return { project: moveInTree(grouped, move, id), groupId: id };
+}
+
 /** Change only hierarchy. Keep world positions, geometry and references intact. */
 export function moveInTree(project: Project, move: TreeMove, parentId?: string): Project {
   if (parentId && !project.groups.some((g) => g.id === parentId))

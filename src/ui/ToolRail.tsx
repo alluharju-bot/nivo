@@ -249,11 +249,11 @@ export function ToolRail({
                     onMeasureMenu(false);
                     onTool(t.id);
                   }}
-                  title={`${t.label} (${t.shortcut})`}
+                  title={t.shortcut ? `${t.label} (${t.shortcut})` : t.label}
                 >
                   {t.icon}
                   <span>{t.label}</span>
-                  <kbd>{t.shortcut}</kbd>
+                  {t.shortcut && <kbd>{t.shortcut}</kbd>}
                 </button>
               )}
               {t.id === 'pen' && (

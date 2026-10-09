@@ -486,7 +486,21 @@ export function installInteractions({
       distance,
     };
   };
+  let areaRay: PointerEvent | undefined;
+  let areaQuery = false;
+  const withAreaRay = <T>(event: PointerEvent, query: () => T): T => {
+    areaQuery = true;
+    areaRay = undefined;
+    try {
+      return query();
+    } finally {
+      areaQuery = false;
+      areaRay = undefined;
+    }
+  };
   const setRay = (event: PointerEvent) => {
+    if (areaQuery && areaRay === event) return;
+    if (areaQuery) areaRay = event;
     const rect = canvas.getBoundingClientRect();
     pointer.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -1765,28 +1779,102 @@ export function installInteractions({
     host: container,
     canvas,
     pick: dimensionPick,
-    start: (event) => {
-      const result = sketchStartAt(event);
-      if (result) show({ point: result.point, key: 'area-start', label: 'Alueen kulma' });
-      return result;
-    },
-    pointOnFrame: (event, frame, grid) => {
-      if (grid) {
-        const target = measureTargetAt(event, () => true);
-        if (
-          target &&
-          (event.shiftKey || Math.abs(dot(sub(target.point, frame.origin), frame.normal)) < 1e-4)
-        ) {
-          show(target);
-          return fromUV(toUV(target.point, frame), frame);
+    start: (event) =>
+      withAreaRay(event, () => {
+        const props = current(),
+          hit = faceAt(event, true);
+        // A directly aimed floor/wall owns the drawing plane. A nearby corner of
+        // another face must not silently turn an area onto a vertical plane.
+        const target = hit?.face.planar ? hit.target : undefined;
+        const picked = pickReference(
+          event,
+          (p) =>
+            !!props.axis || !target || Math.abs(dot(sub(p, target.point), target.normal)) < 1e-5,
+          true,
+        );
+        const exact =
+          picked.point ??
+          picked.guide ??
+          (picked.edge && {
+            point: picked.edge.point,
+            key: picked.edge.key,
+            label: picked.edge.label,
+          });
+        const image = target || exact ? undefined : referenceImageAt(event);
+        const owner =
+          picked.edge?.mesh ??
+          (picked.point
+            ? current().meshes.find((m) => picked.point!.key.startsWith(`${m.id}:`))
+            : undefined);
+        const adjacent =
+          !target && owner && exact
+            ? contextualFace(
+                owner,
+                exact.point,
+                camera().getWorldDirection(new THREE.Vector3()).negate().toArray() as Vec3,
+              )
+            : undefined;
+        const automaticNormal =
+          target?.normal ??
+          (picked.guide ? guidePlaneNormal(picked.guide.guide) : adjacent?.normal) ??
+          image?.normal ??
+          axisVector((['x', 'y', 'z'] as const)[planeAxes[emptyDrawingPlane()][2]]);
+        const normal = props.axis ? axisVector(props.axis) : automaticNormal;
+        const anchor = exact?.point ?? target?.point ?? image?.point ?? [0, 0, 0];
+        const frame = sketchFrame(scale(normal, dot(normal, anchor as Vec3)), normal);
+        const raw = exact?.point ?? framePoint(event, frame);
+        if (!raw) {
+          show();
+          return;
         }
-      }
-      const point = framePoint(event, frame);
-      if (!point) return;
-      const p = grid ? frameSnap(point, frame, undefined, event) : point;
-      if (grid) show({ point: p, key: 'area-corner', label: 'Alueen kulma' });
-      return p;
-    },
+        const uv = toUV(raw, frame),
+          point =
+            exact?.point ??
+            fromUV(
+              uv.map((v) => gridLength(v, props.gridStep, props.gridSnap)) as [number, number],
+              frame,
+            );
+        show(exact ?? { point, key: 'area-start', label: 'Alueen kulma' });
+        canvas.dataset.sketchPlane = JSON.stringify(normal);
+        return { point, frame, automaticNormal };
+      }),
+    pointOnFrame: (event, frame, grid) =>
+      withAreaRay(event, () => {
+        if (grid) {
+          // One screen-space reference query, filtered before scoring. No semantic
+          // anchor or second world-space snap search is needed for an area corner.
+          const target = referenceAt(
+            event,
+            (p) => event.shiftKey || Math.abs(dot(sub(p, frame.origin), frame.normal)) < 1e-5,
+          );
+          if (target) {
+            show(target);
+            return fromUV(toUV(target.point, frame), frame);
+          }
+        }
+        const point = framePoint(event, frame);
+        if (!point) {
+          if (grid) {
+            show();
+            current().onSnap(
+              'Piirtotaso on sivuttain näkymään. Käännä näkymää tai vaihda tasoa X/Y/Z.',
+            );
+          }
+          return;
+        }
+        const uv = toUV(point, frame),
+          p = grid
+            ? fromUV(
+                uv.map((v) => gridLength(v, current().gridStep, current().gridSnap)) as [
+                  number,
+                  number,
+                ],
+                frame,
+              )
+            : point;
+        if (grid) show({ point: p, key: 'area-corner', label: 'Alueen kulma' });
+        return p;
+      }),
     viewNormal: () => camera().getWorldDirection(new THREE.Vector3()).negate().toArray() as Vec3,
   });
   let markupCommandId: number | undefined;
@@ -2800,6 +2888,9 @@ export function installInteractions({
     const props = current();
     if (props.busy || props.modalOpen) return;
     if (markups.down(event)) {
+      // Placement can focus the text editor before the browser's default mousedown.
+      // Preserve that focus; the markup controller focuses the canvas itself when drawing.
+      event.preventDefault();
       pointers.delete(event.pointerId);
       return;
     }
@@ -3908,7 +3999,13 @@ export function installInteractions({
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const props = current(),
       key = event.key.toLowerCase();
-    if (markups.active()) return;
+    if (markups.active()) {
+      if (props.measureMode === 'area' && ['x', 'y', 'z'].includes(key) && !event.repeat) {
+        event.preventDefault();
+        props.onAxis(props.axis === key ? undefined : (key as Axis));
+      }
+      return;
+    }
     if (['x', 'y', 'z'].includes(key) && props.tool === 'rotate') {
       event.preventDefault();
       props.onRotationAxis(axisVector(key as Axis));
@@ -4181,6 +4278,7 @@ export function installInteractions({
   return {
     sync,
     dispose() {
+      markups.dispose();
       canvas.removeEventListener('contextmenu', contextEvent);
       canvas.removeEventListener('dblclick', doubleClick);
       canvas.removeEventListener('pointerleave', leave);

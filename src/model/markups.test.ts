@@ -102,3 +102,52 @@ test('markups round trip without changing geometry, export safely and honor visi
   expect(markupSvg([{ ...note, hidden: true }], [], (p) => p)).toBe('');
   expect(shareProjectData(project, loaded).annotations).toBe(project.annotations);
 });
+
+test('changing area planes keeps the first corner, dimensions and overlapping union', async () => {
+  const { reframeArea } = await import('./markups');
+  const { fromUV, toUV } = await import('./sketch');
+  const start = areaMarkupSchema.parse({
+    id: 'a',
+    kind: 'area',
+    name: 'Lattia',
+    frame: sketchFrame([0, 0, 13], [0, 0, 1]),
+    rectangles: [
+      [48, 98, 1048, 1098],
+      [548, 98, 1548, 1098],
+    ],
+  });
+  const pivot = fromUV([48, 98], start.frame);
+  for (const normal of [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ] as [number, number, number][]) {
+    const result = reframeArea(start, normal, pivot);
+    expect(areaUnion(result.rectangles).area).toBe(1_500_000);
+    expect(result.frame.normal).toEqual(normal);
+    expect(fromUV([0, 0], result.frame)).toEqual(pivot);
+    expect(toUV(pivot, result.frame)).toEqual([0, 0]);
+    expect(result.rectangles).toEqual([
+      [0, 0, 1000, 1000],
+      [500, 0, 1500, 1000],
+    ]);
+  }
+});
+test('standalone notes retain their anchor but omit the leader from drawing and page bounds', async () => {
+  const { markupPoints } = await import('./markups');
+  const note = noteMarkupSchema.parse({
+    id: 'n',
+    kind: 'note',
+    text: 'Ilman viivaa',
+    leader: false,
+    anchor: { point: [10000, 0, 0] },
+    fallback: [10000, 0, 0],
+    offset: [-9990, 10, 0],
+  });
+  expect(markupPoints(note, [])).toEqual([[10, 10, 0]]);
+  expect(markupSvg([note], [], (p) => p)).not.toContain('note-leader');
+  expect(markupSvg([{ ...note, leader: true }], [], (p) => p)).toContain('note-leader');
+  expect(
+    parseProject(JSON.stringify({ ...freshProject(), annotations: [note] })).annotations![0],
+  ).toEqual(note);
+});

@@ -6304,6 +6304,50 @@ p {
   overflow: hidden;
   z-index: 2;
 }
+.new-part-prompt {
+  position: absolute;
+  right: 20px;
+  bottom: 24px;
+  z-index: 6;
+  width: min(285px, calc(100% - 40px));
+  padding: 12px;
+  background: #f8faf5f5;
+  border: 1px solid #52674b33;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px #20301b15;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+.new-part-prompt header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.new-part-prompt header small {
+  flex: 1;
+  font-size: 10px;
+}
+.new-part-prompt header button {
+  border: 0;
+  background: transparent;
+  padding: 4px;
+}
+.new-part-prompt label {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.new-part-prompt input {
+  min-width: 0;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid #c6cfc8;
+  border-radius: 5px;
+  background: white;
+  font: inherit;
+}
 .markup-properties,
 .markup-tool-panel {
   padding: 16px 20px;
@@ -6321,10 +6365,11 @@ p {
   gap: 6px;
   font-size: 12px;
 }
-.markup-properties input,
+.markup-properties input:not([type='checkbox']),
 .markup-properties select,
 .markup-properties textarea,
-.markup-tool-panel input {
+.markup-tool-panel input,
+.markup-tool-panel select {
   width: 100%;
   min-width: 0;
   padding: 8px;
@@ -6342,8 +6387,18 @@ p {
   height: 36px;
   padding: 3px;
 }
+.markup-properties label.checkbox-label {
+  display: flex;
+  align-items: center;
+  color: inherit;
+  gap: 8px;
+}
 .markup-properties input[type='checkbox'] {
-  width: auto;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  padding: 0;
+  margin: 0;
 }
 .markup-properties details > label {
   margin-top: 12px;

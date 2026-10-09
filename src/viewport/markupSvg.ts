@@ -81,14 +81,22 @@ export function markupSvg(
       } else {
         const target = project(noteTarget(m, bodies));
         at = project(notePosition(m, bodies));
-        if ([target, at].some((p) => p[2] !== undefined && Math.abs(p[2]) > 1)) return '';
+        if (
+          [...(m.leader === false ? [] : [target]), at].some(
+            (p) => p[2] !== undefined && Math.abs(p[2]) > 1,
+          )
+        )
+          return '';
         font = m.fontSize * size;
         bold = m.bold;
         background = m.color;
         textColor = m.textColor;
         shape = m.shape;
         const orphan = !resolveAnchor(bodies, m.anchor);
-        paths = `<path class="note-leader" fill="none" stroke="${orphan ? '#b74434' : chosen ? '#e57820' : textColor}" stroke-width="${1.5 * size}" ${orphan ? 'stroke-dasharray="4 3"' : ''} d="M${target.slice(0, 2).map(n)}L${at.slice(0, 2).map(n)}"/><circle cx="${n(target[0])}" cy="${n(target[1])}" r="${3 * size}" fill="${chosen ? '#e57820' : textColor}"/>`;
+        paths =
+          m.leader === false
+            ? ''
+            : `<path class="note-leader" fill="none" stroke="${orphan ? '#b74434' : chosen ? '#e57820' : textColor}" stroke-width="${1.5 * size}" ${orphan ? 'stroke-dasharray="4 3"' : ''} d="M${target.slice(0, 2).map(n)}L${at.slice(0, 2).map(n)}"/><circle cx="${n(target[0])}" cy="${n(target[1])}" r="${3 * size}" fill="${chosen ? '#e57820' : textColor}"/>`;
       }
       const width = layout.width * size,
         height = layout.height * size;

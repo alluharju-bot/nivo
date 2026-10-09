@@ -1,6 +1,7 @@
+import { GroupOptions } from './GroupOptions';
 import { Copy, Move3D, Maximize, FolderPlus, Trash2, Merge } from 'lucide-react';
 import type { BodyGroup } from '../model/project';
-import { groupContains, groupPath, groupAncestors } from '../model/groups';
+import { groupAncestors } from '../model/groups';
 
 export function GroupActions({
   group,
@@ -106,13 +107,7 @@ export function GroupActions({
               onChange={(e) => onChange({ parentId: e.target.value || undefined })}
             >
               <option value="">Päätaso</option>
-              {groups
-                .filter((g) => !groupContains(groups, group.id, g.id))
-                .map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {groupPath(groups, g.id)}
-                  </option>
-                ))}
+              <GroupOptions groups={groups} movingGroupId={group.id} />
             </select>
           </label>
           <button

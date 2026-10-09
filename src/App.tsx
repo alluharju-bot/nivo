@@ -1,6 +1,9 @@
+import { hiddenItems, newlyHidden, revealItems } from './model/visibility';
+import { NewPartPrompt } from './ui/NewPartPrompt';
+import { GroupOptions } from './ui/GroupOptions';
 import { MarkupProperties } from './ui/MarkupProperties';
 import { areaText, areaUnion, markupName } from './model/markups';
-import type { Markup } from './model/project';
+import type { Markup, Project } from './model/project';
 import type { MeasureMode } from './ui/ToolRail';
 import { AnnotationProperties } from './ui/AnnotationProperties';
 import { annotationText } from './model/annotationStyle';
@@ -108,6 +111,7 @@ import {
   bodyLocked,
   groupAncestors,
   groupContains,
+  groupAroundBody,
   groupBodies,
   groupPath,
   reparentGroup,
@@ -242,7 +246,7 @@ const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = 
   { id: 'erase', label: 'Kumita', icon: <Eraser />, shortcut: 'U' },
   { id: 'boolean', label: 'Muotoile', icon: <Scissors />, shortcut: 'B' },
   { id: 'measure', label: 'Mittatyökalu', icon: <Ruler />, shortcut: 'T' },
-  { id: 'navigate', label: 'Navigoi', icon: <Hand />, shortcut: 'H' },
+  { id: 'navigate', label: 'Navigoi', icon: <Hand />, shortcut: '' },
 ];
 const toolOrder: Tool[] = [
   'select',
@@ -338,6 +342,7 @@ export default function App() {
   const { project, busy, ready } = editor;
   const liveProject = useRef({ project, busy });
   liveProject.current = { project, busy };
+  const [newPartId, setNewPartId] = useState<string>();
   const [selected, setSelected] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [moveHovered, setMoveHovered] = useState<string>();
@@ -351,6 +356,8 @@ export default function App() {
   const [measureMode, setMeasureMode] = useState<MeasureMode>('guide');
   const [measureStart, setMeasureStart] = useState<Pick<Guide, 'anchor' | 'plane'>>();
   const [markupDraft, setMarkupDraft] = useState<Markup>();
+  const [markupAppearance, setMarkupAppearance] = useState<Markup>();
+  const [markupFocus, setMarkupFocus] = useState<{ id: string; serial: number }>();
   const [selectedMarkupIds, setSelectedMarkupIds] = useState<string[]>([]);
   const selectedMarkup =
     selectedMarkupIds.length === 1
@@ -360,17 +367,42 @@ export default function App() {
   const [areaColor, setAreaColor] = useState('#428a83');
   const [noteText, setNoteText] = useState('Huomautus');
   const [markupCommand, setMarkupCommand] = useState<{ id: number; action: 'finish' | 'back' }>();
-  const markupStyle = {
-    area: { name: areaName.trim() || 'Pinta-alue', color: areaColor },
-    note: {
-      text: noteText.trim() || 'Huomautus',
-      color: '#fff2ce',
-      textColor: '#263c36',
-      shape: 'rounded' as const,
-      fontSize: 14,
-      bold: false,
-    },
-  };
+  const markupStyle = useMemo(
+    () => ({
+      area: { name: areaName.trim() || 'Pinta-alue', color: areaColor },
+      note: {
+        text: noteText.trim() || 'Huomautus',
+        color: '#fff2ce',
+        textColor: '#263c36',
+        shape: 'rounded' as const,
+        fontSize: 14,
+        bold: false,
+      },
+    }),
+    [areaName, areaColor, noteText],
+  );
+  const visibleMarkups = useMemo(
+    () =>
+      project.settings.markupsHidden ? [] : (project.annotations ?? []).filter((m) => !m.hidden),
+    [project.annotations, project.settings.markupsHidden],
+  );
+  const displayedMarkupDraft = useMemo(
+    () =>
+      (markupAppearance && !project.settings.markupsHidden ? markupAppearance : undefined) ??
+      (markupDraft && !(project.annotations ?? []).some((m) => m.id === markupDraft.id)
+        ? ({
+            ...markupDraft,
+            ...(markupDraft.kind === 'area' ? markupStyle.area : markupStyle.note),
+          } as Markup)
+        : markupDraft),
+    [
+      markupAppearance,
+      markupDraft,
+      markupStyle,
+      project.annotations,
+      project.settings.markupsHidden,
+    ],
+  );
   const [dimensionDraft, setDimensionDraft] = useState<PointDimension>();
   const [measureMenu, setMeasureMenu] = useState(false);
   const [guidePointEdit, setGuidePointEdit] = useState<GuideEndpoint>();
@@ -554,6 +586,7 @@ export default function App() {
     x: number;
     y: number;
     candidates?: PickCandidate[];
+    visibilityOnly?: boolean;
   }>();
   const [commandOpen, setCommandOpen] = useState(false);
   const [pickOthers, setPickOthers] = useState(false);
@@ -1122,6 +1155,9 @@ export default function App() {
     setPenInputAxis('x');
   };
   const resetGesture = () => {
+    setNewPartId(undefined);
+    setMarkupAppearance(undefined);
+    setMarkupFocus(undefined);
     setMarkupDraft(undefined);
     setSelectedMarkupIds([]);
     setAnnotationFocus(0);
@@ -1269,6 +1305,12 @@ export default function App() {
       face = undefined;
     }
     select(id, face, false, true);
+    if (
+      id &&
+      !project.bodies.some((b) => b.id === id) &&
+      ['rectangle', 'circle', 'pen'].includes(tool)
+    )
+      setNewPartId(id);
     setDraftId(uid());
     writeFields({
       ...defaults,
@@ -2707,7 +2749,7 @@ export default function App() {
     setPanelOpen(true);
     setTab('markups');
   };
-  const commitMarkup = async (markup: Markup) => {
+  const commitMarkup = async (markup: Markup, editText = false) => {
     if (busy) return;
     const existing = project.annotations?.some((m) => m.id === markup.id);
     if (
@@ -2729,11 +2771,23 @@ export default function App() {
       setSelectedGroupId(undefined);
       setSelectedMarkupIds([markup.id]);
       setTab('markups');
+      if (editText && markup.kind === 'note')
+        setMarkupFocus({ id: markup.id, serial: performance.now() });
       if (markup.kind === 'area' && !existing)
         setAreaName(
           `Pinta-alue ${(project.annotations ?? []).filter((m) => m.kind === 'area').length + 2}`,
         );
     }
+  };
+  const changeMarkup = (markup: Markup) => {
+    if (busy) return;
+    void editor.transact(
+      {
+        ...project,
+        annotations: project.annotations?.map((m) => (m.id === markup.id ? markup : m)),
+      },
+      'Merkintä päivitetty.',
+    );
   };
   const removeMarkup = (ids: string[]) => {
     if (!busy)
@@ -3072,6 +3126,66 @@ export default function App() {
       setAwaitingStart(true);
     }
   };
+  const hidden = useMemo(() => hiddenItems(project), [project]);
+  const hasHideSelection = !!(
+    selectedIds.length ||
+    selectedGroup ||
+    selectedGuideIds.length ||
+    selectedDimensionIds.length ||
+    selectedMarkupIds.length
+  );
+  const hideSelected = async () => {
+    if (busy || !hasHideSelection) return;
+    const next: Project = {
+      ...project,
+      bodies: project.bodies.map((b) =>
+        !selectedGroup && selectedIdSet.has(b.id) ? { ...b, hidden: true } : b,
+      ),
+      groups: project.groups.map((g) => (g.id === selectedGroup?.id ? { ...g, hidden: true } : g)),
+      guides: project.guides.map((g) => (selectedGuideSet.has(g.id) ? { ...g, hidden: true } : g)),
+      dimensions: project.dimensions.map((d) =>
+        selectedDimensionSet.has(d.id) ? { ...d, hidden: true } : d,
+      ),
+      annotations: project.annotations?.map((m) =>
+        selectedMarkupIds.includes(m.id) ? { ...m, hidden: true } : m,
+      ),
+    };
+    if (!newlyHidden(project, next).size) return;
+    if (await editor.transact(next, 'Valinta piilotettu. Shift+H palauttaa viimeksi piilotetut.')) {
+      resetGesture();
+      setAwaitingStart(true);
+    }
+  };
+  const revealHidden = async (all: boolean) => {
+    const items = all ? hidden : editor.lastHidden;
+    if (busy || !items.size) return;
+    if (
+      await editor.transact(
+        revealItems(project, items),
+        all ? 'Kaikki piilotetut näytetään.' : 'Viimeksi piilotetut palautettu näkyviin.',
+      )
+    ) {
+      resetGesture();
+      setAwaitingStart(true);
+    }
+  };
+  const visibilityActions: QuickAction[] = [
+    {
+      label: 'Piilota valinta · H',
+      run: () => void hideSelected(),
+      disabled: busy || !hasHideSelection,
+    },
+    {
+      label: 'Näytä viimeksi piilotetut · Shift+H',
+      run: () => void revealHidden(false),
+      disabled: busy || !editor.lastHidden.size,
+    },
+    {
+      label: 'Näytä kaikki piilotetut · Alt+H',
+      run: () => void revealHidden(true),
+      disabled: busy || !hidden.size,
+    },
+  ];
   const holdSelected = () => {
     if (selectedGroup) {
       if (groupAncestors(project.groups, selectedGroup.parentId).some((g) => g.locked)) {
@@ -3130,25 +3244,34 @@ export default function App() {
       editor.setError((e as Error).message);
     }
   };
-  const arrangeTree = async (move: TreeMove, parentId?: string) => {
+  const arrangeTree = async (move: TreeMove, parentId?: string, targetBodyId?: string) => {
     if (busy || editingBodyId || editing || tool === 'boolean') return;
     if (openedAssembly) {
       editor.setMessage('Sulje kokoonpano ennen hierarkian järjestämistä.');
       return;
     }
     try {
-      const next = moveInTree(project, move, parentId);
+      const created = targetBodyId ? groupAroundBody(project, move, targetBodyId) : undefined;
+      const next = created?.project ?? moveInTree(project, move, parentId);
       if (next === project) return;
       if (
         await editor.transact(
           next,
-          parentId ? 'Valinta siirretty ryhmään.' : 'Valinta siirretty päätasolle.',
+          created
+            ? 'Osat ryhmitelty. Voit nimetä ryhmän listassa.'
+            : parentId
+              ? 'Valinta siirretty ryhmään.'
+              : 'Valinta siirretty päätasolle.',
         )
       ) {
         resetGesture();
         setAwaitingStart(true);
-        setSelectedGroupId(move.kind === 'group' ? move.id : undefined);
-        const ids = move.kind === 'group' ? groupBodies(next, move.id).map((b) => b.id) : move.ids;
+        setSelectedGroupId(created?.groupId ?? (move.kind === 'group' ? move.id : undefined));
+        const ids = created
+          ? groupBodies(next, created.groupId).map((b) => b.id)
+          : move.kind === 'group'
+            ? groupBodies(next, move.id).map((b) => b.id)
+            : move.ids;
         setSelectedIds(ids);
         setSelected(ids[0]);
       }
@@ -3454,6 +3577,14 @@ export default function App() {
         return;
       }
       if (renderOpen || partsOpen || mode === 'drawing') return;
+      if ((key === 'h' || event.code === 'KeyH') && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        if (event.repeat) return;
+        if (event.altKey) void revealHidden(true);
+        else if (event.shiftKey) void revealHidden(false);
+        else void hideSelected();
+        return;
+      }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (
         tool === 'select' &&
@@ -3582,7 +3713,52 @@ export default function App() {
               : undefined,
           );
           select(id, undefined, false, true);
-        } else select(id, undefined, additive);
+        } else {
+          select(id, undefined, additive);
+          if (additive) setSelectedGroupId(undefined);
+        }
+      }}
+      onSelectRange={(range) => {
+        if (busy) return;
+        if (editingBodyId) {
+          explainEditContext();
+          return;
+        }
+        if (loftOpen) {
+          setLoftIds((old) => [
+            ...new Set([
+              ...old,
+              ...range.filter((id) => {
+                const b = project.bodies.find((b) => b.id === id);
+                return b && !featureIsSolid(b.feature);
+              }),
+            ]),
+          ]);
+          return;
+        }
+        if (tool === 'boolean') {
+          if (booleanActive === 'targets') {
+            setBooleanTargets((old) => [...new Set([...old, ...range])]);
+            setBooleanTools((old) => old.filter((id) => !range.includes(id)));
+          } else {
+            setBooleanTools((old) => [...new Set([...old, ...range])]);
+            setBooleanTargets((old) => old.filter((id) => !range.includes(id)));
+          }
+          return;
+        }
+        const ids = [...new Set([...selectedIds, ...range])];
+        resetGesture();
+        setOpenedAssembly(undefined);
+        setSelectedGroupId(undefined);
+        setSelectedIds(ids);
+        setSelected(range.at(-1));
+        setSelectedFace(undefined);
+        setAwaitingStart(true);
+        if (tool === 'rotate') startRotation(ids);
+      }}
+      onFit={(id) => {
+        const part = project.bodies.find((b) => b.id === id);
+        if (part) setCameraCommand({ id: performance.now(), type: 'fit', ids: [id] });
       }}
       onSelectGroup={(id) => {
         if (editingBodyId) {
@@ -3614,7 +3790,7 @@ export default function App() {
       arrangingDisabled={!!editingBodyId || editing || tool === 'boolean'}
       multiSelect={multiSelect}
       onMultiSelect={() => setMultiSelect(!multiSelect)}
-      onMove={(move, parentId) => void arrangeTree(move, parentId)}
+      onMove={(move, parentId, targetBodyId) => void arrangeTree(move, parentId, targetBodyId)}
     />
   );
   const linkSelected = async () => {
@@ -4043,14 +4219,6 @@ export default function App() {
   const quickActions: QuickAction[] = selectedMarkupIds.length
     ? [
         { label: 'Merkinnän asetukset', run: () => setPanelOpen(true) },
-        {
-          label: selectedMarkup?.hidden ? 'Näytä merkintä' : 'Piilota merkintä',
-          run: () => {
-            if (selectedMarkup)
-              void commitMarkup({ ...selectedMarkup, hidden: !selectedMarkup.hidden });
-          },
-          disabled: busy || !selectedMarkup,
-        },
         { label: 'Poista valinta', run: () => void removeBody(), disabled: busy },
       ]
     : selectedDimensionIds.length
@@ -4066,14 +4234,7 @@ export default function App() {
               !!selectedIds.length ||
               !!selectedGuideIds.length,
           },
-          {
-            label: selectedDimension?.hidden ? 'Näytä dimensio' : 'Piilota dimensiot',
-            run: () =>
-              patchAnnotation('dimensions', selectedDimensionIds, {
-                hidden: !selectedDimension?.hidden,
-              }),
-            disabled: busy,
-          },
+
           { label: 'Poista valinta', run: () => void removeBody(), disabled: busy },
         ]
       : selectedGuideIds.length && (selectedGuideIds.length > 1 || selectedIds.length)
@@ -4081,12 +4242,7 @@ export default function App() {
         : selectedGuide
           ? [
               { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
-              {
-                label: selectedGuide.hidden ? 'Näytä viiva' : 'Piilota viiva',
-                run: () =>
-                  patchAnnotation('guides', [selectedGuide.id], { hidden: !selectedGuide.hidden }),
-                disabled: busy,
-              },
+
               {
                 label: 'Poista apuviiva',
                 run: () => void removeGuide(selectedGuide.id),
@@ -4175,14 +4331,7 @@ export default function App() {
               },
               { label: 'Maalaa · P', run: () => begin('paint'), disabled: busy || !body },
               { label: 'Kiinnitä / vapauta · G', run: holdSelected, disabled: busy || !body },
-              {
-                label: 'Piilota valinta',
-                run: () =>
-                  selectedGroup
-                    ? void patchGroup(selectedGroup.id, { hidden: true })
-                    : void patchBodies(selectedIds, { hidden: true }),
-                disabled: busy || !body,
-              },
+
               ...(selectedIds.length > 1 && !selectedGroup
                 ? [
                     {
@@ -4195,7 +4344,9 @@ export default function App() {
               {
                 label: 'Siirrä ryhmään…',
                 run: () => {
-                  setGroupDestination(selectedGroup?.parentId ?? body?.groupId ?? '');
+                  setGroupDestination(
+                    selectedGroup ? (selectedGroup.parentId ?? '') : (body?.groupId ?? ''),
+                  );
                   setGroupMove(
                     selectedGroup
                       ? { kind: 'group', id: selectedGroup.id }
@@ -4228,6 +4379,7 @@ export default function App() {
                 disabled: busy || !selectedIds.length,
               },
             ];
+  quickActions.push({ label: 'Näkyvyys', run: () => {}, children: visibilityActions });
   const chooseOther = () => {
     if (actionMenu?.candidates?.length) {
       setPickList({ ...actionMenu, candidates: actionMenu.candidates });
@@ -4321,20 +4473,26 @@ export default function App() {
         setAwaitingStart(true);
       },
     })),
-    ...quickActions.map((a, i) => ({
-      id: `selection-${i}`,
-      label: a.label,
-      group: 'Valinta',
-      reason:
-        a.reason ??
-        (a.disabled ? (busy ? 'Odota laskennan valmistumista.' : 'Valitse ensin osa.') : undefined),
-      run: () => {
-        setRenderOpen(false);
-        setPartsOpen(false);
-        setMode('model');
-        a.run();
-      },
-    })),
+    ...quickActions
+      .flatMap((a) => a.children ?? [a])
+      .map((a, i) => ({
+        id: `selection-${i}`,
+        label: a.label,
+        group: 'Valinta',
+        reason:
+          a.reason ??
+          (a.disabled
+            ? busy
+              ? 'Odota laskennan valmistumista.'
+              : 'Valitse ensin osa.'
+            : undefined),
+        run: () => {
+          setRenderOpen(false);
+          setPartsOpen(false);
+          setMode('model');
+          a.run();
+        },
+      })),
     {
       id: 'pick-other',
       label: 'Valitse toinen',
@@ -5099,6 +5257,10 @@ export default function App() {
               onOverview={() => changeView('iso', true)}
               onCapture={() => void saveModelImage()}
               capturing={capturingModel}
+              onVisibility={(event) => {
+                const r = event.currentTarget.getBoundingClientRect();
+                setActionMenu({ x: r.left, y: r.bottom, visibilityOnly: true });
+              }}
             />
             <div className="view-actions">
               <IconButton
@@ -5176,6 +5338,44 @@ export default function App() {
           </div>
 
           <div className="model-stage" hidden={mode !== 'model'}>
+            {newPartId && project.bodies.some((b) => b.id === newPartId) && (
+              <NewPartPrompt
+                key={newPartId}
+                body={project.bodies.find((b) => b.id === newPartId)!}
+                groups={project.groups}
+                busy={busy}
+                onClose={() => setNewPartId(undefined)}
+                onApply={async (name, groupId, newGroupName) => {
+                  const source = project.bodies.find((b) => b.id === newPartId);
+                  if (!source || busy) return;
+                  const group = newGroupName
+                    ? {
+                        id: uid(),
+                        name: newGroupName,
+                        kind: 'folder' as const,
+                        hidden: false,
+                        parentId: source.groupId,
+                      }
+                    : undefined;
+                  const next = { ...source, name, groupId: group?.id ?? groupId };
+                  if (name === source.name && next.groupId === source.groupId) {
+                    setNewPartId(undefined);
+                    return;
+                  }
+                  if (
+                    await editor.transact(
+                      {
+                        ...project,
+                        groups: group ? [...project.groups, group] : project.groups,
+                        bodies: project.bodies.map((b) => (b.id === source.id ? next : b)),
+                      },
+                      'Uuden osan nimi ja ryhmä tallennettu.',
+                    )
+                  )
+                    setNewPartId(undefined);
+                }}
+              />
+            )}
             {workspace.ui}
             {workspace.section && workspace.panel !== 'section' && (
               <div className="section-notice" role="status">
@@ -5267,6 +5467,13 @@ export default function App() {
                         >
                           {m.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
                         </IconButton>
+                        <IconButton
+                          label="Poista merkintä"
+                          disabled={busy}
+                          onClick={() => removeMarkup([m.id])}
+                        >
+                          <Trash2 size={15} />
+                        </IconButton>
                       </div>
                     ))}
                     {!project.annotations?.length && (
@@ -5341,7 +5548,7 @@ export default function App() {
                               )
                             }
                           >
-                            <X size={15} />
+                            <Trash2 size={15} />
                           </IconButton>
                         </div>
                       );
@@ -5403,7 +5610,7 @@ export default function App() {
                                 )
                               }
                             >
-                              <X size={15} />
+                              <Trash2 size={15} />
                             </IconButton>
                           </div>
                         );
@@ -5671,24 +5878,13 @@ export default function App() {
               guidePreview={tool === 'measure' ? guidePreview : undefined}
               measureMode={measureMode}
               markupBodies={project.bodies}
-              markups={
-                project.settings.markupsHidden
-                  ? []
-                  : (project.annotations ?? []).filter((m) => !m.hidden)
-              }
-              markupDraft={
-                markupDraft && !(project.annotations ?? []).some((m) => m.id === markupDraft.id)
-                  ? ({
-                      ...markupDraft,
-                      ...(markupDraft.kind === 'area' ? markupStyle.area : markupStyle.note),
-                    } as Markup)
-                  : markupDraft
-              }
+              markups={visibleMarkups}
+              markupDraft={displayedMarkupDraft}
               selectedMarkupIds={selectedMarkupIds}
               markupStyle={markupStyle}
               markupCommand={markupCommand}
               onMarkupPreview={setMarkupDraft}
-              onMarkupCommit={(m) => void commitMarkup(m)}
+              onMarkupCommit={(m, editText) => void commitMarkup(m, editText)}
               onMarkupSelect={selectMarkup}
               measureStart={measureStart}
               guidePointEditing={!!guidePointEdit}
@@ -6298,16 +6494,21 @@ export default function App() {
                 >
                   {selectedMarkup && !markupDraft ? (
                     <MarkupProperties
+                      key={selectedMarkup.id}
                       markup={selectedMarkup}
                       busy={busy}
-                      onChange={(m) => void commitMarkup(m)}
+                      onChange={changeMarkup}
+                      onPreview={setMarkupAppearance}
+                      focusRequest={
+                        markupFocus?.id === selectedMarkup.id ? markupFocus.serial : undefined
+                      }
                       onDelete={() => removeMarkup([selectedMarkup.id])}
                     />
                   ) : (
                     <>
                       <p>
                         {measureMode === 'area'
-                          ? 'Napsauta suorakulmion vastakkaisia kulmia. Jatka seuraavalla suorakulmiolla ja paina Enter yhdistääksesi alueen.'
+                          ? 'Napsauta suorakulmion vastakkaisia kulmia. Jatka seuraavalla suorakulmiolla ja paina Enter yhdistääksesi alueen. X/Y/Z vaihtaa piirtotasoa.'
                           : 'Napsauta reunaa, kulmaa tai muuta kohdepistettä. Sijoita sitten tekstilaatikko napsauttamalla.'}
                       </p>
                       <label>
@@ -6330,6 +6531,21 @@ export default function App() {
                       {measureMode === 'area' && (
                         <>
                           <label>
+                            Piirtotaso
+                            <select
+                              aria-label="Pinta-alan piirtotaso"
+                              value={axis ?? ''}
+                              onChange={(e) =>
+                                setAxis((e.target.value || undefined) as Axis | undefined)
+                              }
+                            >
+                              <option value="">Automaattinen · osoitettu pinta</option>
+                              <option value="z">Lattia XY · Z</option>
+                              <option value="y">Pysty XZ · Y</option>
+                              <option value="x">Pysty YZ · X</option>
+                            </select>
+                          </label>
+                          <label>
                             Alueen väri
                             <input
                               aria-label="Uuden alueen väri"
@@ -6347,7 +6563,8 @@ export default function App() {
                           </strong>
                           <p className="muted">
                             Päällekkäisyys lasketaan kerran. Alue on mittamerkintä, joka ei leikkaa
-                            mallia. Shift poimii viitteen omaan tasoon.
+                            mallia. Shift poimii viitteen omaan tasoon. Piirtotason vaihto kääntää
+                            keskeneräisen alueen aloituskulman ympäri.
                           </p>
                         </>
                       )}
@@ -6383,9 +6600,14 @@ export default function App() {
                 </section>
               ) : tool === 'select' && selectedMarkup && !selectedIds.length ? (
                 <MarkupProperties
+                  key={selectedMarkup.id}
                   markup={selectedMarkup}
                   busy={busy}
-                  onChange={(m) => void commitMarkup(m)}
+                  onChange={changeMarkup}
+                  onPreview={setMarkupAppearance}
+                  focusRequest={
+                    markupFocus?.id === selectedMarkup.id ? markupFocus.serial : undefined
+                  }
                   onDelete={() => removeMarkup([selectedMarkup.id])}
                 />
               ) : tool === 'select' && selectedMarkupIds.length > 1 && !selectedIds.length ? (
@@ -7551,6 +7773,32 @@ export default function App() {
       )}
       {groupMove && (
         <SelectionDialog title="Siirrä ryhmään" onClose={() => setGroupMove(undefined)}>
+          {selectedGroup && (
+            <label className="modeling-field">
+              Siirrettävä
+              <select
+                aria-label="Siirrettävä kokonaisuus"
+                value={groupMove.kind}
+                onChange={(e) => {
+                  setGroupMove(
+                    e.target.value === 'group'
+                      ? { kind: 'group', id: selectedGroup.id }
+                      : { kind: 'bodies', ids: [...selectedIds] },
+                  );
+                  setGroupDestination(
+                    e.target.value === 'group'
+                      ? (selectedGroup.parentId ?? '')
+                      : (body?.groupId ?? ''),
+                  );
+                }}
+              >
+                <option value="group">Koko ryhmä sisältöineen</option>
+                <option value="bodies" disabled={!selectedIds.length}>
+                  Valitut osat ({selectedIds.length})
+                </option>
+              </select>
+            </label>
+          )}
           <p>
             {groupMove.kind === 'group'
               ? 'Ryhmä siirtyy sisältöineen.'
@@ -7564,23 +7812,27 @@ export default function App() {
               onChange={(e) => setGroupDestination(e.target.value)}
             >
               <option value="">Päätaso</option>
-              {project.groups
-                .filter(
-                  (g) =>
-                    groupMove.kind !== 'group' ||
-                    !groupContains(project.groups, groupMove.id, g.id),
-                )
-                .map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {groupPath(project.groups, g.id)}
-                  </option>
-                ))}
+              <GroupOptions
+                groups={project.groups}
+                movingGroupId={groupMove.kind === 'group' ? groupMove.id : undefined}
+              />
             </select>
           </label>
+          {groupMove.kind === 'group' && (
+            <p className="muted">
+              Ryhmää ei voi siirtää itsensä tai oman alaryhmänsä sisään. Valitut osat voi siirtää
+              mihin tahansa ryhmään.
+            </p>
+          )}
           <div className="object-quick-actions">
             <button
               className="button primary"
-              disabled={busy}
+              disabled={
+                busy ||
+                (groupMove.kind === 'group' &&
+                  !!groupDestination &&
+                  groupContains(project.groups, groupMove.id, groupDestination))
+              }
               onClick={() => {
                 void arrangeTree(groupMove, groupDestination || undefined);
                 setGroupMove(undefined);
@@ -7598,12 +7850,20 @@ export default function App() {
         <ContextActions
           {...actionMenu}
           title={
-            selectedGuide
-              ? 'Apuviiva'
-              : (selectedGroup?.name ??
-                (selectedIds.length > 1 ? `${selectedIds.length} osaa` : (body?.name ?? 'Valinta')))
+            actionMenu.visibilityOnly
+              ? 'Näkyvyys'
+              : selectedGuide
+                ? 'Apuviiva'
+                : (selectedGroup?.name ??
+                  (selectedIds.length > 1
+                    ? `${selectedIds.length} osaa`
+                    : (body?.name ?? 'Valinta')))
           }
-          actions={[...quickActions, { label: 'Valitse toinen', run: chooseOther, disabled: busy }]}
+          actions={
+            actionMenu.visibilityOnly
+              ? visibilityActions
+              : [...quickActions, { label: 'Valitse toinen', run: chooseOther, disabled: busy }]
+          }
           onClose={() => setActionMenu(undefined)}
         />
       )}
