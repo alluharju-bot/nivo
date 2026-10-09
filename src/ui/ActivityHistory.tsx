@@ -80,9 +80,9 @@ export function ActivityHistory({
             </button>
           </header>
           <p>
-            Palauta valinta poimii osat ja viivat. Palaa leikkaukseen palauttaa mallin ennen
-            leikkausta ja avaa muodon sekä kohteet. Yläpalkin Palauta tekee myöhemmät muutokset
-            uudelleen, kunnes teet uuden muutoksen.
+            Palauta valinta poimii osat, viivat ja dimensiot. Palaa leikkaukseen palauttaa mallin
+            ennen leikkausta ja avaa muodon sekä kohteet. Yläpalkin Palauta tekee myöhemmät
+            muutokset uudelleen, kunnes teet uuden muutoksen.
           </p>
           {!entries.length ? (
             <p>Toiminnot ilmestyvät tähän työn edetessä.</p>

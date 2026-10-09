@@ -1,5 +1,7 @@
+import { AnnotationProperties } from '../ui/AnnotationProperties';
+import { annotationText } from '../model/annotationStyle';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { Download, Ruler, Trash2, X } from 'lucide-react';
+import { Download, Ruler, Trash2, X, Eye, EyeOff } from 'lucide-react';
 import type { CadClient } from '../cad/client';
 import type { BodyMesh, DrawingView, Projection } from '../cad/protocol';
 import {
@@ -59,6 +61,22 @@ export function DrawingWorkspace({
   const [hover, setHover] = useState<DrawingPick>();
   const [cursor, setCursor] = useState<[number, number]>();
   const [selectedDimension, setSelectedDimension] = useState<string>();
+  const [annotationFocus, setAnnotationFocus] = useState(0);
+  const selectedAnnotation = project.dimensions.find((d) => d.id === selectedDimension);
+  const patchAnnotation = (id: string, patch: { label?: string; hidden?: boolean }) => {
+    if (busy) return;
+    void onCommit(
+      {
+        ...project,
+        dimensions: project.dimensions.map((d) => (d.id === id ? { ...d, ...patch } : d)),
+      },
+      patch.hidden === undefined
+        ? 'Merkinnän teksti muutettu.'
+        : patch.hidden
+          ? 'Dimensio piilotettu.'
+          : 'Dimensio palautettu näkyviin.',
+    );
+  };
   const [direction, setDirection] = useState<DimensionDirection>('auto');
   const [dragPreview, setDragPreview] = useState<PointDimension>();
   const dragRef = useRef<{
@@ -300,6 +318,16 @@ export function DrawingWorkspace({
                   }
                 }}
                 onPointerLeave={() => setHover(undefined)}
+                onDoubleClick={(e) => {
+                  if (measuring || busy) return;
+                  const id = (e.target as Element)
+                    .closest('[data-dimension]')
+                    ?.getAttribute('data-dimension');
+                  if (id) {
+                    setSelectedDimension(id);
+                    setAnnotationFocus((n) => n + 1);
+                  }
+                }}
                 onPointerDown={(e) => {
                   if (e.button !== 0 || busy) return;
                   if (!measuring) {
@@ -307,6 +335,7 @@ export function DrawingWorkspace({
                       (e.target as Element)
                         .closest('[data-dimension]')
                         ?.getAttribute('data-dimension') ?? undefined;
+                    setAnnotationFocus(0);
                     setSelectedDimension(id);
                     const dimension = project.dimensions.find((d) => d.id === id);
                     const svg = paper.current?.querySelector('svg');
@@ -483,6 +512,16 @@ export function DrawingWorkspace({
         >
           Lisää kokonaismitat
         </button>
+        {selectedAnnotation && (
+          <AnnotationProperties
+            annotation={selectedAnnotation}
+            value={dimensionValue(project, selectedAnnotation)}
+            busy={busy}
+            focusKey={annotationFocus}
+            onChange={(patch) => patchAnnotation(selectedAnnotation.id, patch)}
+            onDelete={() => void removeDimension(selectedAnnotation.id)}
+          />
+        )}
         <details className="drawing-options-disclosure">
           <summary>Yksittäinen kokonaismitta</summary>
           <div className="dimension-buttons">
@@ -502,22 +541,54 @@ export function DrawingWorkspace({
             </button>
           </div>
         </details>
+        {project.settings.measurementsHidden && (
+          <button
+            className="annotation-visibility-notice"
+            disabled={busy}
+            onClick={() =>
+              void onCommit(
+                { ...project, settings: { ...project.settings, measurementsHidden: false } },
+                'Mittamerkinnät palautettu näkyviin.',
+              )
+            }
+          >
+            Kaikki merkinnät on piilotettu · Näytä merkinnät
+          </button>
+        )}
         <div className="dimension-list">
           {scoped.dimensions.map((d) => (
             <div
               key={d.id}
-              className={`${dimensionValue(project, d) === null ? 'broken' : ''} ${selectedDimension === d.id ? 'selected' : ''}`}
+              className={`${dimensionValue(project, d) === null ? 'broken' : ''} ${selectedDimension === d.id ? 'selected' : ''} ${d.hidden ? 'is-hidden' : ''}`}
+              data-testid={`drawing-dimension-row-${d.id}`}
             >
-              <button onClick={() => setSelectedDimension(d.id)}>
+              <button
+                onClick={() => {
+                  setAnnotationFocus(0);
+                  setSelectedDimension(d.id);
+                }}
+              >
                 <Ruler size={14} />
                 <span>
                   {dimensionValue(project, d) === null
                     ? 'Viite puuttuu'
-                    : `${formatLength(dimensionValue(project, d)!)} mm`}
+                    : annotationText(
+                        d,
+                        dimensionValue(project, d)!,
+                        `${formatLength(dimensionValue(project, d)!)} mm`,
+                      )}
                   <small>
                     {d.axis === 'distance' ? 'Pisteväli' : `${d.axis.toUpperCase()}-suunta`}
                   </small>
                 </span>
+              </button>
+              <button
+                className="icon-button"
+                aria-label={d.hidden ? 'Näytä dimensio' : 'Piilota dimensio'}
+                disabled={busy}
+                onClick={() => patchAnnotation(d.id, { hidden: !d.hidden })}
+              >
+                {d.hidden ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
               <button
                 className="icon-button"

@@ -4462,18 +4462,22 @@ p {
   left: auto;
   right: 14px;
 }
-.drawing-paper [data-dimension] {
+.drawing-paper [data-dimension],
+.drawing-paper [data-section-dimension] {
   cursor: grab;
 }
-.drawing-paper [data-dimension] text {
+.drawing-paper [data-dimension] text,
+.drawing-paper [data-section-dimension] text {
   pointer-events: bounding-box;
 }
-.drawing-paper [data-dimension].is-selected {
-  stroke: #48734f;
+.drawing-paper [data-dimension].is-selected,
+.drawing-paper [data-section-dimension].is-selected {
+  stroke: #d86b16;
   stroke-width: 0.45;
 }
-.drawing-paper [data-dimension].is-selected text {
-  fill: #2d5b3a;
+.drawing-paper [data-dimension].is-selected text,
+.drawing-paper [data-section-dimension].is-selected text {
+  fill: #aa4e09;
 }
 .drawing-paper [data-dimension].is-dragging {
   opacity: 0.15;
@@ -6195,4 +6199,90 @@ p {
 }
 .knife-panel > button {
   margin-top: 7px;
+}
+
+/* Annotation selection is independent of object selection. */
+.model-dimensions .dimension-hit {
+  stroke-width: 14;
+  stroke-opacity: 0;
+  fill: none;
+}
+.model-dimensions .is-selected path:not(.dimension-hit),
+.model-dimensions .is-hovered path:not(.dimension-hit) {
+  stroke: #e57820;
+  stroke-width: 2.5;
+}
+.model-dimensions .is-selected rect,
+.model-dimensions .is-hovered rect {
+  fill: #fff2df;
+  stroke: #e57820;
+  stroke-width: 1.5;
+}
+.model-dimensions .is-selected text,
+.model-dimensions .is-hovered text {
+  fill: #a34606;
+}
+.dimension-list > .selected,
+.guide-list > .selected {
+  background: #fff0dd;
+  box-shadow: inset 3px 0 #e57820;
+}
+.dimension-list > .is-hidden > button:first-child,
+.guide-list > .is-hidden > button:first-child {
+  opacity: 0.55;
+}
+.annotation-properties {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0;
+}
+.annotation-properties label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.annotation-properties input {
+  min-width: 0;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--border, #c5cec8);
+  border-radius: 6px;
+  background: #fff;
+}
+.annotation-properties .muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.annotation-properties small {
+  line-height: 1.5;
+}
+.annotation-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.annotation-properties button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #c5cec8;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.annotation-visibility-notice {
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 5px;
+  background: #f5ead9;
+  color: #744419;
+  text-align: left;
+  font-size: 12px;
+}
+.inspector-details > .annotation-properties {
+  padding: 4px 20px 20px;
 }

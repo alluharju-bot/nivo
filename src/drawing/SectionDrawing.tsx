@@ -1,3 +1,6 @@
+import { Eye, EyeOff } from 'lucide-react';
+import { AnnotationProperties } from '../ui/AnnotationProperties';
+import { annotationText } from '../model/annotationStyle';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import type { Project } from '../model/project';
 import { uid } from '../model/project';
@@ -37,6 +40,39 @@ export function SectionDrawing({
   onBack: () => void;
   onSheets?: () => void;
 }) {
+  const [selectedDimension, setSelectedDimension] = useState<string>();
+  const [annotationFocus, setAnnotationFocus] = useState(0);
+  const selectedAnnotation = section.dimensions.find((d) => d.id === selectedDimension);
+  const patchAnnotation = (id: string, patch: { label?: string; hidden?: boolean }) => {
+    if (busy) return;
+    void onCommit(
+      {
+        ...project,
+        sections: project.sections?.map((s) =>
+          s.id === section.id
+            ? { ...s, dimensions: s.dimensions.map((d) => (d.id === id ? { ...d, ...patch } : d)) }
+            : s,
+        ),
+      },
+      patch.hidden === undefined
+        ? 'Merkinnän teksti muutettu.'
+        : patch.hidden
+          ? 'Leikkausmitta piilotettu.'
+          : 'Leikkausmitta palautettu näkyviin.',
+    );
+  };
+  const removeDimension = (id: string) => {
+    if (!busy)
+      void onCommit(
+        {
+          ...project,
+          sections: project.sections?.map((s) =>
+            s.id === section.id ? { ...s, dimensions: s.dimensions.filter((d) => d.id !== id) } : s,
+          ),
+        },
+        'Leikkausmitta poistettu.',
+      );
+  };
   const [scope, setScope] = useState(selectedIds.length ? 'selection' : 'all');
   const [result, setResult] = useState<SectionResult>();
   const [error, setError] = useState(''),
@@ -136,6 +172,13 @@ export function SectionDrawing({
     [project, displayedSection, result, draft, scale, hidden, sheet],
   );
   const shown = preview;
+  useEffect(() => {
+    paper.current
+      ?.querySelectorAll<SVGGElement>('[data-section-dimension]')
+      .forEach((el) =>
+        el.classList.toggle('is-selected', el.dataset.sectionDimension === selectedDimension),
+      );
+  }, [shown, selectedDimension]);
   const pointer = (e: PointerEvent) => {
     if (!sheet || !result) return;
     const svg = paper.current?.querySelector('svg');
@@ -253,8 +296,27 @@ export function SectionDrawing({
                   setCursor(p.point);
                 }
               }}
+              onDoubleClick={(e) => {
+                if (measuring || busy) return;
+                const id = (e.target as Element)
+                  .closest('[data-section-dimension]')
+                  ?.getAttribute('data-section-dimension');
+                if (id) {
+                  setSelectedDimension(id);
+                  setAnnotationFocus((n) => n + 1);
+                }
+              }}
               onPointerDown={(e) => {
-                if (!measuring || e.button !== 0 || busy) return;
+                if (e.button !== 0 || busy) return;
+                if (!measuring) {
+                  setAnnotationFocus(0);
+                  setSelectedDimension(
+                    (e.target as Element)
+                      .closest('[data-section-dimension]')
+                      ?.getAttribute('data-section-dimension') ?? undefined,
+                  );
+                  return;
+                }
                 const p = pointer(e);
                 if (picks.length === 2) {
                   void saveDimension();
@@ -354,36 +416,75 @@ export function SectionDrawing({
             </select>
           </label>
         )}
+        {project.settings.measurementsHidden && (
+          <button
+            className="annotation-visibility-notice"
+            disabled={busy}
+            onClick={() =>
+              void onCommit(
+                { ...project, settings: { ...project.settings, measurementsHidden: false } },
+                'Mittamerkinnät palautettu näkyviin.',
+              )
+            }
+          >
+            Kaikki merkinnät on piilotettu · Näytä merkinnät
+          </button>
+        )}
         <div className="dimension-list">
           {displayedSection.dimensions.map((d) => (
-            <div key={d.id} className={validity.get(d.id) ? '' : 'broken'}>
-              <span>
-                {validity.get(d.id)
-                  ? `${formatLength(sectionDimensionGeometry(section, d).value)} mm`
-                  : 'Viite muuttunut'}
-              </span>
+            <div
+              key={d.id}
+              data-testid={`section-dimension-row-${d.id}`}
+              className={`${validity.get(d.id) ? '' : 'broken'} ${selectedDimension === d.id ? 'selected' : ''} ${d.hidden ? 'is-hidden' : ''}`}
+            >
+              <button
+                onClick={() => {
+                  setAnnotationFocus(0);
+                  setSelectedDimension(d.id);
+                }}
+              >
+                <span>
+                  {validity.get(d.id)
+                    ? annotationText(
+                        d,
+                        sectionDimensionGeometry(section, d).value,
+                        `${formatLength(sectionDimensionGeometry(section, d).value)} mm`,
+                      )
+                    : 'Viite muuttunut'}
+                </span>
+              </button>
+              <button
+                className="icon-button"
+                aria-label={d.hidden ? 'Näytä dimensio' : 'Piilota dimensio'}
+                disabled={busy}
+                onClick={() => patchAnnotation(d.id, { hidden: !d.hidden })}
+              >
+                {d.hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
               <button
                 aria-label="Poista leikkausmitta"
                 disabled={busy}
-                onClick={() =>
-                  void onCommit(
-                    {
-                      ...project,
-                      sections: project.sections?.map((s) =>
-                        s.id === section.id
-                          ? { ...s, dimensions: s.dimensions.filter((m) => m.id !== d.id) }
-                          : s,
-                      ),
-                    },
-                    'Leikkausmitta poistettu.',
-                  )
-                }
+                onClick={() => removeDimension(d.id)}
               >
                 ×
               </button>
             </div>
           ))}
         </div>
+        {selectedAnnotation && (
+          <AnnotationProperties
+            annotation={selectedAnnotation}
+            value={
+              validity.get(selectedAnnotation.id)
+                ? sectionDimensionGeometry(section, selectedAnnotation).value
+                : null
+            }
+            busy={busy}
+            focusKey={annotationFocus}
+            onChange={(patch) => patchAnnotation(selectedAnnotation.id, patch)}
+            onDelete={() => removeDimension(selectedAnnotation.id)}
+          />
+        )}
         <label className="checkbox-label">
           <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />{' '}
           Näytä takana olevat reunat

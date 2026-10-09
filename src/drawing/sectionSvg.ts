@@ -1,3 +1,4 @@
+import { annotationText } from '../model/annotationStyle';
 import type { SectionResult } from '../cad/protocol';
 import type { Project } from '../model/project';
 import {
@@ -87,11 +88,14 @@ export function sectionSheet(
 ): Sheet {
   const projection = result.projection ?? { visible: [], hidden: [], viewBox: [0, 0, 1, 1] };
   const valid = validSectionDimensions(project, section, result),
-    orphanCount = [...valid.values()].filter((v) => !v).length;
+    visibleDimensions = section.dimensions.filter(
+      (d) => !d.hidden && !project.settings.measurementsHidden,
+    ),
+    orphanCount = visibleDimensions.filter((d) => !valid.get(d.id)).length;
   let [minX, minY, w, h] = projection.viewBox,
     maxX = minX + w,
     maxY = minY + h;
-  for (const d of section.dimensions) {
+  for (const d of visibleDimensions) {
     const g = sectionDimensionGeometry(section, d);
     for (const p of [g.start, g.end, g.a, g.b]) {
       minX = Math.min(minX, p[0] - 15 * scale);
@@ -105,7 +109,7 @@ export function sectionSheet(
   const fits = (maxX - minX) / scale <= area.width && (maxY - minY) / scale <= area.height;
   const n = (v: number) => Number(v.toFixed(5));
   const paths = (list: string[]) => list.map((d) => `<path d="${escapeXml(d)}"/>`).join('');
-  const annotations = section.dimensions
+  const annotations = visibleDimensions
     .map((d) => {
       const g = sectionDimensionGeometry(section, d),
         [s, e, a, b] = [g.start, g.end, g.a, g.b].map((p) => [
@@ -113,7 +117,7 @@ export function sectionSheet(
           n(y + p[1] / scale),
         ]);
       const broken = !valid.get(d.id),
-        label = broken ? 'Viite muuttunut' : formatLength(g.value);
+        label = broken ? 'Viite muuttunut' : annotationText(d, g.value, formatLength(g.value));
       return `<g data-section-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}" fill="none" stroke="${broken ? '#ac382c' : '#344333'}" stroke-width="0.2"><path d="M${s}L${a}L${b}L${e}"/><path d="M${a[0] - 1} ${a[1] + 1}l2 -2 M${b[0] - 1} ${b[1] + 1}l2 -2"/><text x="${n((a[0] + b[0]) / 2)}" y="${n((a[1] + b[1]) / 2 - 1.5)}" text-anchor="middle" stroke="none" fill="${broken ? '#ac382c' : '#253222'}" font-size="3">${escapeXml(label)}</text></g>`;
     })
     .join('');

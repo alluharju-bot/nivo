@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.28.2 — mittamerkintöjen valinta, teksti ja näkyvyys, 9.10.2026
+
+- Kaikki 3D-dimensiot ovat valittavissa tekstistä tai viivasta. Oranssi korostus,
+  Shift-monivalinta ja valintasuorakulmio. Dimensiovalinta säilyy toimintohistoriassa;
+  Delete poistaa valitut merkinnät yhdessä peruttavassa toiminnossa.
+- Tuplaklikkaus avaa oikealle **Merkinnän teksti** -kentän. Myös mittakuvan ja
+  leikkauskuvan dimensioilla sekä apu-/mittaviivoilla on sama tekstieditori.
+  `{mitta}` näyttää todellisen, päivittyvän mittaluvun. Tyhjä kenttä palauttaa
+  automaattisen tekstin. Merkintä ei ohjaa geometriaa; todellinen mitta näkyy erikseen.
+- Mitat/Viivat-listojen silmäkuvake piilottaa yksittäisen merkinnän poistamatta sitä.
+  Piilotettu viiva ei osallistu tartuntoihin. Piilotetut merkinnät jäävät listaan;
+  monivalinnan voi piilottaa ja palauttaa yhdessä. Yhteinen näkyvyyskytkin säilyttää
+  yksittäiset piilotukset. Mittakuvakin kertoo, jos yhteinen kytkin on pois päältä.
+- Näkyvyys ja teksti tallentuvat projektiin ja historiaan sekä näkyvät PNG-/SVG-/PDF-viennissä.
+  Kahden pisteen dimension valintaklikkaus ei muuta sijaintia. Vetäminen säilyttää
+  tarttumakohdan, ja SVG-merkinnät käytetään uudelleen ruutukohtaisen poistamisen sijaan.
+
 ## V0.28.1 — ylävalo ja mallinnusnäkymän kuva, 9.10.2026
 
 - **Valaistus → Studio ja ympäristö → Studiovalon korkeus**: 0–90°.

@@ -1,3 +1,5 @@
+import { AnnotationProperties } from './ui/AnnotationProperties';
+import { annotationText } from './model/annotationStyle';
 import { openingOffsets, singleOpening, type OpeningPattern } from './model/openingPattern';
 import { OpeningPatternFields } from './ui/OpeningPatternFields';
 import { profileCorners } from './model/profileCorners';
@@ -47,6 +49,8 @@ import { dimensionBodyIds } from './model/dimensions';
 import { flushSync } from 'react-dom';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  Eye,
+  EyeOff,
   ScanLine,
   ImagePlus,
   Focus,
@@ -385,10 +389,34 @@ export default function App() {
   const [extrusionMode, setExtrusionMode] = useState<ExtrusionMode>('height');
   const extrusionModeRef = useRef<ExtrusionMode>('height');
   const dragDirection = useRef(1);
+  const [selectedDimensionIds, setSelectedDimensionIds] = useState<string[]>([]);
+  const [annotationFocus, setAnnotationFocus] = useState(0);
+  const selectedDimensionSet = useMemo(() => new Set(selectedDimensionIds), [selectedDimensionIds]);
+  const selectedDimension =
+    selectedDimensionIds.length === 1
+      ? project.dimensions.find((d) => d.id === selectedDimensionIds[0])
+      : undefined;
   const [selectedGuideIds, setSelectedGuideIds] = useState<string[]>([]);
   const selectedGuideId = selectedGuideIds.length === 1 ? selectedGuideIds[0] : undefined;
   const setSelectedGuideId = (id?: string) => setSelectedGuideIds(id ? [id] : []);
   const selectedGuideSet = useMemo(() => new Set(selectedGuideIds), [selectedGuideIds]);
+  useEffect(() => {
+    const existing = new Set(project.dimensions.map((d) => d.id));
+    setSelectedDimensionIds((ids) =>
+      ids.every((id) => existing.has(id)) ? ids : ids.filter((id) => existing.has(id)),
+    );
+  }, [project.dimensions]);
+  useEffect(() => {
+    const existing = new Set(project.guides.map((g) => g.id));
+    setSelectedGuideIds((ids) =>
+      ids.every((id) => existing.has(id)) ? ids : ids.filter((id) => existing.has(id)),
+    );
+  }, [project.guides]);
+  const selectedAnnotationsHidden = [
+    ...project.dimensions.filter((d) => selectedDimensionSet.has(d.id)),
+    ...project.guides.filter((g) => selectedGuideSet.has(g.id)),
+  ].every((a) => a.hidden);
+
   const [freeRotate, setFreeRotate] = useState(false);
   const [guideRotationStep, setGuideRotationStep] = useState(22.5);
   const [shapeFrame, setShapeFrame] = useState<SketchFrame>();
@@ -538,6 +566,7 @@ export default function App() {
   const actionContext: SelectionContext = {
     ids: loftOpen ? loftIds : selectedIds,
     guideIds: loftOpen ? [] : selectedGuideIds,
+    dimensionIds: loftOpen ? [] : selectedDimensionIds,
     primary: loftOpen ? loftIds[0] : selected,
     groupId: loftOpen ? undefined : selectedGroupId,
     editingBodyId,
@@ -734,12 +763,12 @@ export default function App() {
   const visibleDimensions = useMemo(() => {
     if (project.settings.measurementsHidden) return [];
     const ids = new Set(visibleBodies.map((body) => body.id));
-    return project.dimensions.filter((d) =>
-      dimensionBodyIds(d, project).every((id) => ids.has(id)),
+    return project.dimensions.filter(
+      (d) => !d.hidden && dimensionBodyIds(d, project).every((id) => ids.has(id)),
     );
   }, [project.dimensions, visibleBodies, project.settings.measurementsHidden]);
   const visibleGuides = useMemo(
-    () => (project.settings.measurementsHidden ? [] : project.guides),
+    () => (project.settings.measurementsHidden ? [] : project.guides.filter((g) => !g.hidden)),
     [project.guides, project.settings.measurementsHidden],
   );
   const toggleMeasurements = async () => {
@@ -754,6 +783,7 @@ export default function App() {
     ) {
       setSelectedGuideId(undefined);
       setSelectedGuideIds([]);
+      setSelectedDimensionIds([]);
       setGuidePointMenu(undefined);
     }
   };
@@ -1058,6 +1088,8 @@ export default function App() {
     setPenInputAxis('x');
   };
   const resetGesture = () => {
+    setAnnotationFocus(0);
+    setSelectedDimensionIds([]);
     openingRequest.current++;
     setOpeningBusy(false);
     setOpeningDraft(undefined);
@@ -1163,7 +1195,7 @@ export default function App() {
       id && !force
         ? selectionUnit(project, id, openedAssembly)
         : { ids: id ? [id] : [], groupId: undefined };
-    if (!extend && selectedIds.length + selectedGuideIds.length > 1)
+    if (!extend && selectedIds.length + selectedGuideIds.length + selectedDimensionIds.length > 1)
       activityHistory.prepare(actionContext);
     const ids = id
       ? extend
@@ -1188,7 +1220,10 @@ export default function App() {
     setAwaitingStart(true);
     setMeasureMenu(false);
     resetGesture();
-    if (extend) setSelectedGuideIds(selectedGuideIds);
+    if (extend) {
+      setSelectedGuideIds(selectedGuideIds);
+      setSelectedDimensionIds(selectedDimensionIds);
+    }
     if (tool === 'rotate' && id && !force) startRotation(ids);
   };
   const finishOperation = (id?: string, face?: FaceRef) => {
@@ -1726,6 +1761,7 @@ export default function App() {
     ) {
       setDimensionDraft(undefined);
       resetGesture();
+      if (tool === 'select') setSelectedDimensionIds([dimension.id]);
       setAwaitingStart(false);
     }
   };
@@ -2567,6 +2603,50 @@ export default function App() {
       editor.setError((e as Error).message);
     }
   };
+  const patchAnnotation = (
+    kind: 'dimensions' | 'guides',
+    ids: string[],
+    patch: { label?: string; hidden?: boolean },
+  ) => {
+    if (busy) return;
+    const next = {
+      ...project,
+      [kind]: project[kind].map((a) => (ids.includes(a.id) ? { ...a, ...patch } : a)),
+    };
+    void editor.transact(
+      next,
+      patch.hidden === undefined
+        ? 'Merkinnän teksti muutettu.'
+        : patch.hidden
+          ? 'Merkintä piilotettu.'
+          : 'Merkintä palautettu näkyviin.',
+    );
+  };
+  const selectDimension = (id: string, additive = false, editing = false) => {
+    if (busy) return;
+    if (tool !== 'select') resetGesture();
+    if (!additive && selectedIds.length + selectedGuideIds.length + selectedDimensionIds.length > 1)
+      activityHistory.prepare(actionContext);
+    setTool('select');
+    if (!additive) {
+      setSelected(undefined);
+      setSelectedIds([]);
+      setSelectedGroupId(undefined);
+      setSelectedGuideIds([]);
+    }
+    setSelectedFace(undefined);
+    setSelectedDimensionIds(
+      additive
+        ? selectedDimensionSet.has(id)
+          ? selectedDimensionIds.filter((key) => key !== id)
+          : [...selectedDimensionIds, id]
+        : [id],
+    );
+    setPanelOpen(true);
+    setTab('dimensions');
+    setAnnotationFocus((n) => (editing ? n + 1 : 0));
+    editor.setMessage('Dimensio valittu. Muokkaa tekstiä tai näkyvyyttä oikealla.');
+  };
   const selectGuide = (id: string, additive = false) => {
     if (busy) return;
     resetGesture();
@@ -2586,6 +2666,8 @@ export default function App() {
     );
     setAwaitingStart(true);
     setTab('guides');
+    setPanelOpen(true);
+    if (additive) setSelectedDimensionIds(selectedDimensionIds);
     editor.setMessage('Viiva valittu. Valitse toiminto viivan valikosta.');
   };
   const removeGuide = async (id: string) => {
@@ -2816,7 +2898,7 @@ export default function App() {
   const removeBody = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
     if (busy) return;
-    if (!ids.length && !selectedGuideIds.length) {
+    if (!ids.length && !selectedGuideIds.length && !selectedDimensionIds.length) {
       if (selectedGroup) await removeGroup(selectedGroup.id);
       return;
     }
@@ -2824,8 +2906,12 @@ export default function App() {
       const cleaned = ids.length ? removeSelection(project, ids) : project;
       if (
         await editor.transact(
-          { ...cleaned, guides: cleaned.guides.filter((g) => !selectedGuideSet.has(g.id)) },
-          `${[ids.length ? `${ids.length} osaa` : '', selectedGuideIds.length ? `${selectedGuideIds.length} viivaa` : ''].filter(Boolean).join(' + ')} poistettu. Peru palauttaa koko valinnan.`,
+          {
+            ...cleaned,
+            guides: cleaned.guides.filter((g) => !selectedGuideSet.has(g.id)),
+            dimensions: cleaned.dimensions.filter((d) => !selectedDimensionSet.has(d.id)),
+          },
+          `${[ids.length ? `${ids.length} osaa` : '', selectedGuideIds.length ? `${selectedGuideIds.length} viivaa` : '', selectedDimensionIds.length ? `${selectedDimensionIds.length} dimensiota` : ''].filter(Boolean).join(' + ')} poistettu. Peru palauttaa koko valinnan.`,
         )
       )
         select(undefined, undefined, false, true);
@@ -3838,12 +3924,38 @@ export default function App() {
       });
     }
   };
-  const quickActions: QuickAction[] =
-    selectedGuideIds.length && (selectedGuideIds.length > 1 || selectedIds.length)
+  const quickActions: QuickAction[] = selectedDimensionIds.length
+    ? [
+        {
+          label: 'Muokkaa tekstiä',
+          run: () => {
+            setPanelOpen(true);
+            setAnnotationFocus((n) => n + 1);
+          },
+          disabled:
+            selectedDimensionIds.length !== 1 || !!selectedIds.length || !!selectedGuideIds.length,
+        },
+        {
+          label: selectedDimension?.hidden ? 'Näytä dimensio' : 'Piilota dimensiot',
+          run: () =>
+            patchAnnotation('dimensions', selectedDimensionIds, {
+              hidden: !selectedDimension?.hidden,
+            }),
+          disabled: busy,
+        },
+        { label: 'Poista valinta', run: () => void removeBody(), disabled: busy },
+      ]
+    : selectedGuideIds.length && (selectedGuideIds.length > 1 || selectedIds.length)
       ? [{ label: 'Poista valinta', run: () => void removeBody(), disabled: busy }]
       : selectedGuide
         ? [
             { label: 'Siirrä apuviivaa', run: () => editGuide(selectedGuide) },
+            {
+              label: selectedGuide.hidden ? 'Näytä viiva' : 'Piilota viiva',
+              run: () =>
+                patchAnnotation('guides', [selectedGuide.id], { hidden: !selectedGuide.hidden }),
+              disabled: busy,
+            },
             {
               label: 'Poista apuviiva',
               run: () => void removeGuide(selectedGuide.id),
@@ -4942,6 +5054,15 @@ export default function App() {
                     Viivat <span>{project.guides.length}</span>
                   </button>
                 </div>
+                {tab !== 'objects' && project.settings.measurementsHidden && (
+                  <button
+                    className="annotation-visibility-notice"
+                    onClick={() => void toggleMeasurements()}
+                    disabled={busy}
+                  >
+                    Kaikki merkinnät on piilotettu · Näytä merkinnät
+                  </button>
+                )}
                 {tab === 'objects' ? (
                   objectTree
                 ) : tab === 'guides' ? (
@@ -4951,21 +5072,31 @@ export default function App() {
                       return (
                         <div
                           key={g.id}
-                          className={
-                            !points ? 'broken' : selectedGuideSet.has(g.id) ? 'selected' : ''
-                          }
+                          data-testid={`guide-row-${g.id}`}
+                          className={`${!points ? 'broken' : ''} ${selectedGuideSet.has(g.id) ? 'selected' : ''} ${g.hidden ? 'is-hidden' : ''}`}
                         >
                           <button onClick={(event) => selectGuide(g.id, event.shiftKey)}>
                             <Ruler size={15} />
                             <span>
                               {points
-                                ? `${g.mode === 'guide' ? 'Apuviiva' : 'Mittaviiva'} · ${formatLength(Math.hypot(...points[1].map((n, i) => n - points[0][i])))} mm`
+                                ? annotationText(
+                                    g,
+                                    Math.hypot(...points[1].map((n, i) => n - points[0][i])),
+                                    `${g.mode === 'guide' ? 'Apuviiva' : 'Mittaviiva'} · ${formatLength(Math.hypot(...points[1].map((n, i) => n - points[0][i])))} mm`,
+                                  )
                                 : 'Viite puuttuu'}
                               <small>
                                 {formatLength(g.angle)}° · {g.plane}
                               </small>
                             </span>
                           </button>
+                          <IconButton
+                            label={g.hidden ? 'Näytä viiva' : 'Piilota viiva'}
+                            disabled={busy}
+                            onClick={() => patchAnnotation('guides', [g.id], { hidden: !g.hidden })}
+                          >
+                            {g.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
+                          </IconButton>
                           <label className="guide-xray" title="Näytä tämä viiva kappaleiden läpi">
                             <CommitCheckbox
                               label="Viivan x-ray"
@@ -5013,13 +5144,24 @@ export default function App() {
                       project.dimensions.map((d) => {
                         const value = dimensionValue(project, d);
                         return (
-                          <div key={d.id} className={value === null ? 'broken' : ''}>
-                            <button onClick={() => select(dimensionBodyIds(d, project)[0])}>
+                          <div
+                            key={d.id}
+                            data-testid={`dimension-row-${d.id}`}
+                            className={`${value === null ? 'broken' : ''} ${selectedDimensionSet.has(d.id) ? 'selected' : ''} ${d.hidden ? 'is-hidden' : ''}`}
+                          >
+                            <button
+                              onClick={(event) => selectDimension(d.id, event.shiftKey)}
+                              onDoubleClick={() => selectDimension(d.id, false, true)}
+                            >
                               <Ruler size={15} />
                               <span>
                                 {value === null
                                   ? 'Viite puuttuu'
-                                  : `${d.axis === 'distance' ? 'Pisteväli' : d.axis.toUpperCase()} · ${formatLength(value)} mm`}
+                                  : annotationText(
+                                      d,
+                                      value,
+                                      `${d.axis === 'distance' ? 'Pisteväli' : d.axis.toUpperCase()} · ${formatLength(value)} mm`,
+                                    )}
                                 <small>
                                   {(isPointDimension(d)
                                     ? 'Kahden pisteen dimensio · vedä mittaa mallissa'
@@ -5027,6 +5169,15 @@ export default function App() {
                                 </small>
                               </span>
                             </button>
+                            <IconButton
+                              label={d.hidden ? 'Näytä dimensio' : 'Piilota dimensio'}
+                              disabled={busy}
+                              onClick={() =>
+                                patchAnnotation('dimensions', [d.id], { hidden: !d.hidden })
+                              }
+                            >
+                              {d.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
+                            </IconButton>
                             <IconButton
                               label="Poista mitta"
                               disabled={busy}
@@ -5233,8 +5384,14 @@ export default function App() {
                 setPickOthers(false);
                 setPickList(list);
               }}
-              onContextMenu={({ x, y, bodyId, guideId, candidates }) => {
+              onContextMenu={({ x, y, bodyId, guideId, dimensionId, candidates }) => {
                 if (busy) return;
+                if (dimensionId) {
+                  if (!selectedDimensionSet.has(dimensionId)) selectDimension(dimensionId);
+                  setActionMenu({ x, y, candidates: [] });
+                  setPanelOpen(true);
+                  return;
+                }
                 if (
                   bodyId &&
                   (!inAssembly(project, bodyId, openedAssembly) ||
@@ -5311,7 +5468,7 @@ export default function App() {
               pickReference={pickReference}
               epoch={epoch}
               onSelect={select}
-              onSelectMany={(ids, additive, guideIds = []) => {
+              onSelectMany={(ids, additive, guideIds = [], dimensionIds = []) => {
                 if (loftOpen) {
                   setLoftIds(
                     [...new Set([...(additive ? loftIds : []), ...ids])].filter((id) =>
@@ -5344,7 +5501,10 @@ export default function App() {
                   }
                   return;
                 }
-                if (!additive && selectedIds.length + selectedGuideIds.length > 1)
+                if (
+                  !additive &&
+                  selectedIds.length + selectedGuideIds.length + selectedDimensionIds.length > 1
+                )
                   activityHistory.prepare(actionContext);
                 const visible = new Set(visibleBodies.map((b) => b.id));
                 const allowed = ids
@@ -5370,10 +5530,18 @@ export default function App() {
                   ? [...new Set([...selectedGuideIds, ...guideIds])]
                   : guideIds;
                 setSelectedGuideIds(chosenGuides);
+                const chosenDimensions = additive
+                  ? [...new Set([...selectedDimensionIds, ...dimensionIds])]
+                  : dimensionIds;
+                setSelectedDimensionIds(chosenDimensions);
+                if (chosenDimensions.length && !next.length) {
+                  setTab('dimensions');
+                  setPanelOpen(true);
+                }
                 if (chosenGuides.length && !next.length) setTab('guides');
                 if (tool === 'rotate' && next.length) startRotation(next);
                 editor.setMessage(
-                  `${[next.length ? `${next.length} osaa` : '', chosenGuides.length ? `${chosenGuides.length} viivaa` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} valittu.${next.length && !chosenGuides.length ? ' M siirtää valinnan.' : ''}`,
+                  `${[next.length ? `${next.length} osaa` : '', chosenGuides.length ? `${chosenGuides.length} viivaa` : '', chosenDimensions.length ? `${chosenDimensions.length} dimensiota` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} valittu.${next.length && !chosenGuides.length ? ' M siirtää valinnan.' : ''}`,
                 );
               }}
               radialShape={shapeKind === 'sphere' ? 'circle' : shapeKind}
@@ -5418,6 +5586,8 @@ export default function App() {
               axisLabels={project.settings.axisLabels}
               selectedGuideId={selectedGuideId}
               selectedGuideIds={selectedGuideIds}
+              selectedDimensionIds={selectedDimensionIds}
+              onSelectDimension={selectDimension}
               freeRotate={freeRotate}
               guideRotationStep={guideRotationStep}
               onFaceHover={(target) => {
@@ -6411,6 +6581,78 @@ export default function App() {
                     )}
                   </div>
                 </>
+              ) : (selectedDimension || selectedGuide) &&
+                !selectedIds.length &&
+                selectedDimensionIds.length + selectedGuideIds.length === 1 ? (
+                <>
+                  <div className="panel-title">
+                    <h2>
+                      {selectedDimension
+                        ? 'Dimensio'
+                        : selectedGuide?.mode === 'guide'
+                          ? 'Apuviiva'
+                          : 'Mittaviiva'}
+                    </h2>
+                    <Ruler size={20} />
+                  </div>
+                  <AnnotationProperties
+                    annotation={(selectedDimension ?? selectedGuide)!}
+                    value={
+                      selectedDimension
+                        ? dimensionValue(project, selectedDimension)
+                        : (() => {
+                            const p = guideMeasurement(project.bodies, selectedGuide!);
+                            return p ? Math.hypot(...p[1].map((n, i) => n - p[0][i])) : null;
+                          })()
+                    }
+                    busy={busy}
+                    focusKey={annotationFocus}
+                    onChange={(patch) =>
+                      patchAnnotation(
+                        selectedDimension ? 'dimensions' : 'guides',
+                        [(selectedDimension ?? selectedGuide)!.id],
+                        patch,
+                      )
+                    }
+                    onDelete={() => void removeBody()}
+                  />
+                </>
+              ) : selectedDimensionIds.length + selectedGuideIds.length > 1 &&
+                !selectedIds.length ? (
+                <section className="annotation-properties">
+                  <h2>{selectedDimensionIds.length + selectedGuideIds.length} merkintää</h2>
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void editor.transact(
+                        {
+                          ...project,
+                          dimensions: project.dimensions.map((d) =>
+                            selectedDimensionSet.has(d.id)
+                              ? { ...d, hidden: !selectedAnnotationsHidden }
+                              : d,
+                          ),
+                          guides: project.guides.map((g) =>
+                            selectedGuideSet.has(g.id)
+                              ? { ...g, hidden: !selectedAnnotationsHidden }
+                              : g,
+                          ),
+                        },
+                        selectedAnnotationsHidden
+                          ? 'Valitut merkinnät palautettu näkyviin.'
+                          : 'Valitut merkinnät piilotettu.',
+                      )
+                    }
+                  >
+                    {selectedAnnotationsHidden ? <Eye size={15} /> : <EyeOff size={15} />}{' '}
+                    {selectedAnnotationsHidden
+                      ? 'Näytä valitut merkinnät'
+                      : 'Piilota valitut merkinnät'}
+                  </button>
+                  <button disabled={busy} onClick={() => void removeBody()}>
+                    <Trash2 size={15} /> Poista valinta
+                  </button>
+                </section>
               ) : (
                 <>
                   <div className="panel-title">
@@ -7179,10 +7421,17 @@ export default function App() {
               project.bodies.filter((b) => bodyVisible(b, project.groups)).map((b) => b.id),
             );
             const ids = context.ids.filter((id) => existing.has(id));
-            const guideIds = (context.guideIds ?? []).filter((id) =>
-              project.guides.some((g) => g.id === id),
+            const guideIds = (context.guideIds ?? []).filter(
+              (id) =>
+                project.guides.some((g) => g.id === id && !g.hidden) &&
+                !project.settings.measurementsHidden,
             );
-            if (!ids.length && !guideIds.length) {
+            const dimensionIds = (context.dimensionIds ?? []).filter(
+              (id) =>
+                project.dimensions.some((d) => d.id === id && !d.hidden) &&
+                !project.settings.measurementsHidden,
+            );
+            if (!ids.length && !guideIds.length && !dimensionIds.length) {
               editor.setMessage('Valinnan kohteet on poistettu tai piilotettu.');
               return;
             }
@@ -7210,9 +7459,13 @@ export default function App() {
             );
             setSelectedFace(undefined);
             setSelectedGuideIds(guideIds);
+            setSelectedDimensionIds(dimensionIds);
+            if (dimensionIds.length && !ids.length) setTab('dimensions');
             if (guideIds.length && !ids.length) setTab('guides');
             setAwaitingStart(true);
-            editor.setMessage(`Valinta palautettu · ${selectionDescription({ ids, guideIds })}.`);
+            editor.setMessage(
+              `Valinta palautettu · ${selectionDescription({ ids, guideIds, dimensionIds })}.`,
+            );
           }}
         />
         <span className="status-right">

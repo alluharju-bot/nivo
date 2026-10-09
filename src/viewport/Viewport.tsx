@@ -1,5 +1,6 @@
 import { installKnife } from './knife';
 import { captureModelView } from './capture';
+import { annotationText } from '../model/annotationStyle';
 import { installTextureEditing } from './textureEditing';
 import { bodyDisplayMode } from '../model/display';
 import { sampleBezier, throughPoints } from '../model/bezier';
@@ -190,6 +191,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().selectedIds,
       current().dimensionDisplay,
       camera,
+      current().selectedDimensionIds,
     );
     modelDimensions.update(
       current().bodies,
@@ -198,7 +200,17 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().dimensionDisplay,
       camera,
       current().groups,
+      current().selectedDimensionIds,
     );
+    container
+      .querySelectorAll<SVGGElement>('.model-dimensions [data-dimension]')
+      .forEach((group) =>
+        group.classList.toggle(
+          'is-hovered',
+          current().tool === 'select' &&
+            group.dataset.dimension === renderer.domElement.dataset.dimensionHover,
+        ),
+      );
     for (const label of [...labels, ...extrusionLabels]) {
       const p = label.point.clone().project(camera);
       label.element.hidden = Math.abs(p.z) > 1 || (!label.xray && !!labelOccluded?.(label.point));
@@ -1082,7 +1094,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     labels.forEach((l) => l.element.remove());
     labels.length = 0;
     const props = current(),
-      all = props.guides.filter((g) => g.id !== props.guidePreview?.id);
+      all = props.guides.filter((g) => !g.hidden && g.id !== props.guidePreview?.id);
     if (props.guidePreview) all.push(props.guidePreview);
     for (const guide of all) {
       const points = guidePoints(props.bodies, guide);
@@ -1146,7 +1158,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       element.dataset.guideId = guide.id;
       element.dataset.selected = String(selected);
       const measured = guideMeasurement(props.bodies, guide)!.map((p) => new THREE.Vector3(...p));
-      element.textContent = `${formatLength(measured[0].distanceTo(measured[1]))} mm${isGuide && !guide.offset ? ' · ' + formatLength(guide.angle) + '°' : ''}`;
+      const value = measured[0].distanceTo(measured[1]);
+      element.textContent = annotationText(
+        guide,
+        value,
+        `${formatLength(value)} mm${isGuide && !guide.offset ? ' · ' + formatLength(guide.angle) + '°' : ''}`,
+      );
       element.title = guide.offset ? 'Etäisyys lähtökohdasta' : 'Pituus';
       if (isGuide && guide.offset) {
         const dimension = makeLine(measured, false, 1.5);
@@ -1626,7 +1643,10 @@ export function Viewport(props: Props) {
       props.assets,
     ],
   );
-  useEffect(() => api.current?.dimensionDisplay(), [props.dimensions, props.dimensionDisplay]);
+  useEffect(
+    () => api.current?.dimensionDisplay(),
+    [props.dimensions, props.dimensionDisplay, props.selectedDimensionIds],
+  );
   useEffect(
     () => api.current?.preview(),
     [

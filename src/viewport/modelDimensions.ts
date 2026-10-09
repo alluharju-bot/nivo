@@ -10,6 +10,7 @@ import {
 } from '../model/project';
 import { dimensionBodyIds } from '../model/dimensions';
 import { formatLength } from '../model/units';
+import { annotationText } from '../model/annotationStyle';
 const ns = 'http://www.w3.org/2000/svg';
 const svgNode = <K extends keyof SVGElementTagNameMap>(name: K) =>
   document.createElementNS(ns, name);
@@ -25,6 +26,7 @@ export function createModelDimensions(container: HTMLElement) {
     {
       group: SVGGElement;
       path: SVGPathElement;
+      hit: SVGPathElement;
       label: SVGGElement;
       text: SVGTextElement;
       background: SVGRectElement;
@@ -39,6 +41,7 @@ export function createModelDimensions(container: HTMLElement) {
       display: 'all' | 'selected' | 'hidden',
       camera: THREE.Camera,
       groups: BodyGroup[],
+      selectedDimensions: string[] = [],
     ) {
       const width = container.clientWidth,
         height = container.clientHeight;
@@ -50,10 +53,11 @@ export function createModelDimensions(container: HTMLElement) {
         return { x: ((v.x + 1) * width) / 2, y: ((1 - v.y) * height) / 2, z: v.z };
       };
       for (const dimension of dimensions) {
-        if (isPointDimension(dimension)) continue;
+        if (isPointDimension(dimension) || dimension.hidden) continue;
         if (
           display === 'hidden' ||
           (display === 'selected' &&
+            !selectedDimensions.includes(dimension.id) &&
             !dimensionBodyIds(dimension, { bodies, groups }).some((id) => selected.includes(id)))
         )
           continue;
@@ -93,6 +97,7 @@ export function createModelDimensions(container: HTMLElement) {
         if (!entry) {
           const group = svgNode('g'),
             path = svgNode('path'),
+            hit = svgNode('path'),
             label = svgNode('g'),
             text = svgNode('text'),
             background = svgNode('rect'),
@@ -101,14 +106,20 @@ export function createModelDimensions(container: HTMLElement) {
           group.dataset.dimension = dimension.id;
           group.dataset.body = body.id;
           background.setAttribute('rx', '4');
+          hit.classList.add('dimension-hit');
+          label.classList.add('dimension-label');
           label.append(background, text);
-          group.append(title, path, label);
+          group.append(title, hit, path, label);
           svg.append(group);
-          entry = { group, path, label, text, background, title };
+          entry = { group, path, hit, label, text, background, title };
           entries.set(dimension.id, entry);
         }
         const { a, b, nx, ny } = edge;
-        const label = `${dimension.axis.toUpperCase()} · ${formatLength(value)} mm`;
+        const label = annotationText(
+          dimension,
+          value,
+          `${dimension.axis.toUpperCase()} · ${formatLength(value)} mm`,
+        );
         const labelWidth = label.length * 6.2 + 12;
         const angleRadians = Math.atan2(b.y - a.y, b.x - a.x);
         const boxWidth =
@@ -144,6 +155,9 @@ export function createModelDimensions(container: HTMLElement) {
           `M${a.x} ${a.y}L${ax + nx * 5} ${ay + ny * 5}M${b.x} ${b.y}L${bx + nx * 5} ${by + ny * 5}M${ax} ${ay}L${bx} ${by}M${ax - nx * 4} ${ay - ny * 4}L${ax + nx * 4} ${ay + ny * 4}M${bx - nx * 4} ${by - ny * 4}L${bx + nx * 4} ${by + ny * 4}`,
         );
         entry.text.textContent = label;
+        entry.hit.setAttribute('d', entry.path.getAttribute('d')!);
+        entry.group.classList.toggle('is-selected', selectedDimensions.includes(dimension.id));
+        entry.group.dataset.selected = String(selectedDimensions.includes(dimension.id));
         entry.title.textContent = `${body.name} · ${label}`;
         entry.group.dataset.mm = String(value);
         entry.group.setAttribute('aria-label', `${body.name} · ${label}`);

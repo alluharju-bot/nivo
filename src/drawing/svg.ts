@@ -1,3 +1,4 @@
+import { annotationText } from '../model/annotationStyle';
 import { pointDimensionGeometry, pointDimensionInView } from '../model/dimensions';
 import {
   isPointDimension,
@@ -34,6 +35,7 @@ interface DimensionPlacement {
   bodyId: string;
   name: string;
   value: number;
+  label: string;
   horizontal: boolean;
   x1: number;
   x2: number;
@@ -47,6 +49,7 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
   const lanes: [number, number][][][] = [[], []];
   let orphanCount = 0;
   for (const dimension of project.dimensions) {
+    if (dimension.hidden || project.settings.measurementsHidden) continue;
     if (isPointDimension(dimension)) {
       if (pointDimensionGeometry(project.bodies, dimension).orphan) orphanCount++;
       continue;
@@ -69,7 +72,7 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
     const lo = horizontal ? x1 : y1,
       hi = horizontal ? x2 : y2;
     const middle = (lo + hi) / 2,
-      textHalf = formatLength(value).length * 0.95;
+      textHalf = annotationText(dimension, value, formatLength(value)).length * 0.95;
     const interval: [number, number] = [
       Math.min(lo, middle - textHalf) - 3,
       Math.max(hi, middle + textHalf) + 3,
@@ -88,6 +91,7 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
       bodyId: body.id,
       name: body.name,
       value,
+      label: annotationText(dimension, value, formatLength(value)),
       horizontal,
       x1,
       x2,
@@ -113,10 +117,15 @@ function annotationBounds(
     right = x + w,
     bottom = y + h;
   for (const d of project.dimensions.filter(isPointDimension)) {
-    if (!pointDimensionInView(project.bodies, d, view)) continue;
+    if (
+      d.hidden ||
+      project.settings.measurementsHidden ||
+      !pointDimensionInView(project.bodies, d, view)
+    )
+      continue;
     const g = pointDimensionGeometry(project.bodies, d),
       points = [g.start, g.end, g.a, g.b].map((p) => projectPoint(p, view));
-    const padding = (formatLength(g.value).length * 0.95 + 4) * scale;
+    const padding = (annotationText(d, g.value, formatLength(g.value)).length * 0.95 + 4) * scale;
     for (const p of points) {
       x = Math.min(x, p[0] - padding);
       right = Math.max(right, p[0] + padding);
@@ -178,7 +187,7 @@ export function createSheet(
       x2 = d.x2 + tx,
       y1 = d.y1 + ty,
       y2 = d.y2 + ty;
-    const label = escapeXml(formatLength(d.value));
+    const label = escapeXml(d.label);
     const group = `<g data-dimension="${escapeXml(d.id)}" data-body="${escapeXml(d.bodyId)}" data-mm="${n(d.value)}"><title>${escapeXml(d.name)} · ${label} mm</title>`;
     if (d.horizontal) {
       const y = ty + (by + bh) / scale + 9 + d.lane * 7;
@@ -193,7 +202,12 @@ export function createSheet(
     }
   }
   for (const d of project.dimensions.filter(isPointDimension)) {
-    if (!pointDimensionInView(project.bodies, d, view)) continue;
+    if (
+      d.hidden ||
+      project.settings.measurementsHidden ||
+      !pointDimensionInView(project.bodies, d, view)
+    )
+      continue;
     const g = pointDimensionGeometry(project.bodies, d);
     const [start, end, a, b] = [g.start, g.end, g.a, g.b].map((p) => {
       const q = projectPoint(p, view);
@@ -208,7 +222,7 @@ export function createSheet(
     if (angle > 90) angle -= 180;
     if (angle < -90) angle += 180;
     lines.push(
-      `<g data-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}"><path d="M${n(start[0])} ${n(start[1])}L${n(a[0])} ${n(a[1])}L${n(b[0])} ${n(b[1])}L${n(end[0])} ${n(end[1])} M${n(a[0] - nx)} ${n(a[1] - ny)}l${n(nx * 2)} ${n(ny * 2)} M${n(b[0] - nx)} ${n(b[1] - ny)}l${n(nx * 2)} ${n(ny * 2)}"/><text transform="translate(${n((a[0] + b[0]) / 2)} ${n((a[1] + b[1]) / 2)}) rotate(${n(angle)})" dy="-1.5">${escapeXml(formatLength(g.value))}</text></g>`,
+      `<g data-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}"><path d="M${n(start[0])} ${n(start[1])}L${n(a[0])} ${n(a[1])}L${n(b[0])} ${n(b[1])}L${n(end[0])} ${n(end[1])} M${n(a[0] - nx)} ${n(a[1] - ny)}l${n(nx * 2)} ${n(ny * 2)} M${n(b[0] - nx)} ${n(b[1] - ny)}l${n(nx * 2)} ${n(ny * 2)}"/><text transform="translate(${n((a[0] + b[0]) / 2)} ${n((a[1] + b[1]) / 2)}) rotate(${n(angle)})" dy="-1.5">${escapeXml(annotationText(d, g.value, formatLength(g.value)))}</text></g>`,
     );
   }
   const paths = (list: string[]) => list.map((d) => `<path d="${escapeXml(d)}"/>`).join('');

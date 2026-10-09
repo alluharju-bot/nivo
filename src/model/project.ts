@@ -1,5 +1,6 @@
 import { drawingSheetSchema } from './drawingSheets';
 import { modelDisplaySchema } from './display';
+import { annotationStyle } from './annotationStyle';
 import { sectionSchema } from './sections';
 import { referenceImageSchema } from './referenceImages';
 import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
@@ -232,6 +233,7 @@ export const anchorSchema = z.union([
   z.object({ point: pointSchema }),
 ]);
 export const guideSchema = z.object({
+  ...annotationStyle,
   id,
   anchor: anchorSchema,
   plane: z.enum(['XY', 'XZ', 'YZ']),
@@ -246,6 +248,7 @@ export const guideSchema = z.object({
   xray: z.boolean().optional(),
 });
 const extentDimensionSchema = z.object({
+  ...annotationStyle,
   id,
   bodyId: id,
   axis: z.enum(['x', 'y', 'z']),
@@ -254,6 +257,7 @@ const extentDimensionSchema = z.object({
   to: z.literal('max'),
 });
 export const pointDimensionSchema = z.object({
+  ...annotationStyle,
   id,
   kind: z.literal('points'),
   start: anchorSchema,
@@ -275,6 +279,7 @@ export const dimensionTargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('group'), groupId: id }),
 ]);
 export const overallDimensionSchema = z.object({
+  ...annotationStyle,
   id,
   kind: z.literal('overall'),
   target: dimensionTargetSchema,

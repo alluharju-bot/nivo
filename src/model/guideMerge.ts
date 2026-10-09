@@ -8,6 +8,7 @@ const EPSILON = 1e-5;
 
 /** Union overlapping finite measurements. A shared endpoint alone is not an overlap. */
 export function upsertGuide(bodies: Body[], guides: Guide[], candidate: Guide) {
+  candidate = { ...guides.find((g) => g.id === candidate.id), ...candidate };
   const replace = (guide: Guide, absorbed: Set<string>) => {
     const next = guides.flatMap((g) =>
       g.id === guide.id ? [guide] : absorbed.has(g.id) ? [] : [g],
@@ -51,7 +52,14 @@ export function upsertGuide(bodies: Body[], guides: Guide[], candidate: Guide) {
   const intervals = [
     source,
     ...guides
-      .filter((g) => g.id !== candidate.id && g.mode === 'free')
+      .filter(
+        (g) =>
+          g.id !== candidate.id &&
+          g.mode === 'free' &&
+          !g.hidden &&
+          !candidate.hidden &&
+          g.label === candidate.label,
+      )
       .flatMap((g) => {
         const span = interval(g);
         return span ? [span] : [];

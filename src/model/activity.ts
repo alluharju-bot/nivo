@@ -6,6 +6,7 @@ const id = z.string().min(1).max(100);
 export const selectionContextSchema = z.object({
   ids: z.array(id).max(10000),
   guideIds: z.array(id).max(3000).optional(),
+  dimensionIds: z.array(id).max(3000).optional(),
   primary: id.optional(),
   groupId: id.optional(),
   editingBodyId: id.optional(),
@@ -40,13 +41,14 @@ export function selectionDescription(context: SelectionContext) {
     [
       context.ids.length ? `${context.ids.length} kappaletta` : '',
       context.guideIds?.length ? `${context.guideIds.length} viivaa` : '',
+      context.dimensionIds?.length ? `${context.dimensionIds.length} dimensiota` : '',
     ]
       .filter(Boolean)
       .join(' + ') || '0 kohdetta'
   );
 }
 export function hasSelection(context?: SelectionContext) {
-  return !!(context?.ids.length || context?.guideIds?.length);
+  return !!(context?.ids.length || context?.guideIds?.length || context?.dimensionIds?.length);
 }
 export function sameSelection(a?: SelectionContext, b?: SelectionContext) {
   if (
@@ -60,10 +62,13 @@ export function sameSelection(a?: SelectionContext, b?: SelectionContext) {
     return false;
   const ids = new Set(a.ids);
   const guides = new Set(a.guideIds ?? []);
+  const dimensions = new Set(a.dimensionIds ?? []);
   return (
     b.ids.every((id) => ids.has(id)) &&
     guides.size === (b.guideIds?.length ?? 0) &&
-    (b.guideIds ?? []).every((id) => guides.has(id))
+    (b.guideIds ?? []).every((id) => guides.has(id)) &&
+    dimensions.size === (b.dimensionIds?.length ?? 0) &&
+    (b.dimensionIds ?? []).every((id) => dimensions.has(id))
   );
 }
 

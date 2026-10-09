@@ -105,6 +105,7 @@ export interface ViewportProps {
     y: number;
     bodyId?: string;
     guideId?: string;
+    dimensionId?: string;
     candidates?: PickCandidate[];
   }) => void;
   modalOpen?: boolean;
@@ -167,6 +168,8 @@ export interface ViewportProps {
   axisLabels: boolean;
   selectedGuideId?: string;
   selectedGuideIds: string[];
+  selectedDimensionIds?: string[];
+  onSelectDimension?: (id: string, additive?: boolean, editing?: boolean) => void;
   freeRotate: boolean;
   guideRotationStep: number;
   faceTarget?: FaceTarget;
@@ -189,7 +192,12 @@ export interface ViewportProps {
   pickReference: boolean;
   epoch: number;
   onSelect: (id?: string, face?: FaceRef, additive?: boolean) => void;
-  onSelectMany: (ids: string[], additive: boolean, guideIds?: string[]) => void;
+  onSelectMany: (
+    ids: string[],
+    additive: boolean,
+    guideIds?: string[],
+    dimensionIds?: string[],
+  ) => void;
   onGesture: (gesture: Gesture) => void;
   onAccept: (continueMeasure?: boolean) => void;
   onPenHover: (point?: Vec3) => void;

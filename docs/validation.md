@@ -4,6 +4,32 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.28.2 — mittamerkintöjen valinta, teksti ja näkyvyys
+
+**350 yksikkö-/CAD-testiä hyväksytty (67 tiedostoa)**. TypeScript, lisenssit,
+muutettujen tiedostojen Prettier ja `/nivo/`-tuotantobuild hyväksytty.
+**20 eri kohdennettua selaintapausta hyväksytty** työpöytä- ja tablettiprofiileissa:
+14 uutta merkintöjen tapausta sekä 6 viivavalinnan, mittakuvan ja PNG-viennin regressiota.
+Viimeisen version kuusi tekstieditorin ja monivalinnan tapausta hyväksytty erillisajossa.
+
+- Oranssi dimensio-/leikkausmittavalinta tekstistä ja viivasta, Shift-monivalinta,
+  valintasuorakulmio, Delete sekä valinnan palauttaminen historiasta.
+- Valintaklikkaus säilyttää dimension sijainnin. Vetäminen muuttaa vain merkinnän
+  siirtymää ja on peruttavissa. Kahden pisteen SVG-elementtien säilyttäminen
+  poistaa ruutukohtaiseen uudelleenluontiin liittyneen irtoavan elementin ongelman.
+- Tekstin muokkaus mallissa, mitta- ja leikkauskuvassa, tuplaklikkauksen kohdistus,
+  `{mitta}`-arvo, Esc-peruminen, tyhjentäminen, keskeneräisen tekstin ja piilotuksen
+  yhteinen tallennus sekä Peru/Palauta. Kappaleiden geometria säilyy.
+- Yksittäisen dimension, apuviivan ja vapaan mittaviivan piilotus/palautus,
+  monivalinnan yhteinen näkyvyys, yhteisen kytkimen ja yksittäisten piilotusten
+  yhteistoiminta, tallennus ja sivun uudelleenlataus. Piilotettu viiva ei tartu.
+- SVG-tekstin escapetus, todellisen mittaluvun säilyminen ja piilotettujen merkintöjen
+  poistuminen viennistä. Vanhat projektit toimivat ilman uusia lisäkenttiä.
+  Erillinen nimetyn tai piilotetun mittaviivan säilytys päällekkäisiä viivoja piirtäessä.
+- Ensimmäiset testit korjattiin käyttämään nykyistä **Palauta**-painiketta ja avaamaan
+  automaattisesti sivuun liukuva mallilista uudelleen. Näitä testiautomaation
+  odotuksia ei lasketa ohjelmavirheiksi. Viimeiset vastaavat ajot hyväksytty.
+
 ## V0.28.1 — studiovalon korkeus ja PNG-kuvankaappaus
 
 **345 yksikkö-/CAD-testiä hyväksytty (66 tiedostoa)**. TypeScript,

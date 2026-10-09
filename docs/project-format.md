@@ -366,3 +366,13 @@ Tarkka geometria säilyy tavallisena BRepinä. Kenttä sallii koskemattoman
 piirrosverkon uudelleenjaon seuraavalla kynäviivalla. Geometriamuokkaus asettaa
 `detached`-lipun; kopion eri tunniste ja siirtynyt origin estävät korvaamisen.
 Vanha lukija voi avata geometrian ilman tätä valinnaista toiminnallisuutta.
+
+## Mittamerkintöjen ulkoasu (0.28.2)
+
+`guides[]`, kaikki `dimensions[]`-tyypit ja `sections[].dimensions[]` hyväksyvät
+valinnaiset `hidden: boolean` ja `label: string` -kentät. Puuttuva `hidden` tarkoittaa
+näkyvää merkintää. `label` on enintään 160 merkkiä; `{mitta}` korvataan lasketulla
+mittaluvulla esityksessä. Tyhjä/puuttuva teksti käyttää automaattista esitystä.
+Ankkurit, mitan arvo ja geometria eivät muutu tekstin mukana. SVG-vienti escapettaa
+tekstin. `settings.measurementsHidden` on yhteinen näkyvyyskytkin, joka ei muuta
+merkintöjen yksittäisiä `hidden`-arvoja. Muutokset ovat v8:n valinnaisia lisäkenttiä.

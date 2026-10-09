@@ -1,4 +1,5 @@
 import { bodyDisplayMode } from '../model/display';
+import { dimensionAt, dimensionBoxSelection } from './dimensionPicking';
 import type { GuideEndpoint } from '../model/guideEditing';
 import { pointMarker } from './pointMarker';
 import { onCurve } from '../model/curveSnap';
@@ -16,7 +17,7 @@ import {
   type ScreenBounds,
 } from './boxSelection';
 import { isPointDimension, uid, axisIndex, type PointDimension } from '../model/project';
-import { anchorBodyId, dimensionBodyIds, pointDimensionGeometry } from '../model/dimensions';
+import { anchorBodyId, pointDimensionGeometry } from '../model/dimensions';
 import { offsetDirection } from '../model/faceBoundary';
 import { dragSize, type SizeDrag } from '../model/sizeDrag';
 import { faceDepthSnap, pointDepthSnap } from '../model/extrusion';
@@ -116,7 +117,7 @@ export function installInteractions({
     guideSelectionBounds = undefined;
   };
   const boxSelection = (event: PointerEvent) => {
-    if (!drag) return { ids: [], guideIds: [] };
+    if (!drag) return { ids: [], guideIds: [], dimensionIds: [] };
     const rect = canvas.getBoundingClientRect(),
       x1 = drag.screenX - rect.left,
       y1 = drag.screenY - rect.top,
@@ -183,8 +184,19 @@ export function installInteractions({
       width: `${Math.abs(x2 - x1)}px`,
       height: `${Math.abs(y2 - y1)}px`,
     });
-    selectionCount.textContent = `${[ids.length ? `${ids.length} osaa` : '', guideIds.length ? `${guideIds.length} viivaa` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} · ${crossing ? 'alueeseen osuvat' : 'kokonaan sisällä'}${drag.extendSelection || event.shiftKey ? ' · lisää valintaan' : ''}`;
-    return { ids, guideIds };
+    const dimensionIds =
+      current().tool === 'boolean'
+        ? []
+        : dimensionBoxSelection(
+            container,
+            drag.screenX,
+            drag.screenY,
+            event.clientX,
+            event.clientY,
+            crossing,
+          );
+    selectionCount.textContent = `${[ids.length ? `${ids.length} osaa` : '', guideIds.length ? `${guideIds.length} viivaa` : '', dimensionIds.length ? `${dimensionIds.length} dimensiota` : ''].filter(Boolean).join(' + ') || '0 kohdetta'} · ${crossing ? 'alueeseen osuvat' : 'kokonaan sisällä'}${drag.extendSelection || event.shiftKey ? ' · lisää valintaan' : ''}`;
+    return { ids, guideIds, dimensionIds };
   };
   const overlay = new THREE.Group();
   const moveAxisLine = new THREE.Mesh(
@@ -1581,7 +1593,14 @@ export function installInteractions({
     );
   };
   let dimensionSession:
-    { dimension: PointDimension; stage: 'end' | 'place'; editing?: boolean } | undefined;
+    | {
+        dimension: PointDimension;
+        stage: 'end' | 'place';
+        editing?: boolean;
+        grab?: Vec3;
+        initialOffset?: Vec3;
+      }
+    | undefined;
   let dimensionPress:
     { x: number; y: number; stage: 'start' | 'end' | 'place'; id: number } | undefined;
   // Move uses one screen-space picker for hover, press and drop. Geometry always wins over grid.
@@ -1728,26 +1747,8 @@ export function installInteractions({
   const dimensionHit = (event: PointerEvent) => {
     const props = current();
     if (props.dimensionDisplay === 'hidden') return;
-    const rect = container.getBoundingClientRect(),
-      x = event.clientX - rect.left,
-      y = event.clientY - rect.top;
-    return props.dimensions.filter(isPointDimension).find((d) => {
-      if (
-        props.dimensionDisplay === 'selected' &&
-        !dimensionBodyIds(d).some((id) => props.selectedIds.includes(id))
-      )
-        return false;
-      const g = pointDimensionGeometry(current().bodies, d),
-        a = screen(g.a),
-        b = screen(g.b);
-      return (
-        Math.abs(a.z) <= 1 &&
-        Math.abs(b.z) <= 1 &&
-        Math.hypot(b.x - a.x, b.y - a.y) >= 1 &&
-        Math.abs((a.x + b.x) / 2 - x) < 40 &&
-        Math.abs((a.y + b.y) / 2 - y) < 15
-      );
-    });
+    const id = dimensionAt(container, event.clientX, event.clientY);
+    return props.dimensions.find((d) => d.id === id && !d.hidden);
   };
   const updateDimension = (event: PointerEvent) => {
     if (!dimensionSession) {
@@ -1755,6 +1756,12 @@ export function installInteractions({
       return;
     }
     const d = dimensionSession.dimension;
+    if (
+      dimensionSession.editing &&
+      dimensionPress &&
+      Math.hypot(event.clientX - dimensionPress.x, event.clientY - dimensionPress.y) < 4
+    )
+      return;
     if (!dimensionSession.editing) d.axis = current().axis ?? 'distance';
     if (dimensionSession.stage === 'end') {
       const picked = dimensionPick(event);
@@ -1765,7 +1772,11 @@ export function installInteractions({
     } else {
       const g = pointDimensionGeometry(current().bodies, d);
       const point = framePoint(event, sketchFrame(g.start, d.normal));
-      if (point) d.offset = sub(point, g.start);
+      if (point)
+        d.offset =
+          dimensionSession.grab && dimensionSession.initialOffset
+            ? add(dimensionSession.initialOffset, sub(point, dimensionSession.grab))
+            : sub(point, g.start);
       show();
       highlightEdge();
     }
@@ -1774,11 +1785,23 @@ export function installInteractions({
   };
   const dimensionDown = (event: PointerEvent) => {
     const hit = current().tool === 'select' ? dimensionHit(event) : undefined;
+    if (hit) {
+      current().onSelectDimension?.(hit.id, event.shiftKey || event.ctrlKey || event.metaKey);
+      if (!isPointDimension(hit) || event.shiftKey || event.ctrlKey || event.metaKey) {
+        pointers.delete(event.pointerId);
+        return;
+      }
+    }
     if (hit)
       dimensionSession = {
         dimension: structuredClone(hit),
         stage: 'place',
         editing: true,
+        initialOffset: [...hit.offset],
+        grab: framePoint(
+          event,
+          sketchFrame(pointDimensionGeometry(current().bodies, hit).start, hit.normal),
+        ),
       };
     if (!dimensionSession) {
       const picked = dimensionPick(event);
@@ -3261,6 +3284,17 @@ export function installInteractions({
       updateDimension(event);
       return;
     }
+    const hoveredDimension = props.tool === 'select' ? dimensionHit(event)?.id : undefined;
+    canvas.dataset.dimensionHover = hoveredDimension ?? '';
+    container
+      .querySelectorAll<SVGGElement>('.model-dimensions [data-dimension]')
+      .forEach((g) => g.classList.toggle('is-hovered', g.dataset.dimension === hoveredDimension));
+    if (hoveredDimension && !drag) {
+      highlightFace();
+      show();
+      props.onSnap('Dimensio · napsauta valintaan, tuplaklikkaa tekstin muokkaukseen.');
+      return;
+    }
 
     if (props.tool === 'detail') {
       if (detailSession && drag) {
@@ -3573,15 +3607,17 @@ export function installInteractions({
         !current().busy
       ) {
         const targets = guideEndpointsAt(event);
+        const dimension = current().tool === 'select' ? dimensionHit(event) : undefined;
         const guide = selectableGuideAt(event);
         const picked = faceAt(event);
-        if (targets.length)
+        if (targets.length && !dimension)
           current().onGuidePointMenu({ x: event.clientX, y: event.clientY, targets });
         else
           current().onContextMenu({
             x: event.clientX,
             y: event.clientY,
             bodyId: picked?.target.bodyId,
+            dimensionId: dimension?.id,
             guideId: guide?.object.userData.guideId,
             candidates: pickCandidatesAt(event),
           });
@@ -3596,6 +3632,14 @@ export function installInteractions({
       const pressed = dimensionPress;
       dimensionPress = undefined;
       pointers.delete(event.pointerId);
+      if (
+        dimensionSession?.editing &&
+        Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < 4
+      ) {
+        dimensionSession = undefined;
+        props.onDimensionPreview(undefined);
+        return;
+      }
       if (
         dimensionSession?.stage === 'place' &&
         (pressed.stage === 'place' ||
@@ -3622,6 +3666,7 @@ export function installInteractions({
             selected.ids,
             !!active.extendSelection || event.shiftKey,
             selected.guideIds,
+            selected.dimensionIds,
           );
         } else if (active.extendSelection && active.selectionBodyId)
           props.onSelect(active.selectionBodyId, undefined, true);
@@ -3677,12 +3722,13 @@ export function installInteractions({
         const hit = faceAt(event);
         if (hit) props.onSelect(hit.target.bodyId);
       } else if (props.tool === 'select' && moved) {
-        const { ids, guideIds } = boxSelection(event);
+        const { ids, guideIds, dimensionIds } = boxSelection(event);
         clearSelectionBox();
         props.onSelectMany(
           ids,
           !!active.extendSelection || event.shiftKey || event.ctrlKey || event.metaKey,
           guideIds,
+          dimensionIds,
         );
       } else if (props.tool === 'select' && !moved) {
         // Remember modifiers from press time too: releasing Shift just before the
@@ -3985,6 +4031,10 @@ export function installInteractions({
     show();
   };
   const leave = () => {
+    delete canvas.dataset.dimensionHover;
+    container
+      .querySelectorAll('.model-dimensions .is-hovered')
+      .forEach((el) => el.classList.remove('is-hovered'));
     selectionPointerInside = false;
     current().onSelectionHover?.(undefined);
     if (!drag) current().onMoveHover?.(undefined);
@@ -4012,6 +4062,11 @@ export function installInteractions({
       event.altKey
     )
       return;
+    const dimension = current().tool === 'select' ? dimensionHit(event as PointerEvent) : undefined;
+    if (dimension) {
+      current().onSelectDimension?.(dimension.id, false, true);
+      return;
+    }
     const targets = guideEndpointsAt(event as PointerEvent);
     if (targets.length) {
       if (targets.length === 1) current().onEditGuidePoint(targets[0]);
