@@ -4,6 +4,36 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.27.0 — 3D-tartunnat ja kaatopinnat
+
+**335 yksikkö-/CAD-testiä hyväksytty (66 tiedostoa)**. TypeScript,
+lisenssit ja `/nivo/`-tuotantobuild hyväksytty.
+
+96 eri kohdennettua selaintapausta hyväksytty desktop- ja tablettiprofiileilla:
+kynän ja mittauksen Shift, kynän suuntalukot ja pinnanjako, muotojen tartunnat,
+Bézier/loft, rakennusmuodot sekä 14 uutta kaatopinta-/3D-tapausta.
+Kahdessa desktopin mittaviivatestissä näkyvän selaimen kuvakaappauksen aikana
+saapui työpöydän osoitintapahtuma ja esikatselu muuttui. Samat tapaukset
+hyväksyttiin headless-Chromiumissa; tablettiprofiilissa ne läpäisivät näkyvinä.
+Näitä ei lasketa sovelluksen korjauksiksi eikä testiodotuksia heikennetty.
+
+- Valmiin loftin reunan Z = −2,7 / −8,3 säilyy kynän aloituksessa ja lopussa,
+  sekä perspektiivissä että ylänäkymässä.
+- Kynä ja vapaa mittaviiva poimivat alemmasta ympyrästä Shift-pituuden omaan
+  suuntaansa. Vapautus näyttää heti kehän todellisen Z = −10 -sijainnin.
+- Ympyrä–mittaviiva-risteys on analyyttinen; eritasoinen Shift-projektio ei
+  muuta sitä tavalliseksi 3D-risteykseksi. Kopion ympyräkeskus siirtyy mukana.
+- Neliö ja 10 mm alempi ympyrä muodostavat neljällä kynäviivalla neljä
+  kaatopintaa. Kaivon keskusta säilyy auki. Seuraava viiva jakaa olemassa
+  olevat automaattipinnat; Undo/Redo ja tiedoston uudelleenavaus tarkistettu.
+- Suljettu avaruusnelikulmio käyttää vastakkaisten suorien välistä pintaa,
+  mikä välttää yleisen täytön pullistuman ja tallennusmittojen ristiriidan.
+- Lukittu/siirretty automaattipinta ei korvaudu. Vanhoihin tulospintoihin
+  kiinnitettyjen mittausten maailmakoordinaatit säilyvät uudelleenjaossa.
+
+Testimalli `tests/fixtures/sloped-surface.nivo` on generoitu synteettisesti
+skriptillä `scripts/slope-fixture.mjs`; käyttäjän projektia ei käytetä.
+
 ## V0.26.0 — Bézier ja muotojen läpi
 
 **330 yksikkö-/CAD-testiä hyväksytty (63 tiedostoa)**. TypeScript,

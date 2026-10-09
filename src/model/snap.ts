@@ -9,8 +9,9 @@ import {
 } from './project';
 import { guidePoints, lineIntersection, planeAxes } from './guides';
 import type { BodyMesh } from '../cad/protocol';
+import { circleLineIntersections } from './curveSnap';
 import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
-import { dot, sub } from './geometry';
+import { add, scale, dot, sub } from './geometry';
 /** Lower is stronger: explicit vertices, midpoints, edges, then inference/grid. */
 export const snapPriority = (point: { key: string; label: string }) =>
   /^pen:/.test(point.key) ||
@@ -54,8 +55,13 @@ export function closestOnSnapLine(raw: Vec3, line: SnapLine): Vec3 {
 /** True 3D crossing; CAD edges are finite even when a construction guide is infinite. */
 export function guideEdgeIntersection(
   line: SnapLine,
-  edge: Pick<import('../cad/protocol').CadEdge, 'start' | 'end'>,
+  edge: Pick<import('../cad/protocol').CadEdge, 'start' | 'end'> &
+    Partial<import('../cad/protocol').CadEdge>,
 ): Vec3 | undefined {
+  if (edge.circle)
+    return circleLineIntersections(line.points, edge as import('../cad/protocol').CadEdge).find(
+      (point) => onSnapLine(point, line),
+    );
   if (
     Math.hypot(...sub(edge.end, edge.start)) < 1e-8 ||
     Math.hypot(...sub(line.points[1], line.points[0])) < 1e-8
@@ -67,6 +73,29 @@ export function guideEdgeIntersection(
     onSnapLine(point, { id: 'edge', points: [edge.start, edge.end], mode: 'free' })
     ? point
     : undefined;
+}
+/** Shift-only reference: a crossing in the guide's plane, returned on the real 3D edge. */
+export function guideEdgeProjection(
+  line: SnapLine,
+  edge: import('../cad/protocol').CadEdge,
+  normal: Vec3,
+): Vec3 | undefined {
+  const origin = line.points[0];
+  const project = (p: Vec3) => sub(p, scale(normal, dot(sub(p, origin), normal)));
+  if (edge.circle) {
+    if (Math.abs(dot(edge.circle.normal, normal)) < 1 - 1e-6) return;
+    const offset = scale(normal, dot(sub(edge.circle.center, origin), normal));
+    const shifted = { ...line, points: line.points.map((p) => add(p, offset)) as [Vec3, Vec3] };
+    return guideEdgeIntersection(shifted, edge);
+  }
+  const a = project(edge.start),
+    b = project(edge.end),
+    delta = sub(b, a);
+  if (dot(delta, delta) < 1e-12) return;
+  const point = guideEdgeIntersection(line, { start: a, end: b });
+  if (!point) return;
+  const t = dot(sub(point, a), delta) / dot(delta, delta);
+  return add(edge.start, scale(sub(edge.end, edge.start), t));
 }
 export function guideSnapCandidates(raw: Vec3, lines: SnapLine[], threshold: number) {
   const candidates: (Snap & { priority: number })[] = [];

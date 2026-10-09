@@ -18,6 +18,8 @@ import { penPath } from './paths';
 import { createShape, meshBody } from './kernel';
 import { rotateBodies } from './transforms';
 import { resolveAnchor } from '../model/guides';
+import { guideEdgeIntersection } from '../model/snap';
+import { translateMesh } from './translateMesh';
 
 beforeAll(
   async () =>
@@ -222,4 +224,39 @@ it('rejects solids, duplicate inputs and incompatible open/closed profiles', () 
       options,
     ),
   ).toThrow('avoimia');
+});
+
+it('finished lofts expose sloping and curved boundaries after sources are hidden', () => {
+  const a = penPath(
+    [
+      [0, 0, 0],
+      [1000, 0, 0],
+    ],
+    'A',
+  );
+  const b = penPath(
+    [
+      [0, 1000, -10],
+      [1000, 1000, -10],
+    ],
+    'B',
+  );
+  const result = throughShapes([a, b], { ...options, solid: false });
+  expect(result.mesh.edgesCAD).toHaveLength(4);
+  expect(result.mesh.midpointsCAD.some((p) => Math.abs(p[2] + 5) < 1e-6)).toBe(true);
+  const cone = throughShapes([circle(100, -10), circle(200, 300)], options);
+  expect(cone.mesh.curveEdges!.length).toBeGreaterThan(16);
+  const line = {
+    id: 'diagonal',
+    mode: 'free' as const,
+    points: [
+      [0, 0, -10],
+      [200, 200, -10],
+    ] as [Vec3, Vec3],
+  };
+  const hits = cone.mesh.curveEdges!.flatMap((e) => guideEdgeIntersection(line, e) ?? []);
+  expect(hits[0]).toBeCloseTo(100 / Math.SQRT2, 7);
+  expect(hits[2]).toBeCloseTo(-10, 7);
+  const moved = translateMesh(cone.mesh, 'copy', [20, 30, -40]);
+  expect(moved.curveEdges![0].circle!.center).toEqual([20, 30, -50]);
 });

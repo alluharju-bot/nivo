@@ -1,4 +1,5 @@
 import { applySplitResult } from './model/splitReferences';
+import { preserveRegionReferences } from './model/penRegionReferences';
 import { colorPreviewTargets, type ColorPreview } from './model/colorPreview';
 import { linkSplitCopies } from './model/linkedSplit';
 import { displayLabels, displayModes, setModelDisplay, type DisplayMode } from './model/display';
@@ -1702,7 +1703,7 @@ export default function App() {
   const finishPenPath = async (final: boolean) => {
     const points = penRef.current;
     const surface = penSurface();
-    if (points.length < 2 || (!final && (!surface || penMode === 'bezier'))) return;
+    if (points.length < 2 || (!final && penMode === 'bezier')) return;
     const request = ++penSplitRequest.current,
       revision = editor.revision();
     const current = () =>
@@ -1733,9 +1734,35 @@ export default function App() {
         : undefined;
       if (!current()) return;
       const divided = split && !split.unchanged ? split : undefined;
+      // Closed drawing cells may include a lower drain rim or another sloping edge.
+      // Keep their exact boundary wires, so the next stroke can subdivide the network.
+      const boundaries =
+        !divided && penMode === 'line' && shapePurpose === 'model' && !editingBodyId
+          ? project.bodies.filter((b) => {
+              const mesh = editor.meshes.find((m) => m.id === b.id);
+              return (
+                bodyVisible(b, project.groups) &&
+                !featureIsSolid(b.feature) &&
+                !b.penRegion &&
+                inAssembly(project, b.id, openedAssembly) &&
+                mesh &&
+                (mesh.faces.length === 0 || (mesh.faces.length === 1 && mesh.faces[0].planar))
+              );
+            })
+          : [];
+      const regions = boundaries.length
+        ? await editor.cad.penRegions(
+            path,
+            boundaries,
+            project.bodies
+              .filter((b) => b.penRegion)
+              .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
+          )
+        : undefined;
+      if (!current()) return;
       // A dangling segment remains editable. It must not add an empty history
       // action or turn into a separate wire until the user finishes it.
-      if (!divided && !final) return;
+      if (!divided && !regions?.bodies.length && !final) return;
       committing.current = true;
       ownsCommit = true;
       const next = divided
@@ -1744,9 +1771,9 @@ export default function App() {
             bodies: project.bodies.map((b) => (b.id === divided.body.id ? divided.body : b)),
           }
         : {
-            ...project,
+            ...preserveRegionReferences(project, regions?.replaceIds ?? []),
             bodies: [
-              ...project.bodies,
+              ...project.bodies.filter((b) => !regions?.replaceIds.includes(b.id)),
               {
                 ...path,
                 purpose:
@@ -1754,6 +1781,7 @@ export default function App() {
                     ? ('construction' as const)
                     : ('drawing' as const),
               },
+              ...(regions?.bodies.map((b) => ({ ...b, groupId: openedAssembly })) ?? []),
             ],
           };
       if (
@@ -1761,10 +1789,12 @@ export default function App() {
           next,
           divided
             ? 'Pinta jaettu viivalla. E muokkaa kumpaakin aluetta erikseen.'
-            : 'Piirrosviiva valmis. Valitse viiva ja Jaa pinta liittääksesi sen osaan.',
+            : regions?.bodies.length
+              ? 'Suljetut rajaukset täytetty pinnoiksi. Reunojen korkeudet säilytettiin.'
+              : 'Piirrosviiva valmis. Valitse viiva ja Jaa pinta liittääksesi sen osaan.',
         )
       )
-        finishOperation(divided?.body.id ?? path.id, divided?.face);
+        finishOperation(divided?.body.id ?? regions?.bodies[0]?.id ?? path.id, divided?.face);
     } catch (e) {
       if (current()) editor.setError((e as Error).message);
     } finally {
@@ -1942,6 +1972,38 @@ export default function App() {
           await commitShape({ ...curve, purpose: shapePurpose });
           return;
         }
+        const spatialPoints = penRef.current;
+        const spatialNormal = spatialPoints
+          .slice(2)
+          .map((p) => cross(sub(spatialPoints[1], spatialPoints[0]), sub(p, spatialPoints[0])))
+          .find((n) => Math.hypot(...n) > 1e-8);
+        if (
+          spatialNormal &&
+          spatialPoints.some(
+            (p) => Math.abs(dot(sub(p, spatialPoints[0]), unit(spatialNormal))) > 1e-5,
+          )
+        ) {
+          if (parseLength(fieldsRef.current.thickness, true, true))
+            throw new Error(
+              'Eri tasoissa olevan rajauksen pinta tehdään ilman paksuutta. Aseta paksuudeksi 0.',
+            );
+          const revision = editor.revision();
+          const path = await editor.cad.penPath(
+            [...spatialPoints, spatialPoints[0]],
+            shapeName || 'Kynäpinta',
+          );
+          const result = constructionLine ? undefined : await editor.cad.penRegions(path, []);
+          if (revision !== editor.revision() || spatialPoints !== penRef.current) return;
+          if (!constructionLine && result?.bodies.length !== 1)
+            throw new Error('Rajaus ei muodosta yhtä ehjää pintaa. Tarkista risteävät viivat.');
+          committing.current = true;
+          await commitShape({
+            ...(result?.bodies[0] ?? path),
+            penRegion: undefined,
+            purpose: shapePurpose,
+          });
+          return;
+        }
         let candidate = {
           ...makePolygonBody(penRef.current, shapeName || `Kynämuoto ${project.bodies.length + 1}`),
           purpose: shapePurpose,
@@ -1949,6 +2011,8 @@ export default function App() {
         const distance = parseLength(fieldsRef.current.thickness, true, true),
           frame = shapeFrameRef.current;
         if (
+          editingBodyId &&
+          surfaceMode === 'region' &&
           sketchTargetRef.current &&
           frame &&
           penRef.current.some((p) => Math.abs(dot(sub(p, frame.origin), frame.normal)) > 1e-5)
@@ -6045,7 +6109,9 @@ export default function App() {
                             : 'Enter päättää viivan.'}{' '}
                           Palaa alkupisteeseen sulkeaksesi muodon. Reunasta reunaan piirretty viiva
                           jakaa tavallisen kappaleen tai avatun osan pinnan heti. Suljetun
-                          komponentin pinnalla valitse valmis viiva ja Jaa pinta.
+                          komponentin pinnalla valitse valmis viiva ja Jaa pinta. Suorilla
+                          kynäviivoilla suljettu alue täyttyy myös aiempien piirrosreunojen väliin,
+                          vaikka reunat ovat eri korkeuksilla.
                         </p>
                         <button
                           className="button outlined"
@@ -6186,7 +6252,7 @@ export default function App() {
                     selectedIds.length === 1 &&
                     !featureIsSolid(body.feature) &&
                     (body.curve ||
-                      editor.meshes.find((m) => m.id === body.id)?.curveEdges?.length) && (
+                      editor.meshes.find((m) => m.id === body.id)?.curveStations) && (
                       <CurvePointsPanel
                         key={`${body.id}:${JSON.stringify(body.curve)}:${body.origin.join(',')}`}
                         body={body}

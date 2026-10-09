@@ -157,6 +157,15 @@ export const bodySchema = z.object({
     })
     .optional(),
   curveSnaps: z.array(z.number().finite().min(0).max(1)).max(64).optional(),
+  // Automatically filled drawing network. Editing/moving/copying a resulting face detaches it.
+  penRegion: z
+    .object({
+      sources: z.array(id).max(256),
+      owner: id,
+      origin: pointSchema,
+      detached: z.boolean().optional(),
+    })
+    .optional(),
   edgeTreatment: z
     .object({
       id,

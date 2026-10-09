@@ -1,6 +1,7 @@
 import { bodyDisplayMode } from '../model/display';
 import type { GuideEndpoint } from '../model/guideEditing';
 import { pointMarker } from './pointMarker';
+import { onCurve } from '../model/curveSnap';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -56,6 +57,7 @@ import {
   onSnapLine,
   closestOnSnapLine,
   guideEdgeIntersection,
+  guideEdgeProjection,
   gridLength,
   snapPoint,
   snapOnSketchPlane,
@@ -642,19 +644,27 @@ export function installInteractions({
     curve?: boolean;
     key: string;
   };
+  const referenceEdgeCache = new WeakMap<BodyMesh, ReferenceEdge[]>();
   // All tools see the same CAD edges and trimmed surface-surface intersections.
   // Scope limits edits, never the availability of visible reference geometry.
   const referenceEdges = (event: PointerEvent, excluded: string[] = []): ReferenceEdge[] => {
     const meshes = nearby(event).filter((m) => !excluded.includes(m.id));
-    const edges: ReferenceEdge[] = meshes.flatMap((mesh) => [
-      ...mesh.edgesCAD.map((edge, i) => ({ mesh, edge, key: `${mesh.id}:edge:${i}` })),
-      ...(mesh.curveEdges ?? []).map((edge, i) => ({
-        mesh,
-        edge,
-        curve: true,
-        key: `${mesh.id}:curve-edge:${i}`,
-      })),
-    ]);
+    const edges: ReferenceEdge[] = meshes.flatMap((mesh) => {
+      let cached = referenceEdgeCache.get(mesh);
+      if (!cached) {
+        cached = [
+          ...mesh.edgesCAD.map((edge, i) => ({ mesh, edge, key: `${mesh.id}:edge:${i}` })),
+          ...(mesh.curveEdges ?? []).map((edge, i) => ({
+            mesh,
+            edge,
+            curve: true,
+            key: `${mesh.id}:curve-edge:${i}`,
+          })),
+        ];
+        referenceEdgeCache.set(mesh, cached);
+      }
+      return cached;
+    });
     const props = current(),
       towardCamera = camera().getWorldDirection(new THREE.Vector3()).negate().toArray() as Vec3;
     for (let i = 0; i < meshes.length; i++)
@@ -904,7 +914,17 @@ export function installInteractions({
   const sketchStartAt = (event: PointerEvent) => {
     const props = current(),
       target = sketchSurfaceAt(event);
-    const guide = pickReference(event, () => true, true).guide;
+    const picked = pickReference(event, () => true, true);
+    const guide = picked.guide;
+    const exact =
+      picked.point ??
+      guide ??
+      (picked.edge && {
+        point: picked.edge.point,
+        key: picked.edge.key,
+        label: picked.edge.label,
+        line: [picked.edge.edge.start, picked.edge.edge.end] as [Vec3, Vec3],
+      });
     const guideOwnsPlane =
       guide && (!target || Math.abs(dot(sub(guide.point, target.point), target.normal)) > 1e-5);
     const image = target || guide ? undefined : referenceImageAt(event);
@@ -914,21 +934,22 @@ export function installInteractions({
       : ((guideOwnsPlane ? guidePlaneNormal(guide.guide) : target?.normal) ??
         image?.normal ??
         axisVector((['x', 'y', 'z'] as const)[planeAxes[emptyDrawingPlane()][2]]));
-    const anchor = guide?.point ??
+    const anchor = exact?.point ??
       target?.point ??
       nearest(event, false, () => true, true)?.point ??
       image?.point ?? [0, 0, 0];
     const frame = sketchFrame(scale(normal, dot(normal, anchor)), normal);
-    if (!target && !guide && !image) {
+    if (!exact && !target && !guide && !image) {
       setRay(event);
       if (Math.abs(dot(raycaster.ray.direction.toArray() as Vec3, normal)) < 0.02) {
         show();
         return;
       }
     }
-    const raw = framePoint(event, frame);
+    const raw = exact?.point ?? framePoint(event, frame);
     if (!raw) return;
-    const point = frameSnap(raw, frame, undefined, event);
+    const point = exact?.point ?? frameSnap(raw, frame, undefined, event);
+    if (exact) show(exact);
     const matchesSurface =
       target &&
       Math.abs(Math.abs(dot(normal, target.normal)) - 1) < 1e-5 &&
@@ -1198,6 +1219,7 @@ export function installInteractions({
           undefined,
           point,
         );
+        if (edge.circle) point.set(...onCurve(point.toArray() as Vec3, edge));
         const projected = screen(point.toArray() as Vec3);
         return {
           edge,
@@ -1379,7 +1401,12 @@ export function installInteractions({
     if (near.length) {
       for (const { mesh, edge, synthetic, curve, key } of referenceEdges(event, excludedBodies))
         for (const guide of near) {
-          const point = guideEdgeIntersection(guide.source, edge);
+          const crossing = guideEdgeIntersection(guide.source, edge);
+          const projected =
+            !crossing && shift && (props.tool === 'pen' || props.tool === 'measure')
+              ? guideEdgeProjection(guide.source, edge, guidePlaneNormal(guide.guide))
+              : undefined;
+          const point = crossing ?? projected;
           if (
             !point ||
             !accepts(point) ||
@@ -1392,11 +1419,13 @@ export function installInteractions({
             guide: guide.guide,
             point,
             key: `${guide.guide.id}:${key}:intersection`,
-            label: synthetic
-              ? 'Mittaviivan ja pintojen risteys'
-              : guide.guide.mode === 'free'
-                ? 'Mittaviivan ja reunan risteys'
-                : 'Apuviivan ja reunan risteys',
+            label: projected
+              ? 'Reunan projektio · Shift-viite'
+              : synthetic
+                ? 'Mittaviivan ja pintojen risteys'
+                : guide.guide.mode === 'free'
+                  ? 'Mittaviivan ja reunan risteys'
+                  : 'Apuviivan ja reunan risteys',
             kind: 'intersection',
             priority: -1,
             intersection: true,
@@ -3903,6 +3932,7 @@ export function installInteractions({
         current().onReference(undefined);
         show();
       }
+      if (current().tool === 'pen' && lastEvent) updatePen(lastEvent);
       if (
         current().tool === 'measure' &&
         current().measureMode === 'free' &&

@@ -31,6 +31,8 @@ export interface CadEdge {
   end: Vec3;
   from: VertexAnchor;
   to: VertexAnchor;
+  /** Exact supporting circle for a short tessellated arc. */
+  circle?: { center: Vec3; normal: Vec3; radius: number };
 }
 /** A complete shared boundary between two coplanar CAD faces, including curves. */
 export interface FaceBoundary {
@@ -53,6 +55,7 @@ export interface BodyMesh {
   midpointsCAD: Vec3[];
   edgesCAD: CadEdge[];
   curveEdges?: CadEdge[];
+  curveStations?: boolean;
   boundaries: FaceBoundary[];
   sourceDetailEdges?: { index: number; lines: number[] }[];
   detailEdges?: { index: number; lines: number[] }[];
@@ -100,6 +103,7 @@ export type CadRequest =
     }
   | { type: 'knife'; targets: Body[]; rays: import('./modeling').KnifeRay[]; curveNormal?: Vec3 }
   | { type: 'pen-path'; points: Vec3[]; name: string }
+  | { type: 'pen-regions'; path: Body; boundaries: Body[]; previous: Body[] }
   | { type: 'split-path'; body: Body; face: FaceRef; path: Body }
   | { type: 'cut-opening'; profile: Body; targets: Body[] }
   | { type: 'section'; bodies: Body[]; section: Section; drawing: boolean }
@@ -139,6 +143,7 @@ export interface ProbeResult {
 export interface CadReply {
   id: number;
   result?:
+    | import('./penRegions').PenRegions
     | SectionResult
     | BodyMesh[]
     | Projection

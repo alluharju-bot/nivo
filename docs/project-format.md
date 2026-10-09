@@ -357,3 +357,12 @@ automaattista sovitusta A4-vaaka-arkille. Puuttuvat kohteet ja leikkaukset
 säilyvät arkissa korjattavina viitteinä, mutta vienti on estetty. Asettelu
 on automaattinen. Mallin muutokset laskevat projektiot uudelleen; mittojen,
 arkkinimen tai mittakaavan muutos ei käynnistä uutta CAD-projektiota.
+
+## V8:n valinnainen kynäpinnan alkuperätieto (0.27.0)
+
+`Body.penRegion` sisältää `sources` (lähtömuotojen tunnisteet), `owner`
+(tulospinnan tunniste), `origin` (syntymäsijainti) ja valinnaisen `detached`-lipun.
+Tarkka geometria säilyy tavallisena BRepinä. Kenttä sallii koskemattoman
+piirrosverkon uudelleenjaon seuraavalla kynäviivalla. Geometriamuokkaus asettaa
+`detached`-lipun; kopion eri tunniste ja siirtynyt origin estävät korvaamisen.
+Vanha lukija voi avata geometrian ilman tätä valinnaista toiminnallisuutta.

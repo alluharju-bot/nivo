@@ -270,19 +270,48 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   const seen = new Set<string>();
   const boxCorners = corners(body);
   const edges = shape.edges;
+  const anchor = (point: Vec3) => {
+    const local = sub(point, body.origin);
+    return {
+      bodyId: body.id,
+      key:
+        body.feature.type === 'brep'
+          ? `brep:${body.feature.topologyId}:${local.join(',')}`
+          : `profile:${local.join(',')}`,
+      local,
+    };
+  };
   let hasCurvedEdge = false;
+  let curveStations = false;
   try {
     for (const [index, edge] of edges.entries()) {
       hasCurvedEdge ||= edge.geomType !== 'LINE';
-      detailEdges.push({ index, lines: edge.meshEdges({ tolerance: 0.15 }).lines });
+      const lines = edge.meshEdges({ tolerance: edge.geomType === 'LINE' ? 0.15 : 0.01 }).lines;
+      detailEdges.push({ index, lines });
       const a = edge.startPoint,
         b = edge.endPoint;
       const start = a.toTuple(),
         end = b.toTuple();
       a.delete();
       b.delete();
-      if (edge.geomType === 'LINE')
-        midpointsCAD.push(start.map((n, i) => (n + end[i]) / 2) as Vec3);
+      // Loft boundaries can be BSplines even when they are geometrically straight.
+      const delta = sub(end, start),
+        length2 = dot(delta, delta);
+      const straight =
+        length2 > 1e-12 &&
+        (edge.geomType === 'LINE' ||
+          Array.from(
+            { length: lines.length / 3 },
+            (_, i) => lines.slice(i * 3, i * 3 + 3) as Vec3,
+          ).every((p) => {
+            const t = dot(sub(p, start), delta) / length2;
+            return (
+              t >= -1e-8 &&
+              t <= 1 + 1e-8 &&
+              Math.hypot(...sub(p, add(start, scale(delta, t)))) < 1e-6
+            );
+          }));
+      if (straight) midpointsCAD.push(start.map((n, i) => (n + end[i]) / 2) as Vec3);
       else if (edge.geomType === 'CIRCLE' || edge.geomType === 'ELLIPSE') {
         const box = exactBounds(edge);
         midpointsCAD.push(box.min.map((n, i) => (n + box.max[i]) / 2) as Vec3);
@@ -311,7 +340,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
         if (body.feature.type === 'profile-extrusion') key = `profile:${coordinateKey}`;
         verticesCAD.push({ point, anchor: { bodyId: body.id, key, local } });
       }
-      if (edge.geomType === 'LINE') {
+      if (straight) {
         const from = verticesCAD.find((v) =>
           v.point.every((n, i) => Math.abs(n - start[i]) < 1e-5),
         )?.anchor;
@@ -319,6 +348,42 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
           v.point.every((n, i) => Math.abs(n - end[i]) < 1e-5),
         )?.anchor;
         if (from && to) edgesCAD.push({ start, end, from, to });
+      } else {
+        let circle: import('./protocol').CadEdge['circle'];
+        if (edge.geomType === 'CIRCLE') {
+          const adaptor = new (getOC().BRepAdaptor_Curve)(edge.wrapped);
+          const c = adaptor.Circle(),
+            center = c.Location(),
+            axis = c.Axis(),
+            normal = axis.Direction();
+          try {
+            circle = {
+              center: [center.X(), center.Y(), center.Z()],
+              normal: [normal.X(), normal.Y(), normal.Z()],
+              radius: c.Radius(),
+            };
+          } finally {
+            normal.delete();
+            axis.delete();
+            center.delete();
+            c.delete();
+            adaptor.delete();
+          }
+        }
+        // Finished surfaces and solids expose the same boundaries as drawing wires.
+        // Segments are line targets only, never thousands of artificial vertex snaps.
+        for (let i = 0; i < lines.length; i += 6) {
+          const start = lines.slice(i, i + 3) as Vec3,
+            end = lines.slice(i + 3, i + 6) as Vec3;
+          if (Math.hypot(...sub(end, start)) > 1e-8)
+            curveEdges.push({
+              start,
+              end,
+              from: anchor(start),
+              to: anchor(end),
+              ...(circle ? { circle } : {}),
+            });
+        }
       }
     }
   } finally {
@@ -330,18 +395,8 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     const wires = shape.wires;
     try {
       if (wires.length === 1) {
+        curveStations = true;
         const wire = wires[0];
-        const anchor = (point: Vec3) => {
-          const local = sub(point, body.origin);
-          return {
-            bodyId: body.id,
-            key:
-              body.feature.type === 'brep'
-                ? `brep:${body.feature.topologyId}:${local.join(',')}`
-                : `profile:${local.join(',')}`,
-            local,
-          };
-        };
         const fractions = body.curveSnaps ?? [0, 0.25, 0.5, 0.75, 1];
         for (const t of fractions) {
           const p = wire.pointAt(t);
@@ -349,20 +404,6 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
           p.delete();
           if (!verticesCAD.some((v) => Math.hypot(...sub(v.point, point)) < 1e-6))
             verticesCAD.push({ point, anchor: anchor(point) });
-        }
-        const parts = wire.edges;
-        try {
-          for (const edge of parts) {
-            if (edge.geomType === 'LINE') continue;
-            const lines = edge.meshEdges({ tolerance: 0.01 }).lines;
-            for (let i = 0; i < lines.length; i += 6) {
-              const start = lines.slice(i, i + 3) as Vec3,
-                end = lines.slice(i + 3, i + 6) as Vec3;
-              curveEdges.push({ start, end, from: anchor(start), to: anchor(end) });
-            }
-          }
-        } finally {
-          parts.forEach((p) => p.delete());
         }
       }
     } finally {
@@ -381,6 +422,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     midpointsCAD,
     edgesCAD,
     ...(curveEdges.length ? { curveEdges } : {}),
+    ...(curveStations ? { curveStations } : {}),
     detailEdges,
     sourceDetailEdges: body.edgeTreatment
       ? (() => {
@@ -460,6 +502,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
       edgeTreatment: undefined,
       curve: undefined,
       curveSnaps: undefined,
+      penRegion: body.penRegion ? { ...body.penRegion, detached: true } : undefined,
       textureFrame: {
         offset: sub(add(body.origin, body.textureFrame?.offset ?? [0, 0, 0]), origin),
         rotation: body.textureFrame?.rotation ?? [0, 0, 0, 1],

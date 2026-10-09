@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.27.0** korjaa valmiiden pintojen ja käyräreunojen 3D-tartunnat.
+Kynä ja vapaa mittaviiva voivat kulkea eri korkeuksien välillä; Shift poimii
+viitemitan omaan lukittuun suuntaan myös alemmasta reunasta. Suorat kynäviivat
+muodostavat pintoja valmiiden piirrosrajausten väliin: esimerkiksi neliön ja
+10 mm alemman kaivoympyrän väliin. [Kaatopinnan työskentely](docs/through-shapes.fi.md#kaatopinta-kynällä).
+
 Versio **0.26.0** lisää **Muodot → Muotojen läpi** -pintatyökalun: yhdistä
 poikkileikkauksia tai vierekkäisiä sivukäyriä, tarkista esikatselu ja hyväksy
 pinta tai umpiosa. Ympyrästä voi tehdä myös kartion kärkeen päättämällä.

@@ -23,6 +23,7 @@ export function translateMesh(mesh: BodyMesh, id: string, delta: Vec3): BodyMesh
     })),
     curveEdges: mesh.curveEdges?.map((edge) => ({
       ...edge,
+      circle: edge.circle ? { ...edge.circle, center: point(edge.circle.center) } : undefined,
       start: point(edge.start),
       end: point(edge.end),
       from: anchor(edge.from),

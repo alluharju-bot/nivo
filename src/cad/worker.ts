@@ -1,5 +1,6 @@
 import { sphereBody, bezierPath, knifeBodies } from './modeling';
 import { throughShapes } from './throughShapes';
+import { fillPenRegions } from './penRegions';
 import { penPath, splitWithPath, cutOpening, divideSurfaces } from './paths';
 import { translateMesh } from './translateMesh';
 import { sectionBodies } from './sections';
@@ -101,6 +102,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
       else if (request.type === 'knife')
         reply.result = knifeBodies(request.targets, request.rays, request.curveNormal);
       else if (request.type === 'pen-path') reply.result = penPath(request.points, request.name);
+      else if (request.type === 'pen-regions')
+        reply.result = fillPenRegions(request.path, request.boundaries, request.previous);
       else if (request.type === 'split-path')
         reply.result = splitWithPath(request.body, request.face, request.path);
       else if (request.type === 'cut-opening')

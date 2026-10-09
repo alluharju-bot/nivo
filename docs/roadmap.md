@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.27.0 — kaatopintojen tartunnat ja kynärajaukset, 9.10.2026
+
+- Valmiiden loftien, pintojen ja umpiosien kaikki CAD-reunat osallistuvat
+  yhteiseen tartuntahakuun. Geometrisesti suorat spline-reunat tunnistetaan
+  suoriksi. Kaarien tessellointi ei muodosta ylimääräisiä verteksikohteita.
+- Aloituspiste säilyttää poimitun reunan 3D-korkeuden. Ympyrän tartunta ja
+  viivaristeys käyttävät tarkkaa ympyrää, myös siirretyissä instansseissa.
+- Shift poimii alemman/ylemmän viitteen lukittuun suuntaan. Viivatason ja
+  reunan projektio nimetään erikseen. Kynän Shift-vapautus päivittää heti.
+- Suora kynä täydentää suljetut piirrosverkot pinnoiksi eri korkeuksilla.
+  Neliö–kaivo-esimerkki ja neljän eri korkopisteen rajaus testataan.
+  Seuraava yhdysviiva jakaa koskemattoman verkon uudelleen yhdessä
+  historiatoiminnossa; lukitus ja myöhempi muokkaus suojaavat tulospinnan.
+- Jatko: kaatoprosentit, reunaverkon näkyvä hallinta, paksuntaminen ja pintojen
+  yhteenompelu; yleiset ei-tasoprojektoitavat verkot ja jatkumon hallinta.
+  Mittaviivat ovat edelleen viitteitä, eivät automaattisen täytön CAD-rajoja.
+
 ## V0.26.0 — käyrien kautta mallintaminen, 9.10.2026
 
 - Bézierin oletus on napsautettujen pisteiden kautta kulkeva kuutiollinen käyrä.
