@@ -76,6 +76,7 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  onCaptureReady?: (capture?: () => Promise<Blob>) => void;
   editingTexture?: { id: string; texture: TexturePlacement };
   colorPreview?: ColorPreview;
   onTexture?: (texture: TexturePlacement) => void;

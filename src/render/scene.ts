@@ -1,7 +1,13 @@
 import { installTextureEditing } from '../viewport/textureEditing';
 import { canUpdateSurfaces, surfaceKey, type RenderModel } from './sceneChanges';
 import { loadStudioEnvironment } from './environment';
-import { createSunLighting, imageToneMapping } from './lighting';
+import {
+  aimLight,
+  createSunLighting,
+  imageToneMapping,
+  setTraceShadows,
+  studioOffsets,
+} from './lighting';
 import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, createTraceLights, previewLightLimit } from './lights';
 import { progressiveRenderer, type TraceStatus } from './progressive';
@@ -92,7 +98,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   key.shadow.bias = -0.00015;
   scene.add(key, key.target);
   const fill = new THREE.DirectionalLight('#ccdfff', 1.3);
-  scene.add(fill);
+  scene.add(fill, fill.target);
   // Broad studio panels produce natural penumbras in the traced image. Keep
   // shadow-mapped directional proxies for the inexpensive live camera view.
   key.userData.previewOnly = fill.userData.previewOnly = true;
@@ -268,6 +274,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       previousModel = { ...next };
       navigation.sync(next.bodies, next.selectedIds ?? []);
       if (changed) {
+        setTraceShadows(model, next.settings.shadows);
         renderer.shadowMap.needsUpdate = true;
         draw(true);
       }
@@ -419,24 +426,21 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     key.intensity = (settings.environment === 'dark' ? 0.03 : 3) * (settings.lightPower ?? 1);
     fill.intensity = (settings.environment === 'dark' ? 0.02 : 1.3) * (settings.lightPower ?? 1);
     const center = key.target.position;
-    const rotation = THREE.MathUtils.degToRad(settings.lightRotation ?? 0),
-      axis = new THREE.Vector3(0, 0, 1);
+    const rotation = THREE.MathUtils.degToRad(settings.lightRotation ?? 0);
     if (studioEnvironment) scene.environmentRotation.set(Math.PI / 2, 0, rotation);
-    key.position.copy(
-      new THREE.Vector3(-extent, -extent * 0.8, extent * 1.8)
-        .applyAxisAngle(axis, rotation)
-        .add(center),
+    const [keyOffset, fillOffset] = studioOffsets(
+      settings.lightRotation ?? 0,
+      settings.lightElevation,
     );
-    fill.position.copy(
-      new THREE.Vector3(extent, extent, extent).applyAxisAngle(axis, rotation).add(center),
-    );
+    key.position.copy(keyOffset).multiplyScalar(extent).add(center);
+    fill.position.copy(fillOffset).multiplyScalar(extent).add(center);
+    fill.target.position.copy(center);
     for (const [source, panel, size] of [
       [key, softKey, 1.2],
       [fill, softFill, 1.6],
     ] as const) {
       panel.position.copy(source.position);
-      panel.up.set(0, 0, 1);
-      panel.lookAt(center);
+      aimLight(panel, center);
       panel.width = panel.height = extent * size * (settings.studioSoftness ?? 1);
       panel.color.copy(source.color);
       // Preserve roughly the same incident light at the model centre as its
@@ -458,6 +462,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       settings.environmentPower,
       settings.lightPower,
       settings.lightRotation,
+      settings.lightElevation,
       settings.studioSoftness,
       settings.sun,
     ]);
@@ -474,9 +479,15 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     renderer.toneMapping = imageToneMapping(settings.look);
     if (renderer.shadowMap.enabled !== settings.shadows) renderer.shadowMap.needsUpdate = true;
     renderer.shadowMap.enabled = settings.shadows;
+    if (setTraceShadows(scene, settings.shadows)) progressive.invalidate(false, true);
     canvas.dataset.lighting = JSON.stringify({
       rotation: settings.lightRotation ?? 0,
       studioPower: settings.lightPower ?? 1,
+      studioElevation: settings.lightElevation ?? null,
+      studioDirections: [key, fill].map((light) =>
+        light.position.clone().sub(center).normalize().toArray(),
+      ),
+      shadows: settings.shadows,
       environmentPower: settings.environmentPower ?? 1,
       softness: settings.studioSoftness ?? 1,
       sun: settings.sun ?? null,

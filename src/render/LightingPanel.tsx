@@ -187,7 +187,7 @@ export function LightingPanel({ settings, busy, onPreview, onCommit }: Props) {
                 <small>Suunta mallin ympärillä</small>
               </div>
             </div>
-            {range('Auringon korkeus', sun.elevation, 5, 85, 1, `${sun.elevation}°`, (elevation) =>
+            {range('Auringon korkeus', sun.elevation, 5, 90, 1, `${sun.elevation}°`, (elevation) =>
               patchSun({ elevation }),
             )}
             {range(
@@ -251,12 +251,25 @@ export function LightingPanel({ settings, busy, onPreview, onCommit }: Props) {
           (lightRotation) => patch({ lightRotation }),
         )}
         {range(
+          'Studiovalon korkeus',
+          settings.lightElevation ?? 55,
+          0,
+          90,
+          1,
+          settings.lightElevation === undefined
+            ? 'Studion oletus'
+            : settings.lightElevation === 90
+              ? '90° · Ylhäältä'
+              : `${settings.lightElevation}°`,
+          (lightElevation) => patch({ lightElevation }),
+        )}
+        {range(
           'Studiovalojen voimakkuus',
           settings.lightPower ?? 1,
           0,
           4,
           0.05,
-          `${Math.round((settings.lightPower ?? 1) * 100)} %`,
+          settings.lightPower === 0 ? 'Pois' : `${Math.round((settings.lightPower ?? 1) * 100)} %`,
           (lightPower) => patch({ lightPower }),
         )}
         {range(
@@ -265,9 +278,15 @@ export function LightingPanel({ settings, busy, onPreview, onCommit }: Props) {
           0,
           4,
           0.05,
-          `${Math.round((settings.environmentPower ?? 1) * 100)} %`,
+          settings.environmentPower === 0
+            ? 'Pois'
+            : `${Math.round((settings.environmentPower ?? 1) * 100)} %`,
           (environmentPower) => patch({ environmentPower }),
         )}
+        <p className="lighting-help">
+          90° valaisee suoraan ylhäältä. Studiovalot ja ympäristövalo sammuvat omien säätimiensä
+          nolla-asennossa.
+        </p>
         {range(
           'Studiovarjojen pehmeys',
           settings.studioSoftness ?? 1,
@@ -302,19 +321,19 @@ export function LightingPanel({ settings, busy, onPreview, onCommit }: Props) {
             onChange={(e) => commit({ ground: e.target.checked })}
           />
         </label>
-        <label className="lighting-toggle">
-          <span>Esikatselun varjot</span>
-          <input
-            type="checkbox"
-            aria-label="Varjot"
-            checked={settings.shadows}
-            disabled={busy}
-            onChange={(e) => commit({ shadows: e.target.checked })}
-          />
-        </label>
       </details>
+      <label className="lighting-toggle">
+        <span>Varjot</span>
+        <input
+          type="checkbox"
+          aria-label="Varjot"
+          checked={settings.shadows}
+          disabled={busy}
+          onChange={(e) => commit({ shadows: e.target.checked })}
+        />
+      </label>
       <p className="lighting-help">
-        Säädöt näkyvät heti. Tarkentuva kuva laskee myös epäsuoran valon ja pehmeät varjot.
+        Säädöt näkyvät heti. Varjot-asetus koskee esikatselua, tarkentuvaa kuvaa ja kuvanvientiä.
       </p>
     </section>
   );

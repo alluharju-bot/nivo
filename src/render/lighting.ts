@@ -17,6 +17,46 @@ export function sunDirection(azimuth: number, elevation: number) {
   return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.cos(a) * Math.cos(e), Math.sin(e));
 }
 
+/** Undefined preserves the original studio rig in existing projects. Explicit
+ * elevation puts both panels at the chosen angle without changing their distance. */
+export function studioOffsets(rotation: number, elevation?: number) {
+  return [new THREE.Vector3(-1, -0.8, 1.8), new THREE.Vector3(1, 1, 1)].map((offset) => {
+    if (elevation !== undefined) {
+      const distance = offset.length();
+      const azimuth = Math.atan2(offset.x, offset.y) * THREE.MathUtils.RAD2DEG;
+      offset.copy(sunDirection(azimuth, elevation)).multiplyScalar(distance);
+    }
+    return offset.applyAxisAngle(new THREE.Vector3(0, 0, 1), THREE.MathUtils.degToRad(rotation));
+  });
+}
+
+/** Z-up lookAt needs a different up vector when a panel is directly overhead. */
+export function aimLight(light: THREE.Object3D, center: THREE.Vector3) {
+  const direction = light.position.clone().sub(center).normalize();
+  light.up.set(0, Math.abs(direction.z) > 0.999 ? 1 : 0, Math.abs(direction.z) > 0.999 ? 0 : 1);
+  light.lookAt(center);
+}
+
+export type TraceMaterial = THREE.MeshStandardMaterial & { castShadow?: boolean };
+
+/** The tracer reads castShadow from materials, whereas raster uses shadow maps.
+ * Keep camera/reflection visibility intact when disabling light occlusion. */
+export function setTraceShadows(scene: THREE.Object3D, enabled: boolean) {
+  let changed = false;
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+      const traced = material as TraceMaterial;
+      if (traced.castShadow !== enabled) {
+        traced.castShadow = enabled;
+        changed = true;
+      }
+    }
+  });
+  return changed;
+}
+
 export const lightingPresets = [
   {
     id: 'studio',
@@ -27,6 +67,7 @@ export const lightingPresets = [
       lightPower: 1,
       environmentPower: 1,
       lightRotation: 0,
+      lightElevation: undefined,
       studioSoftness: 1,
       sun: { ...sunDefaults },
     },
@@ -40,6 +81,7 @@ export const lightingPresets = [
       lightPower: 0.35,
       environmentPower: 0.7,
       lightRotation: 0,
+      lightElevation: undefined,
       studioSoftness: 1.3,
       sun: { ...sunDefaults, enabled: true, elevation: 42, power: 1.2, color: '#fff4e6' },
     },
@@ -53,6 +95,7 @@ export const lightingPresets = [
       lightPower: 0.25,
       environmentPower: 0.5,
       lightRotation: 45,
+      lightElevation: undefined,
       studioSoftness: 1.5,
       sun: {
         ...sunDefaults,
@@ -74,6 +117,7 @@ export const lightingPresets = [
       lightPower: 0,
       environmentPower: 0.25,
       lightRotation: 0,
+      lightElevation: undefined,
       studioSoftness: 1,
       sun: { ...sunDefaults },
     },
@@ -129,8 +173,7 @@ export function createSunLighting(scene: THREE.Scene) {
       // Renormalize radiance when its size changes so softness does not dim the model.
       const distance = extent * 50;
       traced.position.copy(center).addScaledVector(direction, distance);
-      traced.up.set(0, 0, 1);
-      traced.lookAt(center);
+      aimLight(traced, center);
       traced.width = traced.height =
         2 * distance * Math.tan(THREE.MathUtils.degToRad(settings.softness) / 2);
       traced.color.copy(preview.color);

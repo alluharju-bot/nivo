@@ -1,4 +1,4 @@
-import { Box, Ghost, Square, Boxes, House } from 'lucide-react';
+import { Box, Ghost, Square, Boxes, House, Camera } from 'lucide-react';
 import {
   commonDisplayMode,
   displayLabels,
@@ -22,6 +22,8 @@ export function DisplayControls({
   disabled,
   onChange,
   onOverview,
+  onCapture,
+  capturing,
 }: {
   display?: ModelDisplay;
   ids: string[];
@@ -29,6 +31,8 @@ export function DisplayControls({
   disabled: boolean;
   onChange: (mode: DisplayMode) => void;
   onOverview: () => void;
+  onCapture: () => void;
+  capturing: boolean;
 }) {
   const mode = commonDisplayMode(display, ids.length ? ids : bodyIds);
   const scope = ids.length ? `Valinta · ${ids.length} osaa` : 'Koko näkymä';
@@ -62,6 +66,17 @@ export function DisplayControls({
           </button>
         );
       })}
+      <span className="display-divider" aria-hidden="true" />
+      <button
+        type="button"
+        aria-label="Tallenna näkymä PNG"
+        title="Tallenna nykyinen mallinnusnäkymä kuvaksi ilman käyttöliittymää"
+        disabled={disabled || capturing}
+        aria-busy={capturing}
+        onClick={onCapture}
+      >
+        <Camera size={18} aria-hidden="true" />
+      </button>
     </div>
   );
 }

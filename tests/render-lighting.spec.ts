@@ -149,7 +149,9 @@ test('sun controls preview during a gesture, undo together, cancel with Esc and 
 test('sun changes resume refinement without rebuilding geometry or reuploading PBR maps', async ({
   page,
 }, info) => {
-  test.setTimeout(180_000);
+  // Shader preparation plus 256 full-resolution samples can exceed three
+  // minutes on the test laptop. This checks completion, not GPU throughput.
+  test.setTimeout(300_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -185,7 +187,7 @@ test('sun changes resume refinement without rebuilding geometry or reuploading P
   await expect(canvas).toHaveAttribute('data-trace-scene-builds', builds!);
   await page.getByLabel('Esikatselun tarkkuus', { exact: true }).selectOption('full');
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('256');
-  await expect(canvas).toHaveAttribute('data-trace-samples', '256', { timeout: 120_000 });
+  await expect(canvas).toHaveAttribute('data-trace-samples', '256', { timeout: 180_000 });
   await expect(canvas).toHaveAttribute('data-trace-opacity', '1');
   await canvas.screenshot({ path: info.outputPath('filmic-walnut.png') });
   expect(errors).toEqual([]);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { omitPreviewLights } from './lights';
 import { isTraceEnvironment } from './environment';
+import type { TraceMaterial } from './lighting';
 
 export type RenderSnapshot = {
   scene: THREE.Scene;
@@ -45,6 +46,13 @@ export function captureRenderScene(
     resources.add(mesh.geometry);
     const copyMaterial = (source: THREE.Material) => {
       const material = source.clone();
+      // Three's copy() does not copy the path tracer's material extension.
+      if (
+        source instanceof THREE.MeshStandardMaterial &&
+        material instanceof THREE.MeshStandardMaterial &&
+        (source as TraceMaterial).castShadow !== undefined
+      )
+        (material as TraceMaterial).castShadow = (source as TraceMaterial).castShadow;
       resources.add(material);
       for (const [key, value] of Object.entries(material))
         if (value instanceof THREE.Texture)

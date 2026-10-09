@@ -4,6 +4,34 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.28.1 — studiovalon korkeus ja PNG-kuvankaappaus
+
+**345 yksikkö-/CAD-testiä hyväksytty (66 tiedostoa)**. TypeScript,
+lisenssit, muutettujen tiedostojen Prettier ja `/nivo/`-tuotantobuild hyväksytty.
+**12 eri kohdennettua selaintapausta hyväksytty**: kuusi uutta työpöytä-/tablettitapausta
+ja kuusi nykyisen valaistuksen/kuvanviennin työpöytäregressiota.
+
+- Uudet työpöytä- ja tablettikokeet: studiovalojen ja auringon 90° suunta,
+  kaukana origosta sijaitseva malli, reaaliaikainen säätö, Peru/Palauta,
+  sammuttaminen, tallennus ja sivun uudelleenlataus.
+- Tarkentuva kuva jatkaa korkeuden ja varjoasetuksen muutoksen jälkeen.
+  Geometria säilyy; korkeussäätö ei lataa PBR-materiaaleja uudelleen.
+  Yksikkötesti varmistaa, että varjojen poistaminen säilyttää pintojen
+  näkyvyyden ja että erillinen kuvanvienti säilyttää asetuksen myös
+  monimateriaalisissa osissa.
+- PNG-vienti testattu työpöydällä ja tablettiemuloinnissa: kuvan mitat,
+  pikselisisältö, peittävä tausta, näkyvät/piilotetut mitat ja apuviivat,
+  kameran ja projektin säilyminen sekä toistuva tallennus. Tallennettu
+  kuva tarkistettu silmämääräisesti: mittatekstit mukana, käyttöliittymä pois.
+- Ensimmäisen kuvankaappaustestin liian tiukka punaisen värin odotus
+  korjattiin huomioimaan nykyinen valintakorostus. Mittamerkintöjen testissä
+  avataan ensin **Mitat ja mallinnus** -osio. Päivitetyt kokeet hyväksytty.
+- Nykyiset taustarenderin PNG-vienti, keskeytys, kameramuutoksen jälkeinen
+  jatkaminen, HDRI-odotus, aurinkosäädöt sekä PBR-/lasi-/kohdevaloyhdistelmä
+  hyväksytty. Täyden tarkkuuden 256 näytteen regressio saavutti aluksi 243
+  näytettä ennen testin 180 s kokonaisaikarajaa. Testin aikarajaa pidennettiin
+  muuttamatta kuvan tarkkuutta tai näytemäärää; erillisajo valmistui 3,1 minuutissa.
+
 ## V0.28.0 — puolipyöristykset, aukkosarjat ja pieni geometria
 
 **342 yksikkö-/CAD-testiä hyväksytty (66 tiedostoa)**. TypeScript,

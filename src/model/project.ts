@@ -335,6 +335,7 @@ export const projectSchema = z
             exposure: z.number().min(0.3).max(2.5),
             shadows: z.boolean(),
             lightRotation: z.number().finite().min(0).max(360).optional(),
+            lightElevation: z.number().finite().min(0).max(90).optional(),
             lightPower: z.number().finite().min(0).max(4).optional(),
             environmentPower: z.number().finite().min(0).max(4).optional(),
             ground: z.boolean().optional(),
@@ -344,7 +345,7 @@ export const projectSchema = z
               .object({
                 enabled: z.boolean(),
                 azimuth: z.number().finite().min(0).max(360),
-                elevation: z.number().finite().min(5).max(85),
+                elevation: z.number().finite().min(5).max(90),
                 power: z.number().finite().min(0).max(5),
                 color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
                 softness: z.number().finite().min(0.1).max(10),

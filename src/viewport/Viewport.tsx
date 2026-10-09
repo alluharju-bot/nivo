@@ -1,4 +1,5 @@
 import { installKnife } from './knife';
+import { captureModelView } from './capture';
 import { installTextureEditing } from './textureEditing';
 import { bodyDisplayMode } from '../model/display';
 import { sampleBezier, throughPoints } from '../model/bezier';
@@ -41,6 +42,7 @@ import { createViewCube } from './viewCube';
 import { createAnnotationOcclusion } from './annotationOcclusion';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
+  capture: () => Promise<Blob>;
   color: () => void;
   texture: () => void;
   sync: () => void;
@@ -1481,6 +1483,31 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   resize();
   sync();
   return {
+    capture: async () => {
+      await materialLibrary.ready();
+      if (disposed) throw new Error('Mallinnusnäkymä on suljettu.');
+      return captureModelView(renderer.domElement, container, () => {
+        renderNow();
+        const hidden = [
+          pickPreview,
+          scene.getObjectByName('interaction-overlays'),
+          scene.getObjectByName('section-handles'),
+        ]
+          .filter((object): object is THREE.Object3D => !!object)
+          .map((object) => ({ object, visible: object.visible }));
+        try {
+          hidden.forEach(({ object }) => {
+            object.visible = false;
+          });
+          renderer.render(scene, camera);
+        } finally {
+          hidden.forEach(({ object, visible }) => {
+            object.visible = visible;
+          });
+          render();
+        }
+      });
+    },
     texture,
     color,
     sync,
@@ -1546,10 +1573,14 @@ export function Viewport(props: Props) {
   useEffect(() => {
     try {
       api.current = makeScene(host.current!, () => latest.current);
+      latest.current.onCaptureReady?.(api.current.capture);
     } catch {
       setError('3D-näkymä tarvitsee WebGL2-tuen. Tarkista selaimen laitteistokiihdytys.');
     }
-    return () => api.current?.dispose();
+    return () => {
+      latest.current.onCaptureReady?.(undefined);
+      api.current?.dispose();
+    };
   }, []);
   useEffect(() => {
     api.current?.sync();

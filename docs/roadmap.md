@@ -2,6 +2,25 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.28.1 — ylävalo ja mallinnusnäkymän kuva, 9.10.2026
+
+- **Valaistus → Studio ja ympäristö → Studiovalon korkeus**: 0–90°.
+  Molemmat studiovalot suuntautuvat 90°:ssa suoraan mallin yläpuolelta.
+  Myös auringon korkeus ulottuu 90°:een. Valopaneelin suunta pysyy vakaana
+  suoraan ylhäältä valaistaessa ja muualla kuin origossa.
+- Studiovalojen ja ympäristövalon voimakkuuden nolla-asento näkyy tekstinä
+  **Pois**. Ne säädetään erikseen nykyisistä liukusäätimistä.
+- **Varjot** koskee nopeaa esikatselua, tarkentuvaa kuvaa ja tallennettavaa
+  renderiä. Ilman varjoja kappaleet pysyvät näkyvinä ja heijastavina; kyseessä
+  on havainnekuvan valaistus. Asetus säilyy myös materiaalin vaihtuessa.
+- Vanhojen projektien alkuperäinen studiovalojen sijoittelu säilyy, kunnes
+  korkeutta säädetään. Valaistusasetusten Peru/Palauta ja tallennus toimivat.
+  Korkeuden muuttaminen ei rakenna geometriaa eikä lataa PBR-karttoja uudelleen.
+- Mallinnuksen näyttötilojen vieressä oleva kamerakuvake **Tallenna näkymä PNG**
+  tallentaa nykyisen kuvakulman, näyttötilan, ruudukon ja näkyvät mittamerkinnät
+  ilman käyttöliittymää. Toiminto löytyy myös komentohausta. Kuvakoko on näkymän
+  nykyinen pikselitarkkuus; kameraa, valintaa tai mallia ei muuteta.
+
 ## V0.28.0 — kotelotestin korjaukset, 9.10.2026
 
 - Reunat: **Muodon nurkat** poimii pursotetun suorakulmion tai monikulmion

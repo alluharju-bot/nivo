@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.28.1** lisää studiovalon korkeuden (90° = suoraan ylhäältä),
+varjojen yhteisen kytkimen nopeaan ja tarkentuvaan kuvaan sekä kuvanvientiin.
+Studiovalot ja ympäristövalo sammuvat voimakkuuden **Pois**-asennossa.
+Mallinnuksen näkymäpalkin **Tallenna näkymä PNG** tallentaa nykyisen kuvakulman
+ja näkyvät mittamerkinnät ilman käyttöliittymää.
+
 Versio **0.28.0** lisää tarkat puolipyöreät päät nykyiseen Reunat-työkaluun
 sekä aukkosarjat suoraan **Leikkaa aukko** -toimintoon. Myös Push/Pullilla
 tehdyn leikkauksen voi heti toistaa määrällä, välillä ja suunnalla. Rajattu

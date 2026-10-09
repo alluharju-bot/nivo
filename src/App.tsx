@@ -552,6 +552,21 @@ export default function App() {
   });
   const [cabinetOpen, setCabinetOpen] = useState(false);
   const renderJob = useRenderJob();
+  const captureModel = useRef<(() => Promise<Blob>) | undefined>(undefined);
+  const [capturingModel, setCapturingModel] = useState(false);
+  const saveModelImage = async () => {
+    if (!captureModel.current || capturingModel || busy) return;
+    setCapturingModel(true);
+    try {
+      const image = await captureModel.current();
+      downloadFile(image, `${safeFilename(project.name)}-nakyma.png`, 'image/png');
+      editor.setMessage('Mallinnusnäkymä tallennettu PNG-kuvaksi.');
+    } catch (error) {
+      editor.setError(error instanceof Error ? error.message : 'Kuvan tallentaminen epäonnistui.');
+    } finally {
+      setCapturingModel(false);
+    }
+  };
   const changeDisplay = (value: DisplayMode) => {
     if (busy) return;
     const next = setModelDisplay(project, value, selectedIds);
@@ -4162,6 +4177,19 @@ export default function App() {
       keywords: 'zoom kamera',
       run: fit,
     },
+    {
+      id: 'capture-model',
+      label: 'Tallenna näkymä PNG',
+      group: 'Näkymät',
+      keywords: 'screenshot kuvakaappaus kuva png ilman käyttöliittymää',
+      reason:
+        mode !== 'model'
+          ? 'Avaa ensin mallinnusnäkymä.'
+          : capturingModel
+            ? 'Kuvaa tallennetaan.'
+            : undefined,
+      run: () => void saveModelImage(),
+    },
     ...(
       [
         ['top', 'Ylhäältä'],
@@ -4809,6 +4837,8 @@ export default function App() {
               disabled={busy}
               onChange={changeDisplay}
               onOverview={() => changeView('iso', true)}
+              onCapture={() => void saveModelImage()}
+              capturing={capturingModel}
             />
             <div className="view-actions">
               <IconButton
@@ -5095,6 +5125,9 @@ export default function App() {
               </div>
             )}
             <Viewport
+              onCaptureReady={(capture) => {
+                captureModel.current = capture;
+              }}
               onCameraView={setView}
               onCameraProjection={setProjection}
               constraintReset={constraintReset}

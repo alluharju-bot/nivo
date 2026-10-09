@@ -18,6 +18,7 @@ export function createWorkspaceViews(
   const caps = new THREE.Group(),
     images = new THREE.Group(),
     handle = new THREE.Group();
+  handle.name = 'section-handles';
   scene.add(caps, images, handle);
   const plane = new THREE.Plane(),
     ray = new THREE.Raycaster();
