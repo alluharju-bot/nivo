@@ -190,6 +190,13 @@ it('repeats a captured push/pull opening, keeps the opposite wall and persists t
     120 * 3 * 60 - 6 * Math.PI * 4 * 3,
     4,
   );
+  expect(result.cutters).toHaveLength(5);
+  for (const cutter of result.cutters) {
+    const ys = cutter.vertices.filter((_, i) => i % 3 === 1);
+    expect(Math.min(...ys)).toBeCloseTo(0, 4);
+    expect(Math.max(...ys)).toBeCloseTo(3, 4);
+    expect(cutter.volume).toBeCloseTo(Math.PI * 4 * 3, 3);
+  }
   expect(result.meshes).toHaveLength(1);
   expect(result.meshes[0].volume).toBeCloseTo(mesh(result.bodies[0]).volume, 5);
 });

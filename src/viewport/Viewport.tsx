@@ -1,4 +1,5 @@
 import { markupSvg, updateMarkupSvg } from './markupSvg';
+import { createOpeningPreview } from './openingPreview';
 import { installKnife } from './knife';
 import { captureModelView } from './capture';
 import { annotationText } from '../model/annotationStyle';
@@ -303,6 +304,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     ghost = new THREE.Group();
   const pickPreview = new THREE.Group();
   scene.add(bodies, ghost, pickPreview);
+  const openingPreview = createOpeningPreview(scene);
   let pickPreviewKey = '';
 
   const labelRay = new THREE.Raycaster();
@@ -352,6 +354,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   const sync = () => {
     const props = current();
+    openingPreview.sync(props.opening?.cutters);
+    renderer.domElement.dataset.openingTargets = JSON.stringify(props.opening?.targets ?? []);
+    renderer.domElement.dataset.openingCutters = String(props.opening?.cutters.length ?? 0);
     renderer.shadowMap.needsUpdate = true;
     renderer.domElement.dataset.meshCount = String(props.meshes.length);
     renderer.domElement.dataset.displayModes = JSON.stringify(
@@ -392,7 +397,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const context = data.id === props.editingBodyId;
       const reference =
         (!!props.editingBodyId && !context) || (!!scopeIds && !scopeIds.has(data.id));
-      const target = props.tool === 'boolean' && props.booleanTargets.includes(data.id),
+      const target =
+          (props.tool === 'boolean' && props.booleanTargets.includes(data.id)) ||
+          !!props.opening?.targets.includes(data.id),
         cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
         auxiliary = body.purpose === 'construction' || body.purpose === 'drawing',
         constructionLine = body.purpose === 'construction' && !featureIsSolid(body.feature);
@@ -449,7 +456,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       }
       geometry.clearGroups();
       const baseMaterial: ModelMaterial =
-        display === 'solid'
+        display === 'solid' && !(target && props.opening)
           ? materialLibrary.create(body, props.assets)
           : new THREE.MeshBasicMaterial({ toneMapped: false });
       // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
@@ -1592,6 +1599,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       labels.forEach((l) => l.element.remove());
       extrusionLabels.forEach((l) => l.element.remove());
       disposeGroup(pickPreview);
+      openingPreview.dispose();
       disposeGroup(bodies);
       disposeGroup(ghost);
       workspaceViews?.dispose();
@@ -1658,6 +1666,7 @@ export function Viewport(props: Props) {
     props.epoch,
     props.booleanTargets,
     props.booleanTools,
+    props.opening,
     props.axisStyle,
     props.axisLabels,
     props.gridStep,

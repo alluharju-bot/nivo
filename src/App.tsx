@@ -1,4 +1,5 @@
 import { guideForTool } from './ui/guides/catalog';
+import { useMeasureMemory } from './ui/useMeasureMemory';
 import { GuideBoundary } from './ui/guides/GuideBoundary';
 import { hiddenItems, newlyHidden, revealItems } from './model/visibility';
 import { NewPartPrompt } from './ui/NewPartPrompt';
@@ -54,7 +55,7 @@ import { CabinetBuilder } from './ui/CabinetBuilder';
 import { insertCabinet } from './model/cabinet';
 import { useRenderJob } from './render/useRenderJob';
 import { RenderJobCard } from './ui/RenderJobCard';
-import { dimensionBodyIds } from './model/dimensions';
+import { dimensionBodyIds, pointDimensionGeometry } from './model/dimensions';
 import { flushSync } from 'react-dom';
 import {
   lazy,
@@ -353,6 +354,7 @@ function IconButton({
 export default function App() {
   const editor = useEditor();
   const { project, busy, ready } = editor;
+  const measureMemory = useMeasureMemory(project.id);
   const liveProject = useRef({ project, busy });
   liveProject.current = { project, busy };
   const [newPartId, setNewPartId] = useState<string>();
@@ -571,6 +573,7 @@ export default function App() {
     validPattern: OpeningPattern;
     normal: Vec3;
     meshes: import('./cad/protocol').BodyMesh[];
+    cutters: import('./cad/protocol').BodyMesh[];
     candidates: Body[];
     transient?: boolean;
     pending?: boolean;
@@ -963,7 +966,7 @@ export default function App() {
   }, [tool, editing, selected, selectedGroupId]);
   const offsetDistance = (() => {
     try {
-      return parseLength(fields.offset);
+      return parseLength(fields.offset, tool === 'offset');
     } catch {
       return NaN;
     }
@@ -1258,6 +1261,10 @@ export default function App() {
     );
   };
   const select = (id?: string, face?: FaceRef, additive = false, force = false) => {
+    if (openingDraft && !force) {
+      if (id) toggleOpeningTarget(id);
+      return;
+    }
     if (loftOpen && !force) {
       if (id) {
         const candidate = project.bodies.find((b) => b.id === id);
@@ -1739,6 +1746,12 @@ export default function App() {
     setBooleanOperation(operation);
   };
   const commitShape = async (candidate: Body) => {
+    const rememberSize = () => {
+      const size = (key: 'width' | 'depth') => parseLength(fieldsRef.current[key]);
+      if (tool === 'rectangle') measureMemory.remember(size('width'), size('depth'));
+      else if (tool === 'circle')
+        measureMemory.remember(size('width'), ...(shapeKind === 'ellipse' ? [size('depth')] : []));
+    };
     candidate = { ...candidate, groupId: candidate.groupId ?? openedAssembly };
     const target =
       editingBodyId && surfaceMode === 'region' && shapePurpose === 'model'
@@ -1788,7 +1801,10 @@ export default function App() {
           ? 'Pintaan tehty muotoilu.'
           : 'Pinta jaettu. Rajattu alue on valittu; paina E muokataksesi sitä.',
       );
-      if (committed) finishOperation(source.id, distance ? undefined : selectedRegion);
+      if (committed) {
+        rememberSize();
+        finishOperation(source.id, distance ? undefined : selectedRegion);
+      }
     } else if (
       await editor.transact(
         { ...project, bodies: [...project.bodies, candidate] },
@@ -1796,8 +1812,10 @@ export default function App() {
           ? 'Rakennusviiva valmis. Osan pinta säilyi; viivan pisteet tarjoavat tartunnat.'
           : 'Muoto valmis. Voit muokata pintaa E:llä tai käyttää kappaletta Cut/Join-työkalussa.',
       )
-    )
+    ) {
+      rememberSize();
       finishOperation(candidate.id);
+    }
   };
   const applyBooleanOperation = async () => {
     const targets = project.bodies.filter((b) => booleanTargets.includes(b.id)),
@@ -1859,6 +1877,7 @@ export default function App() {
         'Dimensio tallennettu.',
       )
     ) {
+      measureMemory.remember(pointDimensionGeometry(project.bodies, dimension).value);
       setDimensionDraft(undefined);
       resetGesture();
       if (tool === 'select') setSelectedDimensionIds([dimension.id]);
@@ -2063,19 +2082,24 @@ export default function App() {
           editor.setMessage('Valitse sisennettävä pinta.');
           return;
         }
-        const distance = parseLength(fieldsRef.current.offset);
+        const distance = parseLength(fieldsRef.current.offset, true);
         committing.current = true;
         let region: FaceRef | undefined;
         if (
-          await editor.transact(async () => {
-            requireMovable([source], project.groups);
-            const result = await editor.cad.offset(source, target.face, distance);
-            region = result.face;
-            return {
-              ...project,
-              bodies: project.bodies.map((b) => (b.id === source.id ? result.body : b)),
-            };
-          }, 'Sisennys valmis. E: työnnä aluetta sisään tai leikkaa läpi.')
+          await editor.transact(
+            async () => {
+              requireMovable([source], project.groups);
+              const result = await editor.cad.offset(source, target.face, distance);
+              region = result.face;
+              return {
+                ...project,
+                bodies: project.bodies.map((b) => (b.id === source.id ? result.body : b)),
+              };
+            },
+            distance < 0
+              ? 'Ulkokehä valmis. E: nosta kehä seiniksi.'
+              : 'Sisennys valmis. E: työnnä aluetta sisään tai leikkaa läpi.',
+          )
         ) {
           hoveredFaceRef.current = undefined;
           finishOperation(source.id, region);
@@ -2139,6 +2163,8 @@ export default function App() {
             return;
           }
           penRef.current = [...penRef.current, point];
+          if (penMode === 'line')
+            measureMemory.remember(Math.hypot(...sub(point, penRef.current.at(-2)!)));
           setPenPoints(penRef.current);
           clearLocks();
           writeFields({ x: '0', y: '0', z: '0', length: '0' });
@@ -2294,6 +2320,9 @@ export default function App() {
           (await editor.transact({ ...project, guides: result.guides }, label))
         ) {
           if (result.unchanged) editor.setMessage(label);
+          measureMemory.remember(
+            candidate.offset ? Math.hypot(...candidate.offset) : candidate.length,
+          );
           finishOperation();
           setSelectedGuideId(result.guide.id);
           setTab('guides');
@@ -2334,8 +2363,10 @@ export default function App() {
               id = sphere.id;
               return { ...project, bodies: [...project.bodies, sphere] };
             }, 'Pallo lisätty. Halkaisija määrää pallon koon.')
-          )
+          ) {
+            measureMemory.remember(radius * 2);
             finishOperation(id);
+          }
           return;
         }
         if (tool === 'rectangle' || tool === 'circle') {
@@ -2634,6 +2665,8 @@ export default function App() {
         return;
       }
       penRef.current = [...penRef.current, hoverRef.current ?? event.point];
+      if (penMode === 'line' && penRef.current.length > 1)
+        measureMemory.remember(Math.hypot(...sub(penRef.current.at(-1)!, penRef.current.at(-2)!)));
       setPenPoints(penRef.current);
       clearLocks();
       writeFields({ x: '0', y: '0', z: '0' });
@@ -2699,18 +2732,31 @@ export default function App() {
     );
   };
   const mergeSelected = async () => {
+    if (busy) return;
     try {
-      const candidate = mergeBodies(project.bodies.filter((b) => selectedIdSet.has(b.id)));
+      const sources = project.bodies.filter((b) => selectedIdSet.has(b.id));
+      requireMovable(sources, project.groups);
+      const planar = sources.every((b) => !featureIsSolid(b.feature));
+      let candidate: Body | undefined;
       if (
         await editor.transact(
-          {
-            ...project,
-            bodies: [...project.bodies.filter((b) => !selectedIdSet.has(b.id)), candidate],
+          async () => {
+            candidate = planar ? await editor.cad.mergePlanar(sources) : mergeBodies(sources);
+            return applyBoolean(
+              project,
+              sources.map((b) => b.id),
+              [],
+              [candidate],
+              'join',
+              false,
+            );
           },
-          'Valitut osat yhdistetty yhdeksi objektiksi. Peru palauttaa erilliset osat.',
+          planar
+            ? 'Muodot yhdistetty. Päällekkäisyydet ja sisäiset rajat poistettu. Peru palauttaa alkuperäiset muodot.'
+            : 'Valitut osat yhdistetty yhdeksi objektiksi. Peru palauttaa erilliset osat.',
         )
       )
-        select(candidate.id);
+        select(candidate!.id);
     } catch (e) {
       editor.setError((e as Error).message);
     }
@@ -2946,7 +2992,7 @@ export default function App() {
           ? [
               {
                 key: 'offset',
-                label: 'Sisennys',
+                label: 'Offset',
                 value: fields.offset,
                 unit: 'mm',
                 testId: 'offset-input',
@@ -3552,6 +3598,10 @@ export default function App() {
         openingBusy ||
         surfaceSplitDraft
       ) {
+        if (openingDraft && event.key === 'Enter') {
+          event.preventDefault();
+          void acceptOpening();
+        }
         if (event.key === 'Escape') {
           event.preventDefault();
           setCommandOpen(false);
@@ -3903,6 +3953,15 @@ export default function App() {
   )
     ? 'Vapauta valinnan Hold ennen muokkaamista.'
     : undefined;
+  const planarSelection =
+    selectedIds.length > 1 &&
+    project.bodies.filter((b) => selectedIdSet.has(b.id)).every((b) => !featureIsSolid(b.feature));
+  const canMergeSelection =
+    selectedIds.length > 1 &&
+    (planarSelection ||
+      project.bodies
+        .filter((b) => selectedIdSet.has(b.id))
+        .every((b) => featureIsSolid(b.feature)));
   const canRepeat =
     repeatStep &&
     repeatStep.revision === editor.revision() &&
@@ -4134,32 +4193,34 @@ export default function App() {
       editor.setMessage('Malli muuttui. Valitse Leikkaa aukko uudelleen.');
     }
   }, [project, openingDraft?.revision]);
-  const openingPreviewBodies = useMemo(() => {
-    if (!openingDraft || openingDraft.error) return visibleBodies;
-    const changed = new Map(openingDraft.bodies.map((b) => [b.id, b]));
-    return visibleBodies.flatMap((b) =>
-      b.id === openingDraft.profile.id
-        ? []
-        : openingDraft.included.includes(b.id)
-          ? changed.has(b.id)
-            ? [{ ...changed.get(b.id)!, locked: b.locked }]
-            : []
-          : [b],
-    );
-  }, [openingDraft, visibleBodies]);
-  const openingPreviewMeshes = useMemo(() => {
-    if (!openingDraft || openingDraft.error) return visibleMeshes;
-    const changed = new Map(openingDraft.meshes.map((m) => [m.id, m]));
-    return visibleMeshes.flatMap((m) =>
-      m.id === openingDraft.profile.id
-        ? []
-        : openingDraft.included.includes(m.id)
-          ? changed.has(m.id)
-            ? [changed.get(m.id)!]
-            : []
-          : [m],
-    );
-  }, [openingDraft, visibleMeshes]);
+  const toggleOpeningTarget = (id: string) => {
+    if (busy) return;
+    setOpeningDraft((draft) => {
+      if (!draft || !draft.affected.includes(id)) return draft;
+      const included = draft.included.includes(id)
+        ? draft.included.filter((value) => value !== id)
+        : [...draft.included, id];
+      const requested = draft.requestedTargets ?? draft.included;
+      return {
+        ...draft,
+        included,
+        requestedTargets: included.includes(id)
+          ? [...new Set([...requested, id])]
+          : requested.filter((value) => value !== id),
+      };
+    });
+  };
+  // Original geometry stays pickable, even when the cut removes a whole part.
+  const openingPreviewBodies = useMemo(
+    () =>
+      openingDraft ? visibleBodies.filter((b) => b.id !== openingDraft.profile.id) : visibleBodies,
+    [openingDraft?.profile.id, visibleBodies],
+  );
+  const openingPreviewMeshes = useMemo(
+    () =>
+      openingDraft ? visibleMeshes.filter((m) => m.id !== openingDraft.profile.id) : visibleMeshes,
+    [openingDraft?.profile.id, visibleMeshes],
+  );
   const canRepeatOpening =
     repeatOpening &&
     repeatOpening.revision === editor.revision() &&
@@ -4322,6 +4383,15 @@ export default function App() {
                           },
                         ]
                       : []),
+                  ]
+                : []),
+              ...(planarSelection
+                ? [
+                    {
+                      label: 'Yhdistä muodot',
+                      run: () => void mergeSelected(),
+                      disabled: busy || !!movementBlocked,
+                    },
                   ]
                 : []),
               ...(canRepeatOpening
@@ -4694,7 +4764,7 @@ export default function App() {
             : 'Osoita pintaa ja vedä siitä.'
           : tool === 'offset'
             ? faceTarget
-              ? 'Säädä sisennystä hiirellä tai kirjoita mitta.'
+              ? 'Vedä offsetia tai kirjoita mitta. Enter hyväksyy.'
               : 'Osoita pintaa ja napsauta tai vedä.'
             : tool === 'rectangle'
               ? awaitingStart
@@ -4864,9 +4934,9 @@ export default function App() {
                 : undefined
         }
         initialValue={
-          tool === 'move'
+          tool === 'move' || tool === 'offset'
             ? (key, character) =>
-                /^[\d.,]$/.test(character) && Number(fieldsRef.current[key as 'x' | 'y' | 'z']) < 0
+                /^[\d.,]$/.test(character) && Number(fieldsRef.current[key as keyof Fields]) < 0
                   ? `-${character}`
                   : character
             : undefined
@@ -5853,7 +5923,6 @@ export default function App() {
                 !!guidePointMenu ||
                 !!pickList ||
                 !!groupMove ||
-                !!openingDraft ||
                 openingBusy ||
                 !!surfaceSplitDraft
               }
@@ -5864,7 +5933,7 @@ export default function App() {
                 setPickList(list);
               }}
               onContextMenu={({ x, y, bodyId, guideId, dimensionId, markupId, candidates }) => {
-                if (busy) return;
+                if (busy || openingDraft) return;
                 if (markupId) {
                   if (!selectedMarkupIds.includes(markupId)) selectMarkup(markupId);
                   setActionMenu({ x, y, candidates: [] });
@@ -5916,7 +5985,7 @@ export default function App() {
               meshes={openingPreviewMeshes}
               selected={selected}
               selectedIds={loftOpen ? loftIds : selectedIds}
-              moveHoveredIds={openingDraft?.included ?? moveHoveredIds}
+              moveHoveredIds={openingDraft ? [] : moveHoveredIds}
               selectionHoveredIds={selectionHoveredIds}
               onSelectionHover={setSelectionHovered}
               onMoveHover={(id) => {
@@ -5927,7 +5996,17 @@ export default function App() {
               }}
               selectedGroupId={selectedGroupId}
               selectedFace={selectedFace}
-              tool={openingDraft ? 'navigate' : tool}
+              tool={openingDraft ? 'select' : tool}
+              opening={
+                openingDraft
+                  ? {
+                      targets: openingDraft.error ? [] : openingDraft.included,
+                      affected: openingDraft.affected,
+                      cutters: openingDraft.error ? [] : openingDraft.cutters,
+                      onToggle: toggleOpeningTarget,
+                    }
+                  : undefined
+              }
               preview={preview}
               axis={axis}
               gridSnap={gridSnap}
@@ -6046,6 +6125,9 @@ export default function App() {
                 );
               }}
               radialShape={shapeKind === 'sphere' ? 'circle' : shapeKind}
+              recentMeasures={measureMemory.values}
+              dimensionLocks={locked}
+              onRememberMeasures={measureMemory.remember}
               spherePreview={tool === 'circle' && shapeKind === 'sphere'}
               sketchFrame={shapeFrame}
               sketchTarget={sketchTarget}
@@ -6848,6 +6930,49 @@ export default function App() {
               ) : activeTool ? (
                 <>
                   <div className="tool-fields">
+                    {tool === 'offset' && faceTarget && (
+                      <div className="pen-mode" role="group" aria-label="Offsetin suunta">
+                        {(
+                          [
+                            ['Sisään', 1],
+                            ['Ulospäin', -1],
+                          ] as const
+                        ).map(([label, sign]) => (
+                          <button
+                            key={label}
+                            aria-pressed={offsetDistance * sign > 0}
+                            disabled={
+                              busy ||
+                              (sign < 0 &&
+                                !!project.bodies.find(
+                                  (b) => b.id === faceTarget.bodyId && featureIsSolid(b.feature),
+                                ))
+                            }
+                            title={
+                              sign < 0
+                                ? '2D-muodon ulkokehä; miinusmitta tarkoittaa ulospäin'
+                                : 'Pinnan sisennys'
+                            }
+                            onClick={() => {
+                              field(
+                                'offset',
+                                String(
+                                  sign *
+                                    (Number.isFinite(offsetDistance)
+                                      ? Math.abs(offsetDistance)
+                                      : 18),
+                                ),
+                              );
+                              document
+                                .querySelector<HTMLCanvasElement>('canvas[data-testid="viewport"]')
+                                ?.focus();
+                            }}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {tool === 'offset' && offsetPreview.error && (
                       <p role="status" className="muted">
                         {offsetPreview.error}
@@ -7447,48 +7572,58 @@ export default function App() {
                           </div>
                         </>
                       )}
-                      {mode === 'model' && (
-                        <details className="inspector-disclosure">
-                          <summary>Muotoilutoiminnot</summary>
-                          <div className="selection-actions object-quick-actions">
-                            {mode === 'model' && (
-                              <>
-                                <button
-                                  className="button outlined"
-                                  disabled={busy || !!movementBlocked}
-                                  onClick={() => begin('boolean')}
-                                >
-                                  <Scissors size={17} />
-                                  Cut / Join
-                                </button>
-                                <button
-                                  className="button outlined"
-                                  disabled={busy || !!movementBlocked}
-                                  onClick={() => begin('extrude')}
-                                >
-                                  <ArrowUpFromLine size={17} />
-                                  Muokkaa pintaa
-                                </button>
-                                <button
-                                  className="button outlined"
-                                  aria-label="Yhdistä valitut"
-                                  disabled={
-                                    busy ||
-                                    selectedIds.length < 2 ||
-                                    project.bodies
-                                      .filter((b) => selectedIdSet.has(b.id))
-                                      .some((b) => !featureIsSolid(b.feature))
-                                  }
-                                  onClick={() => void mergeSelected()}
-                                >
-                                  <Merge size={15} />
-                                  Yhdistä {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </details>
-                      )}
+                      {mode === 'model' &&
+                        (planarSelection ? (
+                          <button
+                            className="button outlined full"
+                            disabled={busy || !!movementBlocked}
+                            onClick={() => void mergeSelected()}
+                          >
+                            <Merge size={15} /> Yhdistä muodot
+                          </button>
+                        ) : (
+                          <details className="inspector-disclosure">
+                            <summary>Muotoilutoiminnot</summary>
+                            <div className="selection-actions object-quick-actions">
+                              {mode === 'model' && (
+                                <>
+                                  <button
+                                    className="button outlined"
+                                    disabled={busy || !!movementBlocked}
+                                    onClick={() => begin('boolean')}
+                                  >
+                                    <Scissors size={17} />
+                                    Cut / Join
+                                  </button>
+                                  <button
+                                    className="button outlined"
+                                    disabled={busy || !!movementBlocked}
+                                    onClick={() => begin('extrude')}
+                                  >
+                                    <ArrowUpFromLine size={17} />
+                                    Muokkaa pintaa
+                                  </button>
+                                  <button
+                                    className="button outlined"
+                                    aria-label="Yhdistä valitut"
+                                    disabled={
+                                      busy ||
+                                      selectedIds.length < 2 ||
+                                      project.bodies
+                                        .filter((b) => selectedIdSet.has(b.id))
+                                        .some((b) => !featureIsSolid(b.feature))
+                                    }
+                                    onClick={() => void mergeSelected()}
+                                  >
+                                    <Merge size={15} />
+                                    Yhdistä{' '}
+                                    {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </details>
+                        ))}
                       <ModelMaterials
                         key={`material:${colorContext}`}
                         onPreviewColor={(color) =>
@@ -7617,12 +7752,8 @@ export default function App() {
                       onEdit={() => openAssembly(selectedGroup.id)}
                       onUnique={makeUnique}
                       canUnique={groupBodies(project, selectedGroup.id).some((b) => b.component)}
-                      canMerge={
-                        selectedIds.length > 1 &&
-                        project.bodies
-                          .filter((b) => selectedIdSet.has(b.id))
-                          .every((b) => featureIsSolid(b.feature))
-                      }
+                      canMerge={canMergeSelection && !movementBlocked}
+                      mergeLabel={planarSelection ? 'Yhdistä muodot' : undefined}
                     />
                   )}
                   <div className="panel-footer">
@@ -7693,7 +7824,13 @@ export default function App() {
         </SelectionDialog>
       )}
       {openingDraft && (
-        <SelectionDialog side title="Leikkaa aukko" onClose={() => !busy && cancelOpening()}>
+        <SelectionDialog
+          side
+          interactive
+          title="Leikkaa aukko"
+          onClose={() => !busy && cancelOpening()}
+          onAccept={() => void acceptOpening()}
+        >
           <OpeningPatternFields
             value={openingDraft.pattern}
             busy={busy}
@@ -7702,7 +7839,13 @@ export default function App() {
               setOpeningDraft({ ...openingDraft, pattern, pending: true, error: undefined });
             }}
           />
-          <p>Korostetut osat ja niiden linkitetyt kopiot muuttuvat. Hold estää muokkaamisen.</p>
+          <p>
+            Napsauta osaa mallissa tai listassa lisätäksesi tai poistaaksesi sen kohteista. Sininen
+            = kohde, punainen = leikkausmuoto.
+          </p>
+          <p className="muted">
+            Myös kohteiden linkitetyt kopiot muuttuvat. Hold estää muokkaamisen.
+          </p>
           {openingDraft.pending && <p role="status">Päivitetään aukkosarjaa…</p>}
           {openingDraft.error && <p role="alert">{openingDraft.error}</p>}
           {!openingDraft.pending && !openingDraft.error && !openingDraft.affected.length && (
@@ -7715,19 +7858,7 @@ export default function App() {
                   type="checkbox"
                   checked={openingDraft.included.includes(id)}
                   disabled={busy}
-                  onChange={(e) =>
-                    setOpeningDraft({
-                      ...openingDraft,
-                      requestedTargets: e.target.checked
-                        ? [...(openingDraft.requestedTargets ?? openingDraft.included), id]
-                        : (openingDraft.requestedTargets ?? openingDraft.included).filter(
-                            (v) => v !== id,
-                          ),
-                      included: e.target.checked
-                        ? [...openingDraft.included, id]
-                        : openingDraft.included.filter((v) => v !== id),
-                    })
-                  }
+                  onChange={() => toggleOpeningTarget(id)}
                 />
                 {project.bodies.find((b) => b.id === id)?.name}
               </label>

@@ -16,7 +16,7 @@ export function useOffsetOutline(
   const running = useRef(false);
   useEffect(() => {
     const request =
-      body && face && Number.isFinite(distance) && distance >= 0.1
+      body && face && Number.isFinite(distance) && Math.abs(distance) >= 0.1
         ? { body, face, distance }
         : undefined;
     next.current = request;

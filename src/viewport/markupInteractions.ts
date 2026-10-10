@@ -19,6 +19,7 @@ export function markupInteractions({
   pick,
   start,
   pointOnFrame,
+  rectanglePoint,
   viewNormal,
 }: {
   current: () => ViewportProps;
@@ -29,6 +30,7 @@ export function markupInteractions({
     e: PointerEvent,
   ) => { point: Vec3; frame: SketchFrame; automaticNormal?: Vec3 } | undefined;
   pointOnFrame: (e: PointerEvent, f: SketchFrame, snap: boolean) => Vec3 | undefined;
+  rectanglePoint?: (e: PointerEvent, f: SketchFrame, corner: Vec3, point: Vec3) => Vec3;
   viewNormal: () => Vec3;
 }) {
   let epoch = -1,
@@ -151,8 +153,9 @@ export function markupInteractions({
       return;
     }
     if (area && corner) {
-      const p = pointOnFrame(e, area.frame, true);
+      let p = pointOnFrame(e, area.frame, true);
       if (!p) return;
+      p = rectanglePoint?.(e, area.frame, corner, p) ?? p;
       const a = toUV(corner, area.frame),
         b = toUV(p, area.frame);
       const r: [number, number, number, number] = [
@@ -178,6 +181,8 @@ export function markupInteractions({
   };
   const finishRect = () => {
     if (preview?.kind === 'area' && area && preview.rectangles.length > area.rectangles.length) {
+      const r = preview.rectangles.at(-1)!;
+      current().onRememberMeasures?.(r[2] - r[0], r[3] - r[1]);
       area = preview;
       corner = undefined;
       publish(area);

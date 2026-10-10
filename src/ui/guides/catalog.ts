@@ -178,7 +178,7 @@ export const toolGuides = [
         'Enter',
       ),
     ],
-    tip: 'Jatka E:llä: työnnä sisäalue sisään esimerkiksi kaappirungoksi. Muun kehyksen kuuluu säilyä.',
+    tip: 'Jatka E:llä: työnnä sisäalue sisään esimerkiksi kaappirungoksi. Tasomuodolle Ulospäin tai miinusmitta tekee ulkokehän, jonka voi nostaa seiniksi. Alkuperäinen pinta säilyy.',
   },
   {
     id: 'move',

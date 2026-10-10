@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseLength } from '../model/units';
 import type { OpeningPattern } from '../model/openingPattern';
 
 export function OpeningPatternFields({
@@ -13,7 +14,7 @@ export function OpeningPatternFields({
   const [fields, setFields] = useState({
     count: String(value.count),
     spacing: String(value.spacing),
-    depth: String(value.depth ?? 3),
+    depth: value.depth === undefined ? '' : String(value.depth),
   });
   const number = (s: string) => (s.trim() ? Number(s.replace(',', '.')) : NaN);
   const field = (key: keyof typeof fields, label: string) => (
@@ -24,15 +25,26 @@ export function OpeningPatternFields({
         inputMode="decimal"
         value={fields[key]}
         disabled={busy}
+        placeholder={key === 'depth' ? 'Läpi' : undefined}
         onChange={(e) => {
           setFields({ ...fields, [key]: e.target.value });
-          onChange({ ...value, [key]: number(e.target.value) });
+          let parsed: number | undefined = number(e.target.value);
+          if (key === 'depth') {
+            try {
+              parsed = e.target.value.trim() ? parseLength(e.target.value) : undefined;
+            } catch {
+              parsed = NaN;
+            }
+          }
+          onChange({ ...value, [key]: parsed });
         }}
       />
     </label>
   );
   return (
     <section aria-label="Aukkosarja" className="opening-pattern-fields">
+      {field('depth', 'Leikkaussyvyys · mm')}
+      <p className="muted">Tyhjä = läpi. Syvyys mitataan piirretyn muodon tasosta sisään.</p>
       {field('count', value.first ? 'Lisäaukkoja' : 'Aukkoja yhteensä')}
       {(value.count !== 1 || !!value.first) && (
         <>
@@ -57,24 +69,6 @@ export function OpeningPatternFields({
           <p className="muted">Keskipisteestä keskipisteeseen. Miinusmerkki vaihtaa suunnan.</p>
         </>
       )}
-      <label className="modeling-field">
-        Leikkauksen syvyys
-        <select
-          aria-label="Leikkauksen syvyys"
-          value={value.depth === undefined ? 'through' : 'depth'}
-          disabled={busy}
-          onChange={(e) =>
-            onChange({
-              ...value,
-              depth: e.target.value === 'through' ? undefined : number(fields.depth),
-            })
-          }
-        >
-          <option value="through">Kaikkien valittujen osien läpi</option>
-          <option value="depth">Annettu syvyys pinnasta sisään</option>
-        </select>
-      </label>
-      {value.depth !== undefined && field('depth', 'Leikkaussyvyys · mm')}
     </section>
   );
 }

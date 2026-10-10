@@ -3,6 +3,26 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.31.0** lisää **mittamuistin**, tasomuotojen yhdistämisen ja ulospäin
+tehtävän offsetin sekä selkeyttää **Leikkaa aukko** -työkalua:
+
+- Viisi viimeistä erilaista mittaa tarjoaa kevyen tartunnan kynälle, mitta- ja
+  apuviivoille, suorakulmioille, pinta-alueille ja ympyrä-/ellipsi-/monikulmiotyökalulle.
+  Kohdistimen **mittamuisti**-vihje kertoo ehdotuksesta. Todellinen tartuntakohde,
+  Shift-viite ja kirjoitettu mitta ovat ensisijaisia; **Alt** ohittaa muistiehdotukset.
+  Myös esimerkiksi 98 mm toimii 10 mm ruudukossa. Muisti säilyy sivupäivityksessä
+  saman projektin ja selainvälilehden istunnon ajan.
+- Valitse samalla tasolla olevat täytetyt muodot ja paina **Yhdistä muodot**
+  oikealta tai kohdevalikosta. Päällekkäisyydet ja sisärajat poistuvat; tarkat
+  kaaret ja reiät säilyvät. Irralliset alueet pysyvät erillisinä pintoina samassa osassa.
+- **O → Ulospäin** tai ulospäin veto tekee 2D-muodolle uuden ulkokehän.
+  Miinusmitta tarkoittaa ulospäin. Kehä on valittuna: **E** nostaa siitä seinät,
+  ja alkuperäinen lattia säilyy. Tämä toimii myös yhdistetyllä huoneen muodolla.
+- **Leikkaa aukko**: napsauta kohteita mallissa tai valitse ne listasta.
+  Sininen korostaa kohteet; punainen läpikuultava leikkausmuoto näyttää suunnan ja
+  syvyyden. Suoraan näkyvä **Leikkaussyvyys** rajaa työstön muodon tasosta sisään;
+  tyhjä kenttä tarkoittaa läpileikkausta. Esikatselua voi kiertää ja zoomata.
+
 Versio **0.30.1** korjaa suorakulmion numerosyötön: ensimmäinen napsautettu
 kulma pysyy paikallaan myös negatiivisissa piirtosuunnissa, kun leveyttä ja
 syvyyttä muutetaan ja kenttää vaihdetaan Tabilla.

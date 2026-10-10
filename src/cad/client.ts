@@ -106,6 +106,9 @@ export class CadClient {
   boolean(targets: Body[], tools: Body[], operation: 'cut' | 'join') {
     return this.request<Body[]>({ type: 'boolean', targets, tools, operation });
   }
+  mergePlanar(bodies: Body[]) {
+    return this.request<Body>({ type: 'merge-planar', bodies });
+  }
   sphere(center: Vec3, radius: number, name: string) {
     return this.request<Body>({ type: 'sphere', center, radius, name });
   }

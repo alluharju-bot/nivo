@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Shapes,
   Square,
@@ -87,6 +87,36 @@ export function ToolRail({
   const menu = useRef<HTMLDivElement>(null);
   const measureTrigger = useRef<HTMLButtonElement>(null);
   const measureList = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const list = measureList.current,
+      trigger = measureTrigger.current;
+    if (!measureMenu || !list || !trigger) return;
+    const place = () => {
+      const rect = trigger.getBoundingClientRect();
+      const x =
+        dock === 'left'
+          ? rect.right + 8
+          : dock === 'right'
+            ? rect.left - list.offsetWidth - 8
+            : rect.left;
+      const y =
+        dock === 'top'
+          ? rect.bottom + 8
+          : dock === 'bottom'
+            ? rect.top - list.offsetHeight - 8
+            : rect.top;
+      list.style.left = `${Math.max(8, Math.min(x, window.innerWidth - list.offsetWidth - 8))}px`;
+      list.style.top = `${Math.max(8, Math.min(y, window.innerHeight - list.offsetHeight - 8))}px`;
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(list);
+    window.addEventListener('resize', place);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', place);
+    };
+  }, [measureMenu, dock]);
   useEffect(() => {
     if (!open && !measureMenu) return;
     const activeMenu = open ? menu.current : measureList.current;
@@ -383,25 +413,7 @@ export function ToolRail({
           className="shape-menu measure-menu"
           role="menu"
           aria-label="Mittatyökalun tila"
-          style={{
-            position: 'fixed',
-            left: Math.min(
-              window.innerWidth - 268,
-              Math.max(
-                8,
-                (measureTrigger.current?.getBoundingClientRect().left ?? 0) +
-                  (dock === 'left' ? 30 : dock === 'right' ? -268 : 0),
-              ),
-            ),
-            top: Math.min(
-              window.innerHeight - 270,
-              Math.max(
-                8,
-                (measureTrigger.current?.getBoundingClientRect().top ?? 0) +
-                  (dock === 'top' ? 64 : dock === 'bottom' ? -270 : 0),
-              ),
-            ),
-          }}
+          style={{ position: 'fixed' }}
         >
           <strong>Mittatyökalut</strong>
           {measureOptions.map((mode) => (

@@ -5,11 +5,15 @@ export function SelectionDialog({
   children,
   onClose,
   side = false,
+  interactive = false,
+  onAccept,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   side?: boolean;
+  interactive?: boolean;
+  onAccept?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -21,7 +25,7 @@ export function SelectionDialog({
   }, []);
   return (
     <div
-      className={`command-backdrop selection-backdrop${side ? ' side' : ''}`}
+      className={`command-backdrop selection-backdrop${side ? ' side' : ''}${interactive ? ' interactive' : ''}`}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -30,13 +34,17 @@ export function SelectionDialog({
         className="selection-dialog"
         ref={host}
         role="dialog"
-        aria-modal="true"
+        aria-modal={!interactive}
         aria-label={title}
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === 'Escape') {
             e.preventDefault();
             onClose();
+          }
+          if (e.key === 'Enter' && onAccept && (e.target as HTMLElement).tagName === 'INPUT') {
+            e.preventDefault();
+            onAccept();
           }
           if (e.key === 'Tab') {
             const items = [

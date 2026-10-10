@@ -78,6 +78,9 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  recentMeasures?: readonly number[];
+  dimensionLocks?: ReadonlySet<string>;
+  onRememberMeasures?: (...values: number[]) => void;
   onCaptureReady?: (capture?: () => Promise<Blob>) => void;
   editingTexture?: { id: string; texture: TexturePlacement };
   colorPreview?: ColorPreview;
@@ -234,6 +237,12 @@ export interface ViewportProps {
   onSketchPlane: (frame: SketchFrame, target?: FaceTarget) => void;
   booleanTargets: string[];
   booleanTools: string[];
+  opening?: {
+    targets: string[];
+    affected: string[];
+    cutters: BodyMesh[];
+    onToggle: (id: string) => void;
+  };
   pickDepth: boolean;
   onDepthPicked: (distance: number) => void;
 }

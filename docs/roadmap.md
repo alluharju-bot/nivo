@@ -2,6 +2,56 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.31.0 — mittamuisti, huoneen muodot ja aukon esikatselu, 10.10.2026
+
+- Viisi viimeisintä erilaista mittaa yhteisessä, projektikohtaisessa mittamuistissa.
+  Suorakulmioiden/pinta-alueiden sivut, ympyröiden ja muiden sädemuotojen halkaisijat,
+  kynän hyväksytyt suorat segmentit, mittaviivojen pituudet ja apuviivojen etäisyydet
+  opettavat muistia. Myös tallennettu kahden pisteen dimensio antaa mittansa muistiin.
+  Muistin ehdotukset toimivat piirrettäessä muotoja, kynän suoria viivoja sekä mitta-
+  ja apuviivoja. Dimensio merkitsee edelleen käyttäjän valitsemat todelliset pisteet.
+- Tartunta on pieni ruutupikseleissä mitattu alue, jonka fyysinen enimmäispoikkeama
+  on rajattu. Lähemmäs zoomaaminen tarkentaa ehdotusaluetta. Osoitettu geometria,
+  risteykset, viitteet ja tarkka numerosyöttö voittavat muistiehdotukset. Shift
+  säilyy viitehakuna; Alt ohittaa muistin. Ruudukko ei pyöristä muistista poimittua
+  98 mm mittaa sadaksi. Muisti ei muuta akselia tai piirron aloituskulmaa.
+- Muisti tallentuu `sessionStorageen` projektin tunnisteella. Sivupäivitys säilyttää
+  sen; toinen projekti ei sekoita mittoja. Muisti ei lisää historiatapahtumia,
+  eikä Peru poista viimeksi käytettyä mittaa. Kokonaista projektia ei skannata
+  hiirtä liikutettaessa. Projektitiedoston formaatti ei muutu.
+- **Yhdistä muodot** tekee tarkan CAD-unionin samalla tasolla olevista täytetyistä
+  suorakulmioista, ympyröistä ja monikulmioista. Sisärajat ja päällekkäisyydet
+  poistuvat, reiät ja kaaret säilyvät. Vastakkaiset pintanormaalit yhtenäistetään.
+  Erilliset saarekkeet jäävät saman osan erillisiksi pinnoiksi. Eri tasot,
+  avoimet viivat, tilavuuskappaleet ja lukitus tarkistetaan ennen muutosta.
+- 2D-muodon **Offset ulospäin** säilyttää alkuperäiset pinnanjaot ja reiät sekä
+  luo ulkokehän omaksi muokattavaksi alueekseen. Uusi kehä jää valituksi E:tä
+  varten. Ulospäin voi vetää hiirellä tai valita suunnan ja kirjoittaa mitan.
+  Sisään/Ulospäin, esikatselu, Peru/Palauta ja projektin tallennus toimivat yhdessä.
+  Ulospäin tehtävä offset on tässä versiossa rajattu paksuudettomiin tasopintoihin.
+- **Leikkaa aukko** sallii mallissa kohteiden napsauttamisen päälle/pois sekä
+  saman valinnan listasta. Alkuperäinen osa pysyy poimittavana myös aukon kohdalta
+  tai koko osan poistavassa leikkauksessa. Kameraa voi kiertää ja zoomata.
+  Kohteet ovat sinisiä, leikkausmuoto punainen ja läpikuultava. Syvyys näkyy
+  leikkausmuodon pituutena myös aukkosarjoissa. Leikkaussyvyys on suoraan näkyvä
+  kenttä; tyhjä = läpi. Syvyysrajan ulkopuoliset osat ohitetaan ennen CAD-leikkausta.
+  Syvyyden muuttaminen säilyttää käsin valitut kohteet, ja historia tallentaa
+  kohteet, syvyyden, sarjan sekä muodon. Linkitettyjen kopioiden käytös säilyy;
+  Tee kohteista uniikkeja rajaa muokkauksen valittuihin osiin.
+- Mittatyökalun valikko sijoitetaan todellisen korkeutensa perusteella, jotta
+  uudet Pinta-ala/Huomautus-rivit eivät jää ruudun ulkopuolelle eri telakoinneissa.
+
+## Seuraavaksi — mittamuistin laajennus
+
+- Projektin yleiset mitat: laske välimuisti mallin muuttuessa, ei hiiriliikkeissä.
+  Näytä alkuperä selkeästi ja pidä ehdotusten määrä pienenä. Arvioi istuntoa
+  pidempi muistaminen käytön perusteella.
+- Kokonaisten muotojen muistaminen omana jatkona: säilytä mitat, muotosuhteet ja
+  tarvittaessa kaaret/profiili. Monimutkaista muotoa ei korvata automaattisesti
+  toisenlaisella; uudelleenkäytön pitää olla ennakoitavaa.
+- Perustyökalujen luotettavuus ennen uusia havainneanimaatioita: Push/Pull,
+  Offset, mitta-/apuviivat, pyöristys/viiste, Cut/Join, kopiointi/toisto ja aukot.
+
 ## V0.30.1 — suorakulmion aloituskulma, 10.10.2026
 
 - Suorakulmion ensimmäinen napsautettu kulma säilyy, kun leveyttä tai syvyyttä

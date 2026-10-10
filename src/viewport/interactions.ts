@@ -1,4 +1,5 @@
 import { markupInteractions } from './markupInteractions';
+import { memoryMaySnap, nearestRememberedMeasure } from '../model/measureMemory';
 import { bodyDisplayMode } from '../model/display';
 import { dimensionAt, dimensionBoxSelection } from './dimensionPicking';
 import type { GuideEndpoint } from '../model/guideEditing';
@@ -419,14 +420,16 @@ export function installInteractions({
     const { target, direction, initial } = offsetSession;
     const point = framePoint(event, sketchFrame(target.point, target.normal));
     if (!point) return;
-    const distance = Math.max(
-      current().gridSnap ? current().gridStep : 0.1,
-      gridLength(
-        initial + dot(sub(point, target.point), direction),
-        current().gridStep,
-        current().gridSnap,
-      ),
+    const rawDistance = gridLength(
+      initial + dot(sub(point, target.point), direction),
+      current().gridStep,
+      current().gridSnap,
     );
+    const source = current().bodies.find((b) => b.id === target.bodyId);
+    const distance =
+      source && !featureIsSolid(source.feature)
+        ? rawDistance
+        : Math.max(current().gridSnap ? current().gridStep : 0.1, rawDistance);
     current().onGesture({ type: 'offset', distance });
     highlightFace(target);
   };
@@ -466,6 +469,76 @@ export function installInteractions({
           cam.position.distanceTo(new THREE.Vector3(...point)) *
           Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))) /
           container.clientHeight;
+  };
+  const memoryEnabled = (event: PointerEvent, key = canvas.dataset.snapKey ?? '') =>
+    !event.shiftKey && !event.altKey && memoryMaySnap(key) && !!current().recentMeasures?.length;
+  const memoryValue = (value: number, position: (n: number) => Vec3) => {
+    const raw = screen(position(value));
+    return nearestRememberedMeasure(value, current().recentMeasures ?? [], (n) => {
+      const candidate = screen(position(n));
+      return Math.hypot(candidate.x - raw.x, candidate.y - raw.y);
+    });
+  };
+  const showMemory = (point: Vec3, values: number[], start: Vec3) =>
+    show({
+      point,
+      key: 'recent-measure',
+      label: `${values.map(formatLength).join(' × ')} mm · mittamuisti`,
+      line: [start, point],
+    });
+  const rememberLine = (
+    start: Vec3,
+    point: Vec3,
+    event: PointerEvent,
+    raw = point,
+    key?: string,
+  ): Vec3 => {
+    if (
+      !memoryEnabled(event, key) ||
+      current().dimensionLocks?.size ||
+      (current().tool === 'pen' && current().penMode !== 'line')
+    )
+      return point;
+    const delta = sub(point, start);
+    if (Math.hypot(...delta) < 1e-6) return point;
+    const direction = unit(delta);
+    // Evaluate the unsnapped pointer distance, so a 10 mm grid cannot hide 98 mm.
+    const value = dot(sub(raw, start), direction);
+    const position = (n: number) => add(start, scale(direction, n));
+    const remembered = memoryValue(value, position);
+    if (remembered === undefined) return point;
+    const end = position(remembered);
+    showMemory(end, [remembered], start);
+    return end;
+  };
+  const rememberRectangle = (
+    start: Vec3,
+    point: Vec3,
+    raw: Vec3,
+    frame: SketchFrame,
+    event: PointerEvent,
+  ): Vec3 => {
+    if (!memoryEnabled(event)) return point;
+    const relative = { ...frame, origin: start },
+      delta = toUV(point, relative),
+      unsnapped = toUV(raw, relative);
+    const values: number[] = [];
+    for (const i of [0, 1] as const) {
+      if (current().dimensionLocks?.has(i === 0 ? 'width' : 'depth')) continue;
+      const sign = Math.sign(unsnapped[i]) || 1;
+      const remembered = memoryValue(Math.abs(unsnapped[i]), (n) => {
+        const uv: [number, number] = [...delta];
+        uv[i] = sign * n;
+        return fromUV(uv, relative);
+      });
+      if (remembered !== undefined) {
+        delta[i] = sign * remembered;
+        values.push(remembered);
+      }
+    }
+    const end = fromUV(delta, relative);
+    if (values.length) showMemory(end, values, start);
+    return end;
   };
   const startExtrusion = (target: FaceTarget, event: PointerEvent, distance = 0) => {
     // Fix the drag mapping for the gesture. A moving perspective ray can become
@@ -574,7 +647,7 @@ export function installInteractions({
           label: `${axis.axis.toUpperCase()} · akselin suunta`,
           line: [start, axis.point],
         });
-        return axis.point;
+        return event ? rememberLine(start, axis.point, event, point) : axis.point;
       }
     }
     const snapped = snapOnSketchPlane(
@@ -594,7 +667,9 @@ export function installInteractions({
       p.tool === 'pen' ? 5 : Infinity,
     );
     show(snapped);
-    return snapped.point;
+    return p.tool === 'pen' && start && event
+      ? rememberLine(start, snapped.point, event, point)
+      : snapped.point;
   };
   // Occlusion tolerance is physical: zooming out must not expose rear corners of a thin board.
   const occlusionTolerance = (point: Vec3) =>
@@ -1872,9 +1947,11 @@ export function installInteractions({
                 frame,
               )
             : point;
-        if (grid) show({ point: p, key: 'area-corner', label: 'Alueen kulma' });
+        if (grid) show({ point: p, key: 'grid', label: 'Alueen kulma' });
         return p;
       }),
+    rectanglePoint: (event, frame, corner, point) =>
+      rememberRectangle(corner, point, framePoint(event, frame) ?? point, frame, event),
     viewNormal: () => camera().getWorldDirection(new THREE.Vector3()).negate().toArray() as Vec3,
   });
   let markupCommandId: number | undefined;
@@ -2480,6 +2557,8 @@ export function installInteractions({
         referenceMarker.material.size = 16;
         render();
       }
+      if (!picked)
+        point = rememberLine(start, point, event, linePoint(event, start, direction), 'axis');
       props.onPenHover(point);
       lastPenPoint = point;
       return point;
@@ -2503,7 +2582,7 @@ export function installInteractions({
     const plane = workPlane();
     const raw = planePoint(event, plane, start ?? [0, 0, 0]);
     if (!raw) return;
-    const point = snap(raw, plane, undefined, start);
+    const point = rememberLine(start, snap(raw, plane, undefined, start), event, raw);
     props.onPenHover(point);
     lastPenPoint = point;
     return point;
@@ -2592,7 +2671,7 @@ export function installInteractions({
           ? projectOnLine(target.point, start, direction)
           : linePoint(event, start, direction);
         const distance = dot(sub(projected, start), direction);
-        const end = target
+        let end = target
           ? projected
           : add(start, scale(direction, gridLength(distance, props.gridStep, props.gridSnap)));
         measureSession.end = end;
@@ -2611,6 +2690,8 @@ export function installInteractions({
           referenceMarker.material.size = 16;
           render();
         }
+        if (!target) end = rememberLine(start, end, event, projected, 'axis');
+        measureSession.end = end;
         props.onGesture({
           type: 'measure',
           anchor: measureSession.anchor,
@@ -2660,12 +2741,15 @@ export function installInteractions({
           ? Math.hypot(...sub(point, projectOnLine(point, start, axis))) < 1e-5
           : Math.abs(dot(sub(point, start), normal)) < 1e-5,
       );
+      const unsnapped = raw;
+      let snapKey = 'edge-offset';
       if (target) raw = target.point;
       else if (!axis && measureSession.frame) raw = frameSnap(raw, measureSession.frame);
+      if (!axis && measureSession.frame && !target) snapKey = canvas.dataset.snapKey ?? '';
       let offset = axis ? sub(raw, start) : sub(raw, projectOnLine(raw, start, direction));
       if (axis && props.gridSnap && !target)
         offset = scale(axis, Math.round(dot(offset, axis) / props.gridStep) * props.gridStep);
-      const end = add(start, offset);
+      let end = add(start, offset);
       const offsetNormal = cross(direction, offset);
       if (Math.hypot(...offsetNormal) > 1e-8) plane = normalPlane(offsetNormal);
       show(
@@ -2681,6 +2765,10 @@ export function installInteractions({
         },
         plane,
       );
+      if (!target) {
+        end = rememberLine(start, end, event, unsnapped, snapKey);
+        offset = sub(end, start);
+      }
       props.onGesture({
         type: 'measure',
         anchor: measureSession.anchor,
@@ -2710,7 +2798,7 @@ export function installInteractions({
           : planePoint(event, plane, base));
     if (!raw) return;
     const normal = axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
-    const end =
+    let end =
       target?.point ??
       (axis
         ? add(
@@ -2736,6 +2824,7 @@ export function installInteractions({
         plane,
       );
     const from = props.freeRotate ? base : start;
+    if (!target && !props.freeRotate) end = rememberLine(from, end, event, raw);
     measureSession.end = end;
     const direction =
       (!isEdge && axis) ||
@@ -2858,6 +2947,7 @@ export function installInteractions({
     });
   };
   let pickingOther = false;
+  let openingPress: { id?: string; x: number; y: number; pointer: number } | undefined;
   const down = (event: PointerEvent) => {
     pickingOther = false;
     if (event.button === 2) contextStart = { x: event.clientX, y: event.clientY };
@@ -2887,6 +2977,17 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.modalOpen) return;
+    if (props.opening) {
+      openingPress = {
+        id: faceAt(event)?.target.bodyId,
+        x: event.clientX,
+        y: event.clientY,
+        pointer: event.pointerId,
+      };
+      canvas.focus({ preventScroll: true });
+      canvas.setPointerCapture(event.pointerId);
+      return;
+    }
     if (markups.down(event)) {
       // Placement can focus the text editor before the browser's default mousedown.
       // Preserve that focus; the markup controller focuses the canvas itself when drawing.
@@ -3421,6 +3522,23 @@ export function installInteractions({
     const props = current();
     if (props.modalOpen) return;
     if (blocked || props.busy) return;
+    if (props.opening) {
+      highlightFace();
+      highlightEdge();
+      const target = faceAt(event)?.target;
+      if (target)
+        show({
+          point: target.point,
+          key: 'opening-target',
+          label: props.opening.affected.includes(target.bodyId)
+            ? props.opening.targets.includes(target.bodyId)
+              ? 'Poista leikkauksen kohteista'
+              : 'Lisää leikkauksen kohteisiin'
+            : 'Leikkausmuoto ei osu tähän osaan',
+        });
+      else show();
+      return;
+    }
     if (drag?.selection) {
       if (drag.moved) boxSelection(event);
       highlightFace();
@@ -3558,9 +3676,10 @@ export function installInteractions({
         start = shapeSession.start;
       const raw = framePoint(event, sketch);
       if (!raw) return;
-      const end = frameSnap(raw, sketch, props.tool === 'rectangle' ? start : undefined, event),
-        relative = { ...sketch, origin: start },
-        delta = toUV(end, relative);
+      let end = frameSnap(raw, sketch, props.tool === 'rectangle' ? start : undefined, event);
+      const relative = { ...sketch, origin: start };
+      if (props.tool === 'rectangle') end = rememberRectangle(start, end, raw, sketch, event);
+      let delta = toUV(end, relative);
       let width =
           props.tool === 'circle'
             ? 2 * (props.radialShape === 'ellipse' ? Math.abs(delta[0]) : Math.hypot(...delta))
@@ -3569,6 +3688,41 @@ export function installInteractions({
       if (props.tool === 'circle' && props.gridSnap && canvas.dataset.snapKey === 'grid') {
         width = gridLength(width, props.gridStep);
         depth = gridLength(depth, props.gridStep);
+      }
+      if (props.tool === 'circle' && memoryEnabled(event)) {
+        const unsnapped = toUV(raw, relative),
+          values: number[] = [];
+        if (props.radialShape === 'ellipse') {
+          for (const i of [0, 1] as const) {
+            if (props.dimensionLocks?.has(i === 0 ? 'width' : 'depth')) continue;
+            const sign = Math.sign(unsnapped[i]) || 1;
+            const size = memoryValue(Math.abs(unsnapped[i]) * 2, (n) => {
+              const uv: [number, number] = [...delta];
+              uv[i] = (sign * n) / 2;
+              return fromUV(uv, relative);
+            });
+            if (size !== undefined) {
+              delta[i] = (sign * size) / 2;
+              if (i === 0) width = size;
+              else depth = size;
+              values.push(size);
+            }
+          }
+        } else if (!props.dimensionLocks?.has('width') && Math.hypot(...unsnapped) > 1e-6) {
+          const diameter = 2 * Math.hypot(...unsnapped);
+          const position = (n: number) =>
+            fromUV([(unsnapped[0] * n) / diameter, (unsnapped[1] * n) / diameter], relative);
+          const size = memoryValue(diameter, position);
+          if (size !== undefined) {
+            width = size;
+            delta = toUV(position(size), relative);
+            values.push(size);
+          }
+        }
+        if (values.length) {
+          end = fromUV(delta, relative);
+          showMemory(end, values, start);
+        }
       }
 
       props.onGesture({
@@ -3737,6 +3891,21 @@ export function installInteractions({
     }
   };
   const up = (event: PointerEvent) => {
+    if (current().opening) {
+      if (
+        openingPress?.pointer === event.pointerId &&
+        !blocked &&
+        !current().busy &&
+        Math.hypot(event.clientX - openingPress.x, event.clientY - openingPress.y) < 5 &&
+        openingPress.id
+      )
+        current().opening!.onToggle(openingPress.id);
+      openingPress = undefined;
+      contextStart = undefined;
+      pointers.delete(event.pointerId);
+      if (!pointers.size) blocked = false;
+      return;
+    }
     if (pickingOther || current().modalOpen) {
       pickingOther = false;
       pointers.delete(event.pointerId);
@@ -3956,6 +4125,7 @@ export function installInteractions({
     if (!pointers.size) blocked = false;
   };
   const cancel = (event: PointerEvent) => {
+    openingPress = undefined;
     clearSelectionBox();
     cancelDetailDrag();
     if (dimensionSession) {
@@ -3982,6 +4152,7 @@ export function installInteractions({
     }
     if (
       current().modalOpen ||
+      current().opening ||
       (event.target as HTMLElement).closest(
         'input,textarea,select,[contenteditable],[role=menu],[role=dialog]',
       )
@@ -4104,7 +4275,7 @@ export function installInteractions({
   const keyup = (event: KeyboardEvent) => {
     if (event.key === 'Shift') current().onSelectionHover?.(undefined);
     if (event.key === 'Control') controlCopyBefore = undefined;
-    if (current().modalOpen) {
+    if (current().modalOpen || current().opening) {
       if (event.key === 'Shift') {
         shift = false;
         measureShiftPending = false;
@@ -4218,6 +4389,7 @@ export function installInteractions({
       !['select', 'measure'].includes(current().tool) ||
       current().busy ||
       current().modalOpen ||
+      current().opening ||
       event.button !== 0 ||
       event.shiftKey ||
       event.ctrlKey ||

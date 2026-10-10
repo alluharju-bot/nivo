@@ -5948,6 +5948,12 @@ p {
 .selection-backdrop.side .selection-dialog {
   max-height: calc(100dvh - 100px);
 }
+.selection-backdrop.interactive {
+  pointer-events: none;
+}
+.selection-backdrop.interactive .selection-dialog {
+  pointer-events: auto;
+}
 
 .light-editor {
   display: flex;
@@ -6060,6 +6066,8 @@ p {
 }
 .measure-menu {
   width: 260px;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
 }
 .measure-menu small {
   display: block;

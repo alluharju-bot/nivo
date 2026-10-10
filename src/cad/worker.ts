@@ -11,7 +11,14 @@ import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './
 import type { BodyMesh, CadRequest, CadReply } from './protocol';
 import type { Body, Vec3 } from '../model/project';
 import { bodyMeshKey } from './meshKey';
-import { booleanBodies, splitFace, offsetFace, offsetOutline, removeBoundary } from './operations';
+import {
+  booleanBodies,
+  splitFace,
+  offsetFace,
+  offsetOutline,
+  removeBoundary,
+  mergePlanarBodies,
+} from './operations';
 import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
 import { detailEdges, removeEdgeTreatment } from './details';
@@ -122,6 +129,7 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = pushPullFace(request.body, request.face, request.distance);
       else if (request.type === 'boolean')
         reply.result = booleanBodies(request.targets, request.tools, request.operation);
+      else if (request.type === 'merge-planar') reply.result = mergePlanarBodies(request.bodies);
       else if (request.type === 'split-face')
         reply.result = splitFace(request.body, request.face, request.profile, request.allowUnsplit);
       else if (request.type === 'offset-face')

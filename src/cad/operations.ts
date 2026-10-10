@@ -1,5 +1,15 @@
-import { cast, getOC, makeFace, measureArea, type AnyShape, type Shape3D, Wire } from 'replicad';
-import { featureIsSolid, type Body, type FaceRef } from '../model/project';
+import {
+  cast,
+  getOC,
+  makeFace,
+  makeCompound,
+  measureArea,
+  type AnyShape,
+  type Shape3D,
+  Wire,
+} from 'replicad';
+import { featureIsSolid, uid, type Body, type FaceRef, type Vec3 } from '../model/project';
+import { dot, sub } from '../model/geometry';
 import {
   createShape,
   meshBody,
@@ -10,11 +20,18 @@ import {
 } from './kernel';
 import type { SplitResult } from './protocol';
 
-/** A true planar inset: split the original face, preserving the solid and its volume. */
-function withInset<T>(body: Body, ref: FaceRef, distance: number, use: (inset: AnyShape) => T): T {
+/** Positive offsets inset a face; negative offsets extend a surface's outer boundary. */
+function withOffset<T>(
+  body: Body,
+  ref: FaceRef,
+  distance: number,
+  use: (offset: AnyShape, source: AnyShape) => T,
+): T {
   if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
-  if (!Number.isFinite(distance) || distance < 0.1 || distance > 100000)
-    throw new Error('Anna sisennys väliltä 0,1…100 000 mm.');
+  if (!Number.isFinite(distance) || Math.abs(distance) < 0.1 || Math.abs(distance) > 100000)
+    throw new Error('Anna offset väliltä −100 000…100 000 mm (vähintään 0,1 mm).');
+  if (distance < 0 && featureIsSolid(body.feature))
+    throw new Error('Offset ulospäin tarvitsee 2D-muodon ilman paksuutta.');
   const shape = createShape(body),
     faces = shape.faces;
   const wires: Wire[] = [],
@@ -26,6 +43,11 @@ function withInset<T>(body: Body, ref: FaceRef, distance: number, use: (inset: A
     const face = faces[target.index];
     sourceWires.push(face.clone().outerWire(), ...face.clone().innerWires());
     for (const [i, wire] of sourceWires.entries()) {
+      // Extending the outer boundary must not fill or resize existing holes.
+      if (distance < 0 && i > 0) {
+        wires.push(wire.clone());
+        continue;
+      }
       const oc = getOC();
       const builder = new oc.BRepOffsetAPI_MakeOffset(
         wire.wrapped,
@@ -46,13 +68,17 @@ function withInset<T>(body: Body, ref: FaceRef, distance: number, use: (inset: A
     }
     inset = makeFace(wires[0], wires.slice(1));
     const area = measureArea(inset);
-    if (!shapeIsValid(inset) || area < 1e-6 || area >= measureArea(face) - 1e-6)
-      throw new Error('Sisennys on liian suuri tälle pinnalle.');
-    // Split uses an exact intersection, so the original body remains one solid.
-    return use(inset);
+    const originalArea = measureArea(face);
+    if (
+      !shapeIsValid(inset) ||
+      area < 1e-6 ||
+      (distance > 0 ? area >= originalArea - 1e-6 : area <= originalArea + 1e-6)
+    )
+      throw new Error('Offset ei sovi tälle pinnalle. Kokeile pienempää mittaa.');
+    return use(inset, shape);
   } catch (error) {
     if (error instanceof Error && /Offset|Sisennys/.test(error.message)) throw error;
-    throw new Error('Sisennystä ei voi muodostaa. Kokeile pienempää mittaa tai toista tasopintaa.');
+    throw new Error('Offsetiä ei voi muodostaa. Kokeile pienempää mittaa tai toista tasopintaa.');
   } finally {
     inset?.delete();
     wires.forEach((wire) => wire.delete());
@@ -63,12 +89,120 @@ function withInset<T>(body: Body, ref: FaceRef, distance: number, use: (inset: A
 }
 
 export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitResult {
-  return withInset(body, ref, distance, (inset) =>
-    splitFace(body, ref, bodyFromShape(body, inset, [])),
-  );
+  return withOffset(body, ref, distance, (offset, source) => {
+    if (distance > 0) return splitFace(body, ref, bodyFromShape(body, offset, []));
+    // Keep the boolean's face partitions: the original surface and the new rim
+    // must remain individually push/pullable. Do not simplify this union.
+    const fuse = new (getOC().BRepAlgoAPI_Fuse)(source.wrapped, offset.wrapped);
+    let shape: AnyShape | undefined;
+    try {
+      shape = cast(fuse.Shape());
+      const next = bodyFromShape(body, shape);
+      const restored = createShape(next),
+        faces = restored.faces;
+      try {
+        const mesh = meshBody(next, restored);
+        for (const candidate of mesh.faces) {
+          const common = new (getOC().BRepAlgoAPI_Common)(
+            faces[candidate.index].wrapped,
+            source.wrapped,
+          );
+          let overlap: AnyShape | undefined;
+          try {
+            overlap = cast(common.Shape());
+            if (measureArea(overlap as Shape3D) < 1e-6) return { body: next, face: candidate.ref };
+          } finally {
+            overlap?.delete();
+            common.delete();
+          }
+        }
+        throw new Error('Offset ei muodosta uutta ulkokehää. Kokeile toista mittaa.');
+      } finally {
+        faces.forEach((face) => face.delete());
+        restored.delete();
+      }
+    } finally {
+      shape?.delete();
+      fuse.delete();
+    }
+  });
 }
 export function offsetOutline(body: Body, ref: FaceRef, distance: number): number[] {
-  return withInset(body, ref, distance, (inset) => inset.meshEdges({ tolerance: 0.15 }).lines);
+  return withOffset(body, ref, distance, (offset) => offset.meshEdges({ tolerance: 0.15 }).lines);
+}
+
+/** Exact coplanar union, including arcs and holes. Shared/internal borders disappear. */
+export function mergePlanarBodies(bodies: Body[]): Body {
+  if (bodies.length < 2) throw new Error('Valitse vähintään kaksi tasomuotoa.');
+  if (bodies.some((b) => b.locked))
+    throw new Error('Vapauta kiinnitetyt muodot ennen yhdistämistä.');
+  if (bodies.some((b) => featureIsSolid(b.feature)))
+    throw new Error(
+      'Yhdistä muodot tarvitsee 2D-muodot ilman paksuutta. Tilavuuskappaleille käytä Join-toimintoa.',
+    );
+  const shapes: AnyShape[] = [];
+  let result: AnyShape | undefined;
+  try {
+    let plane: { normal: Vec3; center: Vec3 } | undefined;
+    for (const body of bodies) {
+      const shape = createShape(body);
+      shapes.push(shape);
+      const mesh = meshBody(body, shape);
+      if (!mesh.faces.length)
+        throw new Error('Sulje viiva ensin pinnaksi. Yhdistä muodot tarvitsee pinta-alueet.');
+      for (const face of mesh.faces) {
+        plane ??= face;
+        if (
+          !face.planar ||
+          Math.abs(Math.abs(dot(face.normal, plane.normal)) - 1) > 1e-6 ||
+          Math.abs(dot(sub(face.center, plane.center), plane.normal)) > 1e-5
+        )
+          throw new Error('Yhdistä muodot: kaikkien muotojen pitää olla samalla tasolla.');
+      }
+      // Circles and rectangles may face opposite ways on the same plane.
+      // Align them before fusing, otherwise OCCT keeps the shared seam.
+      const faces = shape.faces;
+      let aligned: AnyShape;
+      try {
+        aligned = makeCompound(
+          mesh.faces.map((f) =>
+            dot(f.normal, plane!.normal) < 0
+              ? faces[f.index].flipOrientation()
+              : faces[f.index].clone(),
+          ),
+        );
+      } finally {
+        faces.forEach((f) => f.delete());
+      }
+      shapes.push(aligned);
+      if (!result) result = aligned.clone();
+      else {
+        const fuse = new (getOC().BRepAlgoAPI_Fuse)(result.wrapped, aligned.wrapped);
+        try {
+          fuse.SimplifyResult(true, true);
+          const next = cast(fuse.Shape());
+          result.delete();
+          result = next;
+        } finally {
+          fuse.delete();
+        }
+      }
+    }
+    return bodyFromShape(
+      {
+        ...bodies[0],
+        id: uid(),
+        name: 'Yhdistetty muoto',
+        component: undefined,
+        penRegion: undefined,
+      },
+      result!,
+      bodies,
+    );
+  } finally {
+    result?.delete();
+    shapes.forEach((s) => s.delete());
+  }
 }
 
 /** Remove one shared boundary, preserving every other intentional face division. */

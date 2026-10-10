@@ -120,6 +120,7 @@ export type CadRequest =
   | { type: 'probe' }
   | { type: 'rotate'; bodies: Body[]; pivot: Vec3; axis: Vec3; angle: number }
   | { type: 'boolean'; targets: Body[]; tools: Body[]; operation: 'cut' | 'join' }
+  | { type: 'merge-planar'; bodies: Body[] }
   | { type: 'split-face'; body: Body; face: FaceRef; profile: Body; allowUnsplit?: boolean }
   | { type: 'divide-surfaces'; profile: Body; targets: Body[] }
   | { type: 'offset-face'; body: Body; face: FaceRef; distance: number }

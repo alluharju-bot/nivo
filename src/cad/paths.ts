@@ -121,6 +121,7 @@ export interface OpeningResult {
   affected: string[];
   normal: Vec3;
   meshes: BodyMesh[];
+  cutters: BodyMesh[];
 }
 
 /** Explicitly apply a separate sketch to coplanar supporting faces. No automatic joining. */
@@ -234,12 +235,14 @@ export function cutOpening(
   }
   let bodies = targets;
   const affected = new Set<string>();
+  const cutters: BodyMesh[] = [];
   for (const offset of offsets) {
     const origin = add(profile.origin, offset);
     if (origin.some((n) => Math.abs(n) > 100000))
       throw new Error('Aukkosarja ylittää sallitun sijaintialueen.');
     const result = cutSingleOpening({ ...profile, origin }, bodies, options.depth);
     bodies = result.bodies;
+    if (result.cutter) cutters.push({ ...result.cutter, id: `opening:${cutters.length}` });
     result.affected.forEach((id) => affected.add(id));
   }
   const meshes = bodies
@@ -252,7 +255,7 @@ export function cutOpening(
         shape.delete();
       }
     });
-  return { bodies, affected: [...affected], normal, meshes };
+  return { bodies, affected: [...affected], normal, meshes, cutters };
 }
 
 /** Preserve a planar region before push/pull removes it, so its cut can be repeated. */
@@ -273,7 +276,7 @@ function cutSingleOpening(
   profile: Body,
   targets: Body[],
   depth?: number,
-): Pick<OpeningResult, 'bodies' | 'affected'> {
+): Pick<OpeningResult, 'bodies' | 'affected'> & { cutter?: BodyMesh } {
   if (featureIsSolid(profile.feature)) throw new Error('Valitse suljettu muoto ilman paksuutta.');
   const sketch = createShape(profile),
     faces = sketch.faces;
@@ -295,10 +298,15 @@ function cutSingleOpening(
       (b) =>
         b.id !== profile.id &&
         featureIsSolid(b.feature) &&
-        projected(b).every((range, i) => range[0] <= limits[i][1] && range[1] >= limits[i][0]),
+        projected(b).every((range, i) => range[0] <= limits[i][1] && range[1] >= limits[i][0]) &&
+        (depth === undefined ||
+          (() => {
+            const values = corners(b).map((p) => dot(sub(p, center), normal));
+            return Math.min(...values) <= 1e-5 && Math.max(...values) >= -depth;
+          })()),
     );
     const eligibleIds = new Set(eligible.map((b) => b.id));
-    if (!eligible.length) return { bodies: targets, affected: [] };
+    if (!eligible.length && depth === undefined) return { bodies: targets, affected: [] };
     let min = Infinity,
       max = -Infinity;
     for (const body of eligible)
@@ -350,7 +358,11 @@ function cutSingleOpening(
         source.delete();
       }
     }
-    return { bodies, affected };
+    return {
+      bodies,
+      affected,
+      cutter: { ...meshBody(profile, cutter), volume: solidVolume(cutter) },
+    };
   } finally {
     cutter?.delete();
     faces.forEach((f) => f.delete());

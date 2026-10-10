@@ -17,6 +17,7 @@ export function GroupActions({
   onRemove,
   onMerge,
   canMerge,
+  mergeLabel,
   onEdit,
   onUnique,
   canUnique,
@@ -34,6 +35,7 @@ export function GroupActions({
   onRemove: () => void;
   onMerge: () => void;
   canMerge: boolean;
+  mergeLabel?: string;
   onEdit: () => void;
   onUnique: () => void;
   canUnique: boolean;
@@ -112,11 +114,11 @@ export function GroupActions({
           </label>
           <button
             className="button outlined full"
-            aria-label="Yhdistä valitut"
+            aria-label={mergeLabel ?? 'Yhdistä valitut'}
             disabled={busy || !canMerge}
             onClick={onMerge}
           >
-            <Merge size={15} /> Yhdistä valitut kappaleeksi
+            <Merge size={15} /> {mergeLabel ?? 'Yhdistä valitut kappaleeksi'}
           </button>
         </div>
       </details>

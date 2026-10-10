@@ -65,9 +65,6 @@ test('opening pattern keeps its targets after missing them, previews and restore
   await dialog.getByRole('checkbox', { name: 'Takaseinä', exact: true }).uncheck();
   await dialog.getByRole('textbox', { name: 'Aukkoja yhteensä', exact: true }).fill('6');
   await dialog.getByRole('combobox', { name: 'Aukkosarjan suunta', exact: true }).selectOption('x');
-  await dialog
-    .getByRole('combobox', { name: 'Leikkauksen syvyys', exact: true })
-    .selectOption('depth');
   await dialog.getByRole('textbox', { name: 'Leikkaussyvyys · mm', exact: true }).fill('3');
   await expect(
     dialog.getByRole('button', { name: 'Leikkaa aukot · 1 osaa', exact: true }),
