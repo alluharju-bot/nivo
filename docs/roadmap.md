@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.31.1 — pinnan keskipiste ja apuviivan viitemitta, 10.10.2026
+
+- Mitta- ja piirtotyökalujen keskipiste on todellisella, näkyvällä tasopinnalla.
+  Lattian paksuus ei siirrä aloituspistettä lattian sisään. Pinnan CAD-keskipiste
+  tarkistetaan täytetyn alueen sisältä: reikään tai koveran pinnan ulkopuolelle
+  jäävää keskikohtaa ei tarjota pinnan pisteenä. Tartuntakohteet välimuistitetaan.
+- Reunasta vedettävän apuviivan etäisyys poimitaan näkyvästä 3D-viitteestä omaan
+  tasoon tai valitulle akselille. Seinän yläreunasta aloitettu mitta voi käyttää
+  lattian keskipistettä; viiva säilyttää korkeutensa ja lähtöreunan suunnan.
+- Täsmälleen osoitettu piste ohittaa kauempana olevan apuviivojen risteyksen.
+  Vanha sivuun piirretty apuviiva ei estä tarttumista pinnan oikeaan keskikohtaan.
+- Lähes ylhäältä katsottaessa seinän reunalta alkava apuviiva suosii vaakatasoa;
+  ohut näkymä seinän pystypintaan ei vaihda vetoa huomaamatta pystysuuntaiseksi.
+- Regressiot: sama mitta neljältä vastakkaiselta seinältä, vino näkymä, akselilukko,
+  vanhat apuviivat sekä kynän ja vapaan mittaviivan aloitus lattian pinnassa.
+  Alkuperäisiä malleja tai aiemmin piirrettyjä apuviivoja ei muuteta automaattisesti.
+
 ## V0.31.0 — mittamuisti, huoneen muodot ja aukon esikatselu, 10.10.2026
 
 - Viisi viimeisintä erilaista mittaa yhteisessä, projektikohtaisessa mittamuistissa.

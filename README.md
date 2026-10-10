@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.31.1** korjaa pinnan keskipistetartunnan: mitta- ja piirtotyökalut
+tarttuvat näkyvän tasopinnan keskelle kappaleen sisällä olevan tilavuuskeskipisteen
+sijaan. Reunasta vedettävä apuviiva poimii viitemitan myös eri korkeudella olevalta
+pinnalta muuttamatta omaa tasoaan. Esimerkiksi lattian keskikohtaan saa yhtä pitkät
+mitat vastakkaisilta seiniltä. Tarkasti osoitettu piste voittaa sivussa olevan
+apuviivojen risteyksen.
+
 Versio **0.31.0** lisää **mittamuistin**, tasomuotojen yhdistämisen ja ulospäin
 tehtävän offsetin sekä selkeyttää **Leikkaa aukko** -työkalua:
 

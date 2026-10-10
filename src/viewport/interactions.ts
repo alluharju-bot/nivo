@@ -859,6 +859,7 @@ export function installInteractions({
               (b) => props.tool !== 'move' || props.copyMove || !props.selectedIds.includes(b.id),
             ),
             props.meshes,
+            'surface',
           ),
           ...intersectionPoints(referenceEdges(event)),
           ...(props.tool === 'pen'
@@ -1590,8 +1591,14 @@ export function installInteractions({
     if (point && point.priority >= 0 && point.distance > 6 && !onAimedEdge(point.point))
       point = nearest(event, false, (p) => accepts(p) && onAimedEdge(p), surfaceOnly);
     const guide = guideAt(event, [], accepts);
+    // An old guide crossing can be several pixels beside an exactly aimed
+    // surface center. Acquisition priority must not override that precise aim.
+    const pointIsAimed =
+      point && point.distance <= 2 && guide && guide.distance > point.distance + 2;
     if (
       guide &&
+      !pointIsAimed &&
+      (!edge || snapScore(guide.distance, guide.priority) <= snapScore(edge.distance, 2)) &&
       (!point ||
         snapScore(guide.distance, guide.priority) < snapScore(point.distance, point.priority))
     ) {
@@ -1653,7 +1660,7 @@ export function installInteractions({
             ? referenceAnchor(body, point.point)
             : { point: point.point });
       const sourceEdge =
-        point.priority > 0 && !point.key.endsWith(':center')
+        point.priority > 0 && !point.key.endsWith(':center') && !point.key.includes(':face:')
           ? edgeAt(
               event,
               (p) =>
@@ -2718,8 +2725,11 @@ export function installInteractions({
         Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4
       ) {
         const hit = faceAt(event, true);
+        const view = camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3;
         if (
           hit?.face.planar &&
+          Math.abs(dot(hit.face.normal, view)) >=
+            0.5 * Math.abs(dot(measureSession.frame?.normal ?? hit.face.normal, view)) &&
           Math.abs(dot(sub(start, hit.face.center), hit.face.normal)) < 1e-5 &&
           Math.abs(dot(direction, hit.face.normal)) < 1e-5
         ) {
@@ -2736,14 +2746,16 @@ export function installInteractions({
       if (!raw) return;
       const normal =
         measureSession.frame?.normal ?? axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
-      const target = measureTargetAt(event, (point) =>
-        axis
-          ? Math.hypot(...sub(point, projectOnLine(point, start, axis))) < 1e-5
-          : Math.abs(dot(sub(point, start), normal)) < 1e-5,
-      );
+      // An offset guide already has a fixed plane/direction. Sample the visible
+      // reference in 3D, then transfer only its offset into that plane. A floor
+      // center must remain available when the source edge is on top of a wall.
+      const target = measureTargetAt(event, () => true);
       const unsnapped = raw;
       let snapKey = 'edge-offset';
-      if (target) raw = target.point;
+      if (target)
+        raw = axis
+          ? projectOnLine(target.point, start, axis)
+          : sub(target.point, scale(normal, dot(sub(target.point, start), normal)));
       else if (!axis && measureSession.frame) raw = frameSnap(raw, measureSession.frame);
       if (!axis && measureSession.frame && !target) snapKey = canvas.dataset.snapKey ?? '';
       let offset = axis ? sub(raw, start) : sub(raw, projectOnLine(raw, start, direction));
@@ -2761,7 +2773,10 @@ export function installInteractions({
             (axis
               ? `${props.axis!.toUpperCase()} · Siirtosuunta lukittu`
               : 'Reunan suuntainen apuviiva'),
-          line: [start, end],
+          line:
+            target && Math.abs(dot(sub(target.point, start), normal)) > 1e-5
+              ? [end, target.point]
+              : [start, end],
         },
         plane,
       );
@@ -3385,12 +3400,13 @@ export function installInteractions({
         const facing = (face: BodyMesh['faces'][number]) =>
           Math.abs(dot(face.normal, viewDirection));
         const hitFace = adjacent?.find((f) => f === hit?.face);
+        const bestFace = adjacent?.slice().sort((a, b) => facing(b) - facing(a))[0];
         // A ray on a shared edge can numerically hit the edge-on side face.
         // Use its visible neighbor rather than a plane the pointer ray cannot intersect.
         const face =
-          hitFace && facing(hitFace) > 0.05
+          hitFace && facing(hitFace) >= 0.5 * (bestFace ? facing(bestFace) : 1)
             ? hitFace
-            : adjacent?.slice().sort((a, b) => facing(b) - facing(a))[0];
+            : bestFace;
         if (edge)
           plane = face ? normalPlane(face.normal) : planeForDirection(edge.direction, plane);
         if (guide) plane = normalPlane(guidePlaneNormal(guide.guide));

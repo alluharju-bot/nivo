@@ -12,6 +12,7 @@ import type { BodyMesh } from '../cad/protocol';
 import { circleLineIntersections } from './curveSnap';
 import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
 import { add, scale, dot, sub } from './geometry';
+import { surfaceCenters } from './surfaceCenters';
 /** Lower is stronger: explicit vertices, midpoints, edges, then inference/grid. */
 export const snapPriority = (point: { key: string; label: string }) =>
   /^pen:/.test(point.key) ||
@@ -252,7 +253,12 @@ interface Options {
 const distance = (a: Vec3, b: Vec3) => Math.hypot(...a.map((v, i) => v - b[i]));
 const meshLookup = new WeakMap<BodyMesh[], Map<string, BodyMesh>>();
 const meshPoints = new WeakMap<BodyMesh, ReferencePoint[]>();
-export function modelSnapPoints(bodies: Body[], meshes?: BodyMesh[]): ReferencePoint[] {
+const surfacePoints = new WeakMap<BodyMesh, ReferencePoint[]>();
+export function modelSnapPoints(
+  bodies: Body[],
+  meshes?: BodyMesh[],
+  centers: 'body' | 'surface' = 'body',
+): ReferencePoint[] {
   let byId = meshes && meshLookup.get(meshes);
   if (meshes && !byId) {
     byId = new Map(meshes.map((mesh) => [mesh.id, mesh]));
@@ -260,6 +266,22 @@ export function modelSnapPoints(bodies: Body[], meshes?: BodyMesh[]): ReferenceP
   }
   return bodies.flatMap((body) => {
     const mesh = byId?.get(body.id);
+    if (mesh && centers === 'surface') {
+      let points = surfacePoints.get(mesh);
+      if (!points) {
+        const faceCenters = surfaceCenters(mesh);
+        points = [
+          ...modelSnapPoints([body], meshes).filter(
+            (point) =>
+              (!mesh.faces.length || !point.key.endsWith(':center')) &&
+              !faceCenters.some((center) => distance(center.point, point.point) < 1e-7),
+          ),
+          ...faceCenters,
+        ];
+        surfacePoints.set(mesh, points);
+      }
+      return points;
+    }
     const cached = mesh && meshPoints.get(mesh);
     if (cached) return cached;
     const points: ReferencePoint[] = mesh

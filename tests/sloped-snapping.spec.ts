@@ -187,8 +187,12 @@ test('radial pen strokes create and subdivide the drain slope, with undo, redo a
     );
     await near(page, [Math.sign(x) * r, Math.sign(y) * r, -10]);
     await click(page, p(Math.sign(x) * r, Math.sign(y) * r, -10));
-    if (i === 0) await page.keyboard.press('Enter');
-    else
+    if (i === 0) {
+      await page.keyboard.press('Enter');
+      // Zero regions is also true before the asynchronous first stroke commits.
+      // Wait for that stroke before trying to start the next one.
+      await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '3');
+    } else
       await expect(page.locator('.status-bar [role="status"]')).toContainText('täytetty pinnoiksi');
     await expect
       .poll(async () => (await save(page)).bodies.filter((b) => b.penRegion).length)
