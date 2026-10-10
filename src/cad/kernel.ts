@@ -38,6 +38,7 @@ import { add, sub, unit, dot, scale } from '../model/geometry';
 import { faceBoundaries } from './boundaries';
 import { detailEdgeIndices } from './detailEdges';
 import { cadVertex, shapeVertexReferences } from './vertexReferences';
+import type { TransformCache } from './buildCache';
 
 export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
   const oc = getOC(),
@@ -231,9 +232,13 @@ function extrudeSurfaceRegion(
     solids.forEach((solid) => solid.delete());
   }
 }
-export function meshBody(body: Body, shape: AnyShape): BodyMesh {
+export function meshBody(
+  body: Body,
+  shape: AnyShape,
+  tessellation?: ReturnType<AnyShape['mesh']>,
+): BodyMesh {
   if (!shapeIsValid(shape)) throw new Error('Geometriasta ei syntynyt ehjää kappaletta.');
-  const mesh = shape.mesh({ tolerance: 0.15, angularTolerance: 0.1 });
+  const mesh = tessellation ?? shape.mesh({ tolerance: 0.15, angularTolerance: 0.1 });
   const cadFaces = shapeFaces(shape);
   const faceIndices = new Map<number, number>();
   cadFaces.forEach((face, index) => {
@@ -277,6 +282,9 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   const edgesCAD: BodyMesh['edgesCAD'] = [];
   const curveEdges: NonNullable<BodyMesh['curveEdges']> = [];
   const detailEdges: NonNullable<BodyMesh['detailEdges']> = [];
+  // Whole-shape meshEdges also starts a surface mesher. With a supplied
+  // tessellation, extract each exact edge directly to avoid meshing twice.
+  const displayEdges = tessellation ? ([] as number[]) : undefined;
   const seen = new Set<string>();
   const boxCorners = corners(body);
   const edges = shapeEdges(shape);
@@ -298,6 +306,11 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     for (const [index, edge] of edges.entries()) {
       hasCurvedEdge ||= edge.geomType !== 'LINE';
       const lines = edge.meshEdges({ tolerance: edge.geomType === 'LINE' ? 0.15 : 0.01 }).lines;
+      if (displayEdges) {
+        const display =
+          edge.geomType === 'LINE' ? lines : edge.meshEdges({ tolerance: 0.15 }).lines;
+        for (const value of display) displayEdges.push(value);
+      }
       if (!detailIndices || detailIndices.has(index)) detailEdges.push({ index, lines });
       const a = edge.startPoint,
         b = edge.endPoint;
@@ -409,7 +422,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     vertices: mesh.vertices,
     triangles: mesh.triangles,
     normals: mesh.normals,
-    edges: shape.meshEdges({ tolerance: 0.15 }).lines,
+    edges: displayEdges ?? shape.meshEdges({ tolerance: 0.15 }).lines,
     faces,
     volume: featureIsSolid(body.feature) ? solidVolume(shape) : 0,
     verticesCAD,
@@ -524,15 +537,22 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
     local.delete();
   }
 }
-export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
+export function pushPullFace(
+  body: Body,
+  ref: FaceRef,
+  distance: number,
+  cache?: TransformCache,
+): Body {
   if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
   if (!Number.isFinite(distance) || Math.abs(distance) < 0.1 || Math.abs(distance) > 100000)
     throw new Error('Anna pinnan siirtymä väliltä −100 000…100 000 mm (vähintään 0,1 mm).');
-  const shape = createShape(body);
+  const shape = cache?.shape(body) ?? createShape(body);
   const faces = shapeFaces(shape);
   let prism: AnyShape | undefined, result: AnyShape | undefined;
   try {
-    const target = meshBody(body, shape).faces.find((f) => f.ref === ref);
+    const target = (cache?.get(body)?.mesh ?? meshBody(body, shape)).faces.find(
+      (f) => f.ref === ref,
+    );
     if (!target || !target.planar) throw new Error('Valitse tasomainen pinta.');
     if (
       body.feature.type === 'polygon-extrusion' &&
@@ -590,7 +610,9 @@ export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
         : shape.asShape3D().cut(prism.asShape3D());
     if (!shapeIsValid(result) || solidVolume(result) < 1e-7)
       throw new Error('Pursotus ei muodosta ehjää tilavuuskappaletta.');
-    return bodyFromShape(body, result);
+    const next = bodyFromShape(body, result);
+    cache?.prepare(next, result);
+    return next;
   } finally {
     result?.delete();
     prism?.delete();

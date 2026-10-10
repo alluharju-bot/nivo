@@ -605,3 +605,21 @@ käyrät saadaan facejen ulko- ja sisäkehistä ja muunnetaan yhteiseen tasokoor
 Pohjakuvat ovat itsenäisiä teksturoituja näkymätasoja. Ne eivät muuta CAD-mittoja,
 raycast-geometriaa, osaluetteloa tai renderöintimateriaaleja. Piirtäminen voi
 käyttää kuvan tasoa lähtötasona, kun osoittimen alla ei ole CAD-pintaa.
+
+## Muunnosten välimuisti — v0.33.1
+
+`CadBuildCache` omistaa workerin CAD-wrapperit. Aiemman projektin paikallisen
+geometrian avain sallii tarkat siirrot ja kopiot ilman uutta verkotusta. Valmiin
+operaation `prepare`-tulos otetaan käyttöön vasta validoidun projektin `build`-vaiheessa;
+vanha näkymä säilyy virheessä ja ylimääräiset wrapperit vapautetaan. Välimuisti ei
+muuta projektimuotoa eikä tallenna näyttökolmioita auktoritatiiviseksi geometriaksi.
+
+Kierrossa verkko muuntuu jäykästi. Skaalauksessa tavallinen laatikko säilyttää
+mittareseptinsä; muut osat säilyttävät tarkan BRepin. Affine-muunnoksen
+`ModifiedShape`-historia yhdistää lähdeverkon ryhmät tuloksen CAD-pintoihin.
+`scaledTessellation` kiristää lähdeverkon toleranssit ennen muunnosta:
+lineaarinen 0,15 / max(1, suurin kerroin), kulma
+2 atan(tan(0,1 / 2) / (suurin kerroin / pienin kerroin)). Normaalit muuntuvat
+käänteisen transpoosin kautta. Geometrian tarkistus, tarkat reunat ja pintojen
+mittatiedot lasketaan tuloksesta. Puuttuva topologiavastaavuus, yli 5 000 pintaa
+tai yli 20:n suurennus/akselisuhde palauttaa tavalliseen verkotukseen.

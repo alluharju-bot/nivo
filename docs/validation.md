@@ -4,6 +4,31 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.33.1 — raskaan CAD-geometrian muunnokset
+
+414 yksikkö-/CAD-testiä hyväksytty koko ajossa, lisäksi lopullisen käyräviitteiden
+suojauksen 23 kohdennettua testiä hyväksytty (sisältää yhden uuden testin).
+32 selaintapausta hyväksytty työpöytä- ja tablettiprofiileissa: Skaalaa,
+tiheitä osia siirtävä ja kopioiva työnkulku, Offset → Push/Pull → aukko,
+kaarevien reunojen pyöristys/viiste, Join, kiertokopiointi ja aukkosarja.
+Lopullisen käyräviitteiden suojauksen jälkeen vielä 8 kohdennettua selaintestiä
+hyväksytty molemmissa profiileissa.
+
+- Välimuisti siirtää ainoan osan, käyttää geometriaa uuden kopion luontiin,
+  säilyttää ankkurien omistuksen ja mitätöityy geometrian muuttuessa.
+- Epäonnistunut rakennus ei hävitä vanhaa ehjää CAD-välimuistia.
+- Kierrossa samat CAD-pinnat, tarkat pisteet, ympyräreunat ja normaalit;
+  piirroskäyrien pisteviitteet säilyvät myös uudelleenavauksen ja toisen kierron jälkeen.
+- Akseliskaalauksen pintaryhmät vastaavat CAD:n muunnoshistoriaa; tilavuus,
+  pintatasot ja reikien tartunnat tarkistettu. Skaalatun osan Push/Pull toimii.
+- Tarkennettu lähdeverkko ei käynnistä tuloksen pintaverkotusta uudestaan
+  reunojen muodostuksessa. CAD-tarkkuus ja validointi säilyvät.
+- Sama yksityinen kiuas kahdessa näkyvän Chromiumin tuotantopaketissa:
+  siirto 4,02 → 0,36 s, kierto 8,88 → 1,44 s, tasainen skaalaus
+  5,47 → 4,85 s, Z-skaalaus 64,77 → 42,13 s. Tallennetut mitat oikein,
+  Peru palauttaa osat täsmälleen, ei JavaScript-virheitä.
+  Menetelmä ja rajat: [suorituskykyraportti](performance.md).
+
 ## V0.33.0 — Skaalaa
 
 **405 yksikkö-/CAD-testiä hyväksytty (78 tiedostoa)**. Lopullisella versiolla

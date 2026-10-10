@@ -3,13 +3,22 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.33.1** nopeuttaa raskaiden CAD-osien siirtoa, kiertoa ja skaalausta.
+Siirto ja kierto käyttävät valmista piirtoverkkoa, ja akseliskaalaus välttää
+raskaan NURBS-tuloksen tarpeettoman verkotuksen säilyttäen tarkkuusrajat.
+Rei'itetyn kiukaan paikallisessa vertailussa siirto **4,02 → 0,36 s**, kierto
+**8,88 → 1,44 s** ja Z-skaalaus **64,77 → 42,13 s**. Myös Offsetin esikatselu,
+Push/Pullin mittaus ja linkitettyjen kopioiden päivitys hyödyntävät valmista CAD-dataa.
+Tarkka akselimuunnos on edelleen raskas suurilla kaarevilla kappaleilla.
+[Menetelmä, rajat ja testit](docs/performance.md).
+
 Versio **0.33.0** lisää **Skaalaa (L)** -työkalun osille, monivalinnalle ja
 kokoonpanoille. Vedä kulmasta tasaisesti tai sivukahvasta yhtä akselia pitkin,
 kirjoita kerroin tai tavoitemitta ja valitse kiintopiste. Esikatselu käyttää
 nykyistä piirtoverkkoa; tarkka CAD lasketaan vasta hyväksyttäessä. Reiät ja
 seinämät skaalautuvat mukana. Linkitetyt kopiot jakavat koon, ellei valita
 **Vain valitut · tee uniikeiksi**. Myös raskas rei'itetty kiuas on testattu;
-sen akselikohtaisen venytyksen hyväksyntä voi kestää noin minuutin.
+sen akselikohtainen venytys voi edelleen kestää kymmeniä sekunteja.
 
 Versio **0.32.2** korjaa tiheästi rei'itetyn osan jäätymisen **Siirrä**-työkalussa.
 Tartuntahaku ohittaa turhat reunaviivojen peittymistarkistukset ja etsii vain

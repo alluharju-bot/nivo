@@ -1,5 +1,58 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.33.1 — raskaiden osien muunnokset, 10.10.2026
+
+Siirto rakensi aiemmin myös yksittäisen kiukaan geometrian ja koko piirtoverkon
+uudestaan. Työn aikana saadut muodot hävitettiin ennen projektin hyväksyntää,
+joten valmis CAD luettiin heti uudelleen. Kierrossa vanhan osan verkko laskettiin
+myös pelkkien pisteviitteiden keräämistä varten.
+
+- CAD-välimuisti käyttää edellisen tilan samanmuotoisia osia myös ensimmäisen
+  tai ainoan osan siirrossa. Uuden kopion pisteankkurit kuuluvat uudelle osalle.
+- Kierto muuntaa valmiin verkon pisteet, normaalit, reunat ja ympyräviitteet.
+  Tarkka BRep kiertyy edelleen CAD-ytimessä. Pintatunnukset seuraavat CAD-topologiaa.
+- Hyväksytyt muunnokset sekä Offset/pinnanjako- ja reunakäsittelytulokset säilyvät
+  workerissa seuraavaan projektipäivitykseen. Muuttunut geometria mitätöi välimuistin.
+- Offsetin esikatselu, Push/Pull ja sen kokonaismitan haku käyttävät olemassa
+  olevia pintoja. Samansuuntaiset, yhteisen topologian linkitetyt osat päivittyvät
+  yhteisestä paikallisesta geometriasta. Muut tapaukset käyttävät tarkkaa CAD-polkua.
+- Laatikon skaalaus säilyttää mittareseptin eikä lataa affine-lisäydintä.
+  Geometria-avaimet ja projektin vertailu välttävät suurten BRepien toistuvaa
+  JSON-serialisointia. Peru/Palauta ja tallennus säilyvät atomisina.
+
+Akseliskaalauksen NURBS-tuloksen verkotus vei eristetyssä mittauksessa **24,4 s**.
+Nyt lähdemuoto verkotetaan ennen muunnosta. Lineaarista toleranssia kiristetään
+suurimman skaalauskertoimen ja kulmatoleranssia akselikertoimien suhteen mukaan,
+jolloin lopputulos säilyttää **0,15 mm / 0,1 rad** tarkkuusrajat. Muunnosydin
+vahvistaa lähde- ja tulospintojen vastaavuuden. Tulosgeometriasta lasketaan edelleen
+tarkat tartunnat, reunat, pintakeskipisteet ja tilavuus. Reunat verkotetaan erikseen,
+sillä koko kappaleen reunapoiminta käynnistäisi myös hitaan pintaverkotuksen.
+Jos topologiavastaavuus puuttuu tai skaalaus on äärimmäinen, käytetään tavallista
+verkotusta. Tasainen skaalaus käyttää suoraan edelleen analyyttisiä tulospintoja.
+
+| Saman rei'itetyn osan hyväksyntä | V0.33.0 | V0.33.1 |
+| -------------------------------- | ------: | ------: |
+| Siirto X +100 mm                 |  4,02 s |  0,36 s |
+| Siirron Peru                     |  3,99 s |  0,35 s |
+| Kierto Z 30°                     |  8,88 s |  1,44 s |
+| Tasainen skaalaus ×1,1           |  5,47 s |  4,85 s |
+| Z-skaalaus ×1,1                  | 64,77 s | 42,13 s |
+
+Apple M1 Pro / 16 Gt, näkyvä Chromium 153, 1440 × 960 CSS-pikseliä,
+paikallinen tuotantopaketti. Sama 21 osan projekti; sama 725-pintainen,
+2 196-reunainen osa valittuna ja eristettynä. Ajat Enteristä tai Peru-painalluksesta
+valmistuneeseen näkymään ja selaintallennukseen. Jokainen muunnos alkaa alkuperäisestä
+geometriasta. Yksi vertailupari; ei yleinen nopeuslupaus. Lähtöversion Z-skaalauksen
+kanssa osui päällekkäin 1,6 sekunnin yksikkötestiajo, muita selaintestejä ei ajettu.
+
+Kiertoa ja skaalausta kumotessa alkuperäinen geometria verkotetaan edelleen:
+noin **4,4–4,5 s**, joten nämä Peru-toiminnot eivät nopeutuneet tässä passissa.
+Akselimuunnos itsessään on yhä raskas; optimointi ei tee rei'itetyn kiukaan
+venytyksestä välitöntä. Kummankin ajon jälkeen tiedostoviennin osat vastasivat
+alkuperäisiä täsmälleen, eikä JavaScript-virheitä tullut.
+[Raaka-ajat](benchmarks/v0331-transforms.json) eivät sisällä yksityistä mallia,
+osatunnisteita tai kuvia.
+
 ## V0.32.2 — Siirrä-työkalun tartuntahaku, 10.10.2026
 
 Edellinen passin mittaus koski Valitse-työkalua. Siirrä-työkalussa saman rei'itetyn

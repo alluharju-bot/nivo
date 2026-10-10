@@ -3,18 +3,25 @@ import { createShape, meshBody, solidFaceIds } from './kernel';
 import { type Body, type FaceRef, type Vec3 } from '../model/project';
 import { add, sub, scale, dot } from '../model/geometry';
 import type { FaceSpan } from './protocol';
+import type { TransformCache } from './buildCache';
+import { shapeFaces } from './topology';
 
 /** Measure the first continuous material interval behind a point on a planar face. */
-export function measureFaceSpan(body: Body, ref: FaceRef, point?: Vec3): FaceSpan {
-  const shape = createShape(body);
+export function measureFaceSpan(
+  body: Body,
+  ref: FaceRef,
+  point?: Vec3,
+  cache?: TransformCache,
+): FaceSpan {
+  const shape = cache?.shape(body) ?? createShape(body);
   try {
-    const mesh = meshBody(body, shape),
+    const mesh = cache?.get(body)?.mesh ?? meshBody(body, shape),
       face = mesh.faces.find((f) => f.ref === ref);
     if (!face?.planar) throw new Error('Toteutuva kokonaismitta tarvitsee tasopinnan.');
     const normal = face.normal;
     let start = point ?? face.center;
     start = sub(start, scale(normal, dot(sub(start, face.center), normal)));
-    const faces = shape.faces;
+    const faces = shapeFaces(shape);
     let solid: boolean;
     try {
       solid = solidFaceIds(shape).has(faces[face.index].hashCode);

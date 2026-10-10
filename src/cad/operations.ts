@@ -20,6 +20,8 @@ import {
 } from './kernel';
 import type { SplitResult } from './protocol';
 import { cutShapes } from './cut';
+import type { TransformCache } from './buildCache';
+import { shapeFaces } from './topology';
 
 /** Positive offsets inset a face; negative offsets extend a surface's outer boundary. */
 function withOffset<T>(
@@ -27,19 +29,22 @@ function withOffset<T>(
   ref: FaceRef,
   distance: number,
   use: (offset: AnyShape, source: AnyShape) => T,
+  cache?: TransformCache,
 ): T {
   if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
   if (!Number.isFinite(distance) || Math.abs(distance) < 0.1 || Math.abs(distance) > 100000)
     throw new Error('Anna offset väliltä −100 000…100 000 mm (vähintään 0,1 mm).');
   if (distance < 0 && featureIsSolid(body.feature))
     throw new Error('Offset ulospäin tarvitsee 2D-muodon ilman paksuutta.');
-  const shape = createShape(body),
-    faces = shape.faces;
+  const shape = cache?.shape(body) ?? createShape(body),
+    faces = shapeFaces(shape);
   const wires: Wire[] = [],
     sourceWires: Wire[] = [];
   let inset: AnyShape | undefined;
   try {
-    const target = meshBody(body, shape).faces.find((f) => f.ref === ref);
+    const target = (cache?.get(body)?.mesh ?? meshBody(body, shape)).faces.find(
+      (f) => f.ref === ref,
+    );
     if (!target?.planar) throw new Error('Offset tarvitsee tasomaisen pinnan.');
     const face = faces[target.index];
     sourceWires.push(face.clone().outerWire(), ...face.clone().innerWires());
@@ -89,47 +94,72 @@ function withOffset<T>(
   }
 }
 
-export function offsetFace(body: Body, ref: FaceRef, distance: number): SplitResult {
-  return withOffset(body, ref, distance, (offset, source) => {
-    if (distance > 0) return splitFace(body, ref, bodyFromShape(body, offset, []));
-    // Keep the boolean's face partitions: the original surface and the new rim
-    // must remain individually push/pullable. Do not simplify this union.
-    const fuse = new (getOC().BRepAlgoAPI_Fuse)(source.wrapped, offset.wrapped);
-    let shape: AnyShape | undefined;
-    try {
-      shape = cast(fuse.Shape());
-      const next = bodyFromShape(body, shape);
-      const restored = createShape(next),
-        faces = restored.faces;
+export function offsetFace(
+  body: Body,
+  ref: FaceRef,
+  distance: number,
+  cache?: TransformCache,
+): SplitResult {
+  return withOffset(
+    body,
+    ref,
+    distance,
+    (offset, source) => {
+      if (distance > 0) return splitFace(body, ref, bodyFromShape(body, offset, []), false, cache);
+      // Keep the boolean's face partitions: the original surface and the new rim
+      // must remain individually push/pullable. Do not simplify this union.
+      const fuse = new (getOC().BRepAlgoAPI_Fuse)(source.wrapped, offset.wrapped);
+      let shape: AnyShape | undefined;
       try {
-        const mesh = meshBody(next, restored);
-        for (const candidate of mesh.faces) {
-          const common = new (getOC().BRepAlgoAPI_Common)(
-            faces[candidate.index].wrapped,
-            source.wrapped,
-          );
-          let overlap: AnyShape | undefined;
-          try {
-            overlap = cast(common.Shape());
-            if (measureArea(overlap as Shape3D) < 1e-6) return { body: next, face: candidate.ref };
-          } finally {
-            overlap?.delete();
-            common.delete();
+        shape = cast(fuse.Shape());
+        const next = bodyFromShape(body, shape);
+        const restored = createShape(next),
+          faces = restored.faces;
+        try {
+          const mesh = meshBody(next, restored);
+          for (const candidate of mesh.faces) {
+            const common = new (getOC().BRepAlgoAPI_Common)(
+              faces[candidate.index].wrapped,
+              source.wrapped,
+            );
+            let overlap: AnyShape | undefined;
+            try {
+              overlap = cast(common.Shape());
+              if (measureArea(overlap as Shape3D) < 1e-6) {
+                cache?.prepare(next, restored, mesh);
+                return { body: next, face: candidate.ref };
+              }
+            } finally {
+              overlap?.delete();
+              common.delete();
+            }
           }
+          throw new Error('Offset ei muodosta uutta ulkokehää. Kokeile toista mittaa.');
+        } finally {
+          faces.forEach((face) => face.delete());
+          restored.delete();
         }
-        throw new Error('Offset ei muodosta uutta ulkokehää. Kokeile toista mittaa.');
       } finally {
-        faces.forEach((face) => face.delete());
-        restored.delete();
+        shape?.delete();
+        fuse.delete();
       }
-    } finally {
-      shape?.delete();
-      fuse.delete();
-    }
-  });
+    },
+    cache,
+  );
 }
-export function offsetOutline(body: Body, ref: FaceRef, distance: number): number[] {
-  return withOffset(body, ref, distance, (offset) => offset.meshEdges({ tolerance: 0.15 }).lines);
+export function offsetOutline(
+  body: Body,
+  ref: FaceRef,
+  distance: number,
+  cache?: TransformCache,
+): number[] {
+  return withOffset(
+    body,
+    ref,
+    distance,
+    (offset) => offset.meshEdges({ tolerance: 0.15 }).lines,
+    cache,
+  );
 }
 
 /** Exact coplanar union, including arcs and holes. Shared/internal borders disappear. */
@@ -324,17 +354,20 @@ export function splitFace(
   ref: FaceRef,
   profile: Body,
   allowUnsplit = false,
+  cache?: TransformCache,
 ): SplitResult {
   if (featureIsSolid(profile.feature))
     throw new Error('Pinnan rajaamiseen tarvitaan luonnos ilman paksuutta.');
-  const shape = createShape(body),
+  const shape = cache?.shape(body) ?? createShape(body),
     sketch = createShape(profile),
-    faces = shape.faces;
+    faces = shapeFaces(shape);
   const oc = getOC();
   let clipped: AnyShape | undefined, result: AnyShape | undefined;
   const splitter = new oc.BRepAlgoAPI_Splitter();
   try {
-    const target = meshBody(body, shape).faces.find((f) => f.ref === ref);
+    const target = (cache?.get(body)?.mesh ?? meshBody(body, shape)).faces.find(
+      (f) => f.ref === ref,
+    );
     if (!target?.planar) throw new Error('Valitse tasomainen pinta piirtotasoksi.');
     const common = new oc.BRepAlgoAPI_Common(faces[target.index].wrapped, sketch.wrapped);
     try {
@@ -380,7 +413,8 @@ export function splitFace(
       restored = createShape(next),
       restoredFaces = restored.faces;
     try {
-      const metadata = meshBody(next, restored).faces;
+      const mesh = meshBody(next, restored),
+        metadata = mesh.faces;
       const candidates = metadata.filter(
         (f) => f.planar && f.normal.every((n, i) => Math.abs(n - target.normal[i]) < 1e-5),
       );
@@ -405,6 +439,7 @@ export function splitFace(
         }
       }
       if (!selected) throw new Error('Piirrettyä aluetta ei voitu tunnistaa. Muutos peruttiin.');
+      cache?.prepare(next, restored, mesh);
       return { body: next, face: selected };
     } finally {
       restoredFaces.forEach((f) => f.delete());

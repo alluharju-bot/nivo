@@ -7,6 +7,7 @@ import { detailSourceShape } from './detailSource';
 import type { EdgeDetailResult } from './protocol';
 import { filletPrism } from './prismFillet';
 import { detailEdgeIndices } from './detailEdges';
+import type { TransformCache } from './buildCache';
 
 export function detailEdges(
   body: Body,
@@ -14,6 +15,7 @@ export function detailEdges(
   operation: 'fillet' | 'chamfer',
   size: number,
   editing = false,
+  cache?: TransformCache,
 ): EdgeDetailResult {
   if (body.locked)
     throw new Error('Kappale on kiinnitetty. Vapauta Hold ennen reunojen muokkaamista.');
@@ -24,7 +26,7 @@ export function detailEdges(
   if (!Number.isFinite(size) || size < 0.1 || size > 100000)
     throw new Error('Anna mitta väliltä 0,1–100 000 mm.');
   const source = editing ? body.edgeTreatment : undefined;
-  const shape = source ? detailSourceShape(body) : createShape(body),
+  const shape = source ? detailSourceShape(body) : (cache?.shape(body) ?? createShape(body)),
     edges = shapeEdges(shape);
   let result: AnyShape | undefined;
   try {
@@ -79,7 +81,9 @@ export function detailEdges(
       operation,
       size,
     };
-    return { body: next, mesh: meshBody(next, result) };
+    const mesh = meshBody(next, result);
+    cache?.prepare(next, result, mesh);
+    return { body: next, mesh };
   } catch (error) {
     if (error instanceof Error && /Valitse/.test(error.message)) throw error;
     throw new Error(

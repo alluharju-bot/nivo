@@ -2,6 +2,17 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.33.1 — raskaiden osien käsittely, 10.10.2026
+
+- Siirron ja kierron hyväksyntä käyttää aiempaa tarkkaa piirtoverkkoa.
+- Akseliskaalauksen lähdeverkko muuntuu kiristetyillä toleransseilla, kun CAD:n
+  muunnoshistoria vahvistaa pintojen vastaavuuden. Tavallinen laatikko pysyy parametrimuotona.
+- Valmiit operaatiot, pintatiedot ja rinnakkaiset linkitetyt kopiot käyttävät CAD-välimuistia.
+- Mitatut ennen/jälkeen-ajat ja rajat: [suorituskyky](performance.md).
+- Jatko: raskaan BRepin affine-muunnos on edelleen hidas; geometriaa muuttavan
+  operaation Peru verkottaa palautetun muodon uudestaan. Tutki rajattua historiavälimuistia
+  ja muunnosytimen nopeutusta erikseen todellisen WASM-/GPU-muistin mittauksen kanssa.
+
 ## V0.33.0 — Skaalaa, 10.10.2026
 
 - L avaa skaalauksen. Kulmakahvat muuttavat kokoa tasaisesti, sivukahvat yhdellä

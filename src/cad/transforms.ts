@@ -2,10 +2,19 @@ import { Quaternion, Vector3 } from 'three';
 import { bodySchema, type Body, type Vec3 } from '../model/project';
 import { add, sub, unit } from '../model/geometry';
 import { requireMovable, rotatePoint } from '../model/transforms';
-import { bodyFromShape, createShape, meshBody } from './kernel';
+import { bodyFromShape, createShape } from './kernel';
+import { shapeVertexReferences } from './vertexReferences';
+import { rotateMesh } from './rotateMesh';
+import type { TransformCache } from './buildCache';
 
 /** Rotate the exact BRep, preserving the identity of every attached vertex. */
-export function rotateBodies(bodies: Body[], pivot: Vec3, axis: Vec3, angle: number): Body[] {
+export function rotateBodies(
+  bodies: Body[],
+  pivot: Vec3,
+  axis: Vec3,
+  angle: number,
+  cache?: TransformCache,
+): Body[] {
   requireMovable(bodies);
   if (
     !Number.isFinite(angle) ||
@@ -17,18 +26,21 @@ export function rotateBodies(bodies: Body[], pivot: Vec3, axis: Vec3, angle: num
   if (Math.abs(angle % 360) < 1e-9) return bodies;
   const direction = unit(axis);
   return bodies.map((body) => {
-    const shape = createShape(body);
+    const shape = cache?.shape(body) ?? createShape(body);
     const rotated = shape.clone().rotate(angle, pivot, direction);
     try {
       const next = bodyFromShape(body, rotated, []);
+      const previous = cache?.get(body);
       const references = [
-        ...meshBody(body, shape).verticesCAD.map((v) => ({ key: v.anchor.key, point: v.point })),
+        ...(previous
+          ? previous.mesh.verticesCAD.map((v) => ({ key: v.anchor.key, point: v.point }))
+          : shapeVertexReferences(body, shape)),
         ...Object.entries(body.vertexRefs ?? {}).map(([key, local]) => ({
           key,
           point: add(body.origin, local),
         })),
       ];
-      return bodySchema.parse({
+      const result = bodySchema.parse({
         ...next,
         curve: body.curve
           ? {
@@ -90,6 +102,15 @@ export function rotateBodies(bodies: Body[], pivot: Vec3, axis: Vec3, angle: num
           ]),
         ),
       });
+      // Drawing stations use arc-length coordinates. Read their serialized
+      // geometry on commit so station keys are identical after a fresh load.
+      if (!previous?.mesh.curveStations)
+        cache?.prepare(
+          result,
+          rotated,
+          previous ? rotateMesh(previous.mesh, result, pivot, direction, angle) : undefined,
+        );
+      return result;
     } finally {
       rotated.delete();
       shape.delete();

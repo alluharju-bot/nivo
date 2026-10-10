@@ -1,0 +1,137 @@
+{
+  "environment": {
+    "device": "Apple M1 Pro / 16 GB",
+    "browser": "Chromium 153, headed, 1440 x 960 CSS px",
+    "builds": "v0.33.0 and v0.33.1 production builds",
+    "fixture": "Private perforated solid, 725 CAD faces, 2196 edges; not included"
+  },
+  "method": "Same 21-body project; isolate same part, fit view; move X +100 mm, rotate Z 30 deg, uniform scale x1.1, Z scale x1.1, undo after each; time acceptance through browser autosave. Each scale test starts from original geometry. One paired run; not a hardware-independent performance guarantee. A 1.6 s unit-test run overlapped the baseline axis-scale operation; no other browser tests ran during either measurement.",
+  "before": {
+    "milliseconds": {
+      "move": 4024.723124999553,
+      "undoMove": 3992.0181249994785,
+      "rotate": 8883.639125000685,
+      "undoRotate": 4435.910125000402,
+      "uniformScale": 5473.342000000179,
+      "undoScale": 4432.560415999964,
+      "axisScale": 64768.75425000116,
+      "undoAxisScale": 4456.118458000943
+    },
+    "worker": [
+      {
+        "type": "sync",
+        "ms": 4192.400000095367
+      },
+      {
+        "type": "sync",
+        "ms": 3815.100000143051
+      },
+      {
+        "type": "sync",
+        "ms": 3798
+      },
+      {
+        "type": "rotate",
+        "ms": 4597.200000047684
+      },
+      {
+        "type": "sync",
+        "ms": 3883.2000000476837
+      },
+      {
+        "type": "sync",
+        "ms": 3859.0999999046326
+      },
+      {
+        "type": "scale",
+        "ms": 1114.6999998092651
+      },
+      {
+        "type": "sync",
+        "ms": 3827.600000143051
+      },
+      {
+        "type": "sync",
+        "ms": 3863.399999856949
+      },
+      {
+        "type": "scale",
+        "ms": 36521.5
+      },
+      {
+        "type": "sync",
+        "ms": 27901.700000047684
+      },
+      {
+        "type": "sync",
+        "ms": 3878.300000190735
+      }
+    ],
+    "undoExact": true,
+    "javascriptErrors": 0
+  },
+  "after": {
+    "milliseconds": {
+      "move": 356.9125000014901,
+      "undoMove": 349.9457090012729,
+      "rotate": 1440.6144579984248,
+      "undoRotate": 4455.1200409997255,
+      "uniformScale": 4848.701333999634,
+      "undoScale": 4396.467542000115,
+      "axisScale": 42132.38616700098,
+      "undoAxisScale": 4512.904457999393
+    },
+    "worker": [
+      {
+        "type": "sync",
+        "ms": 4160.400000095367
+      },
+      {
+        "type": "sync",
+        "ms": 185
+      },
+      {
+        "type": "sync",
+        "ms": 171.20000004768372
+      },
+      {
+        "type": "rotate",
+        "ms": 1011.7999999523163
+      },
+      {
+        "type": "sync",
+        "ms": 263.7999999523163
+      },
+      {
+        "type": "sync",
+        "ms": 3913.5999999046326
+      },
+      {
+        "type": "scale",
+        "ms": 922.7000000476837
+      },
+      {
+        "type": "sync",
+        "ms": 3639.399999856949
+      },
+      {
+        "type": "sync",
+        "ms": 3850.7999999523163
+      },
+      {
+        "type": "scale",
+        "ms": 41606
+      },
+      {
+        "type": "sync",
+        "ms": 268.19999980926514
+      },
+      {
+        "type": "sync",
+        "ms": 3954.399999856949
+      }
+    ],
+    "undoExact": true,
+    "javascriptErrors": 0
+  }
+}
