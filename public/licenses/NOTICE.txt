@@ -14,6 +14,9 @@ https://github.com/sgenoud/replicad/tree/e4b05f67dc4e2393a876ce8c5064a9c93db05bf
 Build recipe: packages/replicad-opencascadejs/build-config and build-source in that tree.
 OpenCascade.js toolchain image: ghcr.io/taucad/opencascade.js:canary-ebd263f1-single-threaded
 https://github.com/taucad/opencascade.js/tree/ebd263f1
+Affine scaling add-on: brepjs-opencascade 0.15.6, git 63d1996f5db980606d0e776d9b891d54f138e937.
+https://github.com/andymai/brepjs/tree/63d1996f5db980606d0e776d9b891d54f138e937/packages/brepjs-opencascade
+Unmodified WASM, build-config/brepjs.yml; toolchain ghcr.io/andymai/opencascade.js:v8.
 OpenCascade Technology: https://github.com/Open-Cascade-SAS/OCCT
 Upstream OpenCascade.js: https://github.com/donalffons/opencascade.js
 
@@ -21,6 +24,7 @@ The unmodified kernel can be replaced or rebuilt independently of Nivo.
 See docs/architecture.md for integration and replacement instructions.
 
 Installed runtime dependencies:
+brepjs-opencascade 0.15.6: LGPL-2.1-only (brepjs-opencascade-LICENSE, brepjs-opencascade-NOTICE)
 jspdf 4.2.1: MIT (jspdf-LICENSE)
 @babel/runtime 7.29.7: MIT (@babel__runtime-LICENSE)
 fflate 0.8.3: MIT (fflate-LICENSE)

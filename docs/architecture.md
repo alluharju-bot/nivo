@@ -326,6 +326,35 @@ upstreamin Docker/ytt-konfiguraatiolla, korvata npm-paketin omalla buildilla tai
 vaihtaa workerin init/WASM-tuonnit ja ajaa `npm run build` uudelleen.
 Sovelluksen lisenssi sallii kirjaston vaihtamisen ja muokkaamisen.
 
+## Skaalaus
+
+`model/scaling.ts` määrittää koko valinnan yhteisen kiintopisteen ja positiiviset
+kertoimet. GPU-esikatselu lainaa nykyisiä geometria- ja reunapuskureita: veto
+muuttaa matriisia, eikä pyydä CAD-laskentaa. Kulmakahvat skaalaavat tasaisesti,
+sivukahvat yhtä maailman akselia. Kerroin tai tavoitemitta antaa saman operaation.
+
+Tasainen CAD-skaalaus käyttää nykyistä Replicad-ydintä. Sen WASM-paketista puuttuva
+`BRepBuilderAPI_GTransform` ladataan vasta hyväksytyssä epätasaisessa skaalauksessa
+`brepjs-opencascade@0.15.6`-lisäytimestä. Muutos siirtyy ytimien välillä tarkkana
+BRep-tekstinä, ei kolmioverkkona. Lisä-WASM on noin 26 Mt (gzip 8 Mt); mallin
+avaaminen, tavallinen mallinnus ja esikatselu eivät lataa sitä. Se ei vaadi
+cross-origin-isolation-otsakkeita. Vaihtaminen onnistuu `cad/affineKernel.ts`:n
+init/WASM-tuontien kautta; lähdeversio ja build-ohje ovat lisenssien NOTICE:ssa.
+
+Affiinimuunnos voi esittää suorankin pinnan ja reunan B-splinenä.
+`cad/planarity.ts` tunnistaa tasomaisuuden ja suoruuden kontrollipisteistä,
+jotta Offset, Push/Pull ja reunoihin sidotut mitat säilyvät käytettävinä.
+Yhden BRep-osan raja on 16 Mt; projektitiedoston 64 Mt:n raja säilyy.
+Skaalauksen hyväksynnän aikaraja on 120 sekuntia, muut operaatiot 45 sekuntia.
+Peruutus katkaisee workerin ja jättää aiemman projektin ennalleen.
+
+Linkitetty perhe muunnetaan kerran. Muut valitut esiintymät saavat skaalatun
+sijainnin ja normaalin komponenttisynkronoinnin; ulkopuolisten kopioiden sijainti
+säilyy, mutta yhteinen muoto päivittyy. Eri asennoissa olevien kopioiden
+ristiriitainen akseliskaalaus pyytää tekemään osat uniikeiksi tai skaalaamaan
+tasaisesti. Hold suojaa myös epäsuorasti muuttuvia kopioita. Vanhojen verteksien
+avaimet säilyvät, myös kopioissa. Operaatiosta syntyy yksi kumottava historiavaihe.
+
 ## Mitattavat suorituskykytavoitteet
 
 Referenssit: M1 Pro / 16 Gt / macOS 26.2 / Chromium; fyysinen iPad/Safari on

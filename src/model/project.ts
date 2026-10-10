@@ -78,7 +78,7 @@ const brepFeature = z.object({
   width: extent,
   depth: extent,
   height: extent,
-  data: z.string().min(1).max(8_000_000),
+  data: z.string().min(1).max(16_000_000),
   solid: z.boolean(),
   topologyId: id,
 });
@@ -477,6 +477,8 @@ export function projectValidationMessage(error: z.ZodError): string {
     referenceImages: 'pohjakuvaa',
   };
   for (const issue of error.issues) {
+    if (issue.code === 'too_big' && issue.origin === 'string' && issue.path.at(-1) === 'data')
+      return 'Yhden osan tarkka geometria ylittää 16 Mt:n rajan. Jaa osa pienempiin kokonaisuuksiin. Edellinen malli säilyi.';
     if (issue.code === 'too_big' && issue.origin === 'array' && issue.path.length === 1) {
       const name = collectionNames[String(issue.path[0])];
       if (name)

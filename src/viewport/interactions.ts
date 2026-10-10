@@ -1,3 +1,4 @@
+import { scaleHandles, factorsFor, type Scaling } from '../model/scaling';
 import { markupInteractions } from './markupInteractions';
 import { memoryMaySnap, nearestRememberedMeasure } from '../model/measureMemory';
 import { bodyDisplayMode } from '../model/display';
@@ -433,6 +434,17 @@ export function installInteractions({
     current().onGesture({ type: 'offset', distance });
     highlightFace(target);
   };
+  let scaleDrag:
+    | {
+        mode: Scaling['mode'];
+        x: number;
+        y: number;
+        dx: number;
+        dy: number;
+        denominator: number;
+        initial: number;
+      }
+    | undefined;
   let rotationDrag:
     | {
         pivot: Vec3;
@@ -2373,6 +2385,7 @@ export function installInteractions({
       tool = current().tool;
       drag = undefined;
       showMoveAxis();
+      scaleDrag = undefined;
       rotationDrag = undefined;
       offsetSession = undefined;
       detailSession = undefined;
@@ -2878,6 +2891,35 @@ export function installInteractions({
       edgeLength: measureSession.edgeLength,
     });
   };
+  const scaleHandleAt = (event: PointerEvent) => {
+    const s = current().scaling;
+    if (!s || s.picking) return;
+    const rect = canvas.getBoundingClientRect(),
+      x = event.clientX - rect.left,
+      y = event.clientY - rect.top;
+    return scaleHandles(s, current().bodies)
+      .map((handle) => {
+        const p = screen(handle.point);
+        return { ...handle, z: p.z, distance: Math.hypot(x - p.x, y - p.y) };
+      })
+      .filter((h) => Math.abs(h.z) <= 1 && h.distance < (event.pointerType === 'touch' ? 20 : 13))
+      .sort((a, b) => a.distance - b.distance || a.z - b.z)[0];
+  };
+  const updateScale = (event: PointerEvent) => {
+    if (!scaleDrag) return;
+    const d = scaleDrag;
+    const factor = Number(
+      Math.min(
+        1000,
+        Math.max(
+          0.001,
+          d.initial *
+            (1 + ((event.clientX - d.x) * d.dx + (event.clientY - d.y) * d.dy) / d.denominator),
+        ),
+      ).toFixed(6),
+    );
+    current().onScaleChange({ mode: d.mode, factors: factorsFor(d.mode, factor) });
+  };
   const rotationHandleAt = (event: PointerEvent) => {
     const rotation = current().rotation;
     if (!rotation || rotation.picking) return;
@@ -2999,6 +3041,7 @@ export function installInteractions({
       drag = undefined;
       extrudeSession = undefined;
       shapeSession = undefined;
+      scaleDrag = undefined;
       rotationDrag = undefined;
       blocked = true;
       show();
@@ -3041,7 +3084,9 @@ export function installInteractions({
     // Idle tools share selection; active drawing, reference acquisition and
     // face gestures keep their own modifiers and empty-space semantics.
     const selectionTool =
-      ['move', 'rotate', 'offset', 'detail', 'erase', 'paint', 'boolean'].includes(props.tool) ||
+      ['move', 'rotate', 'scale', 'offset', 'detail', 'erase', 'paint', 'boolean'].includes(
+        props.tool,
+      ) ||
       (props.tool === 'measure' && props.measureMode === 'guide');
     if (
       selectionTool &&
@@ -3050,7 +3095,8 @@ export function installInteractions({
       !measureSession &&
       !dimensionSession &&
       !props.pickReference &&
-      !props.rotation?.picking
+      !props.rotation?.picking &&
+      !props.scaling?.picking
     ) {
       const hit = faceAt(event),
         wire = wireAt(event);
@@ -3059,10 +3105,15 @@ export function installInteractions({
         !wire &&
         !selectableGuideAt(event) &&
         !(props.tool === 'move' && moveSnapAt(event, true)) &&
+        !(props.tool === 'scale' && scaleHandleAt(event)) &&
         !(props.tool === 'rotate' && rotationHandleAt(event)) &&
         !(props.tool === 'detail' && detailEdgeAt(event)) &&
         !(props.tool === 'measure' && (vertexAt(event) || edgeAt(event) || guideAt(event)));
-      if ((empty || event.shiftKey) && !(props.tool === 'rotate' && rotationHandleAt(event))) {
+      if (
+        (empty || event.shiftKey) &&
+        !(props.tool === 'scale' && scaleHandleAt(event)) &&
+        !(props.tool === 'rotate' && rotationHandleAt(event))
+      ) {
         drag = {
           start: [0, 0, 0],
           origin: [0, 0, 0],
@@ -3169,6 +3220,56 @@ export function installInteractions({
           updateMeasure(event);
         } else show({ ...p });
       }
+      return;
+    }
+    if (props.tool === 'scale') {
+      const s = props.scaling;
+      if (s?.picking) {
+        const point = rotationPoint(event);
+        if (point) props.onScalePick(point);
+      } else {
+        const handle = scaleHandleAt(event);
+        if (handle && s) {
+          const mode = handle.mode === 'uniform' ? s.mode : handle.mode;
+          const directionPoint =
+            mode === 'uniform'
+              ? handle.point
+              : (s.pivot.map((n, i) =>
+                  ['x', 'y', 'z'][i] === mode ? handle.point[i] : n,
+                ) as Vec3);
+          const pivot = screen(s.pivot),
+            tip = screen(directionPoint),
+            dx = tip.x - pivot.x,
+            dy = tip.y - pivot.y;
+          const denominator = dx * dx + dy * dy;
+          if (denominator < 25) {
+            props.onSnap('Valitse kauempana kiintopisteestä oleva kahva.');
+            return;
+          }
+          // Changing handle mode starts from the original shape, keeping one
+          // unambiguous operation (uniform OR a single world axis).
+          const initial =
+            s.mode === mode ? s.factors[mode === 'uniform' ? 0 : ['x', 'y', 'z'].indexOf(mode)] : 1;
+          props.onScaleChange({ mode, factors: factorsFor(mode, initial) });
+          scaleDrag = { mode, x: event.clientX, y: event.clientY, dx, dy, denominator, initial };
+          drag = {
+            start: s.pivot,
+            origin: s.pivot,
+            screenX: event.clientX,
+            screenY: event.clientY,
+            height: 0,
+            plane: 'XY',
+            second: false,
+          };
+          canvas.setPointerCapture(event.pointerId);
+        } else {
+          const hit = editableFaceAt(event, true),
+            wire = wireAt(event);
+          const id = hit?.target.bodyId ?? wire?.object.userData.id;
+          if (id) props.onSelect(id, undefined, event.shiftKey);
+        }
+      }
+      canvas.focus({ preventScroll: true });
       return;
     }
     if (props.tool === 'rotate') {
@@ -3620,6 +3721,35 @@ export function installInteractions({
       );
       return;
     }
+    if (props.tool === 'scale') {
+      if (scaleDrag) {
+        updateScale(event);
+        return;
+      }
+      const s = props.scaling,
+        handle = scaleHandleAt(event);
+      canvas.dataset.scaleHandle = handle?.mode ?? '';
+      if (s?.picking) {
+        const point = rotationPoint(event);
+        show(point ? { point, key: 'scale-pivot', label: 'Kiintopiste' } : undefined);
+      } else {
+        const hit = !handle ? faceAt(event) : undefined;
+        props.onSelectionHover?.(hit?.target.bodyId);
+        show(
+          handle
+            ? {
+                point: handle.point,
+                key: 'scale-handle',
+                label:
+                  handle.mode === 'uniform'
+                    ? 'Skaalaa tasaisesti'
+                    : `Skaalaa · ${handle.mode.toUpperCase()}`,
+              }
+            : undefined,
+        );
+      }
+      return;
+    }
     if (props.tool === 'rotate') {
       if (rotationDrag) {
         updateRotation(event);
@@ -3943,6 +4073,7 @@ export function installInteractions({
       pickingOther = false;
       pointers.delete(event.pointerId);
       drag = undefined;
+      scaleDrag = undefined;
       rotationDrag = undefined;
       dimensionPress = undefined;
       detailSession = undefined;
@@ -4054,11 +4185,18 @@ export function installInteractions({
           const target = boundaryAt(event);
           if (target) props.onRemoveBoundary(target);
         }
+      } else if (props.tool === 'scale' && scaleDrag) {
+        if (moved) {
+          updateScale(event);
+          props.onAccept();
+        }
+        scaleDrag = undefined;
       } else if (props.tool === 'rotate' && rotationDrag) {
         if (moved) {
           updateRotation(event);
           props.onAccept();
         }
+        scaleDrag = undefined;
         rotationDrag = undefined;
       } else if (props.tool === 'offset') {
         if (moved || active.second) {
@@ -4154,6 +4292,7 @@ export function installInteractions({
     clearSelectionBox();
     pointers.delete(event.pointerId);
     drag = undefined;
+    scaleDrag = undefined;
     rotationDrag = undefined;
     if (!pointers.size) blocked = false;
   };
@@ -4174,6 +4313,7 @@ export function installInteractions({
     shapeSession = undefined;
     canvas.dataset.depthTarget = '';
     canvas.dataset.depthKind = '';
+    scaleDrag = undefined;
     rotationDrag = undefined;
     if (!pointers.size) blocked = false;
   };
@@ -4228,6 +4368,14 @@ export function installInteractions({
       }
       return;
     }
+    if (['x', 'y', 'z'].includes(key) && props.tool === 'scale') {
+      event.preventDefault();
+      if (!scaleDrag)
+        props.onScaleChange({
+          mode: props.scaling?.mode === key ? 'uniform' : (key as 'x' | 'y' | 'z'),
+        });
+      return;
+    }
     if (['x', 'y', 'z'].includes(key) && props.tool === 'rotate') {
       event.preventDefault();
       props.onRotationAxis(axisVector(key as Axis));
@@ -4256,7 +4404,9 @@ export function installInteractions({
       if (
         props.tool === 'select' ||
         drag?.selection ||
-        (['move', 'rotate', 'offset', 'detail', 'erase', 'paint', 'boolean'].includes(props.tool) &&
+        (['move', 'rotate', 'scale', 'offset', 'detail', 'erase', 'paint', 'boolean'].includes(
+          props.tool,
+        ) &&
           !drag &&
           !offsetSession &&
           !props.rotation?.picking)
@@ -4411,6 +4561,7 @@ export function installInteractions({
     shiftDirection = undefined;
     current().onConstraint(undefined);
     drag = undefined;
+    scaleDrag = undefined;
     rotationDrag = undefined;
     pointers.clear();
     blocked = false;

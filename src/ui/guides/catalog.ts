@@ -222,6 +222,26 @@ export const toolGuides = [
     tip: 'Kosketuksella käytä Siirrä kopio -valintaa. Kopiot jakavat muodon; Tee uniikiksi irrottaa valitun kopion linkin.',
   },
   {
+    id: 'scale',
+    title: 'Skaalaa',
+    category: 'Perusteet',
+    shortcut: 'L',
+    steps: [
+      step(
+        'Valitse osa tai kokonaisuus',
+        'Valitse osat ja paina L. Kiintopiste pysyy paikallaan.',
+        'L',
+      ),
+      step(
+        'Muuta kokoa',
+        'Vedä kulmakahvasta tasaisesti tai sivukahvasta yhdellä akselilla. Voit myös kirjoittaa kertoimen tai tavoitemitan.',
+        '2 ×',
+      ),
+      step('Hyväksy', 'Vapauta veto tai paina Enter. Esc peruu esikatselun.', 'Enter'),
+    ],
+    tip: 'X/Y/Z valitsee akselin. Reiät ja seinämät muuttuvat mukana. Linkitetyt kopiot jakavat uuden koon; Vain valitut tekee skaalattavista osista uniikkeja.',
+  },
+  {
     id: 'rotate',
     title: 'Kierrä',
     category: 'Perusteet',

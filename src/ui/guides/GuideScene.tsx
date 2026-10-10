@@ -226,6 +226,21 @@ export function GuideScene({
         )}
       </>
     );
+  } else if (topic === 'scale') {
+    const factor = 1 + draw * 0.45;
+    cursor = [270 + 115 * factor, 207 - 90 * factor];
+    scene = (
+      <>
+        <Box opacity={0.18} />
+        <g transform={`translate(270 207) scale(${factor}) translate(-270 -207)`}>
+          <Box selected />
+        </g>
+        <Dot p={cursor} />
+        <text x="280" y="305" fill={ink} fontSize="15">
+          {factor.toFixed(2)} × · Tasainen
+        </text>
+      </>
+    );
   } else if (['move', 'copy', 'rotate', 'extrude', 'navigate', 'capture'].includes(topic)) {
     const motion = draw;
     const dx = ['move', 'copy'].includes(topic) ? motion * 115 : 0;

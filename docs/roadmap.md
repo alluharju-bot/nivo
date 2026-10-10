@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.33.0 — Skaalaa, 10.10.2026
+
+- L avaa skaalauksen. Kulmakahvat muuttavat kokoa tasaisesti, sivukahvat yhdellä
+  maailman akselilla. X/Y/Z valitsee akselin. Kerroin tai tavoitemitta toimii myös
+  millimetreinä; Enter tai vedon vapautus hyväksyy, Esc peruu.
+- Yhteinen kiintopiste: keskikohta, alakulma tai mallista poimittu piste.
+  Monivalinta, alaryhmät ja kokoonpanot säilyttävät osien suhteellisen sijainnin.
+- Linkitetty määrittely skaalataan kerran. Valitut kopiot siirtyvät yhteisen
+  kiintopisteen mukaan; muut kopiot jakavat koon omassa sijainnissaan. Erillinen
+  valinta tekee osista uniikkeja. Hold suojaa myös linkitettyjä kopioita.
+- Esikatselu lainaa nykyisiä piirto- ja reunapuskureita ilman CAD-laskentaa.
+  Tarkka BRep säilyy myös kaarevissa, pyöristetyissä ja rei'itetyissä osissa.
+- Venytyksen jälkeen tasopinnat tunnistetaan myös B-spline-esityksestä:
+  Offset, Push/Pull, reuna-ankkurit ja kopioiden pisteviitteet säilyvät.
+- Yhden BRep-osan raja 16 Mt. Skaalauksen laskennan aikaraja 120 s; kumoaminen
+  ja peruuttaminen säilyttävät alkuperäisen projektin.
+
 ## V0.32.2 — tiheän osan siirtokorostuksen jäätyminen, 10.10.2026
 
 - Siirron tartunta ei sädehae koko reunaviivastoa jokaiselle mahdolliselle ankkurille.
@@ -10,15 +27,13 @@
 - Nollasiirtymä ei luo päällekkäistä haamuverkkoa. Siirtäminen ja Ctrl-kopiointi
   käyttävät edelleen tarkkaa verkkoa ilman esikatselun CAD-laskentaa.
 
-## Backlog: skaalaus
+## Backlog: mittoja säilyttävä koonmuutos
 
-- Tasainen skaalaus tai valittu X/Y/Z-akseli, kertoimella tai tavoitekokonaismitalla.
-  Valittava kiintopiste, kevyt piirtoverkon esikatselu ja lopullinen CAD-muunnos
-  vasta hyväksyttäessä. Monivalinta ja kokoonpanot samaan työnkulkuun.
-- Tavallinen skaalaus muuttaa myös reikien mittoja, jakoa ja seinämän paksuutta.
-  Epätasainen skaalaus muuttaa ympyrät ellipseiksi. Tämä pitää ilmaista selvästi.
-- Esimerkiksi kiukaan halkaisijan muuttaminen reikiä ja pellin paksuutta säilyttäen
-  on erillinen rakennesääntöihin perustuva muokkaus, ei tavallisen skaalauksen lupaus.
+Tavallinen skaalaus muuttaa myös reikien mittoja, jakoa ja seinämän paksuutta;
+epätasainen skaalaus muuttaa ympyrät ellipseiksi. Kiukaan halkaisijan muuttaminen
+reikiä ja pellin paksuutta säilyttäen tarvitsee erilliset rakennesäännöt.
+Suuren BRep-osan akselimuunnoksen laskenta-aika ja NURBS-tiedon koko ovat
+jatko-optimoinnin kohteita; GPU-esikatselu ei odota tätä laskentaa.
 
 ## V0.32.1 — leikatun geometrian suorituskyky, 10.10.2026
 

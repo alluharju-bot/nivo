@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.33.0** lisää **Skaalaa (L)** -työkalun osille, monivalinnalle ja
+kokoonpanoille. Vedä kulmasta tasaisesti tai sivukahvasta yhtä akselia pitkin,
+kirjoita kerroin tai tavoitemitta ja valitse kiintopiste. Esikatselu käyttää
+nykyistä piirtoverkkoa; tarkka CAD lasketaan vasta hyväksyttäessä. Reiät ja
+seinämät skaalautuvat mukana. Linkitetyt kopiot jakavat koon, ellei valita
+**Vain valitut · tee uniikeiksi**. Myös raskas rei'itetty kiuas on testattu;
+sen akselikohtaisen venytyksen hyväksyntä voi kestää noin minuutin.
+
 Versio **0.32.2** korjaa tiheästi rei'itetyn osan jäätymisen **Siirrä**-työkalussa.
 Tartuntahaku ohittaa turhat reunaviivojen peittymistarkistukset ja etsii vain
 parhaan näkyvän tartunnan. Paikallaan oleva osa ei saa päällekkäistä siirtohaamua.

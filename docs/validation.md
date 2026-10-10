@@ -4,6 +4,33 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.33.0 — Skaalaa
+
+**405 yksikkö-/CAD-testiä hyväksytty (78 tiedostoa)**. Lopullisella versiolla
+skaalauksen ja ryhmien **14 selaintapausta hyväksytty** työpöytä- ja
+tablettiprofiileissa. Lisäksi 10 regressiotapausta (tiheän osan siirto sekä
+Join, kiertokopiointi ja aukkosarja) hyväksytty edeltävässä saman muutoksen
+buildissa. Kaksi vanhan ryhmätestin oletusta päivitetty: kopio tekee lähteestäkin
+linkitetyn komponentin, ja tablettikoon osoitinveto tarvitsee mallilistan pois
+piirtoalueen edestä. Uusinta hyväksytty molemmissa profiileissa.
+
+- Tavoitemitta ja kerroin, akselipainike ja X/Y/Z, hiirikahva, vapautuksella
+  hyväksyminen, Esc, virhesyöte, Peru/Palauta ja työkalun pysyminen aktiivisena.
+- Vedossa ei yhtään scale/instances/sync-pyyntöä, geometria ei rakennu uudelleen.
+- Alaryhmien valinta, usean linkitetyn esiintymän yhteinen skaalaus, kopioiden
+  ankkurit, lukitut kopiot ja eksplisiittinen uniikiksi tekeminen.
+- Tarkka rei'itetty ja pyöristetty solidi molemmissa skaalaustavoissa; avoin
+  tasomuoto ilman lisäpaksuutta; uudelleenavattava BRep ja samat aukot.
+- Akselivenytyksen jälkeinen Offset ja Push/Pull sekä alkuperäiset reuna-ankkurit.
+- Yksityinen rei'itetty kiuas selaimessa: tasainen ×1,1 noin 5,4 s. Z-venytys
+  ×1,1 noin 66,4 s ensimmäisellä kerralla (sisältää lisäytimen latauksen,
+  geometrian ja piirtoverkon; muita selaintestejä oli samanaikaisesti käynnissä).
+  Lopputulos noin 400 × 400 × 825 mm, BRep 9,56 Mt. Peru ja tiedostovienti
+  palauttivat osalistan täsmälleen alkuperäiseksi. Ei JavaScript-virheitä.
+  Yksityisen mallin 35 esikatselupäivityksessä ruutuvälien mediaani oli 8,2 ms
+  ja p95 10,5 ms (27 ruutua); CAD-pyyntöjä ja geometrian uudelleenrakennuksia 0.
+  Yksityistä mallia ei lisätä repoon.
+
 ## V0.32.2 — Siirrä-työkalun korostus ja tartunta
 
 **397 yksikkö-/CAD-testiä hyväksytty (77 tiedostoa)** ja **54 kohdennettua

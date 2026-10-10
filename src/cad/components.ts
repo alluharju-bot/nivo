@@ -55,6 +55,15 @@ export function instantiateComponents(source: Body, targets: Body[]): Body[] {
       const next = bodyFromShape(target, placed);
       return bodySchema.parse({
         ...next,
+        vertexRefs: {
+          ...next.vertexRefs,
+          ...Object.fromEntries(
+            Object.entries(source.vertexRefs ?? {}).map(([key, point]) => [
+              key,
+              sub(transform(add(source.origin, point)), next.origin),
+            ]),
+          ),
+        },
         curve: source.curve
           ? {
               ...source.curve,

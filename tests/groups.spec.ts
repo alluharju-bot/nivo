@@ -130,6 +130,7 @@ test('Ctrl-drag copies every selected group member from the grabbed point', asyn
   await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).focus();
   await page.getByRole('button', { name: 'Pidä mallilista näkyvissä', exact: true }).click();
   await page.getByRole('button', { name: 'Valitse ryhmä: Runko', exact: true }).click();
+  await page.getByRole('button', { name: 'Piilota mallilista', exact: true }).press('Enter');
   await page.keyboard.press('m');
   const start = p(30, 40, 20),
     end = p(110, 40, 20);
@@ -142,7 +143,15 @@ test('Ctrl-drag copies every selected group member from the grabbed point', asyn
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   const result = await save(page);
   expect(result.bodies).toHaveLength(4);
-  expect(result.bodies.slice(0, 2)).toEqual(parts);
+  expect(result.bodies.slice(0, 2)).toEqual(
+    parts.map((part) => ({
+      ...part,
+      purpose: 'component',
+      component: expect.any(Object),
+    })),
+  );
+  for (let i = 0; i < 2; i++)
+    expect(result.bodies[i].component?.id).toBe(result.bodies[i + 2].component?.id);
   expect(result.bodies[2].origin).toEqual([80, 0, 0]);
   expect(result.bodies[3].origin).toEqual([280, 0, 0]);
   expect(result.groups).toHaveLength(2);

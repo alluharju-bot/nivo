@@ -12,7 +12,7 @@ Yksi lyhyt teksti kertoo nykyisen vaiheen; lisävinkit avautuvat erikseen.
 
 | Kokonaisuus              | Ohjeet                                                                                        |
 | ------------------------ | --------------------------------------------------------------------------------------------- |
-| Perusteet                | Valitse, Navigoi, Siirrä, Kopioi ja toista, Kierrä                                            |
+| Perusteet                | Valitse, Navigoi, Siirrä, Kopioi ja toista, Kierrä, Skaalaa                                   |
 | Piirtäminen              | Suorakulmio, Ympyrä, Ellipsi, Monikulmio, Pallo, Kynä, Bézier-käyrä, Levyrunko                |
 | Muotoilu                 | Push/pull, Offset, Pyöristys, Viiste, Kumita, Cut, Join, Veitsi, Muotojen läpi, Leikkaa aukko |
 | Mittaaminen ja merkinnät | Apuviiva, Vapaa mittaviiva, Dimensio, Pinta-ala, Huomautus                                    |

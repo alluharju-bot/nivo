@@ -1,3 +1,4 @@
+import { isPlanarFace } from './planarity';
 import {
   loft,
   makeSolid,
@@ -53,7 +54,7 @@ export function throughShapes(profiles: Body[], options: ThroughShapesOptions) {
       shapes.push(shape);
       const faces = shape.faces;
       try {
-        if (faces.length > 1 || faces.some((f) => f.geomType !== 'PLANE'))
+        if (faces.length > 1 || faces.some((f) => !isPlanarFace(f)))
           throw new Error('Kukin profiili saa olla yksi viiva tai yksi tasopinta.');
         if (faces.length) {
           const boundaries = faces[0].wires;

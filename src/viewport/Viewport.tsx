@@ -1,3 +1,4 @@
+import { scalingPreview } from './scalingPreview';
 import { markupSvg, updateMarkupSvg } from './markupSvg';
 import { createOpeningPreview } from './openingPreview';
 import { installKnife } from './knife';
@@ -194,6 +195,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       marker.visible =
         Math.abs(p.z) <= 1 && (marker.userData.xray || !labelOccluded?.(marker.position));
     }
+    scalePreview.resize(camera, container.clientHeight);
     renderer.render(scene, camera);
     viewCube?.update();
     const facing = camera.getWorldDirection(new THREE.Vector3()).negate();
@@ -705,6 +707,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       'erase',
       'detail',
       'rotate',
+      'scale',
       'rectangle',
       'circle',
       'boolean',
@@ -722,7 +725,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     render();
   };
   let movePreviewKey = '';
+  const scalePreview = scalingPreview(scene);
   const preview = () => {
+    const scaling = current().scaling;
+    scalePreview.update(scaling, current().bodies, bodyNodes);
     const rotation = current().rotation;
     const moving = current().tool === 'move' ? current().preview : undefined;
     const source = moving && current().bodies.find((b) => b.id === moving.id);
@@ -746,6 +752,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     for (const object of bodies.children) {
       const wasVisible = object.visible;
       object.visible = !(
+        (scaling &&
+          scaling.factors.some((f) => Math.abs(f - 1) > 1e-10) &&
+          scaling.ids.includes(object.userData.id)) ||
         (current().tool === 'detail' && current().detailPreview?.body.id === object.userData.id) ||
         (moved && !current().copyMove && selectedIds.has(object.userData.id)) ||
         (rotation &&
@@ -1623,6 +1632,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       extrusionLabels.forEach((l) => l.element.remove());
       disposeGroup(pickPreview);
       openingPreview.dispose();
+      scalePreview.dispose();
       disposeGroup(bodies);
       disposeGroup(ghost);
       workspaceViews?.dispose();
@@ -1732,6 +1742,7 @@ export function Viewport(props: Props) {
       props.faceSpan,
       props.tool,
       props.rotation,
+      props.scaling,
       props.meshes,
       props.copyMove,
       props.selectedIds,

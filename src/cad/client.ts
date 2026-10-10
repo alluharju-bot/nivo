@@ -46,12 +46,12 @@ export class CadClient {
     }
     return this.worker;
   }
-  private request<T>(request: CadRequest): Promise<T> {
+  private request<T>(request: CadRequest, timeout = 45_000): Promise<T> {
     return new Promise((resolve, reject) => {
       const id = ++this.counter;
       const timer = setTimeout(
         () => this.cancel('Laskennan aikaraja ylittyi. Edellinen malli säilyi.'),
-        45_000,
+        timeout,
       );
       this.pending.set(id, { resolve: (value) => resolve(value as T), reject, timer });
       this.getWorker().postMessage({ ...request, id });
@@ -94,6 +94,9 @@ export class CadClient {
   }
   probe() {
     return this.request<ProbeResult>({ type: 'probe' });
+  }
+  scale(bodies: Body[], pivot: Vec3, factors: Vec3) {
+    return this.request<Body[]>({ type: 'scale', bodies, pivot, factors }, 120_000);
   }
   rotate(bodies: Body[], pivot: Vec3, axis: Vec3, angle: number) {
     return this.request<Body[]>({ type: 'rotate', bodies, pivot, axis, angle });

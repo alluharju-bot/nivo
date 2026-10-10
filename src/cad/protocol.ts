@@ -87,6 +87,7 @@ export interface SectionResult {
 }
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
+  | { type: 'scale'; bodies: Body[]; pivot: Vec3; factors: Vec3 }
   | { type: 'sphere'; center: Vec3; radius: number; name: string }
   | {
       type: 'bezier';

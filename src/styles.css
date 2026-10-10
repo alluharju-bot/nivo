@@ -6584,3 +6584,27 @@ p {
     min-height: 44px;
   }
 }
+
+.scaling-panel .axis-switch {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #e8ece6;
+}
+.scaling-panel .axis-switch button {
+  min-height: 32px;
+  border-radius: 5px;
+}
+.scaling-panel .axis-switch button[aria-pressed='true'] {
+  background: #fff;
+  color: #236e59;
+  box-shadow: 0 1px 3px #243c2420;
+  font-weight: 650;
+}
+@media (pointer: coarse) {
+  .scaling-panel .axis-switch button {
+    min-height: 44px;
+  }
+}

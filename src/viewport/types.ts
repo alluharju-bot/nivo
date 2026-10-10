@@ -1,3 +1,4 @@
+import type { Scaling } from '../model/scaling';
 import type { Markup, AreaMarkup, NoteMarkup } from '../model/project';
 import type { GuideEndpoint } from '../model/guideEditing';
 import type { ColorPreview } from '../model/colorPreview';
@@ -38,6 +39,7 @@ export type Tool =
   | 'erase'
   | 'offset'
   | 'rotate'
+  | 'scale'
   | 'select'
   | 'rectangle'
   | 'circle'
@@ -78,6 +80,10 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  scaling?: Scaling;
+  onScaleChange: (patch: Partial<Scaling>) => void;
+  onScalePick: (point: Vec3) => void;
+
   recentMeasures?: readonly number[];
   dimensionLocks?: ReadonlySet<string>;
   onRememberMeasures?: (...values: number[]) => void;

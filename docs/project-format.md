@@ -104,7 +104,7 @@ rajalaatikon mittojen on vastattava pisteitä; itsensä leikkaava muoto hylätä
 Tämä on pinta, vaikka sen Z-korkeus olisi positiivinen.
 
 `brep` sisältää Replicadin serialisoiman paikallisen OCCT-geometrian `data`
-(enintään 8 Mt), tilavuuskappaleen lipun `solid` sekä `topologyId`-tunnisteen.
+(enintään 16 Mt), tilavuuskappaleen lipun `solid` sekä `topologyId`-tunnisteen.
 CAD tarkistaa geometrian, rajalaatikon ja solid-tyypin ennen hyväksyntää.
 Pinnan jako, Offset, kierto, Cut, Join ja yleinen pintamuokkaus tallentavat tuloksen tähän
 muotoon ja uusivat `topologyId`:n. Cut säilyttää kohteiden UUID:t, Join ensimmäisen

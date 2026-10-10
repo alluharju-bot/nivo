@@ -1,3 +1,4 @@
+import { scaleBodies } from './scaling';
 import { sphereBody, bezierPath, knifeBodies } from './modeling';
 import { throughShapes } from './throughShapes';
 import { fillPenRegions } from './penRegions';
@@ -125,6 +126,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = divideSurfaces(request.profile, request.targets);
       else if (request.type === 'instances')
         reply.result = instantiateComponents(request.source, request.targets);
+      else if (request.type === 'scale')
+        reply.result = await scaleBodies(request.bodies, request.pivot, request.factors);
       else if (request.type === 'rotate')
         reply.result = rotateBodies(request.bodies, request.pivot, request.axis, request.angle);
       else if (request.type === 'face-span')

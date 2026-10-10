@@ -1,3 +1,4 @@
+import { isPlanarFace, isLinearEdge } from './planarity';
 import { shapeEdges, shapeFaces } from './topology';
 import { detailSourceShape } from './detailSource';
 import {
@@ -246,7 +247,8 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
       center = face.center;
     const vertex = mesh.triangles[group.start];
     let normal = mesh.normals.slice(vertex * 3, vertex * 3 + 3) as Vec3;
-    if (face.geomType === 'PLANE') {
+    const planar = isPlanarFace(face);
+    if (planar) {
       const exact = face.normalAt(),
         direction = unit(exact.toTuple());
       exact.delete();
@@ -264,7 +266,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
       index,
       normal: normal as Vec3,
       center: center.toTuple(),
-      planar: face.geomType === 'PLANE',
+      planar,
     };
     center.delete();
     return result;
@@ -457,7 +459,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
       const a = edge.startPoint,
         b = edge.endPoint;
       points.push(a.toTuple(), b.toTuple());
-      if (edge.geomType === 'LINE')
+      if (isLinearEdge(edge))
         linearEdges.push([sub(a.toTuple(), origin), sub(b.toTuple(), origin)]);
       a.delete();
       b.delete();
