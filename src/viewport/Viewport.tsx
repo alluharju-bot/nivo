@@ -43,6 +43,8 @@ import { installCameraNavigation, rebuildOrbitControls, rotateInView } from './c
 import { mirrorFaceGroups, mirrorBacking } from '../render/mirror';
 import { createViewCube } from './viewCube';
 import { createAnnotationOcclusion } from './annotationOcclusion';
+import { surfaceFaceRanges } from './faceRanges';
+import { createTriangleIndex } from './triangleIndex';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   capture: () => Promise<Blob>;
@@ -308,7 +310,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   let pickPreviewKey = '';
 
   const labelRay = new THREE.Raycaster();
-  const annotationOcclusion = createAnnotationOcclusion();
+  const triangles = createTriangleIndex();
+  bodies.userData.triangleIndex = triangles;
+  const annotationOcclusion = createAnnotationOcclusion(triangles);
   labelOccluded = (point) => {
     const projected = point.clone().project(camera);
     labelRay.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera);
@@ -331,6 +335,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     data: BodyMesh;
     style: string;
     uv: string;
+    shape: string;
     assets: Props['assets'];
     mesh: THREE.Mesh<THREE.BufferGeometry, ModelMaterial[]>;
     outline: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
@@ -443,6 +448,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         continue;
       }
       const keepGeometry = old?.data === data && old.uv === uv;
+      const shape = keepGeometry ? old.shape : JSON.stringify([body.feature, body.textureFrame]);
       const geometry = keepGeometry ? old.mesh.geometry : new THREE.BufferGeometry();
       const edges = keepGeometry ? old.outline.geometry : new THREE.BufferGeometry();
       if (old) removeNode(old, keepGeometry);
@@ -461,10 +467,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           : new THREE.MeshBasicMaterial({ toneMapped: false });
       // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
       const mirror = body.appearance?.preset === 'mirror' && display === 'solid';
-      const faceRanges =
-        (selected && props.selectedFace) || mirror
-          ? data.faces
-          : [{ ref: undefined, start: 0, count: data.triangles.length }];
+      const faceRanges = surfaceFaceRanges(data, selected ? props.selectedFace : undefined, mirror);
       const materialFaces = mirror
         ? faceRanges.flatMap((face) =>
             mirrorFaceGroups(geometry, body, face.start, face.count).map((group) => ({
@@ -492,7 +495,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                     : '#9865b4'
                   : moveHovered
                     ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
-                    : selected && face.ref === props.selectedFace
+                    : selected && props.selectedFace && face.ref === props.selectedFace
                       ? '#e1bd7b'
                       : selected && !props.selectedFace && props.tool !== 'paint'
                         ? new THREE.Color(body.color).lerp(
@@ -620,7 +623,16 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         (boundary.material as THREE.LineBasicMaterial).opacity = 0.45;
         bodies.add(boundary);
       }
-      nextNodes.set(body.id, { data, style, uv, assets: props.assets, mesh, outline, boundary });
+      nextNodes.set(body.id, {
+        data,
+        style,
+        uv,
+        shape,
+        assets: props.assets,
+        mesh,
+        outline,
+        boundary,
+      });
     }
     for (const [id, node] of bodyNodes) if (!nextNodes.has(id)) removeNode(node);
     const geometryChanged =
@@ -638,7 +650,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           const body = bodyById.get(id)!;
           return {
             id,
-            shape: JSON.stringify([body.feature, body.textureFrame]),
+            shape: node.shape,
             style: node.style,
             origin: body.origin,
             mesh: node.mesh,
@@ -1035,7 +1047,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
             return [
               {
                 id,
-                shape: JSON.stringify([body.feature, body.textureFrame]),
+                shape: bodyNodes.get(id)!.shape,
                 style: 'move',
                 origin: body.origin,
                 mesh,
@@ -1222,7 +1234,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     // Finished open pen paths keep their actual CAD vertices visible too.
     // Avoid tessellation points on circles, fillets and solid model edges.
     for (const mesh of props.meshes) {
-      if (mesh.faces.length && !(mesh.curveEdges?.length && props.selectedIds.includes(mesh.id)))
+      if (mesh.faces.length && !(mesh.curveStations && props.selectedIds.includes(mesh.id)))
         continue;
       for (const vertex of mesh.verticesCAD) {
         const marker = pointMarker(vertex.point, '#237b65', 12);
@@ -1281,6 +1293,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         guides.add(marker);
       });
     }
+    renderer.domElement.dataset.annotationPoints = String(
+      guides.children.filter((object) => object.userData.annotationPoint).length,
+    );
     render();
   };
   const setProjection = (projection: 'perspective' | 'orthographic') => {

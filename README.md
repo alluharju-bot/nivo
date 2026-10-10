@@ -3,6 +3,19 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.32.1** nopeuttaa rei'itettyjen ja pyöristettyjen osien käsittelyä:
+
+- Valittu kaareva tilavuuskappale ei enää peity satoihin pistemerkkeihin.
+  Piirtokäyrien tartuntapisteet sekä kaikkien osien tarkat tartunnat säilyvät.
+- Pintojen osoittaminen käyttää kolmiohakupuuta. Yhden pinnan valinta ei lisää
+  piirtokutsua jokaiselle kappaleen muulle pinnalle.
+- CAD-reunat ja pinnat indeksoidaan toistuvien kaikkien parien vertailujen sijaan.
+  Muokkaus säilyttää vanhat tartuntaviitteet verkottamatta vanhaa osaa uudestaan.
+- Pyöristyksen ja viisteen hyväksyntä käyttää valmiin esikatselun geometriaa ja
+  piirtoverkkoa. Samaa käsittelyä ei lasketa uudestaan hyväksyttäessä.
+
+[Mitattu vaikutus ja testin rajat](docs/performance.md).
+
 Versio **0.32.0** selkeyttää **Join**-yhdistämisen ja lisää kierron kopioinnin sekä
 aukkojen ympyrätoiston:
 

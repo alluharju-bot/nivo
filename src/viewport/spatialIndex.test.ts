@@ -2,6 +2,56 @@ import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { makeBody } from '../model/project';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
+import { createTriangleIndex } from './triangleIndex';
+
+it('accelerates dense picking without changing CAD face hits, highlight groups or clipped rear hits', () => {
+  const geometry = new THREE.SphereGeometry(50, 64, 48);
+  const materials = [
+    new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+  ];
+  const mesh = new THREE.Mesh(geometry, materials);
+  mesh.position.set(123, 456, 70);
+  mesh.scale.set(1.3, 0.8, 2);
+  mesh.rotation.set(0.1, 0.3, 0.2);
+  const group = new THREE.Group();
+  group.add(mesh);
+  group.updateMatrixWorld(true);
+  const triangles = createTriangleIndex();
+  group.userData.triangleIndex = triangles;
+  const indices = Array.from(geometry.index!.array);
+  const count = geometry.index!.count;
+  for (const split of [count, count / 2, Math.floor(count / 9) * 3]) {
+    geometry.clearGroups();
+    geometry.addGroup(0, split, 0);
+    if (split < count) geometry.addGroup(split, count - split, 1);
+    for (const x of [-30, 0, 30]) {
+      const ray = new THREE.Raycaster(
+        new THREE.Vector3(123 + x, 459, 300),
+        new THREE.Vector3(0, 0, -1),
+        20,
+        400,
+      );
+      const expected = ray.intersectObject(mesh, false);
+      const actual = intersectModel(ray, group);
+      expect(actual).toHaveLength(expected.length);
+      actual.forEach((hit, i) => {
+        expect(hit.faceIndex).toBe(expected[i].faceIndex);
+        expect(hit.face?.materialIndex).toBe(expected[i].face?.materialIndex);
+        expect(hit.point.distanceTo(expected[i].point)).toBeLessThan(1e-8);
+      });
+      group.userData.acceptPoint = (point: THREE.Vector3) => point.z < 70;
+      expect(intersectModel(ray, group)[0]?.faceIndex).toBe(
+        expected.find((hit) => hit.point.z < 70)?.faceIndex,
+      );
+      delete group.userData.acceptPoint;
+    }
+  }
+  expect(triangles.builds).toBe(1);
+  expect(Array.from(geometry.index!.array)).toEqual(indices);
+  geometry.dispose();
+  materials.forEach((material) => material.dispose());
+});
 
 it('a ghost keeps exact reference hits while selection and occlusion pass through it', () => {
   const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });

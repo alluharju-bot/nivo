@@ -55,6 +55,8 @@ test('all cylinder edges select only the circular rims and accept a chamfer', as
   await view(page, [cylinder]);
   await revealBrowser(page);
   await page.getByTestId(`body-${cylinder.id}`).click();
+  // Curved solids retain exact edge snaps without flooding the viewport with point sprites.
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-annotation-points', '0');
   await page.keyboard.press('f');
   await page.getByLabel('Reunakäsittely', { exact: true }).selectOption('chamfer');
   await page.getByRole('button', { name: 'Kaikki reunat', exact: true }).click();
@@ -65,4 +67,15 @@ test('all cylinder edges select only the circular rims and accept a chamfer', as
   await page.getByRole('button', { name: 'Hyväksy reunakäsittely', exact: true }).click();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   expect((await save(page)).bodies[0].edgeTreatment?.operation).toBe('chamfer');
+});
+
+test('selected drawing circles retain their visible curve stations', async ({ page }) => {
+  const circle = makeProfileBody({ kind: 'circle', radius: 40 }, sketchFrame([0, 0, 0]));
+  await ready(page, [circle]);
+  await page.getByTestId(`body-${circle.id}`).press('Enter');
+  await expect
+    .poll(async () =>
+      Number(await page.getByTestId('viewport').getAttribute('data-annotation-points')),
+    )
+    .toBeGreaterThanOrEqual(4);
 });

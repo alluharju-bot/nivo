@@ -21,6 +21,7 @@ export class CadClient {
   private meshes = new Map<string, BodyMesh>();
   private worker?: Worker;
   private counter = 0;
+  private detailPreview?: { body: Body; key: string; result: Promise<EdgeDetailResult> };
   private pending = new Map<
     number,
     {
@@ -183,7 +184,10 @@ export class CadClient {
     size: number,
     editing = false,
   ) {
-    return this.request<EdgeDetailResult>({
+    const key = JSON.stringify([indices, operation, size, editing]);
+    if (this.detailPreview?.body === body && this.detailPreview.key === key)
+      return this.detailPreview.result;
+    const result = this.request<EdgeDetailResult>({
       type: 'edge-detail',
       body,
       indices,
@@ -191,6 +195,13 @@ export class CadClient {
       size,
       editing,
     });
+    const preview = { body, key, result };
+    this.detailPreview = preview;
+    // A rejected/cancelled calculation must remain retryable. Keep only the latest result.
+    void result.catch(() => {
+      if (this.detailPreview === preview) this.detailPreview = undefined;
+    });
+    return result;
   }
   removeDetail(body: Body) {
     return this.request<Body>({ type: 'remove-detail', body });
@@ -201,6 +212,7 @@ export class CadClient {
     this.worker = undefined;
     this.meshKeys.clear();
     this.meshes.clear();
+    this.detailPreview = undefined;
     for (const job of this.pending.values()) {
       clearTimeout(job.timer);
       job.reject(new Error(message));

@@ -1,4 +1,5 @@
-import type { AnyShape } from 'replicad';
+import { shapeEdges } from './topology';
+import { cast, getOC, type AnyShape } from 'replicad';
 import { featureIsSolid, uid, type Body } from '../model/project';
 import { bodyFromShape, createShape, meshBody, shapeIsValid } from './kernel';
 import { add, sub } from '../model/geometry';
@@ -24,7 +25,7 @@ export function detailEdges(
     throw new Error('Anna mitta väliltä 0,1–100 000 mm.');
   const source = editing ? body.edgeTreatment : undefined;
   const shape = source ? detailSourceShape(body) : createShape(body),
-    edges = shape.edges;
+    edges = shapeEdges(shape);
   let result: AnyShape | undefined;
   try {
     if (!indices.length || indices.some((i) => !Number.isInteger(i) || i < 0 || i >= edges.length))
@@ -36,12 +37,24 @@ export function detailEdges(
         'Valitse taitosreuna. Sileän pinnan saumassa ei ole pyöristettävää tai viistettävää kulmaa.',
       );
     const chosen = selected.map((i) => edges[i]);
-    const solid = shape.asShape3D();
     try {
-      result =
+      // The exact edges are already known. Do not enumerate/filter every edge again.
+      const oc = getOC();
+      const builder =
         operation === 'fillet'
-          ? solid.fillet(size, (finder) => finder.inList(chosen))
-          : solid.chamfer(size, (finder) => finder.inList(chosen));
+          ? new oc.BRepFilletAPI_MakeFillet(shape.wrapped, oc.ChFi3d_FilletShape.ChFi3d_Rational)
+          : new oc.BRepFilletAPI_MakeChamfer(shape.wrapped);
+      try {
+        chosen.forEach((edge) => builder.Add(size, edge.wrapped));
+        const raw = builder.Shape();
+        try {
+          result = cast(raw);
+        } finally {
+          raw.delete();
+        }
+      } finally {
+        builder.delete();
+      }
       if (!shapeIsValid(result)) {
         result.delete();
         result = undefined;

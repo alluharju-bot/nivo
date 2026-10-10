@@ -1,3 +1,4 @@
+import { shapeEdges, shapeFaces } from './topology';
 import { detailSourceShape } from './detailSource';
 import {
   drawRectangle,
@@ -35,6 +36,7 @@ import type { BodyMesh, DrawingView, Projection, ProbeResult } from './protocol'
 import { add, sub, unit, dot, scale } from '../model/geometry';
 import { faceBoundaries } from './boundaries';
 import { detailEdgeIndices } from './detailEdges';
+import { cadVertex, shapeVertexReferences } from './vertexReferences';
 
 export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
   const oc = getOC(),
@@ -171,7 +173,7 @@ export function solidFaceIds(shape: AnyShape): Set<number> {
   const ids = new Set<number>();
   try {
     for (const solid of solids) {
-      const faces = solid.faces;
+      const faces = shapeFaces(solid);
       try {
         faces.forEach((face) => ids.add(face.hashCode));
       } finally {
@@ -231,7 +233,7 @@ function extrudeSurfaceRegion(
 export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   if (!shapeIsValid(shape)) throw new Error('Geometriasta ei syntynyt ehjää kappaletta.');
   const mesh = shape.mesh({ tolerance: 0.15, angularTolerance: 0.1 });
-  const cadFaces = shape.faces;
+  const cadFaces = shapeFaces(shape);
   const faceIndices = new Map<number, number>();
   cadFaces.forEach((face, index) => {
     const hash = face.hashCode;
@@ -275,7 +277,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   const detailEdges: NonNullable<BodyMesh['detailEdges']> = [];
   const seen = new Set<string>();
   const boxCorners = corners(body);
-  const edges = shape.edges;
+  const edges = shapeEdges(shape);
   const detailIndices = featureIsSolid(body.feature) ? detailEdgeIndices(shape, edges) : undefined;
   const anchor = (point: Vec3) => {
     const local = sub(point, body.origin);
@@ -328,24 +330,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
         const coordinateKey = local.map((n) => Math.round(n * 1e6) / 1e6).join(',');
         if (seen.has(coordinateKey)) continue;
         seen.add(coordinateKey);
-        const corner = boxCorners.findIndex((p) =>
-          p.every((n, i) => Math.abs(n - point[i]) < 1e-5),
-        );
-        let key =
-          body.feature.type === 'rectangle-extrusion' && corner >= 0
-            ? `corner:${corner}`
-            : `vertex:${coordinateKey}`;
-        if (body.feature.type === 'polygon-extrusion') {
-          const index = body.feature.points.findIndex(
-            (p) => Math.abs(p[0] - local[0]) < 1e-5 && Math.abs(p[1] - local[1]) < 1e-5,
-          );
-          if (index >= 0) key = `polygon:${index}:${Math.abs(local[2]) < 1e-5 ? 'bottom' : 'top'}`;
-        }
-        if (body.feature.type === 'planar-polygon')
-          key = `point:${body.feature.points.findIndex((p) => p.every((n, i) => Math.abs(n - local[i]) < 1e-5))}`;
-        if (body.feature.type === 'brep') key = `brep:${body.feature.topologyId}:${coordinateKey}`;
-        if (body.feature.type === 'profile-extrusion') key = `profile:${coordinateKey}`;
-        verticesCAD.push({ point, anchor: { bodyId: body.id, key, local } });
+        verticesCAD.push(cadVertex(body, point, boxCorners));
       }
       if (straight) {
         const from = verticesCAD.find((v) =>
@@ -434,7 +419,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     sourceDetailEdges: body.edgeTreatment
       ? (() => {
           const source = detailSourceShape(body),
-            edges = source.edges;
+            edges = shapeEdges(source);
           try {
             const indices = detailEdgeIndices(source, edges);
             return edges.flatMap((edge, index) =>
@@ -464,7 +449,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
     solid = solids.length > 0;
   solids.forEach((s) => s.delete());
   if (solid && solidVolume(shape) < 1e-7) throw new Error('Työstö poistaisi koko kappaleen.');
-  const edges = shape.edges,
+  const edges = shapeEdges(shape),
     points: Vec3[] = [],
     linearEdges: [Vec3, Vec3][] = [];
   try {
@@ -485,7 +470,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
     const old = createShape(source);
     try {
       const candidates = [
-        ...meshBody(source, old).verticesCAD.map((v) => ({ key: v.anchor.key, point: v.point })),
+        ...shapeVertexReferences(source, old),
         ...Object.entries(source.vertexRefs ?? {}).map(([key, local]) => ({
           key,
           point: add(source.origin, local),
@@ -542,7 +527,7 @@ export function pushPullFace(body: Body, ref: FaceRef, distance: number): Body {
   if (!Number.isFinite(distance) || Math.abs(distance) < 0.1 || Math.abs(distance) > 100000)
     throw new Error('Anna pinnan siirtymä väliltä −100 000…100 000 mm (vähintään 0,1 mm).');
   const shape = createShape(body);
-  const faces = shape.faces;
+  const faces = shapeFaces(shape);
   let prism: AnyShape | undefined, result: AnyShape | undefined;
   try {
     const target = meshBody(body, shape).faces.find((f) => f.ref === ref);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Body } from '../model/project';
+import { createTriangleIndex } from './triangleIndex';
 
 interface Entry {
   id: string;
@@ -99,17 +100,29 @@ export function intersectModel(
     index && nodes
       ? index.ray(ray.ray, ray.params.Line?.threshold ?? 0).flatMap((id) => nodes.get(id) ?? [])
       : group.children;
-  const hits = ray
-    .intersectObjects(
-      objects.filter(
-        (object) =>
-          object.visible &&
-          (purpose === 'reference' || object.userData.modelDisplay !== 'ghost') &&
-          (purpose !== 'occlusion' || object.userData.modelDisplay !== 'wireframe'),
-      ),
-      false,
+  const triangles = (group.userData.triangleIndex ??= createTriangleIndex()) as ReturnType<
+    typeof createTriangleIndex
+  >;
+  const intersections: THREE.Intersection[] = [];
+  for (const object of objects) {
+    if (
+      !object.visible ||
+      !object.layers.test(ray.layers) ||
+      (purpose !== 'reference' && object.userData.modelDisplay === 'ghost') ||
+      (purpose === 'occlusion' && object.userData.modelDisplay === 'wireframe')
     )
-    .filter((hit) => !group.userData.acceptPoint || group.userData.acceptPoint(hit.point));
+      continue;
+    if (
+      object instanceof THREE.Mesh &&
+      object.raycast === THREE.Mesh.prototype.raycast &&
+      (object.geometry.index?.count ?? object.geometry.getAttribute('position')?.count ?? 0) >= 384
+    )
+      triangles.get(object.geometry).raycastObject3D(object, ray, intersections);
+    else ray.intersectObject(object, false, intersections);
+  }
+  const hits = intersections.filter(
+    (hit) => !group.userData.acceptPoint || group.userData.acceptPoint(hit.point),
+  );
   // GPU vertices are Float32; oblique circles/polygons and their support may
   // therefore produce slightly different ray distances on the SAME CAD plane.
   // Compare exact planar intersections instead of increasing the tie tolerance

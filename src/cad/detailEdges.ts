@@ -1,3 +1,4 @@
+import { shapeEdges, shapeFaces } from './topology';
 import { getOC, type AnyShape, type Edge } from 'replicad';
 
 /** Keep real creases, excluding a cylinder's seam and smooth surface junctions.
@@ -13,10 +14,10 @@ export function detailEdgeIndices(shape: AnyShape, edges: Edge[]): Set<number> {
     if (bucket) bucket.push(entry);
     else byHash.set(hash, [entry]);
   }
-  const faces = shape.faces;
+  const faces = shapeFaces(shape);
   try {
     for (const [index, face] of faces.entries()) {
-      const boundary = face.edges;
+      const boundary = shapeEdges(face);
       try {
         for (const edge of boundary) {
           const entry = byHash.get(edge.hashCode)?.find((e) => e.edge.isSame(edge));

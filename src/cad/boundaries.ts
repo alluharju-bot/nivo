@@ -1,16 +1,17 @@
+import { shapeEdges, shapeFaces } from './topology';
 import type { AnyShape, Edge } from 'replicad';
 import type { CadFace, FaceBoundary } from './protocol';
 import { dot, sub } from '../model/geometry';
 
 /** Only shared topological edges qualify. Coincident independent faces do not. */
 export function faceBoundaries(shape: AnyShape, metadata: CadFace[]): FaceBoundary[] {
-  const faces = shape.faces;
+  const faces = shapeFaces(shape);
   const edges: { edge: Edge; owners: number[] }[] = [];
   const byHash = new Map<number, typeof edges>();
   const byIndex = new Map(metadata.map((face) => [face.index, face]));
   try {
     for (const [index, face] of faces.entries()) {
-      for (const edge of face.edges) {
+      for (const edge of shapeEdges(face)) {
         const hash = edge.hashCode;
         const bucket = byHash.get(hash);
         const found = bucket?.find((e) => e.edge.isSame(edge));

@@ -2,6 +2,24 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.32.1 — leikatun geometrian suorituskyky, 10.10.2026
+
+- Valitun kaarevan solidin automaattiset pistepilvet poistettu. Avoimien kynäviivojen
+  päät ja valittujen piirtokäyrien tarkoitukselliset tartuntapisteet näkyvät edelleen.
+- Kolmioiden hakupuu palvelee myös mallin pintavalintaa ja viitehakua. CAD-indeksit,
+  tarkat tasopinnat, Ghost, poikkileikkaukset ja päällekkäisen piirron etusija säilyvät.
+- Valittu pinta käyttää enintään kolmea piirtoaluetta. Peilin pintakohtainen
+  materiaalijako säilyy. Geometrian pitkä instanssiavain säilytetään korostusten yli.
+- Reuna-/pintaluettelot muodostetaan hajautushaulla. Alkuperäinen järjestys ja
+  tunnisteet säilyvät, myös tallennuksen, siirron ja päällekkäisen erillisen geometrian yli.
+- Vanhan osan pisteviitteiden säilyttäminen ei verkota sen kaikkia pintoja.
+  Tämä nopeuttaa myös seuraavia leikkauksia jo monimutkaiseen osaan.
+- Reunakäsittely lähettää valmiiksi poimitut reunat suoraan CAD-laskentaan.
+  Sama keskeneräinen/valmis esikatselu käytetään hyväksynnässä; worker käyttää
+  valmiin piirtoverkon. Virhe, muuttunut syöte tai peruutus ei palauta vanhaa tulosta.
+- Tarkkuutta, kaarien verkotustoleranssia tai tallennettavaa geometriaa ei kevennetä.
+  Suuret monimutkaiset CAD-operaatiot tarvitsevat edelleen laskenta-aikaa.
+
 ## V0.32.0 — Join, kierron kopiointi ja aukkojen ympyrätoisto, 10.10.2026
 
 - Join käyttää yhtä yhdistettävien osien valintaa. Etukäteen valitut osat, mallin

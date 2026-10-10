@@ -1,19 +1,9 @@
 import * as THREE from 'three';
-import { MeshBVH } from 'three-mesh-bvh';
+import { createTriangleIndex } from './triangleIndex';
 import type { BodySpatialIndex } from './spatialIndex';
 
-/** Visibility queries only: never reorder CAD triangles or change modeling raycasts. */
-export function createAnnotationOcclusion() {
-  type Cached = {
-    tree: MeshBVH;
-    position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
-    positionVersion: number;
-    index: THREE.BufferAttribute | null;
-    indexVersion: number;
-    start: number;
-    count: number;
-  };
-  const trees = new WeakMap<THREE.BufferGeometry, Cached>();
+/** Visibility and modeling share an index without changing CAD triangle order. */
+export function createAnnotationOcclusion(trees = createTriangleIndex()) {
   const inverse = new THREE.Matrix4(),
     linear = new THREE.Matrix3();
   const localRay = new THREE.Ray(),
@@ -21,11 +11,10 @@ export function createAnnotationOcclusion() {
     worldPoint = new THREE.Vector3();
   const fallback = new THREE.Raycaster();
   const hits: THREE.Intersection[] = [];
-  let builds = 0;
 
   return {
     get builds() {
-      return builds;
+      return trees.builds;
     },
     test(ray: THREE.Ray, group: THREE.Group, distance: number) {
       if (distance <= 0) return false;
@@ -56,34 +45,7 @@ export function createAnnotationOcclusion() {
             return true;
           continue;
         }
-        const positionVersion =
-          position instanceof THREE.InterleavedBufferAttribute
-            ? position.data.version
-            : position.version;
-        let cached = trees.get(geometry);
-        if (
-          !cached ||
-          cached.position !== position ||
-          cached.positionVersion !== positionVersion ||
-          cached.index !== geometry.index ||
-          cached.indexVersion !== (geometry.index?.version ?? 0) ||
-          cached.start !== geometry.drawRange.start ||
-          cached.count !== geometry.drawRange.count
-        ) {
-          if (!cached) geometry.addEventListener('dispose', () => trees.delete(geometry));
-          cached = {
-            // The original index order is used by CAD face selection and must stay intact.
-            tree: new MeshBVH(geometry, { indirect: true }),
-            position,
-            positionVersion,
-            index: geometry.index,
-            indexVersion: geometry.index?.version ?? 0,
-            start: geometry.drawRange.start,
-            count: geometry.drawRange.count,
-          };
-          trees.set(geometry, cached);
-          builds++;
-        }
+        const tree = trees.get(geometry);
         inverse.copy(object.matrixWorld).invert();
         localRay.copy(ray).applyMatrix4(inverse);
         const scale = direction
@@ -91,13 +53,13 @@ export function createAnnotationOcclusion() {
           .applyMatrix3(linear.setFromMatrix4(inverse))
           .length();
         const far = distance * scale;
-        const first = cached.tree.raycastFirst(localRay, THREE.DoubleSide, 0, far);
+        const first = tree.raycastFirst(localRay, THREE.DoubleSide, 0, far);
         if (!first || first.distance >= far) continue;
         if (!accept || accept(worldPoint.copy(first.point).applyMatrix4(object.matrixWorld)))
           return true;
         // A section may remove the nearest face while a further retained face still blocks sight.
         if (
-          cached.tree
+          tree
             .raycast(localRay, THREE.DoubleSide, 0, far)
             .some(
               (hit) =>

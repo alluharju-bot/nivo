@@ -4,6 +4,32 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.32.1 — monimutkaisen geometrian laskenta ja osoittaminen
+
+**396 yksikkö-/CAD-testiä hyväksytty (77 tiedostoa)**. **71 kohdennettua
+selaintapausta hyväksytty**, yksi vain kosketukselle tarkoitettu tapaus ohitettu
+työpöydällä. TypeScript, `/nivo/`-tuotantobuild, lisenssit ja muutettujen tiedostojen
+muotoilu hyväksytty.
+
+- Reuna-/pintojen uusi hakutapa säilyttää täsmälleen vanhat indeksit rei'itetyssä
+  kappaleessa, siirrettynä ja tallennettuna. Riippumattomat päällekkäiset reunat
+  säilyvät erillisinä. Piste- ja käyräviitteet vastaavat CAD-verkon tartuntatietoja.
+- Pyöristys/viiste suorille ja kaareville reunoille, uusi käsittely vanhan päälle,
+  puoliympyrän rajasäde, virheelliset mitat, Hold, nopea veto, keskeytys,
+  kosketus, tallennus ja Peru/Palauta. Hyväksyntä ei lähetä uutta esikatselulaskentaa.
+- Monimutkaisen verkon hakupuu säilyttää samat osumat, kolmio-/materiaalitunnisteet,
+  poikkileikkauksen takapinnan ja CAD:n alkuperäisen indeksijärjestyksen.
+  Korostusryhmien muuttaminen ei rakenna puuta uudelleen.
+- Ghost-valinta/viitteet, varjostamaton näkymä, toistuvat osat, Shift push/pull,
+  lattian ja seinän leikkauspisteet kaikilla piirtotyökaluilla sekä muokkaustilan rajat.
+- Valittu sylinteri ei luo pistepilveä. Piirtokäyrien näkyvät tartuntapisteet sekä
+  Bézier- ja Muotojen läpi -työnkulut säilyvät.
+- Yksityisen, 92 leikkurilla rei'itetyn osan 0,5 mm:n pyöristys ja viiste testattu
+  näkyvässä selaimessa. Pyöristyksen Peru/Palauta palauttivat kaikkien osien
+  tallennetun sisällön täsmälleen. Malli ja testikuvat säilyvät paikallisina.
+
+[Suorituskykymittaukset ja niiden rajat](performance.md).
+
 ## V0.30.0 — selkeät työkalupaneelit ja havainneanimaatiot
 
 **360 yksikkö-/CAD-testiä hyväksytty (69 tiedostoa)**. TypeScript,

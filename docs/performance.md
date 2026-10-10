@@ -1,5 +1,59 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.32.1 — rei'itetty osa ja reunakäsittelyn hyväksyntä, 10.10.2026
+
+92 leikkurilla rei'itettyä osaa tutkittiin paikallisessa tuotantopaketissa.
+Valittuun kaarevaan solidiin ilmestyi virheellisesti satoja piste-spritejä:
+yksi piirtokutsu ja näkyvyystarkistus jokaiselle pisteelle. Lisäksi tavallinen
+pinnan osoitus kävi läpi koko kolmioverkon. Nyt vain piirrosten tarkoitukselliset
+pisteet näkyvät jatkuvasti, ja mallinnuksen pintahaku käyttää samaa tarkkaa
+kolmiohakupuuta kuin merkintöjen peittyminen. CAD-tartuntoja ei poisteta.
+
+| Sama eristetty osa, Valitse-työkalu | Ennen: mediaani / p95 | Jälkeen: mediaani / p95 | Piirtokutsut ennen → jälkeen |
+| ----------------------------------- | --------------------: | ----------------------: | ---------------------------: |
+| Osoittimen liike osan päällä        |        41,7 / 50,0 ms |           9,0 / 17,5 ms |                     903 → 31 |
+| Kameran kierto                      |        16,6 / 17,0 ms |           8,3 / 10,0 ms |                     769 → 22 |
+
+Piirrettävät kolmiot pysyivät kummassakin vertailuparissa samoina: osoitettaessa
+116 962 ja kamerakierrossa 116 924 (sisältävät näkymän apugeometrian).
+Yli 32 ms ruutuvälejä osoitintestissä 110/110 ennen ja 0/110 jälkeen.
+Pisteiden määrä ja siten piirtokutsujen määrä ennen korjausta riippuu katselukulmasta.
+
+Menetelmä: näkyvä Chromium 153 / Apple M1 Pro / ANGLE Metal, selainikkuna
+1728 × 997 CSS-pikseliä, DPR 2, mallinnuscanvas 2720 × 1800 pikseliä.
+Kumpikin ajo alkaa samasta edestä-näkymästä ja Sovita näkymään -komennosta.
+120 samanlaista animaatioruudussa lähetettyä osoitinliikettä; ensimmäiset kymmenen
+ruutuväliä jätetään tilastoista pois. CPU-profilointi on käytössä molemmissa ajoissa.
+Vertailu tehtiin ennen muiden selaintestien käynnistämistä. Nämä ovat yhden mallin
+paikallisia mittauksia, eivät yleinen FPS-lupaus tai path tracing -vertailu.
+
+Geometriapolussa kirjaston reunaluettelo vertasi jokaista löydettyä reunaa kaikkiin
+aiempiin reunoihin. Uusi hajautushaku säilyttää alkuperäisen järjestyksen ja tarkistaa
+hash-törmäykset CAD:n IsSame-vertailulla. Täsmälleen valitut reunat annetaan suoraan
+pyöristys-/viisteytimelle. Vanhan osan pisteviitteitä varten ei enää verkoteta sitä.
+
+Saman 0,5 mm pyöristyksen vaiheittainen CAD-mittaus:
+
+| Vaihe                                                          |  Ennen | Jälkeen |
+| -------------------------------------------------------------- | -----: | ------: |
+| Tulosgeometrian tallennus ja vanhojen pisteviitteiden säilytys | 8,29 s |  1,25 s |
+| Tuloksen piirtoverkko ja tartuntatiedot                        | 7,54 s |  4,81 s |
+
+Valmiin operaation CAD-laskenta optimointien jälkeen: **6,72 s**.
+Kolmioiden määrä (134 784) ja tilavuus säilyivät samoina. Verkotustoleranssit eivät muutu.
+Käyttöliittymässä saman reunan pyöristyksen esikatselu valmistui **6,97 s** ja hyväksyntä
+**0,89 s**; viisteen esikatselu **6,75 s** ja hyväksyntä **0,97 s**. Hyväksyntä ei lähettänyt
+uutta reunakäsittelypyyntöä. Worker käyttää myös esikatselussa jo valmistettua piirtoverkkoa.
+Peru ja Palauta tarkistettiin vertaamalla kaikkia tallennettuja osia ennen/jälkeen.
+
+Yhden pinnan korostus käyttää enintään kolmea piirtoaluetta satojen pintakohtaisten
+kutsujen sijaan. Peilin pintakohtainen materiaalijako säilyy. Pitkä geometrian
+instanssiavain säilytetään myös valinnan/korostuksen muuttuessa.
+
+Testit: `topology.test.ts`, `faceRanges.test.ts`, `spatialIndex.test.ts`,
+`annotationOcclusion.test.ts`, `client.test.ts`, `edge-detail.spec.ts` ja
+`curved-details.spec.ts`. Yksityistä mallia, sen kuvia tai CPU-profiileja ei tallenneta repoon.
+
 ## V0.30.0 — ohjeet erillään mallinnuksen päivityksistä, 10.10.2026
 
 Ohjekirjaston käyttöliittymä ja SVG-animaatiot ladataan vasta avattaessa:

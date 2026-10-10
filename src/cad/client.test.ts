@@ -4,6 +4,57 @@ import { makeBody } from '../model/project';
 import type { CadReply, CadRequest } from './protocol';
 
 afterEach(() => vi.unstubAllGlobals());
+it('accepts the latest exact edge preview once, shares pending work and retries failures/cancellation', async () => {
+  const requests: (CadRequest & { id: number })[] = [];
+  let worker: TestWorker;
+  class TestWorker {
+    onmessage?: (event: { data: CadReply }) => void;
+    constructor() {
+      worker = this;
+    }
+    terminate() {}
+    postMessage(request: CadRequest & { id: number }) {
+      requests.push(request);
+    }
+    reply(error?: string) {
+      this.onmessage?.({ data: { id: requests.at(-1)!.id, error } });
+    }
+  }
+  vi.stubGlobal('Worker', TestWorker);
+  const client = new CadClient(),
+    body = makeBody();
+  const first = client.edgeDetail(body, [2], 'fillet', 1);
+  expect(client.edgeDetail(body, [2], 'fillet', 1)).toBe(first);
+  worker!.reply();
+  await first;
+  expect(client.edgeDetail(body, [2], 'fillet', 1)).toBe(first);
+  expect(requests).toHaveLength(1);
+  const changed = client.edgeDetail(body, [2], 'fillet', 2);
+  worker!.reply('Too large');
+  await expect(changed).rejects.toThrow('Too large');
+  const retry = client.edgeDetail(body, [2], 'fillet', 2);
+  expect(requests).toHaveLength(3);
+  worker!.reply();
+  await retry;
+  for (const [part, indices, operation, size, editing] of [
+    [{ ...body, locked: true }, [2], 'fillet', 2, false],
+    [body, [3], 'fillet', 2, false],
+    [body, [3], 'chamfer', 2, false],
+    [body, [3], 'chamfer', 2, true],
+  ] as const) {
+    const result = client.edgeDetail(part, [...indices], operation, size, editing);
+    worker!.reply();
+    await result;
+  }
+  expect(requests).toHaveLength(7);
+  client.cancel();
+  const after = client.edgeDetail(body, [3], 'chamfer', 2, true);
+  expect(requests).toHaveLength(8);
+  worker!.reply();
+  await after;
+  client.cancel();
+});
+
 it('sends only geometry deltas, preserves unchanged mesh identity, and resets after cancellation', async () => {
   const requests: CadRequest[] = [];
   class TestWorker {

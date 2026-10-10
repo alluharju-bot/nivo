@@ -7,6 +7,14 @@ import { ready, view, click, save, revealBrowser } from './helpers';
 test('picked edges fillet with a preview, exact size and persistent undo', async ({
   page,
 }, info) => {
+  await page.addInitScript(() => {
+    (window as any).__detailRequests = 0;
+    const post = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function (message: any, ...args: any[]) {
+      if (message.type === 'edge-detail') (window as any).__detailRequests++;
+      return (post as any).call(this, message, ...args);
+    };
+  });
   const body = makeBody(300, 200, 40, [0, 0, 0], 'Hylly');
   await ready(page, [body]);
   const p = await view(page, [body]);
@@ -22,8 +30,11 @@ test('picked edges fillet with a preview, exact size and persistent undo', async
   );
   expect((await save(page)).bodies).toEqual([body]);
   await page.screenshot({ path: info.outputPath('fillet-preview.png') });
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-detail-preview-size', '5');
+  const requests = await page.evaluate(() => (window as any).__detailRequests);
   await page.getByRole('button', { name: 'Hyväksy reunakäsittely', exact: true }).click();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).__detailRequests)).toBe(requests);
   const result = await save(page);
   expect(result.bodies[0].feature.type).toBe('brep');
   expect(result.bodies[0].id).toBe(body.id);

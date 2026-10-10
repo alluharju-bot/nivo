@@ -29,6 +29,8 @@ type Entry = { key: string; shape: AnyShape; mesh: BodyMesh };
 let cache = new Map<string, Entry>();
 let syncedBodies = new Map<string, Body>();
 let sentMeshes = new Map<string, BodyMesh>();
+// A preview already contains the final mesh. Accepting it must not tessellate it again.
+let detailPreview: { key: string; mesh: BodyMesh } | undefined;
 
 function build(bodies: Body[]): Entry[] {
   const next = new Map<string, Entry>();
@@ -52,7 +54,9 @@ function build(bodies: Body[]): Entry[] {
           shape,
           mesh: template
             ? translateMesh(template.entry.mesh, body.id, delta!)
-            : meshBody(body, shape),
+            : detailPreview?.mesh.id === body.id && detailPreview.key === key
+              ? detailPreview.mesh
+              : meshBody(body, shape),
         });
       }
       if (!templates.has(templateKey))
@@ -139,15 +143,17 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
       else if (request.type === 'remove-boundary')
         reply.result = removeBoundary(request.body, request.faces);
       else if (request.type === 'remove-detail') reply.result = removeEdgeTreatment(request.body);
-      else if (request.type === 'edge-detail')
-        reply.result = detailEdges(
+      else if (request.type === 'edge-detail') {
+        const result = detailEdges(
           request.body,
           request.indices,
           request.operation,
           request.size,
           request.editing,
         );
-      else {
+        detailPreview = { key: bodyMeshKey(result.body), mesh: result.mesh };
+        reply.result = result;
+      } else {
         const entries = build(request.bodies);
         if (request.type === 'build') reply.result = entries.map((e) => e.mesh);
         else {
