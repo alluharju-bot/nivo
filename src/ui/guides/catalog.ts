@@ -239,7 +239,7 @@ export const toolGuides = [
       ),
       step('Hyväksy', 'Vapauta veto tai paina Enter. Esc peruu esikatselun.', 'Enter'),
     ],
-    tip: 'X/Y/Z valitsee akselin. Reiät ja seinämät muuttuvat mukana. Linkitetyt kopiot jakavat uuden koon; Vain valitut tekee skaalattavista osista uniikkeja.',
+    tip: 'Paneelin X/Y/Z-painikkeilla voit yhdistellä akseleita: X ja Y muuttavat leveyttä ja syvyyttä, Z pois säilyttää korkeuden. Näppäin X/Y/Z valitsee yhden akselin. Reiät ja seinämät muuttuvat mukana. Linkitetyt kopiot jakavat uuden koon; Vain valitut tekee skaalattavista osista uniikkeja.',
   },
   {
     id: 'rotate',

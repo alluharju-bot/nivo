@@ -2,6 +2,8 @@ import {
   scaleFactor,
   scaleSize,
   factorsFor,
+  scaleAxes,
+  scalingFactor,
   prepareScaling,
   applyScaling,
   type Scaling,
@@ -1152,11 +1154,11 @@ export default function App() {
       try {
         const next = scalingValue();
         if (next) {
+          scalingRef.current = next;
+          setScalingDraft(next);
           const size = scaleSize(project.bodies.filter((b) => next.ids.includes(b.id)));
           const derived: Partial<Fields> = {
-            factor: inputNumber(
-              next.factors[next.mode === 'uniform' ? 0 : ['x', 'y', 'z'].indexOf(next.mode)],
-            ),
+            factor: inputNumber(scalingFactor(next)),
             x: inputNumber(size[0] * next.factors[0]),
             y: inputNumber(size[1] * next.factors[1]),
             z: inputNumber(size[2] * next.factors[2]),
@@ -1543,12 +1545,13 @@ export default function App() {
   const changeScaling = (patch: Partial<Scaling>) => {
     if (!scalingRef.current) return;
     const next = { ...scalingRef.current, ...patch };
-    if (patch.mode && !patch.factors) next.factors = [1, 1, 1];
+    if (patch.mode && !patch.factors)
+      next.factors = factorsFor(patch.mode, scalingFactor(scalingRef.current));
     scalingRef.current = next;
     setScalingDraft(next);
     if (patch.factors || patch.mode) {
       const size = scaleSize(project.bodies.filter((b) => next.ids.includes(b.id)));
-      const value = next.factors[next.mode === 'uniform' ? 0 : ['x', 'y', 'z'].indexOf(next.mode)];
+      const value = scalingFactor(next);
       writeFields({
         factor: inputNumber(value),
         x: inputNumber(size[0] * next.factors[0]),
@@ -3156,8 +3159,7 @@ export default function App() {
             testId: 'scale-factor',
           },
           ...(['x', 'y', 'z'] as const).flatMap((axis, i) =>
-            scaleDimensions[i] > 1e-6 &&
-            (scalingDraft?.mode === 'uniform' || scalingDraft?.mode === axis)
+            scaleDimensions[i] > 1e-6 && scalingDraft && scaleAxes(scalingDraft.mode).includes(axis)
               ? [
                   {
                     key: axis,

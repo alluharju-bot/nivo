@@ -26,7 +26,7 @@ beforeAll(
 );
 
 describe('exact CAD scaling', () => {
-  it('scales a perforated, rounded solid uniformly and along one axis without tessellating its topology', async () => {
+  it('scales a perforated, rounded solid uniformly, on one axis and on two axes without tessellating its topology', async () => {
     const box = makeBox([0, 0, 0], [80, 60, 20]).fillet(3);
     const cylinder = makeCylinder(6, 40, [40, 30, -10]);
     const shape = box.cut(cylinder);
@@ -36,6 +36,7 @@ describe('exact CAD scaling', () => {
       for (const factors of [
         [2, 2, 2],
         [2, 1, 1],
+        [2, 2, 1],
       ] as [number, number, number][]) {
         const [scaled] = await scaleBodies([body], [0, 0, 0], factors);
         const exact = createShape(
@@ -51,6 +52,8 @@ describe('exact CAD scaling', () => {
           const b = bounds([scaled]);
           expect(b.max[0]).toBeCloseTo(160, 4);
           expect(b.max[1]).toBeCloseTo(60 * factors[1], 4);
+          expect(b.min[2]).toBeCloseTo(0, 4);
+          expect(b.max[2]).toBeCloseTo(20 * factors[2], 4);
           expect(exact.faces.length).toBeLessThan(60);
           // A tool through the pre-existing hole must remove no material.
           const probe = makeCylinder(4, 50, [80, 30 * factors[1], -5]);

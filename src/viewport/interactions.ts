@@ -1,4 +1,4 @@
-import { scaleHandles, factorsFor, type Scaling } from '../model/scaling';
+import { scaleHandles, factorsFor, scaleAxes, scalingFactor, type Scaling } from '../model/scaling';
 import { markupInteractions } from './markupInteractions';
 import { memoryMaySnap, nearestRememberedMeasure } from '../model/measureMemory';
 import { bodyDisplayMode } from '../model/display';
@@ -3230,13 +3230,11 @@ export function installInteractions({
       } else {
         const handle = scaleHandleAt(event);
         if (handle && s) {
-          const mode = handle.mode === 'uniform' ? s.mode : handle.mode;
-          const directionPoint =
-            mode === 'uniform'
-              ? handle.point
-              : (s.pivot.map((n, i) =>
-                  ['x', 'y', 'z'][i] === mode ? handle.point[i] : n,
-                ) as Vec3);
+          const mode = handle.mode;
+          const axes = scaleAxes(mode);
+          const directionPoint = s.pivot.map((n, i) =>
+            axes.includes((['x', 'y', 'z'] as const)[i]) ? handle.point[i] : n,
+          ) as Vec3;
           const pivot = screen(s.pivot),
             tip = screen(directionPoint),
             dx = tip.x - pivot.x,
@@ -3246,10 +3244,9 @@ export function installInteractions({
             props.onSnap('Valitse kauempana kiintopisteestä oleva kahva.');
             return;
           }
-          // Changing handle mode starts from the original shape, keeping one
-          // unambiguous operation (uniform OR a single world axis).
-          const initial =
-            s.mode === mode ? s.factors[mode === 'uniform' ? 0 : ['x', 'y', 'z'].indexOf(mode)] : 1;
+          // Explicit axis subsets apply to every visible handle. From the
+          // unconstrained default, a side handle still offers single-axis scaling.
+          const initial = s.mode === mode ? scalingFactor(s) : 1;
           props.onScaleChange({ mode, factors: factorsFor(mode, initial) });
           scaleDrag = { mode, x: event.clientX, y: event.clientY, dx, dy, denominator, initial };
           drag = {

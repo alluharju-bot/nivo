@@ -9,7 +9,7 @@ export interface Scaling {
   ids: string[];
   pivot: Vec3;
   factors: Vec3;
-  mode: 'uniform' | Axis;
+  mode: 'uniform' | Axis | 'xy' | 'xz' | 'yz';
   picking?: boolean;
   unique?: boolean;
 }
@@ -29,9 +29,23 @@ export function scaleSize(bodies: Body[]): Vec3 {
   return sub(box.max, box.min);
 }
 export function factorsFor(mode: Scaling['mode'], factor: number): Vec3 {
-  return mode === 'uniform'
-    ? [factor, factor, factor]
-    : [mode === 'x' ? factor : 1, mode === 'y' ? factor : 1, mode === 'z' ? factor : 1];
+  return (['x', 'y', 'z'] as const).map((axis) =>
+    scaleAxes(mode).includes(axis) ? factor : 1,
+  ) as Vec3;
+}
+export function scaleAxes(mode: Scaling['mode']): Axis[] {
+  return (['x', 'y', 'z'] as const).filter((axis) => mode === 'uniform' || mode.includes(axis));
+}
+export function toggleScaleAxis(mode: Scaling['mode'], axis: Axis): Scaling['mode'] {
+  const selected = scaleAxes(mode);
+  const next = (['x', 'y', 'z'] as const).filter((a) =>
+    a === axis ? !selected.includes(a) : selected.includes(a),
+  );
+  if (!next.length) return mode;
+  return next.length === 3 ? 'uniform' : (next.join('') as Scaling['mode']);
+}
+export function scalingFactor(s: Scaling): number {
+  return s.factors[['x', 'y', 'z'].indexOf(scaleAxes(s.mode)[0])];
 }
 /** The original AABB supplies stable handles throughout a drag. */
 export function scaleHandles(s: Scaling, bodies: Body[]) {
@@ -43,15 +57,19 @@ export function scaleHandles(s: Scaling, bodies: Body[]) {
   for (let n = 0; n < 8; n++)
     handles.push({
       point: [0, 1, 2].map((i) => (n & (1 << i) ? max[i] : min[i])) as Vec3,
-      mode: 'uniform',
+      mode: s.mode,
       color: '#e3a450',
     });
   (['x', 'y', 'z'] as const).forEach((axis, i) => {
-    if (max[i] - min[i] < 1e-6) return;
+    if (max[i] - min[i] < 1e-6 || !scaleAxes(s.mode).includes(axis)) return;
     for (const side of [min[i], max[i]]) {
       const point = [...center] as Vec3;
       point[i] = side;
-      handles.push({ point, mode: axis, color: ['#cf6864', '#5a9a6c', '#568bc6'][i] });
+      handles.push({
+        point,
+        mode: s.mode === 'uniform' ? axis : s.mode,
+        color: ['#cf6864', '#5a9a6c', '#568bc6'][i],
+      });
     }
   });
   return handles.map((h) => ({ ...h, point: scalePoint(h.point, s.pivot, s.factors) }));

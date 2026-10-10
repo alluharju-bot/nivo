@@ -4,6 +4,23 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.33.2 — yhdisteltävät skaalausakselit
+
+415 yksikkö-/CAD-testiä hyväksytty (80 tiedostoa). Skaalauksen 18 selaintapausta
+hyväksytty työpöytä- ja tablettiprofiileissa. Tuotantokäännös, TypeScript,
+muotoilu ja lisenssitarkistus hyväksytty.
+
+- XY-, XZ- ja YZ-skaalaus tavoitemitalla: kolmannen akselin koko ja sijainti
+  säilyvät, myös siirretyllä kiintopisteellä. Peru palauttaa alkuperäiset osat.
+- Akselien poistaminen/lisääminen säilyttää jo kirjoitetun kertoimen.
+- XY-skaalaus kulma- ja sivukahvasta säilyttää korkeuden. Vedossa piirtoverkkoa
+  ei rakenneta uudelleen. Tavallinen yhden akselin kahva toimii edelleen.
+- X/Y/Z-pikanäppäin, vähintään yksi valittu akseli, virhesyöte, Esc, historia,
+  alaryhmät, linkitetyt kopiot ja Hold-suojaus tarkistettu.
+- Rei'itetty ja pyöristetty CAD-kappale myös XY-skaalauksella: tarkka tilavuus,
+  korkeus, pinnat ja läpireikä säilyvät; tallennettu BRep avautuu ehjänä.
+- Näkyvässä Chromiumissa tarkistettu paneelin akselikorostukset ja esikatselu.
+
 ## V0.33.1 — raskaan CAD-geometrian muunnokset
 
 414 yksikkö-/CAD-testiä hyväksytty koko ajossa, lisäksi lopullisen käyräviitteiden

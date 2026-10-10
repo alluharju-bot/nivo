@@ -6587,7 +6587,7 @@ p {
 
 .scaling-panel .axis-switch {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding: 4px;
   border-radius: 8px;

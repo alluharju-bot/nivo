@@ -33,6 +33,75 @@ test('numeric target dimension, undo, redo and persistent tool', async ({ page }
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
   expect((await save(page)).bodies).toEqual(scaled.bodies);
 });
+for (const fixed of ['x', 'y', 'z'] as const) {
+  test(`two-axis target dimension keeps ${fixed.toUpperCase()} size and placement unchanged`, async ({
+    page,
+  }) => {
+    const part = makeBody(200, 100, 60, [10, 20, 30]);
+    await ready(page, [part]);
+    await view(page, [part]);
+    await select(page, [part.id]);
+    await page.getByRole('button', { name: 'Alakulma', exact: true }).click();
+    const edited = fixed === 'x' ? 'y' : 'x';
+    await page.getByTestId(`scale-${edited}`).fill(edited === 'x' ? '400' : '200');
+    const toggle = page.getByRole('button', { name: `Skaalaa ${fixed.toUpperCase()}-suunnassa` });
+    // Switching axes must retain the entered factor and undo only the excluded dimension.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId(`scale-${fixed}`)).not.toBeVisible();
+    await expect(page.getByTestId('scale-factor')).toHaveValue('2');
+    await toggle.click();
+    await expect(page.getByTestId('scale-factor')).toHaveValue('2');
+    await toggle.click();
+    for (const axis of ['x', 'y', 'z'].filter((a) => a !== fixed))
+      await expect(
+        page.getByRole('button', { name: `Skaalaa ${axis.toUpperCase()}-suunnassa` }),
+      ).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('scale-factor').press('Enter');
+    await expect(page.getByTestId('scale-factor')).not.toBeVisible();
+    const expected = [410, 220, 150];
+    const index = ['x', 'y', 'z'].indexOf(fixed);
+    expected[index] = [210, 120, 90][index];
+    const scaled = await save(page);
+    expect(bounds(scaled.bodies)).toEqual({ min: [10, 20, 30], max: expected });
+    await page.getByRole('button', { name: 'Peru', exact: true }).click();
+    expect((await save(page)).bodies).toEqual([part]);
+  });
+}
+for (const handle of ['corner', 'side']) {
+  test(`XY scaling with a ${handle} handle preserves height during preview and commit`, async ({
+    page,
+  }) => {
+    const part = makeBody(200, 100, 60);
+    await ready(page, [part]);
+    const project = await view(page, [part]);
+    await select(page, [part.id]);
+    await page.getByRole('button', { name: 'Skaalaa Z-suunnassa' }).click();
+    const geometry = await page.getByTestId('viewport').getAttribute('data-geometry-builds');
+    const a = handle === 'corner' ? project(200, 100, 60) : project(200, 50, 30);
+    const b = handle === 'corner' ? project(250, 125, 60) : project(250, 50, 30);
+    await page.mouse.move(a.x, a.y);
+    await expect(page.getByTestId('viewport')).toHaveAttribute('data-scale-handle', 'xy');
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 8 });
+    // Perspective projection can make the pointer factor slightly different from 1.5.
+    const factor = Number(await page.getByTestId('scale-factor').inputValue());
+    expect(factor).toBeGreaterThan(1.4);
+    expect(factor).toBeLessThan(1.6);
+    await expect(page.getByRole('button', { name: 'Skaalaa Z-suunnassa' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(page.getByTestId('viewport')).toHaveAttribute('data-geometry-builds', geometry!);
+    await page.mouse.up();
+    await expect(page.getByTestId('scale-factor')).not.toBeVisible();
+    const extent = bounds((await save(page)).bodies);
+    expect(extent.min[2]).toBe(0);
+    expect(extent.max[2]).toBe(60);
+    expect(extent.max[0] - extent.min[0]).toBeCloseTo(200 * factor, 3);
+    expect(extent.max[1] - extent.min[1]).toBeCloseTo(100 * factor, 3);
+  });
+}
 test('axis handle previews without CAD calls and commits on release', async ({ page }) => {
   const requests: string[] = [];
   await page.exposeFunction('cadRequestSeen', (type: string) => requests.push(type));
@@ -81,6 +150,13 @@ test('axis shortcut, invalid value and Escape leave original geometry intact', a
     'true',
   );
   await expect(page.getByTestId('scale-x')).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skaalaa Y-suunnassa' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Skaalaa X-suunnassa' }).click();
+  await expect(page.getByTestId('scale-x')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skaalaa Z-suunnassa' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
   await page.getByTestId('scale-factor').fill('0');
   await page.getByTestId('scale-factor').press('Enter');
   await expect(

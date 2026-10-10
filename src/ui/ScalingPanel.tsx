@@ -1,7 +1,7 @@
 import type { Body } from '../model/project';
 import { bounds } from '../model/project';
 import { bodiesCenter } from '../model/transforms';
-import type { Scaling } from '../model/scaling';
+import { scaleAxes, toggleScaleAxis, type Scaling } from '../model/scaling';
 
 export function ScalingPanel({
   scaling,
@@ -15,6 +15,7 @@ export function ScalingPanel({
   onChange: (patch: Partial<Scaling>) => void;
 }) {
   if (!scaling) return null;
+  const axes = scaleAxes(scaling.mode);
   const selected = bodies.filter((b) => scaling.ids.includes(b.id));
   const linked = selected.some(
     (b) =>
@@ -23,21 +24,20 @@ export function ScalingPanel({
   );
   return (
     <section className="rotation-panel scaling-panel" aria-label="Skaalauksen asetukset">
-      <div className="axis-switch" aria-label="Skaalaussuunta">
-        {(['uniform', 'x', 'y', 'z'] as const).map((mode) => (
+      <div className="axis-switch" role="group" aria-label="Skaalattavat akselit">
+        {(['x', 'y', 'z'] as const).map((axis) => (
           <button
-            key={mode}
-            disabled={busy}
-            aria-pressed={scaling.mode === mode}
-            aria-label={
-              mode === 'uniform' ? 'Skaalaa tasaisesti' : `Skaalaa ${mode.toUpperCase()}-suunnassa`
-            }
-            onClick={() => onChange({ mode })}
+            key={axis}
+            disabled={busy || (axes.length === 1 && axes.includes(axis))}
+            aria-pressed={axes.includes(axis)}
+            aria-label={`Skaalaa ${axis.toUpperCase()}-suunnassa`}
+            onClick={() => onChange({ mode: toggleScaleAxis(scaling.mode, axis) })}
           >
-            {mode === 'uniform' ? 'Tasainen' : mode.toUpperCase()}
+            {axis.toUpperCase()}
           </button>
         ))}
       </div>
+      <p className="muted">Valitut akselit skaalautuvat yhdessä.</p>
       <span className="eyebrow">KIINTOPISTE</span>
       <div className="rotation-picks">
         <button

@@ -85,7 +85,11 @@ export function scalingPreview(scene: THREE.Scene) {
         handles.add(marker);
       }
     }
-    points.forEach((h, i) => handles.children[i].position.set(...h.point));
+    points.forEach((h, i) => {
+      const marker = handles.children[i] as THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>;
+      marker.position.set(...h.point);
+      marker.material.color.set(h.color);
+    });
     handles.children.at(-1)!.position.set(...s.pivot);
     handles.visible = !s.picking;
     const extent = bounds(bodies.filter((b) => s.ids.includes(b.id)));

@@ -2,6 +2,15 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.33.2 — yhdisteltävät skaalausakselit, 10.10.2026
+
+- Oikean paneelin X/Y/Z ovat itsenäisiä valintoja. Valitut akselit käyttävät
+  yhteistä kerrointa; muut säilyttävät sekä mittansa että sijaintinsa.
+- Sama rajaus koskee tavoitemittoja ja näkyviä kulma-/sivukahvoja.
+  Pois valitun akselin sivukahvat piilotetaan. Akselivalinta säilyttää kertoimen.
+- Vähintään yksi akseli säilyy valittuna. X/Y/Z-näppäimet valitsevat edelleen
+  yhden akselin nopeasti; paneelista voi lisätä toisen tai kolmannen.
+
 ## V0.33.1 — raskaiden osien käsittely, 10.10.2026
 
 - Siirron ja kierron hyväksyntä käyttää aiempaa tarkkaa piirtoverkkoa.

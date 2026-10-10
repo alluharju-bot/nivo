@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.33.2** lisää yhdisteltävät **X/Y/Z**-painikkeet skaalaukseen.
+Jätä esimerkiksi **X ja Y** päälle ja kytke **Z pois**, niin leveys ja syvyys
+muuttuvat samalla kertoimella ja korkeus säilyy. Rajaus toimii myös kahvoista
+vetäessä. Akselien vaihtaminen säilyttää syötetyn kertoimen.
+
 Versio **0.33.1** nopeuttaa raskaiden CAD-osien siirtoa, kiertoa ja skaalausta.
 Siirto ja kierto käyttävät valmista piirtoverkkoa, ja akseliskaalaus välttää
 raskaan NURBS-tuloksen tarpeettoman verkotuksen säilyttäen tarkkuusrajat.
