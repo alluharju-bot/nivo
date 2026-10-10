@@ -738,6 +738,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         (current().tool === 'detail' && current().detailPreview?.body.id === object.userData.id) ||
         (moved && !current().copyMove && selectedIds.has(object.userData.id)) ||
         (rotation &&
+          !rotation.copy &&
           !rotation.picking &&
           Math.abs(rotation.angle % 360) > 1e-8 &&
           rotation.ids.includes(object.userData.id))
@@ -745,6 +746,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (wasVisible !== object.visible) renderer.shadowMap.needsUpdate = true;
     }
     renderer.domElement.dataset.copyMove = String(current().copyMove);
+    renderer.domElement.dataset.copyRotation = String(!!rotation?.copy);
     renderer.domElement.dataset.detailPreview = current().detailPreview?.body.id ?? '';
     renderer.domElement.dataset.detailPreviewSize = current().detailPreviewSize?.toString() ?? '';
     renderer.domElement.dataset.offsetPreview = current().offsetOutline

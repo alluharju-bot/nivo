@@ -2,6 +2,41 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.32.0 — Join, kierron kopiointi ja aukkojen ympyrätoisto, 10.10.2026
+
+- Join käyttää yhtä yhdistettävien osien valintaa. Etukäteen valitut osat, mallin
+  napsautukset, listan valinnat ja valintasuorakulmio toimivat samalla tavalla.
+  Cutin Säilytä työstökappaleet -asetus ei jätä Joinin alkuperäisiä osia tuloksen päälle.
+- Sama Join yhdistää tilavuuskappaleet tai samalla tasolla olevat täytetyt muodot.
+  Suorakulmio ja pääty-ympyrät yhdistyvät kaaret säilyttäväksi leikkuriksi.
+  Eri tasot, avoimet viivat, sekoitettu pinta-/tilavuusvalinta ja Hold tarkistetaan.
+  Liitos ei levitä yhdistettyä geometriaa lähtöosan muihin komponenttikopioihin.
+- R-kierron Ctrl on kopioinnin kytkin. Esikatselu säilyttää alkuperäiset osat näkyvissä.
+  Kopiointi käyttää siirron ryhmä-, kokoonpano-, nimeämis- ja komponenttilinkityslogiikkaa.
+  Alkuperäinen geometria säilyy; kopio ja sen mitat/viitteet kiertyvät samassa historiavaiheessa.
+- Leikkaa aukko sisältää Suora/Ympyrä-toiston. Ympyrän akseli X/Y/Z ja kiertopiste
+  ovat asetettavia; oletuspiste on kohteiden keskipiste. Tasajako koko ympyrälle
+  tai oma positiivinen/negatiivinen kulmaväli. Täysi kierros ei lisää päällekkäistä loppuaukkoa.
+  Muoto ja leikkaussuunta kiertyvät yhdessä, joten myös sylinterin sivu voidaan rei'ittää.
+- Rajattu leikkaussyvyys käyttää piirtotason suuntaa myös ympyröillä, joiden CAD-pinnan
+  normaali on vastakkainen. Suunta säilytetään jatkettaessa sarjaa BRep-muodosta.
+  Sarjan esikatselu, syvyys, kohteet ja ympyräasetukset säilyvät toimintohistoriassa.
+- Regressiot: neljä toisiaan koskevaa seinää oviaukolla ja ikkunalla, yhdistetty kapseli,
+  seitsemän reikää onttoon sylinteriin, kiertokopion linkitys sekä selaimen Peru/Palauta ja tallennus.
+- Suuret Cut- ja aukkosarjat: toisistaan erilliset leikkurit ryhmitellään samoihin
+  CAD-operaatioihin. Koskettavat/päällekkäiset leikkurit pysyvät erillisissä erissä;
+  kohteesta ohi menevät rajataan pois. Välitulokset vapautetaan heti. Aukkosarja
+  sarjallistaa ja verkottaa kohteen vasta kaikkien aukkojen jälkeen.
+- CAD-pintojen ja jaettujen reunojen tunnistus käyttää hakutauluja toistuvan
+  koko listan läpikäynnin sijaan. Tarkkuutta tai kaarien laatua ei alenneta.
+  Regressiot: 90 kapselileikkuria onttoon sylinteriin (myös vastakkaiset kopiot),
+  90 pyöreää aukkoa, päällekkäisyydet, kosketukset, ohi menevät ja kokonaan poistuvat kohteet.
+- Kaarevat reunat: valinta ja Kaikki reunat ohittavat sileät tangenttiliitokset,
+  sylinterin tekniset saumat sekä nollapituiset reunat. CAD-indeksit säilyvät.
+  Uusi reunakäsittely nostettu suoraan paneeliin, jotta jo pyöristettyyn muotoon
+  voi lisätä eri kokoisen/tyyppisen käsittelyn. Regressiot kattavat pyöristyksen
+  ja viisteen sylinterille, ellipsille, kapselille, aukolle ja kaarevan putken aukolle.
+
 ## V0.31.1 — pinnan keskipiste ja apuviivan viitemitta, 10.10.2026
 
 - Mitta- ja piirtotyökalujen keskipiste on todellisella, näkyvällä tasopinnalla.

@@ -3,6 +3,31 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.32.0** selkeyttää **Join**-yhdistämisen ja lisää kierron kopioinnin sekä
+aukkojen ympyrätoiston:
+
+- **Join — Yhdistä**: valitse kaikki yhdistettävät osat samasta listasta tai mallista.
+  Myös samalla tasolla olevat paksuudettomat muodot yhdistyvät: suorakulmio ja
+  ympyrät voivat muodostaa yhden pyöristetyn leikkausmuodon. Alkuperäiset osat
+  korvautuvat tuloksella; Peru palauttaa ne. Cut säilyttää kohde-/työstöjaon.
+- **R + Ctrl**: Ctrl-napautus kytkee kierron kopioinnin päälle tai pois.
+  Alkuperäinen jää paikalleen ja uusi kopio kiertyy valitun pisteen tai reunan ympäri.
+  Sama toimii monivalinnalle, ryhmille ja kokoonpanoille; komponenttilinkit säilyvät.
+- **Leikkaa aukko → Toisto → Ympyrä**: valitse 1–100 aukkoa, X/Y/Z-kiertoakseli
+  ja tarvittaessa kiertopiste. Oletuksena aukot jaetaan tasan 360 asteelle; voit myös
+  antaa oman kulmavälin. Leikkaussuunta kiertyy muodon mukana. Syvyys rajaa työstön
+  esimerkiksi sylinterin lähimpään seinämään; tyhjä syvyys leikkaa myös vastapuolen.
+  Punainen esikatselu, kohteiden valinta ja yksi Peru koko sarjalle ovat käytössä.
+  Suoran sarjan toisto ja osittaisen ympyräsarjan jatkaminen toimivat Toista aukko -painikkeesta.
+- **Suuret leikkaussarjat**: Cut ja Leikkaa aukko laskevat erilliset leikkurit
+  pienissä yhteisissä erissä. Päällekkäiset leikkurit käsitellään turvallisesti
+  erikseen, ja ohi osuvat jätetään laskennasta. Myös valmiin geometrian
+  pinta-/reunahaku on nopeampi. Koko leikkaus palautuu yhdellä Peru-toiminnolla.
+- **Kaarevien reunojen käsittely**: Reunat-työkalu ohittaa sileiden pintojen saumat.
+  Pyöreät ja puolipyöreät reunat sekä kaarevaan seinämään leikatun aukon reunat
+  voi pyöristää tai viistää. **Uusi reunakäsittely** säilyttää edellisen muodon
+  ja avaa sen muut reunat käsiteltäviksi omalla säteellä tai viisteellä.
+
 Versio **0.31.1** korjaa pinnan keskipistetartunnan: mitta- ja piirtotyökalut
 tarttuvat näkyvän tasopinnan keskelle kappaleen sisällä olevan tilavuuskeskipisteen
 sijaan. Reunasta vedettävä apuviiva poimii viitemitan myös eri korkeudella olevalta

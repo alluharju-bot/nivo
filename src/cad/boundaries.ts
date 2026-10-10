@@ -6,20 +6,29 @@ import { dot, sub } from '../model/geometry';
 export function faceBoundaries(shape: AnyShape, metadata: CadFace[]): FaceBoundary[] {
   const faces = shape.faces;
   const edges: { edge: Edge; owners: number[] }[] = [];
+  const byHash = new Map<number, typeof edges>();
+  const byIndex = new Map(metadata.map((face) => [face.index, face]));
   try {
     for (const [index, face] of faces.entries()) {
       for (const edge of face.edges) {
-        const found = edges.find((e) => e.edge.hashCode === edge.hashCode && e.edge.isSame(edge));
+        const hash = edge.hashCode;
+        const bucket = byHash.get(hash);
+        const found = bucket?.find((e) => e.edge.isSame(edge));
         if (found) {
           if (!found.owners.includes(index)) found.owners.push(index);
           edge.delete();
-        } else edges.push({ edge, owners: [index] });
+        } else {
+          const entry = { edge, owners: [index] };
+          edges.push(entry);
+          if (bucket) bucket.push(entry);
+          else byHash.set(hash, [entry]);
+        }
       }
     }
     const groups = new Map<string, FaceBoundary>();
     for (const { edge, owners } of edges) {
       if (owners.length !== 2) continue;
-      const [a, b] = owners.map((index) => metadata.find((f) => f.index === index));
+      const [a, b] = owners.map((index) => byIndex.get(index));
       if (
         !a?.planar ||
         !b?.planar ||

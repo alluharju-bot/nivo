@@ -4161,7 +4161,12 @@ export function installInteractions({
     if (!pointers.size) blocked = false;
   };
   let controlCopyBefore: boolean | undefined;
+  let controlRotationBefore: boolean | undefined;
   const keydown = (event: KeyboardEvent) => {
+    if (controlRotationBefore !== undefined && event.ctrlKey && event.key !== 'Control') {
+      current().onCopyRotation(controlRotationBefore);
+      controlRotationBefore = undefined;
+    }
     if (controlCopyBefore !== undefined && event.ctrlKey && event.key !== 'Control') {
       current().onCopyMove(controlCopyBefore);
       controlCopyBefore = undefined;
@@ -4174,6 +4179,19 @@ export function installInteractions({
       )
     )
       return;
+    if (
+      event.key === 'Control' &&
+      current().tool === 'rotate' &&
+      current().rotation &&
+      !current().busy
+    ) {
+      event.preventDefault();
+      if (!event.repeat) {
+        controlRotationBefore = !!current().rotation?.copy;
+        current().onCopyRotation(!controlRotationBefore);
+      }
+      return;
+    }
     if ((event.key === 'Control' || event.key === 'Alt') && current().tool === 'move') {
       event.preventDefault();
       if (!event.repeat) {
@@ -4291,6 +4309,7 @@ export function installInteractions({
   const keyup = (event: KeyboardEvent) => {
     if (event.key === 'Shift') current().onSelectionHover?.(undefined);
     if (event.key === 'Control') controlCopyBefore = undefined;
+    if (event.key === 'Control') controlRotationBefore = undefined;
     if (current().modalOpen || current().opening) {
       if (event.key === 'Shift') {
         shift = false;

@@ -20,6 +20,15 @@ export function RotationPanel({
   if (!rotation) return null;
   return (
     <section className="rotation-panel" aria-label="Kierron asetukset">
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={!!rotation.copy}
+          disabled={busy}
+          onChange={(e) => onChange({ copy: e.target.checked })}
+        />
+        Kopioi kiertäessä · Ctrl
+      </label>
       <div className="axis-switch" aria-label="Kiertoakseli">
         {(['x', 'y', 'z'] as const).map((axis, i) => (
           <button

@@ -10,6 +10,7 @@ export interface Rotation {
   pivot: Vec3;
   axis: Vec3;
   angle: number;
+  copy?: boolean;
   picking?: 'point' | 'edge';
 }
 export const cross = (a: Vec3, b: Vec3): Vec3 => [

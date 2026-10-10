@@ -8,7 +8,7 @@ export function applyBoolean(
   operation: BooleanOperation,
   keepTools: boolean,
 ): Project {
-  const removed = new Set([...targets, ...(keepTools ? [] : tools)]),
+  const removed = new Set([...targets, ...(operation === 'cut' && keepTools ? [] : tools)]),
     first = results[0];
   const remap = (anchor: Anchor): Anchor => {
     if ('point' in anchor) return anchor;

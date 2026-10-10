@@ -10,7 +10,7 @@ import type { Markup, Project } from './model/project';
 import type { MeasureMode } from './ui/ToolRail';
 import { AnnotationProperties } from './ui/AnnotationProperties';
 import { annotationText } from './model/annotationStyle';
-import { openingOffsets, singleOpening, type OpeningPattern } from './model/openingPattern';
+import { singleOpening, type OpeningPattern } from './model/openingPattern';
 import { OpeningPatternFields } from './ui/OpeningPatternFields';
 import { profileCorners } from './model/profileCorners';
 import { applySplitResult } from './model/splitReferences';
@@ -569,6 +569,7 @@ export default function App() {
   const [groupDestination, setGroupDestination] = useState('');
   const [openingDraft, setOpeningDraft] = useState<{
     profile: Body;
+    lastProfile: Body;
     pattern: OpeningPattern;
     validPattern: OpeningPattern;
     normal: Vec3;
@@ -1238,7 +1239,10 @@ export default function App() {
     setPickDepth(false);
   };
   const toggleBoolean = (id: string, group: 'targets' | 'tools' = booleanActive) => {
-    if (!featureIsSolid(project.bodies.find((b) => b.id === id)!.feature)) {
+    if (
+      booleanOperation === 'cut' &&
+      !featureIsSolid(project.bodies.find((b) => b.id === id)!.feature)
+    ) {
       editor.setMessage('Anna luonnokselle ensin paksuus.');
       return;
     }
@@ -1490,11 +1494,7 @@ export default function App() {
     editor.setError('');
     if (next === 'boolean') {
       setPanelOpen(true);
-      setBooleanTargets(
-        selectedIds.filter((id) =>
-          featureIsSolid(project.bodies.find((b) => b.id === id)!.feature),
-        ),
-      );
+      setBooleanTargets(selectedIds);
       setBooleanTools([]);
       setBooleanActive('targets');
       return;
@@ -1743,6 +1743,19 @@ export default function App() {
       return;
     }
     if (tool !== 'boolean') begin('boolean');
+    if (operation === 'join') {
+      setBooleanTargets([
+        ...new Set(tool === 'boolean' ? [...booleanTargets, ...booleanTools] : selectedIds),
+      ]);
+      setBooleanTools([]);
+      setBooleanActive('targets');
+    } else {
+      const solidIds = new Set(
+        project.bodies.filter((b) => featureIsSolid(b.feature)).map((b) => b.id),
+      );
+      setBooleanTargets((ids) => ids.filter((id) => solidIds.has(id)));
+      setBooleanTools((ids) => ids.filter((id) => solidIds.has(id)));
+    }
     setBooleanOperation(operation);
   };
   const commitShape = async (candidate: Body) => {
@@ -1824,7 +1837,8 @@ export default function App() {
     const success = await editor.transact(
       async () => {
         requireMovable(targets, project.groups);
-        if (booleanOperation === 'join' || !keepTools) requireMovable(tools, project.groups);
+        if (tools.length && (booleanOperation === 'join' || !keepTools))
+          requireMovable(tools, project.groups);
         const results = await editor.cad.boolean(targets, tools, booleanOperation);
         nextSelected = results[0]?.id;
         if (
@@ -2056,21 +2070,33 @@ export default function App() {
         const parts = project.bodies.filter((b) => draft.ids.includes(b.id));
         requireMovable(parts, project.groups);
         committing.current = true;
+        let resultIds = draft.ids,
+          resultGroup = selectedGroupId;
         const success =
           Math.abs(rotation.angle % 360) < 1e-9 ||
-          (await editor.transact(async () => {
-            const results = await editor.cad.rotate(
-              parts,
-              rotation.pivot,
-              rotation.axis,
-              rotation.angle,
-            );
-            return applyRotation(project, results, rotation);
-          }, 'Valinta kierretty.'));
+          (await editor.transact(
+            async () => {
+              const base = rotation.copy
+                ? translateSelection(project, draft.ids, [0, 0, 0], true, selectedGroupId)
+                : { project, ids: draft.ids, groupId: selectedGroupId };
+              resultIds = base.ids;
+              resultGroup = base.groupId;
+              const results = await editor.cad.rotate(
+                base.project.bodies.filter((b) => base.ids.includes(b.id)),
+                rotation.pivot,
+                rotation.axis,
+                rotation.angle,
+              );
+              return applyRotation(base.project, results, rotation);
+            },
+            rotation.copy
+              ? `Kierretty kopio · ${parts.length} osaa · ${rotation.angle}°`
+              : 'Valinta kierretty.',
+          ));
         if (success) {
-          finishOperation(draft.ids[0]);
-          setSelectedIds(draft.ids);
-          setSelectedGroupId(selectedGroupId);
+          finishOperation(resultIds[0]);
+          setSelectedIds(resultIds);
+          setSelectedGroupId(resultGroup);
         }
       } else if (tool === 'boolean') {
         committing.current = true;
@@ -4297,13 +4323,16 @@ export default function App() {
       lastOpening.current = openingOperation(draft);
       setOpeningDraft(undefined);
       finishOperation(draft.included.find((id) => results.has(id)));
-      const lastOffset = openingOffsets(draft.pattern, draft.normal).at(-1)!;
-      setRepeatOpening({
-        profile: { ...draft.profile, origin: add(draft.profile.origin, lastOffset) },
-        targetIds: draft.included.filter((id) => results.has(id)),
-        pattern: { ...draft.pattern, count: 1, first: 1 },
-        revision: editor.revision(),
-      });
+      setRepeatOpening(
+        draft.pattern.radial?.fullCircle
+          ? undefined
+          : {
+              profile: draft.lastProfile,
+              targetIds: draft.included.filter((id) => results.has(id)),
+              pattern: { ...draft.pattern, count: 1, first: 1 },
+              revision: editor.revision(),
+            },
+      );
     }
   };
   const quickActions: QuickAction[] = selectedMarkupIds.length
@@ -4805,9 +4834,11 @@ export default function App() {
                         : tool === 'erase'
                           ? 'Napsauta pintojen jakoviivaa tai apuviivaa.'
                           : tool === 'boolean'
-                            ? booleanActive === 'targets'
-                              ? 'Valitse muokattavat kohdeosat.'
-                              : 'Valitse työstökappaleet ja hyväksy.'
+                            ? booleanOperation === 'join'
+                              ? 'Valitse yhdistettävät osat ja hyväksy.'
+                              : booleanActive === 'targets'
+                                ? 'Valitse muokattavat kohdeosat.'
+                                : 'Valitse työstökappaleet ja hyväksy.'
                             : tool === 'measure'
                               ? measureMode === 'area'
                                 ? 'Piirrä suorakulmioita. Enter yhdistää pinta-alueen.'
@@ -6061,7 +6092,7 @@ export default function App() {
                           ? booleanTargets
                           : booleanTools
                         : []),
-                      ...ids.filter((id) => solid.has(id)),
+                      ...ids.filter((id) => booleanOperation === 'join' || solid.has(id)),
                     ]),
                   ];
                   const set = new Set(next);
@@ -6161,6 +6192,7 @@ export default function App() {
               moveMode={project.settings.moveMode ?? 'axis'}
               copyMove={copyMove}
               onCopyMove={changeCopyMove}
+              onCopyRotation={(copy) => changeRotation({ copy })}
               offsetDistance={offsetDistance}
               offsetOutline={offsetPreview.lines}
               offsetPreviewDistance={offsetPreview.distance}
@@ -7833,6 +7865,11 @@ export default function App() {
         >
           <OpeningPatternFields
             value={openingDraft.pattern}
+            center={bodiesCenter(
+              openingDraft.included.length
+                ? openingDraft.candidates.filter((b) => openingDraft.included.includes(b.id))
+                : openingDraft.candidates,
+            )}
             busy={busy}
             onChange={(pattern) => {
               openingRequest.current++;

@@ -61,54 +61,72 @@ export function BooleanPanel({
   return (
     <section className="modeling-panel" aria-label="Muotoile">
       <OperationSelect value={operation} onChange={onOperation} disabled={busy} />
-      {(['targets', 'tools'] as const).map((group) => {
-        const ids = group === 'targets' ? targets : tools,
-          title = group === 'targets' ? 'Kohteet' : 'Työstökappaleet';
-        return (
-          <div className={`body-set ${group} ${active === group ? 'active' : ''}`} key={group}>
-            <button
-              className="body-set-heading"
-              aria-pressed={active === group}
-              disabled={busy}
-              onClick={() => onActive(group)}
-            >
-              <span>{title}</span>
-              <strong>{ids.length}</strong>
-            </button>
+      {(operation === 'join' ? (['targets'] as const) : (['targets', 'tools'] as const)).map(
+        (group) => {
+          const ids = group === 'targets' ? targets : tools,
+            title =
+              operation === 'join'
+                ? 'Yhdistettävät osat'
+                : group === 'targets'
+                  ? 'Kohteet'
+                  : 'Työstökappaleet';
+          return (
+            <div className={`body-set ${group} ${active === group ? 'active' : ''}`} key={group}>
+              <button
+                className="body-set-heading"
+                aria-pressed={active === group}
+                disabled={busy}
+                onClick={() => onActive(group)}
+              >
+                <span>{title}</span>
+                <strong>{ids.length}</strong>
+              </button>
 
-            <div className="body-set-list">
-              {bodies
-                .filter((b) => active === group || ids.includes(b.id))
-                .map((b) => (
-                  <label key={b.id} className={!featureIsSolid(b.feature) ? 'unavailable' : ''}>
-                    <input
-                      type="checkbox"
-                      aria-label={`${group === 'targets' ? 'Kohde' : 'Työstökappale'}: ${b.name}`}
-                      checked={ids.includes(b.id)}
-                      disabled={busy || !featureIsSolid(b.feature)}
-                      onChange={() => onToggle(b.id, group)}
-                    />
-                    <span>{b.name}</span>
-                    {!featureIsSolid(b.feature) && <small>Tarvitsee paksuuden</small>}
-                  </label>
-                ))}
+              <div className="body-set-list">
+                {bodies
+                  .filter((b) => active === group || ids.includes(b.id))
+                  .map((b) => (
+                    <label
+                      key={b.id}
+                      className={
+                        operation === 'cut' && !featureIsSolid(b.feature) ? 'unavailable' : ''
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={`${operation === 'join' ? 'Yhdistä' : group === 'targets' ? 'Kohde' : 'Työstökappale'}: ${b.name}`}
+                        checked={ids.includes(b.id)}
+                        disabled={busy || (operation === 'cut' && !featureIsSolid(b.feature))}
+                        onChange={() => onToggle(b.id, group)}
+                      />
+                      <span>{b.name}</span>
+                      {operation === 'cut' && !featureIsSolid(b.feature) && (
+                        <small>Tarvitsee paksuuden</small>
+                      )}
+                    </label>
+                  ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
-      <button className="button outlined full" disabled={busy} onClick={onSwap}>
-        <ArrowLeftRight size={16} />
-        Vaihda keskenään
-      </button>
-      <label className="checkbox-label">
-        <input
-          type="checkbox"
-          checked={keepTools}
-          disabled={busy}
-          onChange={(e) => onKeepTools(e.target.checked)}
-        />
-        Säilytä työstökappaleet
-      </label>
+          );
+        },
+      )}
+      {operation === 'cut' && (
+        <>
+          <button className="button outlined full" disabled={busy} onClick={onSwap}>
+            <ArrowLeftRight size={16} />
+            Vaihda keskenään
+          </button>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={keepTools}
+              disabled={busy}
+              onChange={(e) => onKeepTools(e.target.checked)}
+            />
+            Säilytä työstökappaleet
+          </label>
+        </>
+      )}
       <div className="modeling-actions">
         <button className="button outlined" disabled={busy} onClick={onCancel}>
           <X size={16} />
@@ -116,7 +134,9 @@ export function BooleanPanel({
         </button>
         <button
           className="button dark"
-          disabled={busy || !targets.length || !tools.length}
+          disabled={
+            busy || (operation === 'join' ? targets.length < 2 : !targets.length || !tools.length)
+          }
           onClick={onAccept}
         >
           <Check size={16} />

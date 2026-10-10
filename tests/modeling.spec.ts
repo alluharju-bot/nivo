@@ -229,16 +229,16 @@ test('viewport group picking, reverse Cut with kept tool, and Join use the same 
   await expect(page.getByRole('button', { name: 'Palauta', exact: true })).toBeEnabled();
   await page.keyboard.press('b');
   await page.getByRole('combobox', { name: 'Toiminto', exact: true }).selectOption('join');
-  await page.getByRole('checkbox', { name: 'Kohde: A', exact: true }).check();
-  await page.getByRole('button', { name: 'Työstökappaleet 0', exact: true }).click();
-  await page.getByRole('checkbox', { name: 'Työstökappale: B', exact: true }).check();
-  await page.getByRole('checkbox', { name: 'Säilytä työstökappaleet', exact: true }).uncheck();
+  await page.getByRole('checkbox', { name: 'Yhdistä: A', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Yhdistä: B', exact: true }).check();
   await page.getByRole('button', { name: 'Hyväksy Join', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Muotoile', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(page.getByRole('button', { name: 'Kohteet 0', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Yhdistettävät osat 0', exact: true }),
+  ).toBeVisible();
   await page.keyboard.press('v');
   await expect(page.locator('.object-list .object-select')).toHaveCount(1);
   model = await save(page);

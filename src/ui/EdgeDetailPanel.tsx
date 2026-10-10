@@ -68,6 +68,15 @@ export function EdgeDetailPanel({
         <button disabled={!count || busy} onClick={clear}>
           Tyhjennä reunavalinta
         </button>
+        {retained && (
+          <button
+            disabled={busy}
+            onClick={onFinalize}
+            title="Säilytä nykyinen muoto ja käsittele sen muita reunoja uudella mitalla tai tyypillä."
+          >
+            Uusi reunakäsittely
+          </button>
+        )}
       </div>
       {retained && (
         <details className="tool-advanced">
@@ -78,9 +87,6 @@ export function EdgeDetailPanel({
           <div className="object-quick-actions">
             <button disabled={busy} onClick={onRemove}>
               Poista käsittely
-            </button>
-            <button disabled={busy} onClick={onFinalize}>
-              Viimeistele ja aloita uusi
             </button>
           </div>
         </details>

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { bounds, freshProject, makeBody, type Body, type Project } from '../src/model/project';
 import { rotationRadius } from '../src/model/transforms';
+import { view } from './helpers';
 
 async function ready(page: Page, bodies: Body[]) {
   await page.goto('/');
@@ -190,14 +191,18 @@ test('R rotates about a picked edge with an exact angle and undo', async ({ page
 test('rotation ring uses five-degree snapping and Shift allows a free angle', async ({ page }) => {
   const body = makeBody(120, 60, 20);
   await ready(page, [body]);
-  const point = await top(page, [body]);
   await page.getByTestId(`body-${body.id}`).click();
   await page.keyboard.press('r');
+  // Explicitly fit, then use the lower arc so the tablet view cube cannot cover the handle.
+  const point = await view(page, [body]);
   const radius = rotationRadius([body]);
-  const a = point(60 + radius * Math.cos(Math.PI / 6), 30 + radius * Math.sin(Math.PI / 6));
+  const a = point(
+    60 + radius * Math.cos((-120 * Math.PI) / 180),
+    30 + radius * Math.sin((-120 * Math.PI) / 180),
+  );
   const b = point(
-    60 + radius * Math.cos((113 * Math.PI) / 180),
-    30 + radius * Math.sin((113 * Math.PI) / 180),
+    60 + radius * Math.cos((-37 * Math.PI) / 180),
+    30 + radius * Math.sin((-37 * Math.PI) / 180),
   );
   await page.mouse.move(a.x, a.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-rotation-handle', 'Z');
@@ -211,8 +216,8 @@ test('rotation ring uses five-degree snapping and Shift allows a free angle', as
   expect(free).toBeLessThan(85);
   await page.keyboard.up('Shift');
   const c = point(
-    60 + radius * Math.cos((117 * Math.PI) / 180),
-    30 + radius * Math.sin((117 * Math.PI) / 180),
+    60 + radius * Math.cos((-33 * Math.PI) / 180),
+    30 + radius * Math.sin((-33 * Math.PI) / 180),
   );
   await page.mouse.move(c.x, c.y, { steps: 3 });
   await expect(page.getByTestId('rotation-angle')).toHaveValue('90');

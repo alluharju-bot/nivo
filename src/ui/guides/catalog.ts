@@ -234,7 +234,7 @@ export const toolGuides = [
       step('Vedä kiertorengasta', 'Kierto tarttuu 5° välein ja vahvemmin pääsuuntiin.', '45°'),
       step('Hyväksy', 'Vapauta veto tai kirjoita kulma ja paina Enter.', 'Enter'),
     ],
-    tip: 'Shift vapauttaa kulmatartunnan. X/Y/Z vaihtaa kiertoakselin. Voit poimia kiertoakselin myös suorasta reunasta.',
+    tip: 'Ctrl-napautus kytkee kopioinnin päälle tai pois; alkuperäinen jää paikalleen. Shift vapauttaa kulmatartunnan. X/Y/Z vaihtaa akselin, jonka voi poimia myös suorasta reunasta.',
   },
   {
     id: 'fillet',
@@ -269,7 +269,7 @@ export const toolGuides = [
       ),
       step('Hyväksy', 'Enter tai vedon vapautus hyväksyy viisteen.', 'Enter'),
     ],
-    tip: 'Voit vaihtaa saman reunavalinnan viisteestä pyöristykseen. Poista käsittely palauttaa säilytetyn lähtömuodon.',
+    tip: 'Voit vaihtaa saman reunavalinnan viisteestä pyöristykseen. Uusi reunakäsittely säilyttää nykyisen muodon ja avaa sen muut reunat muokattaviksi. Poista käsittely palauttaa säilytetyn lähtömuodon.',
   },
   {
     id: 'erase',
@@ -305,10 +305,13 @@ export const toolGuides = [
     shortcut: 'B',
     steps: [
       step('Valitse Join', 'Avaa Muotoile ja vaihda toiminnoksi Join.'),
-      step('Valitse yhdistettävät osat', 'Lisää osat Kohteet- ja Työstökappaleet-valintoihin.'),
+      step(
+        'Valitse yhdistettävät osat',
+        'Napsauta osat mallissa tai Yhdistettävät osat -listassa.',
+      ),
       step('Hyväksy Join', 'Osat yhdistyvät yhdeksi muokattavaksi kappaleeksi.'),
     ],
-    tip: 'Ryhmä tai kokoonpano säilyttää osat erillisinä. Join yhdistää geometriaa. Peru palauttaa lähtöosat.',
+    tip: 'Join yhdistää myös samalla tasolla olevat täytetyt muodot. Ryhmä tai kokoonpano säilyttää osat erillisinä. Peru palauttaa lähtöosat.',
   },
   {
     id: 'knife',
@@ -458,7 +461,7 @@ export const toolGuides = [
         'Leikkaus poistaa muodon kohdalta materiaalia kohteiden läpi.',
       ),
     ],
-    tip: 'Cut / Join sopii kolmiulotteisille leikkureille. Jaa pinta rajaa pintaan uuden alueen poistamatta vielä materiaalia.',
+    tip: 'Toisto → Ympyrä jakaa aukot kiertoakselin ympärille. Rajaa syvyys, jos vastapuoli pitää säilyttää. Cut sopii kolmiulotteisille leikkureille; Jaa pinta rajaa alueen poistamatta materiaalia.',
   },
   {
     id: 'section',

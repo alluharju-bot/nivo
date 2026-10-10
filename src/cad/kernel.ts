@@ -34,6 +34,7 @@ import {
 import type { BodyMesh, DrawingView, Projection, ProbeResult } from './protocol';
 import { add, sub, unit, dot, scale } from '../model/geometry';
 import { faceBoundaries } from './boundaries';
+import { detailEdgeIndices } from './detailEdges';
 
 export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
   const oc = getOC(),
@@ -231,8 +232,13 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   if (!shapeIsValid(shape)) throw new Error('Geometriasta ei syntynyt ehjää kappaletta.');
   const mesh = shape.mesh({ tolerance: 0.15, angularTolerance: 0.1 });
   const cadFaces = shape.faces;
+  const faceIndices = new Map<number, number>();
+  cadFaces.forEach((face, index) => {
+    const hash = face.hashCode;
+    if (!faceIndices.has(hash)) faceIndices.set(hash, index);
+  });
   const faces = mesh.faceGroups.map((group) => {
-    const index = cadFaces.findIndex((f) => f.hashCode === group.faceId);
+    const index = faceIndices.get(group.faceId) ?? -1;
     if (index < 0) throw new Error('Pinnan topologiaa ei löytynyt.');
     const face = cadFaces[index],
       center = face.center;
@@ -270,6 +276,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
   const seen = new Set<string>();
   const boxCorners = corners(body);
   const edges = shape.edges;
+  const detailIndices = featureIsSolid(body.feature) ? detailEdgeIndices(shape, edges) : undefined;
   const anchor = (point: Vec3) => {
     const local = sub(point, body.origin);
     return {
@@ -287,7 +294,7 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
     for (const [index, edge] of edges.entries()) {
       hasCurvedEdge ||= edge.geomType !== 'LINE';
       const lines = edge.meshEdges({ tolerance: edge.geomType === 'LINE' ? 0.15 : 0.01 }).lines;
-      detailEdges.push({ index, lines });
+      if (!detailIndices || detailIndices.has(index)) detailEdges.push({ index, lines });
       const a = edge.startPoint,
         b = edge.endPoint;
       const start = a.toTuple(),
@@ -429,10 +436,17 @@ export function meshBody(body: Body, shape: AnyShape): BodyMesh {
           const source = detailSourceShape(body),
             edges = source.edges;
           try {
-            return edges.map((edge, index) => ({
-              index,
-              lines: edge.meshEdges({ tolerance: 0.15 }).lines,
-            }));
+            const indices = detailEdgeIndices(source, edges);
+            return edges.flatMap((edge, index) =>
+              indices.has(index)
+                ? [
+                    {
+                      index,
+                      lines: edge.meshEdges({ tolerance: 0.15 }).lines,
+                    },
+                  ]
+                : [],
+            );
           } finally {
             edges.forEach((edge) => edge.delete());
             source.delete();

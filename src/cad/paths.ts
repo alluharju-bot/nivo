@@ -18,11 +18,19 @@ import {
   type Vec3,
   type FaceRef,
 } from '../model/project';
-import { add, dot, sub, scale } from '../model/geometry';
-import { openingOffsets, singleOpening, type OpeningPattern } from '../model/openingPattern';
+import { add, dot, sub, scale, axisVector } from '../model/geometry';
+import {
+  openingOffsets,
+  openingAngles,
+  singleOpening,
+  type OpeningPattern,
+} from '../model/openingPattern';
+import { rotateBodies } from './transforms';
+import { rotateVector } from '../model/transforms';
 import { sketchFrame, frameV } from '../model/sketch';
 import type { BodyMesh, SplitResult } from './protocol';
 import { splitFace } from './operations';
+import { cutShapes } from './cut';
 
 /** An open pen path is exact wire geometry, never an implicitly closed face. */
 export function penPath(points: Vec3[], name: string): Body {
@@ -117,6 +125,7 @@ export function splitWithPath(body: Body, ref: FaceRef, path: Body): SplitResult
 }
 
 export interface OpeningResult {
+  lastProfile: Body;
   bodies: Body[];
   affected: string[];
   normal: Vec3;
@@ -228,34 +237,113 @@ export function cutOpening(
     const faces = meshBody(profile, shape).faces;
     if (faces.length !== 1 || !faces[0].planar)
       throw new Error('Leikkaa aukko tarvitsee yhden suljetun tasomuodon.');
-    normal = faces[0].normal;
-    offsets = openingOffsets(options, normal);
+    normal =
+      profile.feature.type === 'profile-extrusion' ? profile.feature.frame.normal : faces[0].normal;
+    offsets = options.radial ? [] : openingOffsets(options, normal);
   } finally {
     shape.delete();
   }
-  let bodies = targets;
   const affected = new Set<string>();
   const cutters: BodyMesh[] = [];
-  for (const offset of offsets) {
-    const origin = add(profile.origin, offset);
-    if (origin.some((n) => Math.abs(n) > 100000))
-      throw new Error('Aukkosarja ylittää sallitun sijaintialueen.');
-    const result = cutSingleOpening({ ...profile, origin }, bodies, options.depth);
-    bodies = result.bodies;
-    if (result.cutter) cutters.push({ ...result.cutter, id: `opening:${cutters.length}` });
-    result.affected.forEach((id) => affected.add(id));
-  }
-  const meshes = bodies
-    .filter((b) => affected.has(b.id))
-    .map((body) => {
-      const shape = createShape(body);
+  const angles = options.radial ? openingAngles(options) : [];
+  const profiles = options.radial
+    ? angles.map(
+        (angle) =>
+          rotateBodies(
+            [profile],
+            options.radial!.pivot,
+            axisVector(options.radial!.axis),
+            angle,
+          )[0],
+      )
+    : offsets.map((offset) => ({ ...profile, origin: add(profile.origin, offset) }));
+  let lastProfile = profile;
+  const prepared: { shape: AnyShape; eligible: Set<string> }[] = [];
+  try {
+    for (const [index, placed] of profiles.entries()) {
+      if (placed.origin.some((n) => Math.abs(n) > 100000))
+        throw new Error('Aukkosarja ylittää sallitun sijaintialueen.');
+      const direction = options.radial
+        ? rotateVector(normal, axisVector(options.radial.axis), angles[index])
+        : normal;
+      const cutter = openingCutter(placed, targets, options.depth, direction);
+      if (cutter) {
+        prepared.push(cutter);
+        cutters.push({
+          ...meshBody(placed, cutter.shape),
+          volume: solidVolume(cutter.shape),
+          id: `opening:${cutters.length}`,
+        });
+      }
+      if (index === profiles.length - 1) {
+        // CAD circles can have the opposite face orientation to their drawing plane.
+        // Preserve the intended inward cut direction when a repeated profile is a BRep.
+        const shape = createShape(placed),
+          faces = shape.faces;
+        try {
+          const face = meshBody(placed, shape).faces[0];
+          if (dot(face.normal, direction) < 0) {
+            const aligned = faces[0].flipOrientation();
+            try {
+              lastProfile = bodyFromShape(placed, aligned, []);
+            } finally {
+              aligned.delete();
+            }
+          } else lastProfile = placed;
+        } finally {
+          faces.forEach((f) => f.delete());
+          shape.delete();
+        }
+      }
+    }
+    const bodies = targets.flatMap((body) => {
+      const tools = prepared
+        .filter((cutter) => cutter.eligible.has(body.id))
+        .map((cutter) => cutter.shape);
+      if (!tools.length) return [body];
+      const source = createShape(body);
+      let result: AnyShape | undefined;
       try {
-        return meshBody(body, shape);
+        const before = solidVolume(source);
+        result = cutShapes(source, tools);
+        if (!shapeIsValid(result)) throw new Error('Aukko ei muodosta ehjää leikkausta.');
+        const solids = result.solids;
+        const empty = !solids.length;
+        solids.forEach((s) => s.delete());
+        const volume = empty ? 0 : solidVolume(result);
+        if (Math.abs(volume - before) < Math.max(1e-7, before * 1e-10)) return [body];
+        if (body.locked)
+          throw new Error(
+            `Aukko osuu kiinnitettyyn osaan ”${body.name}”. Vapauta Hold tai poista osa kohteista.`,
+          );
+        affected.add(body.id);
+        return volume > 1e-7 ? [bodyFromShape(body, result)] : [];
       } finally {
-        shape.delete();
+        result?.delete();
+        source.delete();
       }
     });
-  return { bodies, affected: [...affected], normal, meshes, cutters };
+    const meshes = bodies
+      .filter((b) => affected.has(b.id))
+      .map((body) => {
+        const shape = createShape(body);
+        try {
+          return meshBody(body, shape);
+        } finally {
+          shape.delete();
+        }
+      });
+    return {
+      bodies,
+      affected: [...affected],
+      normal,
+      meshes,
+      cutters,
+      lastProfile,
+    };
+  } finally {
+    prepared.forEach((cutter) => cutter.shape.delete());
+  }
 }
 
 /** Preserve a planar region before push/pull removes it, so its cut can be repeated. */
@@ -272,20 +360,21 @@ export function faceProfile(body: Body, ref: FaceRef): Body {
   }
 }
 
-function cutSingleOpening(
+function openingCutter(
   profile: Body,
   targets: Body[],
   depth?: number,
-): Pick<OpeningResult, 'bodies' | 'affected'> & { cutter?: BodyMesh } {
+  normalOverride?: Vec3,
+): { shape: AnyShape; eligible: Set<string> } | undefined {
   if (featureIsSolid(profile.feature)) throw new Error('Valitse suljettu muoto ilman paksuutta.');
   const sketch = createShape(profile),
     faces = sketch.faces;
-  let cutter: AnyShape | undefined;
   try {
     const metadata = meshBody(profile, sketch).faces;
     if (faces.length !== 1 || !metadata[0]?.planar)
       throw new Error('Leikkaa aukko tarvitsee yhden suljetun tasomuodon.');
-    const { normal, center } = metadata[0];
+    const { center } = metadata[0];
+    const normal = normalOverride ?? metadata[0].normal;
     const frame = sketchFrame(center, normal),
       axes = [frame.u, frameV(frame)];
     const projected = (body: Body) =>
@@ -306,7 +395,7 @@ function cutSingleOpening(
           })()),
     );
     const eligibleIds = new Set(eligible.map((b) => b.id));
-    if (!eligible.length && depth === undefined) return { bodies: targets, affected: [] };
+    if (!eligible.length && depth === undefined) return;
     let min = Infinity,
       max = -Infinity;
     for (const body of eligible)
@@ -322,49 +411,12 @@ function cutSingleOpening(
     const face = faces[0].clone().translate(scale(normal, min)),
       vector = new Vector(scale(normal, max - min));
     try {
-      cutter = basicFaceExtrusion(face, vector);
+      return { shape: basicFaceExtrusion(face, vector), eligible: eligibleIds };
     } finally {
       face.delete();
       vector.delete();
     }
-    const affected: string[] = [],
-      bodies: Body[] = [];
-    for (const body of targets) {
-      if (!eligibleIds.has(body.id)) {
-        bodies.push(body);
-        continue;
-      }
-      const source = createShape(body);
-      let result: AnyShape | undefined;
-      try {
-        const before = solidVolume(source);
-        result = source.asShape3D().cut(cutter.asShape3D());
-        if (!shapeIsValid(result)) throw new Error('Aukko ei muodosta ehjää leikkausta.');
-        const solids = result.solids,
-          empty = solids.length === 0;
-        solids.forEach((s) => s.delete());
-        const volume = empty ? 0 : solidVolume(result);
-        if (Math.abs(volume - before) < Math.max(1e-7, before * 1e-10)) bodies.push(body);
-        else {
-          if (body.locked)
-            throw new Error(
-              `Aukko osuu kiinnitettyyn osaan ”${body.name}”. Vapauta Hold tai poista osa kohteista.`,
-            );
-          affected.push(body.id);
-          if (volume > 1e-7) bodies.push(bodyFromShape(body, result));
-        }
-      } finally {
-        result?.delete();
-        source.delete();
-      }
-    }
-    return {
-      bodies,
-      affected,
-      cutter: { ...meshBody(profile, cutter), volume: solidVolume(cutter) },
-    };
   } finally {
-    cutter?.delete();
     faces.forEach((f) => f.delete());
     sketch.delete();
   }

@@ -5923,10 +5923,12 @@ p {
   min-width: 0;
 }
 .opening-pattern-fields p,
+.opening-pattern-fields .checkbox-label,
+.opening-pattern-fields .tool-advanced,
 .opening-pattern-fields label:has(select) {
   grid-column: 1 / -1;
 }
-.opening-pattern-fields input,
+.opening-pattern-fields input:not([type='checkbox']),
 .opening-pattern-fields select {
   width: 100%;
   min-width: 0;

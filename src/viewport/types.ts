@@ -156,6 +156,7 @@ export interface ViewportProps {
   moveMode?: 'axis' | 'free';
   copyMove: boolean;
   onCopyMove: (copy: boolean) => void;
+  onCopyRotation: (copy: boolean) => void;
   offsetDistance: number;
   offsetOutline?: number[];
   offsetPreviewDistance?: number;

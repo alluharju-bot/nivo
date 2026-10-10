@@ -5,6 +5,7 @@ import { add, sub } from '../model/geometry';
 import { detailSourceShape } from './detailSource';
 import type { EdgeDetailResult } from './protocol';
 import { filletPrism } from './prismFillet';
+import { detailEdgeIndices } from './detailEdges';
 
 export function detailEdges(
   body: Body,
@@ -28,7 +29,13 @@ export function detailEdges(
   try {
     if (!indices.length || indices.some((i) => !Number.isInteger(i) || i < 0 || i >= edges.length))
       throw new Error('Valitse vähintään yksi kappaleen reuna.');
-    const chosen = [...new Set(indices)].map((i) => edges[i]);
+    const eligible = detailEdgeIndices(shape, edges);
+    const selected = [...new Set(indices)].filter((index) => eligible.has(index));
+    if (!selected.length)
+      throw new Error(
+        'Valitse taitosreuna. Sileän pinnan saumassa ei ole pyöristettävää tai viistettävää kulmaa.',
+      );
+    const chosen = selected.map((i) => edges[i]);
     const solid = shape.asShape3D();
     try {
       result =
@@ -55,7 +62,7 @@ export function detailEdges(
       source: source?.source ?? body.feature,
       offset: sub(add(body.origin, source?.offset ?? [0, 0, 0]), next.origin),
       rotation: source?.rotation ?? [0, 0, 0, 1],
-      indices: [...new Set(indices)],
+      indices: selected,
       operation,
       size,
     };

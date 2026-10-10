@@ -19,6 +19,7 @@ import {
   solidVolume,
 } from './kernel';
 import type { SplitResult } from './protocol';
+import { cutShapes } from './cut';
 
 /** Positive offsets inset a face; negative offsets extend a surface's outer boundary. */
 function withOffset<T>(
@@ -151,7 +152,10 @@ export function mergePlanarBodies(bodies: Body[]): Body {
       if (!mesh.faces.length)
         throw new Error('Sulje viiva ensin pinnaksi. Yhdistä muodot tarvitsee pinta-alueet.');
       for (const face of mesh.faces) {
-        plane ??= face;
+        plane ??=
+          body.feature.type === 'profile-extrusion'
+            ? { center: face.center, normal: body.feature.frame.normal }
+            : face;
         if (
           !face.planar ||
           Math.abs(Math.abs(dot(face.normal, plane.normal)) - 1) > 1e-6 ||
@@ -265,39 +269,49 @@ export function removeBoundary(body: Body, refs: [FaceRef, FaceRef]): Body {
 }
 
 export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' | 'join'): Body[] {
-  if (!targets.length || !tools.length)
-    throw new Error('Valitse vähintään yksi kohde ja yksi työstökappale.');
   const all = [...targets, ...tools];
+  if (operation === 'join' && all.length < 2)
+    throw new Error('Valitse vähintään kaksi yhdistettävää osaa tai tasomuotoa.');
+  if (operation === 'cut' && (!targets.length || !tools.length))
+    throw new Error('Valitse vähintään yksi kohde ja yksi työstökappale.');
   if (new Set(all.map((b) => b.id)).size !== all.length)
     throw new Error('Kappale ei voi olla yhtä aikaa kohde ja työstökappale.');
+  if (operation === 'join') {
+    if (all.some((b) => b.locked)) throw new Error('Vapauta kiinnitetyt osat ennen yhdistämistä.');
+    if (all.every((b) => !featureIsSolid(b.feature))) return [mergePlanarBodies(all)];
+    if (all.some((b) => !featureIsSolid(b.feature)))
+      throw new Error(
+        'Yhdistä keskenään joko tasomuotoja tai tilavuuskappaleita. Anna tasomuodoille ensin paksuus, jos yhdistät ne tilavuuskappaleeseen.',
+      );
+  }
   if (all.some((b) => !featureIsSolid(b.feature)))
-    throw new Error('Cut ja Join tarvitsevat tilavuuskappaleet. Anna luonnokselle ensin paksuus.');
+    throw new Error(
+      'Cut tarvitsee tilavuuskappaleet. Anna luonnokselle ensin paksuus tai käytä Leikkaa aukko -toimintoa.',
+    );
   const held: AnyShape[] = [];
   const keep = <T extends AnyShape>(s: T) => {
     held.push(s);
     return s;
   };
   try {
-    const cutters = tools.map((b) => keep(createShape(b).asShape3D()));
     if (operation === 'join') {
-      let result = keep(createShape(targets[0]).asShape3D());
-      for (const part of [
-        ...targets.slice(1).map((b) => keep(createShape(b).asShape3D())),
-        ...cutters,
-      ])
-        result = keep(result.fuse(part));
-      return [bodyFromShape(targets[0], result, all)];
+      let result = keep(createShape(all[0]).asShape3D());
+      for (const body of all.slice(1))
+        result = keep(result.fuse(keep(createShape(body).asShape3D())));
+      return [bodyFromShape({ ...all[0], component: undefined }, result, all)];
     }
+    const cutters = tools.map((b) => keep(createShape(b).asShape3D()));
     return targets.flatMap((body) => {
-      let result = keep(createShape(body).asShape3D());
-      const before = solidVolume(result);
-      for (const cutter of cutters) result = keep(result.cut(cutter));
+      const source = keep(createShape(body).asShape3D());
+      const before = solidVolume(source);
+      const result = keep(cutShapes(source, cutters));
       if (!shapeIsValid(result)) throw new Error('Leikkaus ei muodosta ehjää kappaletta.');
       const solids = result.solids,
         hasSolids = solids.length > 0;
       solids.forEach((s) => s.delete());
-      if (!hasSolids || solidVolume(result) < 1e-7) return [];
-      if (Math.abs(solidVolume(result) - before) < Math.max(1e-7, before * 1e-12)) return [body];
+      const volume = hasSolids ? solidVolume(result) : 0;
+      if (volume < 1e-7) return [];
+      if (Math.abs(volume - before) < Math.max(1e-7, before * 1e-12)) return [body];
       return [bodyFromShape(body, result)];
     });
   } finally {
