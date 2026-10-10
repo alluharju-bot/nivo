@@ -4,6 +4,29 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.32.2 — Siirrä-työkalun korostus ja tartunta
+
+**397 yksikkö-/CAD-testiä hyväksytty (77 tiedostoa)** ja **54 kohdennettua
+selaintapausta hyväksytty** työpöytä- ja tablettiprofiileissa. TypeScript,
+`/nivo/`-tuotantobuild, lisenssit ja muutettujen tiedostojen muotoilu hyväksytty.
+
+- 10 000 reunasegmentin testissä 50 peittymishakua ei kutsu reunaviivaston
+  sädehakua kertaakaan. Valinta ja viitehaku osuvat edelleen tarkkaan viivaan.
+- Selaimen erillinen 32 reiän testiosa: M ei piirrä paikallaan olevaa osaa kahdesti;
+  koko osan korostus ja tarkka kulmasta tarttuminen toimivat. Akselin suuntainen
+  veto kohteen 557,375 mm:n kulmaan säilyttää tarkan mitan 10 mm:n ruudukosta
+  huolimatta. Esikatselu ei rakenna geometriaa uudelleen. Ctrl tekee yhden
+  linkitetyn kopion ja Peru palauttaa alkuperäiset osat.
+- Molemmat akselisuunnat, käsin kirjoitettu mitta, toistokopiointi, 48 osan valinnan
+  säilyminen, suljetun kokoonpanon suora siirto, Shift-monivalinta, kiinteät ja
+  osaan liittyvät apuviivat, Ghost-tartunta, pintapiirrosten etusija sekä kamerakierto.
+- Käyttäjän rei'itetty kiuas: näkyvässä selaimessa mitattu sama osoitinreitti
+  ennen/jälkeen. Reunasta tartuttu ja vedetty 100 mm X-suunnassa; muut koordinaatit
+  säilyivät. Perumisen jälkeen tallennettu osalista oli täsmälleen alkuperäinen.
+  Yksityistä mallia ei sisällytetä testeihin tai repoon.
+
+[Mittaukset ja rajaukset](performance.md).
+
 ## V0.32.1 — monimutkaisen geometrian laskenta ja osoittaminen
 
 **396 yksikkö-/CAD-testiä hyväksytty (77 tiedostoa)**. **71 kohdennettua

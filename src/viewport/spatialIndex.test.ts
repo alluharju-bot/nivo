@@ -1,8 +1,49 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { makeBody } from '../model/project';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { createTriangleIndex } from './triangleIndex';
+
+it('occlusion skips dense outlines while selection and references still hit their exact segments', () => {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(100, 100),
+    new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+  );
+  const positions = Array.from({ length: 10000 }, (_, i) => {
+    const y = (i - 5000) / 100;
+    return [-50, y, 10, 50, y, 10];
+  }).flat();
+  const outline = new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(positions, 3),
+    ),
+    new THREE.LineBasicMaterial(),
+  );
+  const group = new THREE.Group();
+  group.add(mesh, outline);
+  group.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(0, 0, 100), new THREE.Vector3(0, 0, -1));
+  ray.params.Line.threshold = 0.001;
+  const cast = vi.spyOn(outline, 'raycast');
+  for (let i = 0; i < 50; i++) {
+    const hits = intersectModel(ray, group, 'occlusion');
+    expect(hits[0].object).toBe(mesh);
+    expect(hits.every((hit) => hit.object instanceof THREE.Mesh)).toBe(true);
+  }
+  expect(cast).not.toHaveBeenCalled();
+  for (const purpose of ['reference', 'selection'] as const) {
+    const hit = intersectModel(ray, group, purpose)[0];
+    expect(hit.object).toBe(outline);
+    expect(hit.point.toArray()).toEqual([0, 0, 10]);
+  }
+  expect(cast).toHaveBeenCalledTimes(2);
+  cast.mockRestore();
+  mesh.geometry.dispose();
+  mesh.material.dispose();
+  outline.geometry.dispose();
+  outline.material.dispose();
+});
 
 it('accelerates dense picking without changing CAD face hits, highlight groups or clipped rear hits', () => {
   const geometry = new THREE.SphereGeometry(50, 64, 48);

@@ -108,6 +108,9 @@ export function intersectModel(
     if (
       !object.visible ||
       !object.layers.test(ray.layers) ||
+      // CAD outlines are references, not surfaces that hide a snap point. In
+      // particular, never scan thousands of curve segments for every candidate.
+      (purpose === 'occlusion' && !(object instanceof THREE.Mesh)) ||
       (purpose !== 'reference' && object.userData.modelDisplay === 'ghost') ||
       (purpose === 'occlusion' && object.userData.modelDisplay === 'wireframe')
     )

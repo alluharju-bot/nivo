@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.32.2** korjaa tiheästi rei'itetyn osan jäätymisen **Siirrä**-työkalussa.
+Tartuntahaku ohittaa turhat reunaviivojen peittymistarkistukset ja etsii vain
+parhaan näkyvän tartunnan. Paikallaan oleva osa ei saa päällekkäistä siirtohaamua.
+Tarkat kulma-, reuna- ja apuviivatartunnat, akselit sekä Ctrl-kopiointi säilyvät.
+
 Versio **0.32.1** nopeuttaa rei'itettyjen ja pyöristettyjen osien käsittelyä:
 
 - Valittu kaareva tilavuuskappale ei enää peity satoihin pistemerkkeihin.

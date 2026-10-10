@@ -727,14 +727,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const moving = current().tool === 'move' ? current().preview : undefined;
     const source = moving && current().bodies.find((b) => b.id === moving.id);
     const selectedIds = new Set(current().selectedIds);
-    const nextMoveKey =
-      moving && source
-        ? current()
-            .selectedIds.map((id) => `${id}:${bodyNodes.get(id)?.mesh.geometry.uuid}`)
-            .join('|') +
-          ':' +
-          !!current().selectedGroupId
-        : '';
+    const moved =
+      moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
+    const nextMoveKey = moved
+      ? current()
+          .selectedIds.map((id) => `${id}:${bodyNodes.get(id)?.mesh.geometry.uuid}`)
+          .join('|') +
+        ':' +
+        !!current().selectedGroupId
+      : '';
     const reuseMove = !!nextMoveKey && movePreviewKey === nextMoveKey;
     if (!reuseMove) {
       moveBatches.sync([]);
@@ -742,8 +743,6 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       ghost.position.set(0, 0, 0);
     }
     movePreviewKey = nextMoveKey;
-    const moved =
-      moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
     for (const object of bodies.children) {
       const wasVisible = object.visible;
       object.visible = !(
@@ -758,6 +757,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (wasVisible !== object.visible) renderer.shadowMap.needsUpdate = true;
     }
     renderer.domElement.dataset.copyMove = String(current().copyMove);
+    renderer.domElement.dataset.movePreview = String(!!moved);
     renderer.domElement.dataset.copyRotation = String(!!rotation?.copy);
     renderer.domElement.dataset.detailPreview = current().detailPreview?.body.id ?? '';
     renderer.domElement.dataset.detailPreviewSize = current().detailPreviewSize?.toString() ?? '';
@@ -1009,6 +1009,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       return;
     }
     if (moving && source) {
+      // Whole-part hover already colors the real part. A coincident transparent
+      // copy doubles the triangles and adds overdraw before a move even starts.
+      if (!moved) {
+        render();
+        return;
+      }
       ghost.position.copy(
         new THREE.Vector3(...moving.origin).sub(new THREE.Vector3(...source.origin)),
       );

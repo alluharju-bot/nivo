@@ -2,6 +2,24 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.32.2 — tiheän osan siirtokorostuksen jäätyminen, 10.10.2026
+
+- Siirron tartunta ei sädehae koko reunaviivastoa jokaiselle mahdolliselle ankkurille.
+  Näkyvyys ratkaistaan parhaasta ehdokkaasta alkaen samoilla tartuntaprioriteeteilla.
+- Ruudun koko luetaan kerran hakua kohti; vedossa ei tehdä toista yleistä viitehakua.
+- Nollasiirtymä ei luo päällekkäistä haamuverkkoa. Siirtäminen ja Ctrl-kopiointi
+  käyttävät edelleen tarkkaa verkkoa ilman esikatselun CAD-laskentaa.
+
+## Backlog: skaalaus
+
+- Tasainen skaalaus tai valittu X/Y/Z-akseli, kertoimella tai tavoitekokonaismitalla.
+  Valittava kiintopiste, kevyt piirtoverkon esikatselu ja lopullinen CAD-muunnos
+  vasta hyväksyttäessä. Monivalinta ja kokoonpanot samaan työnkulkuun.
+- Tavallinen skaalaus muuttaa myös reikien mittoja, jakoa ja seinämän paksuutta.
+  Epätasainen skaalaus muuttaa ympyrät ellipseiksi. Tämä pitää ilmaista selvästi.
+- Esimerkiksi kiukaan halkaisijan muuttaminen reikiä ja pellin paksuutta säilyttäen
+  on erillinen rakennesääntöihin perustuva muokkaus, ei tavallisen skaalauksen lupaus.
+
 ## V0.32.1 — leikatun geometrian suorituskyky, 10.10.2026
 
 - Valitun kaarevan solidin automaattiset pistepilvet poistettu. Avoimien kynäviivojen

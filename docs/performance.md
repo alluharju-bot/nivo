@@ -1,5 +1,39 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.32.2 — Siirrä-työkalun tartuntahaku, 10.10.2026
+
+Edellinen passin mittaus koski Valitse-työkalua. Siirrä-työkalussa saman rei'itetyn
+kiukaan osoittaminen toisti vielä erillisen jäätymisen. CPU-profiilissa noin 90 %
+osoitintapahtumien ajasta kului reunaviivojen sädehakuun: jokaisen mahdollisen
+tartunnan näkyvyyttä tarkistettaessa tutkittiin myös koko tiheä reunaviivasto,
+vaikka sen osumat hylättiin heti tarkistuksen jälkeen.
+
+- Peittymishaku käy läpi vain pintoja. Viivojen valinta ja tarkat viitteet säilyvät.
+- Siirto järjestää tartuntaehdokkaat ensin ja tarkistaa näkyvyyden vain kunnes
+  paras näkyvä kohde löytyy. Piilossa olevan pisteen läpi ei tartuta.
+- Näkymän koko luetaan kerran hakua kohti tuhansien DOM-lukujen sijaan.
+- Vedon aikana toinen, yleinen viitehaku poistettu; siirron oma haku huomioi
+  edelleen valitun akselin, siirrettävät osat, kiinteät apuviivat ja Ghost-viitteet.
+- Nollasiirtymän päällekkäistä esikatseluverkkoa ei piirretä. Varsinainen esikatselu
+  käyttää alkuperäistä piirtoverkkoa ja siirtää sitä ilman CAD-laskentaa.
+
+| Sama eristetty kiuas, Siirrä-työkalu | V0.32.1 mediaani / p95 | V0.32.2 mediaani / p95 |
+| ------------------------------------ | ---------------------: | ---------------------: |
+| Osoittimen liike osan päällä         |     383,4 / 1 066,6 ms |         16,7 / 25,1 ms |
+| Kameran kierto                       |           8,3 / 9,2 ms |           8,3 / 9,1 ms |
+
+Yli 32 ms ruutuvälejä osoitintestissä **110/110 → 0/110**. Piirrettävät kolmiot
+osoitettaessa **233 818 → 116 994**, koska alkuperäisen osan päälle ei enää
+piirretä toista samanlaista siirtoesikatselua. CAD-verkon tarkkuus säilyy.
+
+Sama näkyvä Chromium 153 / Apple M1 Pro / ANGLE Metal, 1728 × 997 CSS-pikseliä,
+DPR 2, canvas 2720 × 1800 laitepikseliä. Molemmat ajot aloitettiin Edestä- ja
+Sovita näkymään -komennoilla, sama osa valittuna ja eristettynä. 120 samaa
+animaatioruudussa lähetettyä osoitinliikettä, ensimmäiset 10 väliä pois;
+CPU-profilointi päällä molemmissa. Ei muita selaintestejä mittausten aikana.
+Luvut koskevat tätä paikallista mallia ja mallinnusnäkymää, eivät path tracingia
+tai yleistä FPS-lupausta. Yksityinen malli, kuvat ja profiilit jäävät paikallisiksi.
+
 ## V0.32.1 — rei'itetty osa ja reunakäsittelyn hyväksyntä, 10.10.2026
 
 92 leikkurilla rei'itettyä osaa tutkittiin paikallisessa tuotantopaketissa.

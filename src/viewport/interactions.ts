@@ -1719,6 +1719,20 @@ export function installInteractions({
   const moveSnapAt = (event: PointerEvent, source: boolean) => {
     const props = current(),
       rect = container.getBoundingClientRect();
+    // Dense curved boundaries can contain tens of thousands of segments. Read
+    // layout once for this pick, never once per projected endpoint/candidate.
+    const cam = camera(),
+      width = container.clientWidth,
+      height = container.clientHeight,
+      projectedPoint = new THREE.Vector3();
+    const project = (point: Vec3) => {
+      projectedPoint.fromArray(point).project(cam);
+      return {
+        x: ((projectedPoint.x + 1) * width) / 2,
+        y: ((1 - projectedPoint.y) * height) / 2,
+        z: projectedPoint.z,
+      };
+    };
     const x = event.clientX - rect.left,
       y = event.clientY - rect.top;
     const excluded = source ? [] : (drag?.movingIds ?? props.selectedIds);
@@ -1766,15 +1780,10 @@ export function installInteractions({
         ...modelSnapPoints([body], props.meshes),
         ...intersectionPoints(bodyEdges),
       ]) {
-        const q = screen(p.point),
-          distance = Math.hypot(q.x - x, q.y - y),
-          center = p.key.endsWith(':center');
+        const q = project(p.point),
+          distance = Math.hypot(q.x - x, q.y - y);
         const priority = snapPriority(p);
-        if (
-          distance < snapRadius(event, priority <= 0 ? 'point' : 'mid') &&
-          Math.abs(q.z) <= 1 &&
-          visible(p.point, center, body.id)
-        )
+        if (distance < snapRadius(event, priority <= 0 ? 'point' : 'mid') && Math.abs(q.z) <= 1)
           candidates.push({
             ...p,
             bodyId: body.id,
@@ -1794,9 +1803,9 @@ export function installInteractions({
           point,
         );
         const p = point.toArray() as Vec3,
-          q = screen(p),
+          q = project(p),
           distance = Math.hypot(q.x - x, q.y - y);
-        if (distance < snapRadius(event, 'line') && Math.abs(q.z) <= 1 && visible(p))
+        if (distance < snapRadius(event, 'line') && Math.abs(q.z) <= 1)
           candidates.push({
             point: p,
             key,
@@ -1813,7 +1822,7 @@ export function installInteractions({
     if (!source) {
       const guide = guideAt(event, excluded);
       if (guide) {
-        const p = screen(guide.point),
+        const p = project(guide.point),
           distance = Math.hypot(p.x - x, p.y - y);
         if (distance <= snapRadius(event, guide.kind === 'line' ? 'line' : 'point'))
           candidates.push({
@@ -1824,14 +1833,19 @@ export function installInteractions({
           });
       }
     }
-    const found = candidates.sort(
-      (a, b) =>
-        snapScore(a.distance, a.priority) - snapScore(b.distance, b.priority) ||
-        (Math.hypot(...sub(a.point, b.point)) <= 1e-5
-          ? (b.surfacePriority ?? 0) - (a.surfacePriority ?? 0)
-          : 0) ||
-        (Math.abs(a.distance - b.distance) < 0.75 ? a.depth - b.depth : a.distance - b.distance),
-    )[0];
+    // Rank first, then test visibility until the first usable anchor. Checking
+    // every tessellated edge before ranking scales badly on perforated parts.
+    // Guides already perform their own visibility/x-ray checks in guideAt.
+    const found = candidates
+      .sort(
+        (a, b) =>
+          snapScore(a.distance, a.priority) - snapScore(b.distance, b.priority) ||
+          (Math.hypot(...sub(a.point, b.point)) <= 1e-5
+            ? (b.surfacePriority ?? 0) - (a.surfacePriority ?? 0)
+            : 0) ||
+          (Math.abs(a.distance - b.distance) < 0.75 ? a.depth - b.depth : a.distance - b.distance),
+      )
+      .find((p) => !p.bodyId || visible(p.point, p.key.endsWith(':center'), p.bodyId));
     highlightEdge(found?.edge);
     return found;
   };
@@ -3812,7 +3826,10 @@ export function installInteractions({
       );
       return;
     }
-    const hovered = referenceAt(event);
+    // Move has its own source/target picker below, including selection exclusion
+    // and axis projection. A second generic reference search is both redundant
+    // and expensive while dragging a dense part.
+    const hovered = props.tool === 'move' ? undefined : referenceAt(event);
     hoveredReference = hovered;
     if (hovered) {
       acquired = hovered;
