@@ -497,6 +497,9 @@ export default function App() {
   const [guideRotationStep, setGuideRotationStep] = useState(22.5);
   const [shapeFrame, setShapeFrame] = useState<SketchFrame>();
   const shapeFrameRef = useRef<SketchFrame | undefined>(undefined);
+  const rectangleGestureRef = useRef<
+    Extract<Gesture, { type: 'profile' | 'rectangle' }> | undefined
+  >(undefined);
   const [sketchTarget, setSketchTarget] = useState<FaceTarget>();
   const sketchTargetRef = useRef<FaceTarget | undefined>(undefined);
   const [detailTarget, setDetailTarget] = useState<EdgeDetailTarget>();
@@ -1147,6 +1150,10 @@ export default function App() {
     lockRef.current.add(key);
     setLocked(new Set(lockRef.current));
     writeFields({ [key]: value });
+    if (tool === 'rectangle' && (key === 'width' || key === 'depth') && rectangleGestureRef.current)
+      // Re-evaluate the original pointer gesture with the typed dimensions. Its
+      // first corner and drawing directions stay fixed even without a mousemove.
+      gesture(rectangleGestureRef.current);
     if (tool === 'pen') penMove(penPointerRef.current ?? penRef.current.at(-1));
     if (tool === 'measure' && guideRef.current) {
       guideRef.current = { ...guideRef.current, endAnchor: undefined };
@@ -1221,6 +1228,7 @@ export default function App() {
     setPenConstraint(undefined);
     setAxis(undefined);
     shapeFrameRef.current = undefined;
+    rectangleGestureRef.current = undefined;
     setShapeFrame(undefined);
     sketchTargetRef.current = undefined;
     setSketchTarget(undefined);
@@ -2518,6 +2526,7 @@ export default function App() {
     gestureActive.current = true;
     const patch: Partial<Fields> = {};
     if (event.type === 'profile') {
+      if (tool === 'rectangle') rectangleGestureRef.current = event;
       if (!lockRef.current.has('width')) patch.width = String(event.width);
       if (!lockRef.current.has('depth')) patch.depth = String(event.depth);
       let frame = event.frame;
@@ -2544,6 +2553,7 @@ export default function App() {
       patch.z = String(frame.origin[2]);
       writeFields(patch);
     } else if (event.type === 'rectangle') {
+      rectangleGestureRef.current = event;
       if (!lockRef.current.has('width')) patch.width = String(event.width);
       if (!lockRef.current.has('depth')) patch.depth = String(event.depth);
       const origin = [...event.origin];
@@ -6047,6 +6057,7 @@ export default function App() {
                 setPickDepth(false);
               }}
               onSketchPlane={(frame, target) => {
+                rectangleGestureRef.current = undefined;
                 shapeFrameRef.current = frame;
                 setShapeFrame(frame);
                 sketchTargetRef.current = target;

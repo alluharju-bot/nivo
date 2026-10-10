@@ -20,6 +20,10 @@ test('small edge midpoint wins over nearby corners and its shape rounds exactly 
   await page.keyboard.press('Escape');
   await revealBrowser(page);
   await page.getByTestId(`body-${body.id}`).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Muotoilutoiminnot$/ })
+    .click();
   await expect(page.getByRole('button', { name: 'Cut / Join', exact: true })).toBeVisible();
   await page.keyboard.press('f');
   await page.getByRole('button', { name: 'Puolipyöreäksi', exact: true }).click();

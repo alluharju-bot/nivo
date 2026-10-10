@@ -3,6 +3,10 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.30.1** korjaa suorakulmion numerosyötön: ensimmäinen napsautettu
+kulma pysyy paikallaan myös negatiivisissa piirtosuunnissa, kun leveyttä ja
+syvyyttä muutetaan ja kenttää vaihdetaan Tabilla.
+
 Versio **0.30.0** selkeyttää työkalujen oikeaa paneelia ja lisää **33 lyhyttä
 havainneanimaatiota**. Työkalun **Näytä esimerkki** avaa juuri sen ohjeen;
 yläpalkin **Käyttöohje** avaa saman haettavan kirjaston. Animaation voi pysäyttää,

@@ -2,6 +2,15 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.30.1 — suorakulmion aloituskulma, 10.10.2026
+
+- Suorakulmion ensimmäinen napsautettu kulma säilyy, kun leveyttä tai syvyyttä
+  muutetaan numeroilla. Myös negatiivisiin piirtosuuntiin tehty suorakulmio kasvaa
+  tai pienenee tästä kulmasta, ilman korjaavaa hiiren liikettä. Tab, Shift+Tab ja
+  mittakentän napsauttaminen käyttävät samaa piirtotason ja aloituspisteen logiikkaa.
+- Peruuttaminen ja uuden muodon aloittaminen tyhjentävät edellisen piirron
+  suuntatiedot. Korjaus kattaa sekä tasoihin piirtämisen että XY-piirron.
+
 ## V0.30.0 — rauhallisemmat työkalupaneelit ja havainneohjeet, 10.10.2026
 
 - 33 työkalun ja toimintatavan kolmivaiheiset, 12 sekunnin havainneanimaatiot.
@@ -680,6 +689,14 @@ sen yli. Epäselvästä toiminnasta kysytään ennen kyseisen muutoksen toteutus
 
 **V0.30.0:** haettava 33 havainneanimaation kirjasto ja työkalukohtainen
 avauspainike toteutettu. Alla mainittu automaattinen ensikäyttökortti on jatkotyö.
+
+**Palaute 10.10.2026:** nykyiset animaatiot eivät vielä havainnollista työtä
+riittävän tarkasti. Kirjaston määrä ei tarkoita ohjeiden olevan valmiita.
+Seuraavan tarkistuksen painopisteet ovat Push/Pull, Offset, mitta-/apuviivat,
+pyöristys ja viiste, Cut/Join, kopiointi ja toisto sekä Push/Pullilla tehtävät
+läpireiät. Käytännön työkalujen virheet korjataan ensin; ohjeen on näytettävä
+todellinen tartuntakohta, käyttäjän toiminto, mitan syöttö ja valmis geometria.
+Push/Pullilla tehtävää reikää ei korvata toisen leikkaustoiminnon esimerkillä.
 
 - Ensimmäisellä työkalun käyttökerralla oikeaan reunaan avautuu selkeä pieni
   visuaalinen ohjekortti: aloitus, osoitus/veto, tarkka mitta, hyväksyntä ja
