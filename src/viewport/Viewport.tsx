@@ -45,6 +45,7 @@ import { mirrorFaceGroups, mirrorBacking } from '../render/mirror';
 import { createViewCube } from './viewCube';
 import { createAnnotationOcclusion } from './annotationOcclusion';
 import { surfaceFaceRanges } from './faceRanges';
+import { faceColors, selectedFaceMaterial } from './faceFeedback';
 import { createTriangleIndex } from './triangleIndex';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
@@ -377,6 +378,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       : props.selectedIds.length
         ? 'object'
         : '';
+    renderer.domElement.dataset.selectedFace = props.selectedFace ?? '';
     renderer.domElement.dataset.editingBody = props.editingBodyId ?? '';
     const box = bounds(props.bodies),
       min = new THREE.Vector3(...box.min),
@@ -425,7 +427,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         body.purpose,
         display,
         selected,
-        selected && props.tool === 'paint',
+        selected && ['paint', 'extrude', 'offset'].includes(props.tool),
         moveHovered,
         context,
         reference,
@@ -480,26 +482,35 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         : faceRanges.map((face) => ({ ...face, reflective: true }));
       const materials = materialFaces.map((face, index) => {
         geometry.addGroup(face.start, face.count, index);
-        const material = baseMaterial.clone();
+        const faceSelected =
+          selected &&
+          face.ref === props.selectedFace &&
+          !!props.selectedFace &&
+          !reference &&
+          !target &&
+          !cutter;
+        const material = faceSelected ? selectedFaceMaterial() : baseMaterial.clone();
         if (mirror && !face.reflective && material instanceof THREE.MeshPhysicalMaterial)
           mirrorBacking(material);
         const color = material.userData.mirrorBacking ? '#69706e' : body.color;
         material.setValues({
-          color: reference
-            ? new THREE.Color(body.color).lerp(new THREE.Color('#eaece6'), 0.45)
-            : target
-              ? '#65a9ee'
-              : cutter
-                ? '#e6654e'
-                : auxiliary
-                  ? body.purpose === 'construction'
-                    ? '#1289c6'
-                    : '#9865b4'
-                  : moveHovered
-                    ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
-                    : selected && props.selectedFace && face.ref === props.selectedFace
-                      ? '#e1bd7b'
-                      : selected && !props.selectedFace && props.tool !== 'paint'
+          color: faceSelected
+            ? faceColors.selected
+            : reference
+              ? new THREE.Color(body.color).lerp(new THREE.Color('#eaece6'), 0.45)
+              : target
+                ? '#65a9ee'
+                : cutter
+                  ? '#e6654e'
+                  : auxiliary
+                    ? body.purpose === 'construction'
+                      ? '#1289c6'
+                      : '#9865b4'
+                    : moveHovered
+                      ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
+                      : selected &&
+                          !props.selectedFace &&
+                          !['paint', 'extrude', 'offset'].includes(props.tool)
                         ? new THREE.Color(body.color).lerp(
                             new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
                             0.3,
@@ -902,6 +913,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     extrusionLabels.forEach((label) => label.element.remove());
     extrusionLabels.length = 0;
     const target = current().faceTarget;
+    renderer.domElement.dataset.toolFace = target ? `${target.bodyId}:${target.face}` : '';
     if (current().tool === 'extrude' && target) {
       const data = current().meshes.find((m) => m.id === target.bodyId),
         face = data?.faces.find((f) => f.ref === target.face);
@@ -912,7 +924,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         const mesh = new THREE.Mesh(
           geometry,
           new THREE.MeshBasicMaterial({
-            color: '#128dec',
+            color: faceColors.tool,
+            toneMapped: false,
             transparent: true,
             opacity: 0.45,
             depthWrite: false,
@@ -923,6 +936,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           }),
         );
         mesh.position.set(...target.normal).multiplyScalar(current().faceDistance);
+        // At zero depth the orange selected surface must remain unambiguous.
+        mesh.visible = !(
+          current().selected === target.bodyId &&
+          current().selectedFace === target.face &&
+          Math.abs(current().faceDistance) < 1e-6
+        );
         mesh.userData.orbitSurface = true;
         ghost.add(mesh);
         const wire = new THREE.LineSegments(
@@ -1497,6 +1516,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const colors = new Map(current().bodies.map((body) => [body.id, body.color]));
     for (const [id, node] of bodyNodes) {
       for (const material of node.mesh.material) {
+        if (material.userData.faceSelection) continue;
         // Show the actual tint while editing; keep selection visible in the outline.
         if (ids.has(id) && !material.userData.mirrorBacking)
           setMaterialColor(material, preview!.color);
@@ -1747,6 +1767,7 @@ export function Viewport(props: Props) {
       props.copyMove,
       props.selectedIds,
       props.selectedGroupId,
+      props.selectedFace,
       props.offsetOutline,
       props.offsetPreviewDistance,
     ],

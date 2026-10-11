@@ -68,6 +68,9 @@ test('circle → outward offset 8 → pull 50 → edit → select centre → X r
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies).toEqual(raised.bodies);
   await page.mouse.click(centre.x, centre.y);
+  // An explicitly selected surface remains the deletion target with E active.
+  await page.keyboard.press('e');
+  await expect(page.getByTestId('height-input')).toBeVisible();
   await page.keyboard.press('Delete');
   await expect(page.getByRole('contentinfo').getByRole('status')).toHaveText(
     'Pinta poistettu. Peru palauttaa sen.',

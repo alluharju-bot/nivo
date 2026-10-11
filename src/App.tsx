@@ -28,6 +28,7 @@ import { profileCorners } from './model/profileCorners';
 import { applySplitResult } from './model/splitReferences';
 import { preserveRegionReferences } from './model/penRegionReferences';
 import { colorPreviewTargets, type ColorPreview } from './model/colorPreview';
+import { toolFaceTarget } from './model/faceTarget';
 import { linkSplitCopies } from './model/linkedSplit';
 import { displayLabels, displayModes, setModelDisplay, type DisplayMode } from './model/display';
 import { DisplayControls } from './ui/DisplayControls';
@@ -1648,41 +1649,44 @@ export default function App() {
         );
       if (next === 'offset') writeFields({ offset: '18' });
       const hovered = hoveredFaceRef.current;
-      const faceBody = project.bodies.find((b) => b.id === hovered?.bodyId) ?? body;
+      const target = toolFaceTarget(
+        editor.meshes,
+        body && selectedFace ? { bodyId: body.id, face: selectedFace } : undefined,
+        hovered,
+        body
+          ? {
+              bodyId: body.id,
+              face:
+                pickedFaceRef.current?.bodyId === body.id ? pickedFaceRef.current.face : undefined,
+            }
+          : undefined,
+      );
+      const faceBody = project.bodies.find((b) => b.id === target?.bodyId);
       if (
-        (next === 'extrude' || (next === 'offset' && hovered)) &&
+        (next === 'extrude' || (next === 'offset' && (hovered || selectedFace))) &&
+        target &&
         faceBody &&
         !bodyLocked(faceBody, project.groups) &&
         (!editingBodyId || faceBody.id === editingBodyId) &&
         inAssembly(project, faceBody.id, openedAssembly)
       ) {
         const mesh = editor.meshes.find((m) => m.id === faceBody.id);
-        const face =
-          mesh?.faces.find(
-            (f) =>
-              f.ref ===
-              (hovered?.face ??
-                selectedFace ??
-                (pickedFaceRef.current?.bodyId === faceBody.id
-                  ? pickedFaceRef.current.face
-                  : undefined)),
-          ) ??
-          mesh?.faces.find((f) => f.normal[2] > 0.9) ??
-          mesh?.faces[0];
-        if (face) {
-          const target = {
-            bodyId: faceBody.id,
-            face: face.ref,
-            normal: face.normal,
-            point: hovered?.point ?? face.center,
-          };
+        const face = mesh?.faces.find((f) => f.ref === target.face);
+        if (face?.planar) {
           setSelected(faceBody.id);
           setSelectedIds([faceBody.id]);
-          setSelectedFace(face.ref);
           faceRef.current = target;
           setFaceTarget(target);
           writeFields({ height: '0' });
-          if (next === 'extrude') measureTarget(target, !!hovered);
+          if (next === 'extrude')
+            measureTarget(
+              target,
+              hovered?.bodyId === target.bodyId && hovered.face === target.face,
+            );
+        } else if (selectedFace) {
+          editor.setMessage(
+            `${next === 'extrude' ? 'Push / pull' : 'Offset'} tarvitsee tasaisen pinnan. Valittu pinta säilyy.`,
+          );
         }
       }
       if (next === 'rectangle' || next === 'circle' || next === 'pen') {
@@ -3331,7 +3335,7 @@ export default function App() {
   const removeBody = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
     if (busy) return;
-    if (editingBodyId && tool === 'select' && ids.length) {
+    if (editingBodyId && ids.length) {
       if (!body || body.id !== editingBodyId || !selectedFace) {
         editor.setMessage('Valitse poistettava pinta. Lopeta muokkaus poistaaksesi koko osan.');
         return;
@@ -6047,6 +6051,14 @@ export default function App() {
                   <div className="edit-context-title">
                     <span>Muokkaustila</span>
                     <strong title={editingBody.name}>{editingBody.name}</strong>
+                    {selectedFace && (
+                      <span
+                        className="face-selection-indicator"
+                        data-testid="face-selection-indicator"
+                      >
+                        Pinta valittu
+                      </span>
+                    )}
                     {editingBody.groupId && (
                       <small className="edit-breadcrumb">
                         {groupPath(project.groups, editingBody.groupId).replaceAll(' / ', ' › ')}
@@ -6450,7 +6462,9 @@ export default function App() {
                 setFaceTarget(target);
                 setSelected(target.bodyId);
                 setSelectedIds([target.bodyId]);
-                setSelectedFace(target.face);
+                // Picking a tool target is not an explicit face selection.
+                if (selected !== target.bodyId || selectedFace !== target.face)
+                  setSelectedFace(undefined);
                 clearLocks();
                 writeFields({ height: '0' });
                 if (tool === 'extrude') measureTarget(target, true);
@@ -7749,7 +7763,7 @@ export default function App() {
                   )}
                   {body && !selectedGroup ? (
                     <div className="selection-info">
-                      <span className="selection-tag">
+                      <span className="selection-tag" data-face-selected={!!selectedFace}>
                         {selectedIds.length > 1
                           ? `Valinnan kokonaismitat · ${selectedIds.length} osaa`
                           : featureIsSolid(body.feature)

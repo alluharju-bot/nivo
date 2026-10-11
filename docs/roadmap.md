@@ -2,6 +2,26 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.34.2 — pintavalinnan ja työkalukohteen erottaminen, 11.10.2026
+
+- Muokkaustilassa valittu pinta näkyy oranssina ja pistekuvioituna sekä
+  Muokkaustilan Pinta valittu -merkintänä. Korostus toimii tummilla tekstuureilla,
+  metallilla ja lasilla riippumatta valaistuksesta. Hover ei peitä valintaa.
+- Push/Pullin ja Offsetin kohde näkyy sinisenä. Työkalun käyttäminen ei enää
+  itsessään muuta kohdetta erikseen valituksi pinnaksi. E:n nollasyvyyden
+  esikatselu ei maalaa oranssia pintavalintaa siniseksi.
+- Valittu pinta on ensisijainen E/O-kohde sekä näppäimellä että työkalupalkista.
+  Hiiri toisella pinnalla ei muuta kohdetta eikä aloituspisteen normaalia.
+  Myös Push/Pullin hiiriveto säilyttää valitun pinnan, Shift poimii tavoitemitan.
+  Vanhentuneesta pintaviitteestä ei arvata toista pintaa.
+- Delete käyttää muokkaustilan pintavalintaa myös muun työkalun aikana.
+  Koko osaa ei poisteta pintavalinnan puuttuessa. X säilyy poistona Valitse-tilassa.
+- Pintavalinta vaihtaa piirtomateriaalin rakentamatta geometrian puskureita
+  uudelleen; yksi valittu pinta tarvitsee edelleen enintään kolme piirtoerää.
+- Jatkorajaus: valitun pinnan siirto, kierto ja skaalaus viereistä geometriaa
+  mukauttaen sekä pintakohtainen maalaus. Nykyiset työkalut käsittelevät koko osaa.
+  Tämä muutos ei lisää CAD:n vapaata pintadeformointia.
+
 ## V0.34.1 — offset-kehän keskialueen poistaminen, 11.10.2026
 
 - Osan muokkaustilassa tavallinen napsautus valitsee pinnan. X/Delete,

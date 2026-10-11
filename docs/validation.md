@@ -4,6 +4,28 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.34.2 — selkeä pintavalinta
+
+438 yksikkö-/CAD-testiä hyväksytty (84 tiedostoa). Pintavalinnan, Offsetin,
+Push/Pullin, Shift-viitehaun ja pinnan poiston 30 selaintapausta hyväksytty
+työpöytä- ja tablettiprofiileissa. TypeScript, tuotantokäännös, muotoilu ja
+lisenssitarkistus hyväksytty.
+
+- Tumma kromiosa: tavallinen hover, sininen E-kohde, oranssi pistekuvioitu
+  pintavalinta ja Pinta valittu -merkintä tarkistettu kuvista molemmissa ko'oissa.
+  Hiiren poistuminen ja E/O/V-työkaluvaihdot eivät muuta valintaa.
+- Työkalupalkista käynnistetty Offset saa valitun pinnan ilman uutta napsautusta.
+  Valinnan vaihto ja työkalut eivät kasvata geometriapuskurien rakennusmäärää.
+- Valittu yläpinta säilyy E/O-kohteena, vaikka osoitin on etupinnalla.
+  Hiiriveto alkaa valitusta pinnasta; Shift poimii lukitun viiteosan korkeuden.
+  Muuttuvat vain oikean osan korkeus ja geometria; Peru palauttaa lähtötilan.
+- Ympyrän offset-kehän keskialue voidaan poistaa Deletellä myös E:n ollessa
+  aktiivinen. Kehä ja tilavuus säilyvät, eikä koko osaa poisteta.
+- Aiemmat suoran hover-E:n, aukon läpipuhkaisun, liu'utuksen, Holdin,
+  Shift-monivalinnan sekä poiston/tallennuksen testit hyväksytty.
+- Siirron, kierron, skaalauksen ja maalauksen pintakohtainen geometria- tai
+  materiaalimuokkaus ei kuulu tähän toteutukseen; nykyinen kohde on koko osa.
+
 ## V0.34.1 — paksuudettoman keskialueen poistaminen
 
 436 yksikkö-/CAD-testiä hyväksytty (83 tiedostoa). Pinnanjakoon, valintaan,

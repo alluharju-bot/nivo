@@ -1,4 +1,5 @@
 import { scaleHandles, factorsFor, scaleAxes, scalingFactor, type Scaling } from '../model/scaling';
+import { faceColors } from './faceFeedback';
 import { markupInteractions } from './markupInteractions';
 import { memoryMaySnap, nearestRememberedMeasure } from '../model/measureMemory';
 import { bodyDisplayMode } from '../model/display';
@@ -1095,7 +1096,8 @@ export function installInteractions({
   const hoverFace = new THREE.Mesh(
     new THREE.BufferGeometry(),
     new THREE.MeshBasicMaterial({
-      color: '#2795cc',
+      color: faceColors.hover,
+      toneMapped: false,
       transparent: true,
       opacity: 0.22,
       side: THREE.DoubleSide,
@@ -1109,6 +1111,7 @@ export function installInteractions({
   hoverFace.renderOrder = 4;
   overlay.add(hoverFace);
   let hoverKey = '';
+  let hoverRole = '';
   const highlightFace = (target?: FaceTarget, reference = false) => {
     if (
       !reference &&
@@ -1120,12 +1123,33 @@ export function installInteractions({
     const mesh = target && current().meshes.find((m) => m.id === target.bodyId);
     const face = mesh && mesh.faces.find((f) => f.ref === target!.face);
     const key = face ? `${target!.bodyId}:${face.ref}` : '';
+    const selected =
+      !reference &&
+      !!target &&
+      current().selected === target.bodyId &&
+      current().selectedFace === target.face;
+    const role = !face
+      ? ''
+      : selected
+        ? 'selected'
+        : reference
+          ? 'reference'
+          : current().tool === 'extrude'
+            ? 'push-pull'
+            : current().tool === 'offset'
+              ? 'offset'
+              : 'hover';
+    const toolTarget = role === 'push-pull' || role === 'offset';
+    let changed = role !== hoverRole;
+    hoverRole = role;
+    hoverFace.material.color.set(toolTarget ? faceColors.tool : faceColors.hover);
+    hoverFace.material.opacity = toolTarget ? 0.42 : 0.18;
+    hoverFace.visible = !!face && !selected;
     // One overlay is enough; moving across the same face does not allocate geometry.
     if (key !== hoverKey || (mesh && hoverFace.userData.source !== mesh)) {
-      (hoverFace.material as THREE.MeshBasicMaterial).color.set('#2795cc');
+      changed = true;
       hoverKey = key;
       hoverFace.userData.source = mesh;
-      hoverFace.visible = !!face;
       hoverFace.geometry.dispose();
       hoverFace.geometry = new THREE.BufferGeometry();
       if (face && mesh) {
@@ -1135,9 +1159,10 @@ export function installInteractions({
         );
         hoverFace.geometry.setIndex(mesh.triangles.slice(face.start, face.start + face.count));
       }
-      render();
     }
+    if (changed) render();
     canvas.dataset.hoverFace = target?.face ?? '';
+    canvas.dataset.faceFeedback = role;
   };
   const highlightBoundary = (target?: BoundaryTarget) => {
     (boundaryHighlight.material as THREE.LineBasicMaterial).color.set('#cc672b');
@@ -1155,6 +1180,7 @@ export function installInteractions({
         hoverKey = `boundary:${target.bodyId}:${target.faces.join(',')}`;
         hoverFace.visible = true;
         (hoverFace.material as THREE.MeshBasicMaterial).color.set('#ce8d4a');
+        hoverFace.material.opacity = 0.22;
         hoverFace.geometry.dispose();
         hoverFace.geometry = new THREE.BufferGeometry();
         hoverFace.geometry.setAttribute(
@@ -2350,6 +2376,7 @@ export function installInteractions({
     return lastSnap.point;
   };
   let displayState = current().modelDisplay;
+  let previousFaceTarget: FaceTarget | undefined;
   const sync = () => {
     markups.sync();
     const command = current().markupCommand;
@@ -2383,6 +2410,7 @@ export function installInteractions({
       clearSelectionBox();
       epoch = current().epoch;
       tool = current().tool;
+      previousFaceTarget = undefined;
       drag = undefined;
       showMoveAxis();
       scaleDrag = undefined;
@@ -2433,6 +2461,10 @@ export function installInteractions({
     }
     if (current().tool === 'offset' && current().faceTarget && !offsetSession)
       startOffset(current().faceTarget!);
+    if (previousFaceTarget !== current().faceTarget) {
+      previousFaceTarget = current().faceTarget;
+      if (['extrude', 'offset'].includes(current().tool)) highlightFace(previousFaceTarget);
+    }
     if (current().guidePreview && !measureSession)
       measureSession = {
         anchor: current().guidePreview!.anchor,
@@ -3364,8 +3396,14 @@ export function installInteractions({
         return;
       }
       const continuing = !!extrudeSession || (props.extrusionLocked && !!props.faceTarget);
-      if (!extrudeSession && continuing)
+      const selectedTarget =
+        props.faceTarget &&
+        props.selected === props.faceTarget.bodyId &&
+        props.selectedFace === props.faceTarget.face;
+      if (!extrudeSession && (continuing || selectedTarget)) {
         startExtrusion(props.faceTarget!, event, props.faceDistance);
+        if (!continuing) props.onStart();
+      }
       if (!extrudeSession) {
         const picked = editableFaceAt(event, true);
         if (!picked?.face.planar) return;
@@ -3816,13 +3854,20 @@ export function installInteractions({
       } else if (extrudeSession) {
         updateExtrusion(event);
       } else {
-        const face = editableFaceAt(event);
-        highlightFace(face?.face.planar ? face.target : undefined);
-        if (face?.face.planar)
+        const selectedTarget =
+          props.faceTarget &&
+          props.selected === props.faceTarget.bodyId &&
+          props.selectedFace === props.faceTarget.face
+            ? props.faceTarget
+            : undefined;
+        const face = selectedTarget ? undefined : editableFaceAt(event);
+        const target = selectedTarget ?? (face?.face.planar ? face.target : undefined);
+        highlightFace(target);
+        if (target)
           show({
-            point: face.target.point,
+            point: target.point,
             key: 'face',
-            label: 'Vedä pintaa · E',
+            label: selectedTarget ? 'Valittu pinta · vedä tai kirjoita mitta' : 'Vedä pintaa · E',
           });
         else show();
       }

@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.34.2** erottaa pintavalinnan ja työkalun kohteen: **oranssi pistekuvio**
+on valittu pinta, **sininen** on Push/Pullin tai Offsetin kohde. Valittu pinta
+säilyy E/O-työkalua vaihtaessa myös hiiren ollessa toisen pinnan päällä.
+Muokkaustilassa Delete käsittelee pintavalintaa myös muiden työkalujen aikana.
+Siirto, kierto, skaalaus ja maalaus käsittelevät edelleen kokonaista osaa;
+pintakohtainen muokkaus näillä työkaluilla on erillinen jatkokehitys.
+
 Versio **0.34.1** korjaa offset-kehän keskelle jäävän paksuudettoman pinnan
 poistamisen. Avaa osa muokattavaksi, napsauta keskialuetta ja paina **X/Delete**
 tai **Poista pinta**. Myös **Cut** ja **Leikkaa aukko** tunnistavat pelkän
