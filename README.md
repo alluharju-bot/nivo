@@ -3,12 +3,24 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.35.0** lisää **P → Koko osa / Pinta** -maalauksen ja **Pipetin (I)**.
+Pipetti poimii osoitetun pinnan materiaalin, sävyn, kiillon ja tekstuurin sijoittelun;
+seuraava napsautus maalaa. Myös lukitusta osasta voi poimia materiaalin.
+Siirto, kierto ja skaalaus käsittelevät koko osaa.
+
+Kynän **R** kiertää alkaneen viivan suuntaa viimeisen pisteen ympäri **22,5°**
+välein. Kirjoita halutessasi tarkka kulma. Napsautus tai Enter vahvistaa suunnan,
+sitten osoita tai kirjoita pituus. Shift poimii pituuden myös tason ulkopuolelta.
+**Renderöi → Kuva → Polttoväli** säätää objektiivia **12–200 mm** reaaliajassa.
+24/35/50/85 mm pikavalinnat käyttävät 35 mm kennokoon vastaavuutta;
+kameran paikka säilyy ja polttoväli tallentuu projektiin sekä vietyyn kuvaan.
+
 Versio **0.34.2** erottaa pintavalinnan ja työkalun kohteen: **oranssi pistekuvio**
 on valittu pinta, **sininen** on Push/Pullin tai Offsetin kohde. Valittu pinta
 säilyy E/O-työkalua vaihtaessa myös hiiren ollessa toisen pinnan päällä.
 Muokkaustilassa Delete käsittelee pintavalintaa myös muiden työkalujen aikana.
-Siirto, kierto, skaalaus ja maalaus käsittelevät edelleen kokonaista osaa;
-pintakohtainen muokkaus näillä työkaluilla on erillinen jatkokehitys.
+Siirto, kierto ja skaalaus käsittelevät kokonaista osaa; pintamaalaus on lisätty
+versiossa 0.35.0.
 
 Versio **0.34.1** korjaa offset-kehän keskelle jäävän paksuudettoman pinnan
 poistamisen. Avaa osa muokattavaksi, napsauta keskialuetta ja paina **X/Delete**

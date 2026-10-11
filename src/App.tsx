@@ -49,6 +49,7 @@ import { useWorkspaceViews } from './ui/WorkspaceViews';
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, dimensionEnvelope, type PointDimension } from './model/project';
 import { PaintPanel } from './ui/PaintPanel';
+import { faceMaterialBody, paintSurface, type PaintScope } from './model/faceMaterials';
 import { TexturePanel } from './ui/TexturePanel';
 import {
   hasTexture,
@@ -63,7 +64,7 @@ import { ToolContext } from './ui/ToolContext';
 import { RepeatAction } from './ui/RepeatAction';
 import { repeatTranslation } from './model/repeat';
 import { OverlapPicker, type PickCandidate } from './ui/OverlapPicker';
-import { defaultAppearance, type TexturePlacement } from './model/materials';
+import { defaultAppearance, type TexturePlacement, type Appearance } from './model/materials';
 import { CabinetBuilder } from './ui/CabinetBuilder';
 import { insertCabinet } from './model/cabinet';
 import { useRenderJob } from './render/useRenderJob';
@@ -208,7 +209,13 @@ import {
 import { RotationPanel } from './ui/RotationPanel';
 import { useOffsetOutline } from './ui/useOffsetOutline';
 import { DynamicInput, type NumericField } from './ui/DynamicInput';
-import { penTravelDirection, penPointAtLength } from './model/penInput';
+import {
+  penTravelDirection,
+  penPointAtLength,
+  penAngle,
+  penAngleDirection,
+  type PenRotation,
+} from './model/penInput';
 import { CommitCheckbox } from './ui/CommitCheckbox';
 import { BooleanPanel, ShapeProperties, type Operation } from './ui/ModelingPanel';
 import { applyBoolean, type BooleanOperation } from './model/operations';
@@ -464,6 +471,12 @@ export default function App() {
   const [loftOpen, setLoftOpen] = useState(false);
   const [loftIds, setLoftIds] = useState<string[]>([]);
   const [loftPreview, setLoftPreview] = useState<import('./cad/protocol').EdgeDetailResult>();
+  const [penRotation, setPenRotation] = useState<PenRotation>();
+  const penRotationRef = useRef<PenRotation>(undefined);
+  const changePenRotation = (value?: PenRotation) => {
+    penRotationRef.current = value;
+    setPenRotation(value);
+  };
   const [penPoints, setPenPoints] = useState<Vec3[]>([]);
   const penRef = useRef<Vec3[]>([]);
   const penSplitRequest = useRef(0);
@@ -644,6 +657,9 @@ export default function App() {
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
   const [paintMode, setPaintMode] = useState<'paint' | 'texture'>('paint');
+  const [paintScope, setPaintScope] = useState<PaintScope>('body');
+  const [paintPick, setPaintPick] = useState(false);
+  const [sampledBrush, setSampledBrush] = useState(false);
   const [textureDraft, setTextureDraft] = useState<{ id: string; texture: TexturePlacement }>();
   const textureDraftRef = useRef<typeof textureDraft>(undefined);
   const [openedAssembly, setOpenedAssembly] = useState<string>();
@@ -935,17 +951,35 @@ export default function App() {
   }, [tool, moveHovered, visibleBodies, selectedIds, project.groups, openedAssembly]);
   const selectionHoveredIds = useMemo(() => {
     if (
-      tool !== 'select' ||
+      (tool !== 'select' && tool !== 'paint') ||
       !selectionHovered ||
       (editingBodyId && selectionHovered !== editingBodyId) ||
       !inAssembly(project, selectionHovered, openedAssembly)
     )
       return [];
     const visible = new Set(visibleBodies.map((b) => b.id));
+    if (tool === 'paint')
+      return !paintPick && paintScope === 'body' && paintMode === 'paint'
+        ? paintAll && selectedIdSet.has(selectionHovered)
+          ? selectedIds
+          : [selectionHovered]
+        : [];
     return selectionUnit(project, selectionHovered, openedAssembly).ids.filter((id) =>
       visible.has(id),
     );
-  }, [tool, selectionHovered, visibleBodies, project, editingBodyId, openedAssembly]);
+  }, [
+    tool,
+    selectionHovered,
+    visibleBodies,
+    project,
+    editingBodyId,
+    openedAssembly,
+    paintScope,
+    paintMode,
+    paintAll,
+    selectedIds,
+    paintPick,
+  ]);
   const workspace = useWorkspaceViews(
     project,
     visibleBodies,
@@ -1191,6 +1225,8 @@ export default function App() {
       writeFields({ thickness: value });
       return;
     }
+    if (tool === 'pen' && key === 'length' && penRotationRef.current?.choosing)
+      changePenRotation({ ...penRotationRef.current, choosing: false });
     if (tool === 'pen' && key === 'length' && !lockRef.current.has(key)) {
       penLengthDirectionRef.current = penDirectionRef.current;
       for (const axis of ['x', 'y', 'z']) lockRef.current.delete(axis);
@@ -1207,7 +1243,17 @@ export default function App() {
       // Re-evaluate the original pointer gesture with the typed dimensions. Its
       // first corner and drawing directions stay fixed even without a mousemove.
       gesture(rectangleGestureRef.current);
-    if (tool === 'pen') penMove(penPointerRef.current ?? penRef.current.at(-1));
+    if (tool === 'pen' && key === 'angle' && penRotationRef.current) {
+      try {
+        const next = { ...penRotationRef.current, angle: parseAngle(value), exact: true };
+        changePenRotation(next);
+        const direction = penAngleDirection(next);
+        penDirectionRef.current = direction;
+        if (lockRef.current.has('length')) penLengthDirectionRef.current = direction;
+        const start = penRef.current.at(-1)!;
+        penMove(penPointAtLength(start, direction, Number(fieldsRef.current.length) || 0));
+      } catch {}
+    } else if (tool === 'pen') penMove(penPointerRef.current ?? penRef.current.at(-1));
     if (tool === 'measure' && guideRef.current) {
       guideRef.current = { ...guideRef.current, endAnchor: undefined };
       if (key === 'angle') {
@@ -1220,6 +1266,7 @@ export default function App() {
     }
   };
   const clearLocks = () => {
+    changePenRotation(undefined);
     lockRef.current.clear();
     setLocked(new Set());
     penPointerRef.current = undefined;
@@ -1288,6 +1335,7 @@ export default function App() {
     sketchTargetRef.current = undefined;
     setSketchTarget(undefined);
     setPickDepth(false);
+    setPaintPick(false);
   };
   const toggleBoolean = (id: string, group: 'targets' | 'tools' = booleanActive) => {
     if (
@@ -1593,6 +1641,10 @@ export default function App() {
       return;
     }
     if (next === 'measure' && tool === 'measure') return;
+    if (['move', 'rotate', 'scale', 'paint'].includes(next)) {
+      if (next === 'paint' && selectedFace) setPaintScope('face');
+      setSelectedFace(undefined);
+    }
     resetGesture();
     setAwaitingStart(['rectangle', 'circle'].includes(next));
     setTool(next);
@@ -2140,6 +2192,10 @@ export default function App() {
   };
   const apply = async (forceClose = false, continueMeasure = false) => {
     if (committing.current || busy) return;
+    if (tool === 'pen' && penRotationRef.current?.choosing && !forceClose) {
+      acceptPenAngle();
+      return;
+    }
     try {
       if (['extrude', 'offset'].includes(tool) && faceRef.current)
         requireMovable(
@@ -2320,7 +2376,7 @@ export default function App() {
             });
         }
       } else if (tool === 'pen') {
-        if (!forceClose && lockRef.current.size && hoverRef.current) {
+        if (!forceClose && (lockRef.current.size || penRotationRef.current) && hoverRef.current) {
           const point = precisePenPoint(hoverRef.current);
           if (Math.hypot(...sub(point, penRef.current.at(-1)!)) < 1e-8) {
             editor.setError('');
@@ -2679,6 +2735,47 @@ export default function App() {
         : 'Kierrä mittaviivaa hiirellä · 22,5° askel. Napsautus tai Enter hyväksyy.',
     );
   };
+  const rotatePen = () => {
+    const start = penRef.current.at(-1);
+    if (!start) return;
+    const frame = { ...(shapeFrameRef.current ?? createSketchFrame(start)), origin: start };
+    const point = hoverRef.current ?? add(start, frame.u);
+    const angle = penAngle(frame, point);
+    clearLocks();
+    setAxis(undefined);
+    constraintRef.current = undefined;
+    setPenConstraint(undefined);
+    changePenRotation({ frame, angle, choosing: true });
+    writeFields({ angle: inputNumber(angle) });
+    penMove(
+      penPointAtLength(
+        start,
+        penAngleDirection({ frame, angle }),
+        Math.hypot(...sub(point, start)),
+      ),
+    );
+    editor.setMessage(
+      'Kierrä hiirellä 22,5° välein tai kirjoita kulma. Napsautus tai Enter lukitsee suunnan; sen jälkeen määritä pituus.',
+    );
+  };
+  const acceptPenAngle = () => {
+    const rotation = penRotationRef.current;
+    if (!rotation) return;
+    try {
+      const angle = parseAngle(fieldsRef.current.angle);
+      changePenRotation({ ...rotation, angle, choosing: false });
+      lockRef.current.delete('angle');
+      setLocked(new Set(lockRef.current));
+      document
+        .querySelector<HTMLCanvasElement>('canvas[data-testid="viewport"]')
+        ?.focus({ preventScroll: true });
+      editor.setMessage(
+        'Suunta lukittu. Osoita pituus tai kirjoita mitta. Shift poimii pituuden viitteestä.',
+      );
+    } catch (e) {
+      editor.setError((e as Error).message);
+    }
+  };
   const penMove = (point?: Vec3) => {
     penPointerRef.current = point;
     if (point && penRef.current.length) {
@@ -2822,6 +2919,10 @@ export default function App() {
       setGuideDraft(guideRef.current);
     } else if (event.type === 'pen') {
       if (committing.current || busy) return;
+      if (penRotationRef.current?.choosing) {
+        acceptPenAngle();
+        return;
+      }
       if (event.close && !lockRef.current.size) {
         void apply(true);
         return;
@@ -3300,6 +3401,18 @@ export default function App() {
                       ]
                     : tool === 'pen'
                       ? [
+                          ...(penRotation
+                            ? [
+                                {
+                                  key: 'angle',
+                                  label: 'Kulma piirtotasossa',
+                                  value: fields.angle,
+                                  unit: '°',
+                                  testId: 'pen-angle',
+                                  signed: true,
+                                },
+                              ]
+                            : []),
                           {
                             key: 'length',
                             label: penConstraint
@@ -3310,7 +3423,7 @@ export default function App() {
                             testId: 'pen-length',
                             signed: true,
                           },
-                          ...(!penConstraint
+                          ...(!penConstraint && !penRotation
                             ? [
                                 penInputAxis,
                                 ...(['x', 'y', 'z'] as Axis[]).filter((a) => a !== penInputAxis),
@@ -3871,6 +3984,17 @@ export default function App() {
         return;
       }
       if (event.key === 'Escape') {
+        if (tool === 'pen' && penRotationRef.current) {
+          event.preventDefault();
+          clearLocks();
+          setConstraintReset((v) => v + 1);
+          return;
+        }
+        if (!renderOpen && tool === 'paint' && paintPick) {
+          event.preventDefault();
+          setPaintPick(false);
+          return;
+        }
         if (renderOpen || partsOpen || mode === 'drawing') {
           closeRender();
           return;
@@ -3913,6 +4037,14 @@ export default function App() {
         return;
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (tool === 'paint' && key === 'i') {
+        event.preventDefault();
+        if (!event.repeat) {
+          setPaintMode('paint');
+          setPaintPick((value) => !value);
+        }
+        return;
+      }
       if (
         tool === 'select' &&
         !event.shiftKey &&
@@ -3964,6 +4096,11 @@ export default function App() {
       if (key === 'enter' && (editing || tool === 'boolean' || !!dimensionDraft)) {
         event.preventDefault();
         void apply();
+      }
+      if (key === 'r' && tool === 'pen' && penRef.current.length) {
+        event.preventDefault();
+        if (!event.repeat) rotatePen();
+        return;
       }
       if (key === 'r' && ((tool === 'measure' && guideRef.current) || selectedGuideId)) {
         event.preventDefault();
@@ -4143,6 +4280,7 @@ export default function App() {
               color: source.color,
               appearance: source.appearance,
               material: source.material,
+              faceMaterials: source.faceMaterials,
               localMaterial: false,
               localTexture: false,
             })),
@@ -4167,7 +4305,56 @@ export default function App() {
         : 'Valinnan komponenttilinkit irrotettu.',
     );
   };
-  const paintBody = (id: string) => {
+  const paintParts = (
+    ids: string[],
+    appearance: Appearance,
+    color: string,
+    face?: number,
+    sampled = false,
+  ) =>
+    editor.transact(
+      {
+        ...project,
+        bodies: project.bodies.map((b) =>
+          ids.includes(b.id)
+            ? {
+                ...paintSurface(
+                  b,
+                  sampled
+                    ? appearance
+                    : placeMaterial(
+                        faceMaterialBody(b, face),
+                        appearance,
+                        editor.meshes.find((m) => m.id === b.id),
+                        true,
+                      ),
+                  color,
+                  face,
+                ),
+                localMaterial: !paintLinked,
+              }
+            : b,
+        ),
+      },
+      face === undefined
+        ? `${ids.length} osan materiaali päivitetty.`
+        : 'Pinnan materiaali päivitetty.',
+    );
+  const paintBody = (id: string, face: number) => {
+    if (paintPick) {
+      const source = project.bodies.find((b) => b.id === id);
+      if (!source) return;
+      const surface = faceMaterialBody(source, face);
+      setSampledBrush(true);
+      setBrush({
+        appearance: structuredClone(surface.appearance ?? defaultAppearance(surface.material)),
+        color: surface.color,
+      });
+      setPaintPick(false);
+      setSelectionHovered(undefined);
+      editor.setMessage('Materiaali poimittu. Napsauta maalattavaa osaa tai pintaa.');
+      return;
+    }
     if (busy || !inAssembly(project, id, openedAssembly) || (editingBodyId && id !== editingBodyId))
       return;
     if (paintMode === 'texture') {
@@ -4175,27 +4362,13 @@ export default function App() {
       else select(id);
       return;
     }
-    const ids = paintAll && selectedIdSet.has(id) ? selectedIds : [id];
-    void editor.transact(
-      {
-        ...project,
-        bodies: project.bodies.map((b) =>
-          ids.includes(b.id)
-            ? {
-                ...b,
-                ...brush,
-                appearance: placeMaterial(
-                  b,
-                  brush.appearance,
-                  editor.meshes.find((m) => m.id === b.id),
-                  true,
-                ),
-                localMaterial: !paintLinked,
-              }
-            : b,
-        ),
-      },
-      `${ids.length} osan materiaali päivitetty.`,
+    const ids = paintScope === 'body' && paintAll && selectedIdSet.has(id) ? selectedIds : [id];
+    void paintParts(
+      ids,
+      brush.appearance,
+      brush.color,
+      paintScope === 'face' ? face : undefined,
+      sampledBrush,
     );
   };
   const movementBlocked = project.bodies.some(
@@ -5009,7 +5182,11 @@ export default function App() {
     tool === 'paint'
       ? paintMode === 'texture'
         ? 'Napsauta teksturoitua osaa ja vedä kuviota tai kahvaa.'
-        : 'Valitse materiaali ja napsauta maalattavaa osaa.'
+        : paintPick
+          ? 'Napsauta pintaa poimiaksesi sen materiaalin. Esc peruuttaa pipetin.'
+          : paintScope === 'face'
+            ? 'Valitse materiaali ja napsauta maalattavaa pintaa.'
+            : 'Valitse materiaali ja napsauta maalattavaa osaa.'
       : tool === 'move'
         ? selectedIds.length
           ? 'Tartu valinnan korostettuun pisteeseen ja vedä.'
@@ -5035,11 +5212,15 @@ export default function App() {
                 : tool === 'pen'
                   ? !penPoints.length
                     ? 'Napsauta alkupistettä näkymästä.'
-                    : penMode === 'bezier'
-                      ? bezierStyle === 'smooth'
-                        ? 'Napsauta seuraava käyrän piste. Enter viimeistelee.'
-                        : bezierInstruction(penPoints.length)
-                      : 'Napsauta seuraava piste tai osoita suunta ja kirjoita pituus.'
+                    : penRotation
+                      ? penRotation.choosing
+                        ? 'Kierrä 22,5° välein tai kirjoita kulma. Napsautus tai Enter lukitsee suunnan.'
+                        : 'Osoita pituus tai kirjoita mitta. Shift poimii pituuden; R vaihtaa suunnan.'
+                      : penMode === 'bezier'
+                        ? bezierStyle === 'smooth'
+                          ? 'Napsauta seuraava käyrän piste. Enter viimeistelee.'
+                          : bezierInstruction(penPoints.length)
+                        : 'Napsauta seuraava piste tai osoita suunta ja kirjoita pituus.'
                   : tool === 'scale'
                     ? scaling
                       ? scaling.picking
@@ -5197,7 +5378,9 @@ export default function App() {
               : tool === 'move'
                 ? (axis ?? moveInputAxis)
                 : tool === 'pen'
-                  ? 'length'
+                  ? penRotation?.choosing
+                    ? 'angle'
+                    : 'length'
                   : undefined
         }
         initialValue={
@@ -6189,6 +6372,8 @@ export default function App() {
               editingBodyId={editingBodyId}
               scopeIds={scopeIds}
               onPaint={paintBody}
+              paintPick={paintPick}
+              paintScope={paintMode === 'paint' ? paintScope : 'body'}
               editingTexture={busy ? undefined : activeTexture}
               colorPreview={colorPreview}
               onTexture={previewTexture}
@@ -6311,6 +6496,13 @@ export default function App() {
                 setGuidePointMenu(menu);
               }}
               penPoints={penPoints}
+              penRotation={penRotation}
+              onPenAngle={(angle) => {
+                const rotation = penRotationRef.current;
+                if (!rotation || rotation.exact || rotation.angle === angle) return;
+                changePenRotation({ ...rotation, angle });
+                writeFields({ angle: inputNumber(angle) });
+              }}
               penMode={penMode}
               bezierStyle={bezierStyle}
               penHover={penHover}
@@ -6471,6 +6663,7 @@ export default function App() {
               }}
               onSelectGuide={selectGuide}
               onAxis={(next) => {
+                if (tool === 'pen' && penRotationRef.current) clearLocks();
                 setAxis(next);
                 if (next) setFreeRotate(false);
               }}
@@ -6645,7 +6838,7 @@ export default function App() {
                       )}
                     </>
                   )}
-                  {(axis || penConstraint) && (
+                  {(axis || penConstraint || penRotation) && (
                     <button
                       onClick={() => {
                         setAxis(undefined);
@@ -6864,7 +7057,10 @@ export default function App() {
                     </button>
                     <button
                       aria-pressed={paintMode === 'texture'}
-                      onClick={() => setPaintMode('texture')}
+                      onClick={() => {
+                        setPaintMode('texture');
+                        setPaintPick(false);
+                      }}
                     >
                       Tekstuurin asettelu
                     </button>
@@ -6872,10 +7068,20 @@ export default function App() {
                   {paintMode === 'paint' ? (
                     <PaintPanel
                       {...brush}
+                      picking={paintPick}
+                      onPick={() => setPaintPick((value) => !value)}
+                      scope={paintScope}
+                      onScope={(scope) => {
+                        setPaintScope(scope);
+                        setSelectionHovered(undefined);
+                      }}
                       count={selectedIds.length}
                       all={paintAll}
                       linked={paintLinked}
-                      onChange={(appearance, color) => setBrush({ appearance, color })}
+                      onChange={(appearance, color) => {
+                        if (appearance.preset !== brush.appearance.preset) setSampledBrush(false);
+                        setBrush({ appearance, color });
+                      }}
                       onAll={setPaintAll}
                       onLinked={setPaintLinked}
                     />
@@ -7477,6 +7683,13 @@ export default function App() {
                     {tool === 'pen' && penPoints.length > 0 && (
                       <>
                         <p className="tool-point-count">{penPoints.length} pistettä</p>
+                        <button
+                          className="button outlined"
+                          aria-pressed={!!penRotation}
+                          onClick={rotatePen}
+                        >
+                          <RotateCw size={16} /> Kierrä viivan suuntaa · R
+                        </button>
                         <button
                           className="button outlined"
                           disabled={
@@ -8419,6 +8632,9 @@ export default function App() {
           assets={project.assets}
           materials={project.materials}
           onAppearance={changeAppearance}
+          onPaint={(id, face, appearance, color, sampled) =>
+            paintParts([id], appearance, color, face, sampled)
+          }
           onSaveMaterial={(name, appearance, color) =>
             editor.transact(
               {

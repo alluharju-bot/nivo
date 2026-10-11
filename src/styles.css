@@ -3944,6 +3944,11 @@ p {
 .trace-buttons > button {
   flex: 1;
 }
+.lens-presets > button {
+  min-width: 0;
+  padding: 7px 4px;
+  font-size: 11px;
+}
 .trace-buttons > button[aria-pressed='true'] {
   background: #e5ebd9;
 }

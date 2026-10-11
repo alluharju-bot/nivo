@@ -188,6 +188,16 @@ export const bodySchema = z.object({
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
   material: z.enum(['matte', 'paint', 'wood', 'metal', 'glass']).optional(),
   appearance: appearanceSchema.optional(),
+  // Keys are exact CAD face indices, not display-triangle or world-axis indices.
+  faceMaterials: z
+    .record(
+      z.string().regex(/^(0|[1-9]\d{0,7})$/),
+      z.object({
+        color: z.string().regex(/^#[0-9a-f]{6}$/i),
+        appearance: appearanceSchema,
+      }),
+    )
+    .optional(),
   textureFrame: z
     .object({
       offset: pointSchema,
@@ -386,6 +396,7 @@ export const projectSchema = z
           .object({
             environment: z.enum(['studio', 'warm', 'dark']),
             exposure: z.number().min(0.3).max(2.5),
+            focalLength: z.number().finite().min(12).max(200).optional(),
             shadows: z.boolean(),
             lightRotation: z.number().finite().min(0).max(360).optional(),
             lightElevation: z.number().finite().min(0).max(90).optional(),
@@ -448,6 +459,7 @@ export const projectSchema = z
       });
     for (const appearance of [
       ...p.bodies.map((b) => b.appearance),
+      ...p.bodies.flatMap((b) => Object.values(b.faceMaterials ?? {}).map((m) => m.appearance)),
       ...(p.materials ?? []).map((m) => m.appearance),
     ])
       if (

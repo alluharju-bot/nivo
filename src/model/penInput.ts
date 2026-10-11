@@ -1,5 +1,17 @@
 import type { Vec3, Axis } from './project';
 import { dot, sub, unit } from './geometry';
+import { fromUV, toUV, type SketchFrame } from './sketch';
+
+export type PenRotation = { frame: SketchFrame; angle: number; choosing: boolean; exact?: boolean };
+export function penAngle(frame: SketchFrame, point: Vec3, step = 22.5): number {
+  const [x, y] = toUV(point, frame);
+  const degrees = (Math.atan2(y, x) * 180) / Math.PI;
+  return step ? Math.round(degrees / step) * step : degrees;
+}
+export function penAngleDirection(rotation: Pick<PenRotation, 'frame' | 'angle'>): Vec3 {
+  const radians = (rotation.angle * Math.PI) / 180;
+  return sub(fromUV([Math.cos(radians), Math.sin(radians)], rotation.frame), rotation.frame.origin);
+}
 
 /** Orient a line constraint along the pointer's travel, not the positive world axis. */
 export function penTravelDirection(

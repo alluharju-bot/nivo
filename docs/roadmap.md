@@ -2,6 +2,31 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.35.0 — pintamaalaus, pipetti, kynän kulma ja renderkameran objektiivi
+
+- P:n **Koko osa / Pinta** rajaa maalauksen. Pintavalinnasta aloitettu P avaa
+  pintamaalauksen; Siirrä/Kierrä/Skaalaa vapauttaa pintavalinnan ja käsittelee osaa.
+  Koko osan maalaus korvaa aiemmat pintamateriaalit. Hold ja linkitys säilyvät.
+- **Pipetti / I** poimii näkyvän pinnan materiaalin, sävyn, kiillon ja tekstuurin
+  sijoittelun myös lukitusta osasta. Poiminta ei muuta mallia tai lisää historiaa.
+  Paluu maalaamiseen on automaattinen; Esc peruuttaa vain aktiivisen pipetin.
+  Toimii mallinnuksessa ja renderissä.
+- Pintamateriaalit tallennetaan CAD-pintojen mukaan, eivät kolmiokohtaisesti.
+  Offsetin alueet perivät lähtöpinnan; Push/Pullin pääty säilyttää maalauksen.
+  Topologian muuttuessa vastaavuus ratkaistaan pintojen todellisesta
+  päällekkäisyydestä, ei vanhoista pintanumeroista. Uudet sivupinnat käyttävät
+  osan perusmateriaalia. Materiaalit toimivat nopeassa ja tarkentuvassa renderissä.
+- Kynän R kiertää suuntaa viimeisen pisteen ympäri 22,5° välein. Kulman voi
+  kirjoittaa; napsautus/Enter vahvistaa suunnan ennen pituuden asettamista.
+  Pituus ja sen etumerkki noudattavat piirrettävää suuntaa. Shift poimii
+  viitepituuden, X/Y/Z vaihtaa akseliin ja Esc vapauttaa kulmalukituksen.
+- Renderin Kuva-osiossa polttoväli 12–200 mm, liukusäädin, numerosyöttö ja
+  24/35/50/85 mm pikavalinnat. Muutos ei siirrä kameraa eikä rakenna geometriaa
+  tai polunseurannan BVH:ta uudelleen. Oletus 35 mm, täyden kennon vastaavuus.
+  Tieto tallentuu projektiin ja lopullisen kuvan kameraan.
+- Jatko: useiden pintojen valinta ja erillisten pintatekstuurien sijoittelukahvat.
+  Koko osan tekstuuriasettelu säilyttää erikseen maalattujen pintojen kuviot.
+
 ## V0.34.2 — pintavalinnan ja työkalukohteen erottaminen, 11.10.2026
 
 - Muokkaustilassa valittu pinta näkyy oranssina ja pistekuvioituna sekä
@@ -18,9 +43,8 @@
   Koko osaa ei poisteta pintavalinnan puuttuessa. X säilyy poistona Valitse-tilassa.
 - Pintavalinta vaihtaa piirtomateriaalin rakentamatta geometrian puskureita
   uudelleen; yksi valittu pinta tarvitsee edelleen enintään kolme piirtoerää.
-- Jatkorajaus: valitun pinnan siirto, kierto ja skaalaus viereistä geometriaa
-  mukauttaen sekä pintakohtainen maalaus. Nykyiset työkalut käsittelevät koko osaa.
-  Tämä muutos ei lisää CAD:n vapaata pintadeformointia.
+- Tarkennus v0.35.0: siirto, kierto ja skaalaus käsittelevät koko osaa käyttäjän
+  linjauksen mukaan. Pintamaalaus on toteutettu erillisenä valintana.
 
 ## V0.34.1 — offset-kehän keskialueen poistaminen, 11.10.2026
 

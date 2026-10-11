@@ -43,6 +43,7 @@ export function rotateBodies(
       ];
       const result = bodySchema.parse({
         ...next,
+        faceMaterials: body.faceMaterials,
         curve: body.curve
           ? {
               ...body.curve,

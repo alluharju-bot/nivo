@@ -20,11 +20,20 @@ const topology = (body: Body) => {
     body.textureFrame,
     body.appearance?.preset === 'mirror',
     body.appearance?.mirrorSide,
+    Object.entries(body.faceMaterials ?? {}).map(([index, surface]) => {
+      const emission = emissionSettings(surface.appearance, surface.color);
+      return [
+        index,
+        surface.appearance.preset === 'mirror',
+        surface.appearance.mirrorSide,
+        emission.enabled ? emission : null,
+      ];
+    }),
     emission.enabled ? emission : null,
   ]);
 };
 export const surfaceKey = (body: Body) =>
-  JSON.stringify([body.material, body.color, body.appearance]);
+  JSON.stringify([body.material, body.color, body.appearance, body.faceMaterials]);
 
 /** Material edits retain the mesh buffers and tracing BVH. Emitting geometry and
  * mirror face groups affect scene structure and must follow the full path. */

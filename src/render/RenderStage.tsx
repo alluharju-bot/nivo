@@ -1,6 +1,11 @@
+import { defaultFocalLength } from './cameraLens';
 import { EmissionControls } from '../ui/EmissionControls';
 import { SurfaceMaps } from '../ui/MaterialSurface';
 import { SurfaceFinish } from '../ui/SurfaceFinish';
+import { MaterialPicker } from '../ui/MaterialPicker';
+import { faceMaterialBody } from '../model/faceMaterials';
+import { PaintScope } from '../ui/PaintScope';
+import type { PaintScope as Scope } from '../model/faceMaterials';
 import {
   traceDefaults,
   traceStatusLabel,
@@ -41,6 +46,13 @@ import { createRenderScene, materialNames, type RenderSettings } from './scene';
 import { LightingPanel } from './LightingPanel';
 
 type Props = {
+  onPaint: (
+    id: string,
+    face: number | undefined,
+    appearance: Appearance,
+    color: string,
+    sampled?: boolean,
+  ) => Promise<boolean>;
   onStartRender: (snapshot: RenderSnapshot, options: RenderJobOptions, name: string) => void;
   renderJobActive: boolean;
   bodies: Body[];
@@ -73,12 +85,14 @@ function TextureNumber({
   max,
   label,
   onValue,
+  onCommit,
 }: {
   value: number;
   min: number;
   max: number;
   label: string;
   onValue: (value: number) => void;
+  onCommit?: () => void;
 }) {
   const display = (n: number) => String(Math.round(n * 100) / 100);
   const [text, setText] = useState(() => display(value));
@@ -97,7 +111,16 @@ function TextureNumber({
         setText(raw);
         if (raw && Number.isFinite(n) && n >= min && n <= max) onValue(n);
       }}
-      onBlur={() => setText(display(value))}
+      onBlur={() => {
+        setText(display(value));
+        onCommit?.();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && onCommit) {
+          e.preventDefault();
+          onCommit();
+        }
+      }}
     />
   );
 }
@@ -138,6 +161,9 @@ export function RenderStage(props: Props) {
   const [traceOptions, setTraceOptions] = useState<TraceOptions>(traceDefaults);
   const [trace, setTrace] = useState<TraceStatus>({ state: 'off', samples: 0 });
   const [tool, setTool] = useState<'select' | 'texture' | 'paint'>('select');
+  const [paintScope, setPaintScope] = useState<Scope>('body');
+  const [paintPick, setPaintPick] = useState(false);
+  const [sampledBrush, setSampledBrush] = useState(false);
   const [brush, setBrush] = useState({
     appearance: defaultAppearance('oak'),
     color: findPreset('oak').color,
@@ -177,25 +203,34 @@ export function RenderStage(props: Props) {
     bodies,
     meshes,
     settings: effectiveSettings,
-    onPick: (id) => {
+    onPick: (id, face) => {
       if (busy) return;
       if (tool === 'paint') {
+        if (paintPick) {
+          const body = bodies.find((b) => b.id === id);
+          if (!body) return;
+          const source = faceMaterialBody(body, face);
+          setSampledBrush(true);
+          setBrush({
+            appearance: structuredClone(source.appearance ?? defaultAppearance(source.material)),
+            color: source.color,
+          });
+          setPaintPick(false);
+          setError('');
+          return;
+        }
         if (bodies.find((b) => b.id === id)?.locked) {
           setError('Osa on Hold-lukittu. Vapauta lukitus mallissa ennen maalaamista.');
           return;
         }
         setError('');
-        const body = bodies.find((b) => b.id === id)!;
-        void props.onAppearance(
-          [id],
-          {
-            ...brush.appearance,
-            texture:
-              body.appearance?.preset === brush.appearance.preset
-                ? body.appearance.texture
-                : brush.appearance.texture,
-          },
+        if (paintScope === 'face' && face === undefined) return;
+        void props.onPaint(
+          id,
+          paintScope === 'face' ? face : undefined,
+          brush.appearance,
           brush.color,
+          sampledBrush,
         );
       } else void selectTarget(id);
     },
@@ -264,7 +299,9 @@ export function RenderStage(props: Props) {
   };
   const chooseTool = async (next: typeof tool) => {
     if (!(await acceptTexture())) return;
+    setSampledBrush(false);
     if (next === 'paint') setBrush({ appearance: structuredClone(appearance), color });
+    setPaintPick(false);
     setTool(next);
     setRenderTab('material');
     if (panelScroll.current) panelScroll.current.scrollTop = 0;
@@ -304,10 +341,24 @@ export function RenderStage(props: Props) {
         return;
       }
       if (tool === 'select') return;
+      if (
+        tool === 'paint' &&
+        e.key.toLowerCase() === 'i' &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !(e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')
+      ) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (!e.repeat) setPaintPick((value) => !value);
+        return;
+      }
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
-        cancelTexture();
+        if (paintPick) setPaintPick(false);
+        else cancelTexture();
       } else if (e.key === 'Enter' && textureDraft) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -316,7 +367,7 @@ export function RenderStage(props: Props) {
     };
     window.addEventListener('keydown', key, true);
     return () => window.removeEventListener('keydown', key, true);
-  }, [textureDraft, busy, tool]);
+  }, [textureDraft, busy, tool, paintPick]);
   const targets = bodies.filter(
     (b) =>
       target === 'all' || (target === 'selection' ? selectedIds.includes(b.id) : b.id === target),
@@ -343,6 +394,7 @@ export function RenderStage(props: Props) {
   };
   const preset = findPreset(appearance.preset);
   const choosePreset = async (id: string) => {
+    setSampledBrush(false);
     if (!(await acceptTexture())) return;
     if (id.startsWith('custom:')) {
       const saved = props.materials?.find((m) => m.id === id.slice(7));
@@ -444,7 +496,9 @@ export function RenderStage(props: Props) {
           {tool === 'texture'
             ? 'Tekstuuri: vedä kuviota tai säätimiä · klikkaa toista osaa vaihtaaksesi kohdetta · Esc lopettaa'
             : tool === 'paint'
-              ? 'Maalaa: valitse materiaali ja klikkaa osia · oikea painike kiertää · Esc lopettaa'
+              ? paintPick
+                ? 'Pipetti: napsauta pintaa · Esc peruuttaa'
+                : `Maalaa ${paintScope === 'face' ? 'pintaa' : 'osaa'} · I poimii materiaalin · oikea painike kiertää · Esc lopettaa`
               : 'Vedä kiertääksesi · rulla zoomaa · klikkaa osaa valitaksesi sen materiaalin'}
         </p>
       </div>
@@ -544,9 +598,21 @@ export function RenderStage(props: Props) {
               </p>
             )}
             {tool === 'paint' && (
-              <p className="muted" role="status">
-                Valitse siveltimen materiaali ja klikkaa maalattavia osia. Esc lopettaa maalaamisen.
-              </p>
+              <>
+                <PaintScope value={paintScope} onChange={setPaintScope} />
+                <MaterialPicker
+                  active={paintPick}
+                  onClick={() => setPaintPick((value) => !value)}
+                />
+                <p className="muted" role="status">
+                  {paintPick
+                    ? 'Napsauta pintaa poimiaksesi sen materiaalin.'
+                    : paintScope === 'face'
+                      ? 'Napsauta maalattavaa pintaa.'
+                      : 'Napsauta maalattavaa osaa.'}{' '}
+                  Esc lopettaa maalaamisen.
+                </p>
+              </>
             )}
             <fieldset
               className="render-material-fields"
@@ -940,6 +1006,60 @@ export function RenderStage(props: Props) {
             />
           </div>
           <div className="render-tab-content" hidden={renderTab !== 'image'}>
+            <section className="trace-controls" aria-label="Renderkameran objektiivi">
+              <label className="lighting-range">
+                <span>
+                  Polttoväli{' '}
+                  <output>{effectiveSettings.focalLength ?? defaultFocalLength} mm</output>
+                </span>
+                <input
+                  type="range"
+                  aria-label="Polttoväli"
+                  min="12"
+                  max="200"
+                  step="1"
+                  disabled={busy}
+                  value={effectiveSettings.focalLength ?? defaultFocalLength}
+                  onChange={(e) =>
+                    previewLighting({ ...effectiveSettings, focalLength: Number(e.target.value) })
+                  }
+                  onPointerUp={() => void commitLighting()}
+                  onKeyUp={() => void commitLighting()}
+                  onBlur={() => void commitLighting()}
+                />
+              </label>
+              <label>
+                Polttoväli (mm)
+                <TextureNumber
+                  label="Polttoväli millimetreinä"
+                  min={12}
+                  max={200}
+                  value={effectiveSettings.focalLength ?? defaultFocalLength}
+                  onValue={(focalLength) => previewLighting({ ...effectiveSettings, focalLength })}
+                  onCommit={() => void commitLighting()}
+                />
+              </label>
+              <div
+                className="trace-buttons lens-presets"
+                role="group"
+                aria-label="Polttovälin pikavalinnat"
+              >
+                {[24, 35, 50, 85].map((focalLength) => (
+                  <button
+                    key={focalLength}
+                    className="button outlined"
+                    disabled={busy}
+                    aria-pressed={
+                      (effectiveSettings.focalLength ?? defaultFocalLength) === focalLength
+                    }
+                    onClick={() => void commitLighting({ ...effectiveSettings, focalLength })}
+                  >
+                    {focalLength} mm
+                  </button>
+                ))}
+              </div>
+              <small>35 mm kennokoon vastaavuus. Pieni arvo näyttää laajemman kuvakulman.</small>
+            </section>
             <label className="image-look">
               Kuvan ilme
               <select

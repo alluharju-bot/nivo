@@ -1,3 +1,4 @@
+import { setCameraLens, defaultFocalLength } from './cameraLens';
 import { installTextureEditing } from '../viewport/textureEditing';
 import { canUpdateSurfaces, surfaceKey, type RenderModel } from './sceneChanges';
 import { loadStudioEnvironment } from './environment';
@@ -11,7 +12,9 @@ import {
 import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, createTraceLights, previewLightLimit } from './lights';
 import { progressiveRenderer, type TraceStatus } from './progressive';
-import { mirrorFaceGroups, mirrorBacking } from './mirror';
+import { mirrorBacking } from './mirror';
+import { faceMaterialGroups, renderFaceMaterials } from './faceMaterials';
+import { faceMaterialBody } from '../model/faceMaterials';
 import { captureRenderScene } from './snapshot';
 import {
   createMaterialLibrary,
@@ -22,6 +25,7 @@ import {
 } from './materials';
 import {
   defaultAppearance,
+  emissionSettings,
   type Appearance,
   type TexturePlacement,
   type TextureAsset,
@@ -46,7 +50,7 @@ type Props = {
   bodies: Body[];
   meshes: BodyMesh[];
   settings: RenderSettings;
-  onPick: (id: string) => void;
+  onPick: (id: string, face?: number) => void;
   assets?: Record<string, TextureAsset>;
   selectedIds?: string[];
   editingTexture?: { id: string; appearance: Appearance };
@@ -82,6 +86,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   environment.dispose();
   pmrem.dispose();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 1000000);
+  setCameraLens(camera, current().settings.focalLength);
   camera.up.set(0, 0, 1);
   const controls = new OrbitControls(camera, canvas);
   controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
@@ -128,6 +133,9 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       quaternion: camera.quaternion.toArray(),
       projection: camera.projectionMatrix.toArray(),
       target: controls.target.toArray(),
+      focalLength: camera.getFocalLength(),
+      fov: camera.fov,
+      aspect: camera.aspect,
     });
     textureEditor.update();
   };
@@ -195,7 +203,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     if (!width || !height) return;
     renderer.setSize(width, height);
     camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+    setCameraLens(camera, current().settings.focalLength);
     progressive.resize();
     draw();
   };
@@ -259,16 +267,23 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
           previousModel!.assets === next.assets
         )
           continue;
-        const surface = library.create(body, next.assets);
         const existing = Array.isArray(object.material) ? object.material : [object.material];
-        for (let i = 0; i < existing.length; i++) {
+        for (const material of existing) {
+          const index = material.userData.facePaintIndex as number | undefined;
+          const source = faceMaterialBody(body, index);
+          const surface = library.create(source, next.assets);
+          const backing = material.userData.mirrorBacking;
           // Retain material identity: the trace snapshot shares these instances.
-          disposeMaterial(existing[i]);
-          existing[i].copy(surface);
-          if (i > 0) mirrorBacking(existing[i] as THREE.MeshPhysicalMaterial);
+          disposeMaterial(material);
+          material.copy(surface);
+          if (backing) mirrorBacking(material as THREE.MeshPhysicalMaterial);
+          material.userData.facePaintIndex = index;
+          material.userData.surfaceColor = source.color;
+          surface.dispose();
         }
-        surface.dispose();
-        object.castShadow = surface.transmission < 0.5;
+        object.castShadow = existing.some(
+          (m) => (m as THREE.MeshPhysicalMaterial).transmission < 0.5,
+        );
         changed = true;
       }
       previousModel = { ...next };
@@ -295,30 +310,51 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
       materialUV(geometry, body);
-      const surface = library.create(body, current().assets);
-      let materials: THREE.MeshPhysicalMaterial | THREE.MeshPhysicalMaterial[] = surface;
-      if (body.appearance?.preset === 'mirror') {
-        const backing = surface.clone();
-        mirrorBacking(backing);
-        materials = [surface, backing];
-        geometry.clearGroups();
-        for (const group of mirrorFaceGroups(geometry, body))
-          geometry.addGroup(group.start, group.count, group.reflective ? 0 : 1);
-      }
+      const materials = renderFaceMaterials(geometry, body, data, (source) =>
+        library.create(source, current().assets),
+      );
       const mesh = new THREE.Mesh(geometry, materials);
       mesh.userData.bodyId = body.id;
-      mesh.castShadow = surface.transmission < 0.5;
+      mesh.userData.faces = data.faces;
+      mesh.castShadow = materials.some((m) => m.transmission < 0.5);
       mesh.receiveShadow = true;
       model.add(mesh);
-      const partLights = createPartLights(body, geometry);
-      const traceLights = createTraceLights(body, geometry);
-      if (traceLights.children.length) lights.add(traceLights);
-      if (partLights.userData.previewOnly) areaLights.push(partLights);
-      else {
-        if (partLights.children.length) {
-          partLights.visible = shadowSpots++ < previewLightLimit;
-          partLights.userData.traceOnly = !partLights.visible;
-          lights.add(partLights);
+      for (const range of faceMaterialGroups(geometry, body, data)) {
+        if (
+          !range.reflective ||
+          !emissionSettings(
+            range.source.appearance ?? defaultAppearance(range.source.material),
+            range.source.color,
+          ).enabled
+        )
+          continue;
+        const emitter = new THREE.BufferGeometry();
+        const indices = data.triangles.slice(range.start, range.start + range.count);
+        emitter.setAttribute(
+          'position',
+          new THREE.Float32BufferAttribute(
+            indices.flatMap((i) => data.vertices.slice(i * 3, i * 3 + 3)),
+            3,
+          ),
+        );
+        emitter.setAttribute(
+          'normal',
+          new THREE.Float32BufferAttribute(
+            indices.flatMap((i) => data.normals.slice(i * 3, i * 3 + 3)),
+            3,
+          ),
+        );
+        const partLights = createPartLights(range.source, emitter);
+        const traceLights = createTraceLights(range.source, emitter);
+        emitter.dispose();
+        if (traceLights.children.length) lights.add(traceLights);
+        if (partLights.userData.previewOnly) areaLights.push(partLights);
+        else {
+          if (partLights.children.length) {
+            partLights.visible = shadowSpots++ < previewLightLimit;
+            partLights.userData.traceOnly = !partLights.visible;
+            lights.add(partLights);
+          }
         }
       }
     }
@@ -415,6 +451,11 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   let previousEnvironment: RenderSettings['environment'] | undefined;
   const settingsOnly = () => {
     const settings = current().settings;
+    const focalLength = settings.focalLength ?? defaultFocalLength;
+    if (Math.abs(camera.getFocalLength() - focalLength) > 1e-8) {
+      setCameraLens(camera, focalLength);
+      progressive.invalidate(false);
+    }
     const color = { studio: '#e8ece9', warm: '#eee3d2', dark: '#25313a' }[settings.environment];
     scene.background = new THREE.Color(color);
     floor.material.color.set(color);
@@ -553,7 +594,16 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       camera,
     );
     const hit = ray.intersectObjects(model.children)[0];
-    if (hit) current().onPick(hit.object.userData.bodyId);
+    if (hit) {
+      const face = (hit.object.userData.faces as BodyMesh['faces'] | undefined)?.find(
+        (f) =>
+          hit.faceIndex !== undefined &&
+          hit.faceIndex !== null &&
+          hit.faceIndex * 3 >= f.start &&
+          hit.faceIndex * 3 < f.start + f.count,
+      );
+      current().onPick(hit.object.userData.bodyId, face?.index);
+    }
   };
   canvas.addEventListener('pointerdown', down);
   canvas.addEventListener('pointerup', up);
@@ -578,9 +628,11 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       for (const object of model.children)
         if (object instanceof THREE.Mesh && ids.includes(object.userData.bodyId)) {
           const materials = Array.isArray(object.material) ? object.material : [object.material];
-          materials.forEach((material) =>
-            updateMaterialPlacement(material as THREE.MeshPhysicalMaterial, appearance.texture),
-          );
+          materials
+            .filter((m) => m.userData.facePaintIndex === undefined)
+            .forEach((material) =>
+              updateMaterialPlacement(material as THREE.MeshPhysicalMaterial, appearance.texture),
+            );
         }
       textureEditor.update();
       draw(true);
@@ -597,7 +649,11 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
           if (!material.userData.mirrorBacking)
             setMaterialColor(
               material as THREE.MeshPhysicalMaterial,
-              ids.has(body.id) ? preview!.color : body.color,
+              material.userData.facePaintIndex !== undefined
+                ? material.userData.surfaceColor
+                : ids.has(body.id)
+                  ? preview!.color
+                  : body.color,
             );
       }
       draw(true);

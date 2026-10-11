@@ -73,7 +73,7 @@ import {
 import { sketchFrame, toUV, fromUV, type SketchFrame } from '../model/sketch';
 import { rotationHandles } from '../model/rotationHandles';
 import { cross } from '../model/transforms';
-import { penAxisHint } from '../model/penInput';
+import { penAxisHint, penAngle, penAngleDirection } from '../model/penInput';
 import { surfaceIntersections } from './surfaceIntersections';
 import type { ViewportProps } from './types';
 
@@ -2384,9 +2384,10 @@ export function installInteractions({
       markupCommandId = command.id;
       markups.command(command.action);
     }
-    canvas.style.cursor = ['pen', 'measure', 'rectangle', 'circle'].includes(current().tool)
-      ? 'crosshair'
-      : '';
+    canvas.style.cursor =
+      current().paintPick || ['pen', 'measure', 'rectangle', 'circle'].includes(current().tool)
+        ? 'crosshair'
+        : '';
     if (displayState !== current().modelDisplay) {
       displayState = current().modelDisplay;
       clearSelectionBox();
@@ -2544,6 +2545,36 @@ export function installInteractions({
       return picked.point;
     }
     const found = referenceAt(event, (point) => Math.hypot(...sub(point, start)) > 1e-6);
+    if (props.penRotation) {
+      const rotation = props.penRotation;
+      const raw = framePoint(event, rotation.frame);
+      if (!raw) return lastPenPoint;
+      const turning = rotation.choosing && !rotation.exact && !event.shiftKey;
+      const angle = turning ? penAngle(rotation.frame, raw) : rotation.angle;
+      if (turning) props.onPenAngle(angle);
+      const direction = penAngleDirection({ ...rotation, angle });
+      const picked = event.shiftKey ? found : undefined;
+      let distance = turning
+        ? Math.hypot(...sub(raw, start))
+        : dot(sub(picked?.point ?? linePoint(event, start, direction), start), direction);
+      if (!picked && props.gridSnap)
+        distance = Math.round(distance / props.gridStep) * props.gridStep;
+      const point = add(start, scale(direction, distance));
+      show({
+        point,
+        key: 'pen-angle',
+        label: `${angle}°${picked ? ` · ${picked.label} · Pituus poimittu` : ' · R: kierrä suuntaa'}`,
+        line: [start, point],
+      });
+      if (picked) {
+        referenceMarker.visible = true;
+        referenceMarker.position.set(...picked.point);
+        render();
+      }
+      props.onPenHover(point);
+      lastPenPoint = point;
+      return point;
+    }
     if (props.penPoints.length === 1 && drawingTarget && !props.axis && !shiftDirection) {
       const targetId = drawingTarget.bodyId;
       const hit = faceAt(event);
@@ -3167,7 +3198,8 @@ export function installInteractions({
     }
     if (props.tool === 'paint') {
       const picked = faceAt(event);
-      if (picked && !editBlocked(event, picked.target.bodyId)) props.onPaint(picked.target.bodyId);
+      if (picked && (props.paintPick || !editBlocked(event, picked.target.bodyId)))
+        props.onPaint(picked.target.bodyId, picked.face.index);
       return;
     }
     if (
@@ -3839,7 +3871,14 @@ export function installInteractions({
       return;
     }
     if (props.tool === 'paint') {
-      highlightFace(faceAt(event)?.target, true);
+      const target = (props.paintPick ? faceAt(event) : editableFaceAt(event))?.target;
+      if (props.paintPick || props.paintScope === 'face') {
+        props.onSelectionHover?.(undefined);
+        highlightFace(target, true);
+      } else {
+        highlightFace();
+        props.onSelectionHover?.(target?.bodyId);
+      }
       show();
       return;
     }

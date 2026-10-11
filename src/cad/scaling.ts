@@ -9,6 +9,7 @@ import { shapeVertexReferences } from './vertexReferences';
 import type { TransformCache } from './buildCache';
 import { scaledTessellation } from './scaledTessellation';
 import { transformQuantityBasis } from '../model/quantityBasis';
+import { remapFaceMaterials } from '../model/faceMaterials';
 
 export async function scaleBodies(
   bodies: Body[],
@@ -91,6 +92,7 @@ export async function scaleBodies(
         result.push(
           bodySchema.parse({
             ...next,
+            faceMaterials: remapFaceMaterials(body.faceMaterials, transformed?.faceMap),
             component: body.component
               ? { ...body.component, offset: local(add(body.origin, body.component.offset)) }
               : undefined,

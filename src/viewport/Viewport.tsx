@@ -46,6 +46,7 @@ import { createViewCube } from './viewCube';
 import { createAnnotationOcclusion } from './annotationOcclusion';
 import { surfaceFaceRanges } from './faceRanges';
 import { faceColors, selectedFaceMaterial } from './faceFeedback';
+import { faceMaterialBody } from '../model/faceMaterials';
 import { createTriangleIndex } from './triangleIndex';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
@@ -423,6 +424,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         previewIds.has(body.id),
         body.material,
         body.appearance,
+        body.faceMaterials,
         body.locked,
         body.purpose,
         display,
@@ -471,15 +473,23 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           : new THREE.MeshBasicMaterial({ toneMapped: false });
       // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
       const mirror = body.appearance?.preset === 'mirror' && display === 'solid';
-      const faceRanges = surfaceFaceRanges(data, selected ? props.selectedFace : undefined, mirror);
-      const materialFaces = mirror
-        ? faceRanges.flatMap((face) =>
-            mirrorFaceGroups(geometry, body, face.start, face.count).map((group) => ({
+      const faceRanges = surfaceFaceRanges(
+        data,
+        selected ? props.selectedFace : undefined,
+        mirror,
+        body.faceMaterials,
+      );
+      const materialFaces = faceRanges.flatMap((face) => {
+        const source = faceMaterialBody(body, face.paintIndex);
+        return display === 'solid' && source.appearance?.preset === 'mirror'
+          ? mirrorFaceGroups(geometry, source, face.start, face.count).map((group) => ({
               ...group,
               ref: face.ref,
-            })),
-          )
-        : faceRanges.map((face) => ({ ...face, reflective: true }));
+              paintIndex: face.paintIndex,
+              source,
+            }))
+          : [{ ...face, reflective: true, source }];
+      });
       const materials = materialFaces.map((face, index) => {
         geometry.addGroup(face.start, face.count, index);
         const faceSelected =
@@ -489,15 +499,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           !reference &&
           !target &&
           !cutter;
-        const material = faceSelected ? selectedFaceMaterial() : baseMaterial.clone();
-        if (mirror && !face.reflective && material instanceof THREE.MeshPhysicalMaterial)
+        const material = faceSelected
+          ? selectedFaceMaterial()
+          : face.paintIndex !== undefined && display === 'solid' && !(target && props.opening)
+            ? materialLibrary.create(face.source, props.assets)
+            : baseMaterial.clone();
+        if (!face.reflective && material instanceof THREE.MeshPhysicalMaterial)
           mirrorBacking(material);
-        const color = material.userData.mirrorBacking ? '#69706e' : body.color;
+        const color = material.userData.mirrorBacking ? '#69706e' : face.source.color;
         material.setValues({
           color: faceSelected
             ? faceColors.selected
             : reference
-              ? new THREE.Color(body.color).lerp(new THREE.Color('#eaece6'), 0.45)
+              ? new THREE.Color(color).lerp(new THREE.Color('#eaece6'), 0.45)
               : target
                 ? '#65a9ee'
                 : cutter
@@ -507,11 +521,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
                       ? '#1289c6'
                       : '#9865b4'
                     : moveHovered
-                      ? new THREE.Color(body.color).lerp(new THREE.Color('#37b99a'), 0.6)
+                      ? new THREE.Color(color).lerp(new THREE.Color('#37b99a'), 0.6)
                       : selected &&
                           !props.selectedFace &&
                           !['paint', 'extrude', 'offset'].includes(props.tool)
-                        ? new THREE.Color(body.color).lerp(
+                        ? new THREE.Color(color).lerp(
                             new THREE.Color(props.selectedGroupId ? '#669ccc' : '#56a58b'),
                             0.3,
                           )
@@ -544,6 +558,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         }
         if (surfacePriority) prioritizeSurface(material);
         material.userData.originalColor = material.color.getHex();
+        material.userData.facePaintIndex = face.paintIndex;
+        material.userData.surfaceColor = face.source.color;
         return material;
       });
       baseMaterial.dispose();
@@ -1518,13 +1534,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       for (const material of node.mesh.material) {
         if (material.userData.faceSelection) continue;
         // Show the actual tint while editing; keep selection visible in the outline.
-        if (ids.has(id) && !material.userData.mirrorBacking)
+        if (
+          ids.has(id) &&
+          !material.userData.mirrorBacking &&
+          material.userData.facePaintIndex === undefined
+        )
           setMaterialColor(material, preview!.color);
         else
           setMaterialColor(
             material,
             material.userData.originalColor,
-            colors.get(id) ?? material.userData.originalColor,
+            material.userData.facePaintIndex !== undefined
+              ? material.userData.surfaceColor
+              : (colors.get(id) ?? material.userData.originalColor),
           );
       }
     }
@@ -1542,7 +1564,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (placement)
         bodyNodes.get(id)?.mesh.material.forEach((material) => {
           if (material instanceof THREE.MeshPhysicalMaterial)
-            updateMaterialPlacement(material, placement);
+            if (material.userData.facePaintIndex === undefined)
+              updateMaterialPlacement(material, placement);
         });
     }
     previewedTexture = editing?.id;

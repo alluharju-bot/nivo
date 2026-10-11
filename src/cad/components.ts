@@ -3,6 +3,7 @@ import { bodySchema, type Body, type Vec3 } from '../model/project';
 import { add, sub } from '../model/geometry';
 import { bodyFromShape, createShape } from './kernel';
 import type { TransformCache } from './buildCache';
+import { transferFaceMaterials } from './faceMaterials';
 import { transformQuantityBasis } from '../model/quantityBasis';
 
 /** Place a definition's exact geometry into each instance's own rigid frame. */
@@ -43,9 +44,22 @@ export function instantiateComponents(
             )));
       if (Math.abs(q.w) > 1 - 1e-10 && sharedReferences) {
         const origin = transform(source.origin);
+        let localPaint = target.faceMaterials;
+        if (target.localMaterial && localPaint && target.feature !== source.feature) {
+          sourceShape ??= cache?.shape(source) ?? createShape(source);
+          const placed = sourceShape.clone().translate(sub(to, from)),
+            old = createShape(target);
+          try {
+            localPaint = transferFaceMaterials(localPaint, old, placed);
+          } finally {
+            old.delete();
+            placed.delete();
+          }
+        }
         const result = bodySchema.parse({
           ...target,
           feature: source.feature,
+          faceMaterials: target.localMaterial ? localPaint : source.faceMaterials,
           origin,
           vertexRefs: source.vertexRefs,
           linearEdges: source.linearEdges,
@@ -85,6 +99,7 @@ export function instantiateComponents(
         const next = bodyFromShape(target, placed);
         const result = bodySchema.parse({
           ...next,
+          faceMaterials: target.localMaterial ? next.faceMaterials : source.faceMaterials,
           vertexRefs: {
             ...next.vertexRefs,
             ...Object.fromEntries(

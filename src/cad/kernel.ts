@@ -40,6 +40,7 @@ import { faceBoundaries } from './boundaries';
 import { detailEdgeIndices } from './detailEdges';
 import { cadVertex, shapeVertexReferences } from './vertexReferences';
 import type { TransformCache } from './buildCache';
+import { transferFaceMaterials } from './faceMaterials';
 
 export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
   const oc = getOC(),
@@ -482,9 +483,12 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
     edges.forEach((e) => e.delete());
   }
   const vertexRefs: Record<string, Vec3> = {};
+  let faceMaterials: Body['faceMaterials'];
   for (const source of sources) {
     const old = createShape(source);
     try {
+      const paint = transferFaceMaterials(source.faceMaterials, old, shape);
+      if (paint) faceMaterials = { ...paint, ...faceMaterials };
       const candidates = [
         ...shapeVertexReferences(source, old),
         ...Object.entries(source.vertexRefs ?? {}).map(([key, local]) => ({
@@ -523,6 +527,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
         rotation: body.textureFrame?.rotation ?? [0, 0, 0, 1],
       },
       vertexRefs,
+      faceMaterials,
       linearEdges,
       feature: {
         type: 'brep',
@@ -560,6 +565,7 @@ export function pushPullFace(
     if (!target || !target.planar) throw new Error('Valitse tasomainen pinta.');
     if (
       body.feature.type === 'polygon-extrusion' &&
+      (!body.faceMaterials || body.feature.height > 0) &&
       Math.abs(target.normal[2]) > 0.999 &&
       (body.feature.height > 0 || distance > 0)
     ) {
@@ -579,6 +585,7 @@ export function pushPullFace(
     // Keep a box parametric so its semantic corner anchors survive all six face edits.
     if (
       body.feature.type === 'rectangle-extrusion' &&
+      (!body.faceMaterials || body.feature.height > 0) &&
       ref.includes(':') &&
       !ref.startsWith('surface')
     ) {
@@ -615,6 +622,16 @@ export function pushPullFace(
     if (!shapeIsValid(result) || solidVolume(result) < 1e-7)
       throw new Error('Pursotus ei muodosta ehjää tilavuuskappaletta.');
     const next = bodyFromShape(body, result);
+    // The translated cap has no overlap with its old position. Its finish follows it.
+    if (body.faceMaterials?.[target.index]) {
+      const cap = faces[target.index].clone().translate(scale(target.normal, distance));
+      try {
+        const paint = transferFaceMaterials({ 0: body.faceMaterials[target.index] }, cap, result);
+        if (paint) next.faceMaterials = { ...next.faceMaterials, ...paint };
+      } finally {
+        cap.delete();
+      }
+    }
     cache?.prepare(next, result);
     return next;
   } finally {

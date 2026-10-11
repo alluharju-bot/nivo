@@ -110,7 +110,9 @@ export interface ViewportProps {
   onCalibrationPoint?: (point: [number, number]) => void;
   editingBodyId?: string;
   scopeIds?: string[];
-  onPaint: (id: string) => void;
+  paintScope?: 'body' | 'face';
+  paintPick?: boolean;
+  onPaint: (id: string, face: number) => void;
   onContextMenu: (target: {
     x: number;
     y: number;
@@ -213,6 +215,8 @@ export interface ViewportProps {
   bezierStyle: 'smooth' | 'bezier';
   spherePreview: boolean;
   penPoints: Vec3[];
+  penRotation?: import('../model/penInput').PenRotation;
+  onPenAngle: (angle: number) => void;
   penHover?: Vec3;
   reference?: ReferencePoint;
   pickReference: boolean;

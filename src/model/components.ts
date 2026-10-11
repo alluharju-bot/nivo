@@ -72,6 +72,7 @@ export async function synchronizeComponents(
         body.localTexture ? surface(body) : body.appearance,
       ) ||
         old.color !== body.color ||
+        !same(old.faceMaterials, body.faceMaterials) ||
         old.material !== body.material)
     ) {
       const earlier = materials.get(family);
@@ -80,6 +81,7 @@ export async function synchronizeComponents(
         (!same(surface(earlier), surface(body)) ||
           earlier.color !== body.color ||
           earlier.material !== body.material ||
+          !same(earlier.faceMaterials, body.faceMaterials) ||
           (!earlier.localTexture &&
             !body.localTexture &&
             !same(earlier.appearance?.texture, body.appearance?.texture)))
@@ -107,6 +109,7 @@ export async function synchronizeComponents(
           ...b,
           color: source.color,
           material: source.material,
+          faceMaterials: source.faceMaterials,
           appearance:
             b.localTexture || source.localTexture
               ? {

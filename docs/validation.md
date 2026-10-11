@@ -4,6 +4,32 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.35.0 — pintamaalaus, pipetti, kynän kulma ja polttoväli
+
+445 yksikkö-/CAD-testiä hyväksytty (87 tiedostoa). Uusien toimintojen 14
+selaintapausta hyväksytty työpöytä- ja tablettiprofiileissa. Lisäksi 23 aiempaa
+kynän, pintavalinnan, tekstuurisävytyksen ja renderityökalujen työpöytätestiä
+hyväksytty. TypeScript, tuotantokäännös ja lisenssitarkistus hyväksytty.
+Muuttuneiden tiedostojen muotoilu tarkistettu. Koko repositorion muotoilutarkistus
+ilmoittaa entuudestaan poikkeaman muuttumattomassa `scripts/performance-project.mjs`-tiedostossa.
+
+- Pintamaalaus ja koko osan maalaus ovat erilliset, peruttavat operaatiot.
+  Pipetti ei muuta lähdettä eikä lisää historiaa; myös Hold-osasta poiminta
+  onnistuu. Samankin materiaalin oma tekstuurikoko ja kierto siirtyvät mukana.
+- CAD-testit: tallennus/avaus, Offsetin jaetut pinnat, Push/Pullin pääty,
+  maalatun 2D-profiilin pursotus, pinnan poisto, kierto, akseliskaalaus ja
+  linkitetyn kopion pintamateriaali. Piirtoalueet kattavat jokaisen kolmion kerran.
+- Kynän R:n hiirikierto 22,5°, tarkka 137° / −30° kulma, ±15 mm ja 92 mm
+  pituudet, uusi ankkuri, hiirihyväksyntä, X/Esc ja Shift-viite 70 mm
+  piirtotason yläpuolelta. Vanha ±XYZ/Tab/Shift-käytös säilyy testeissä.
+- Polttovälin numero- ja pikavalinta näkyvät heti. Kameran paikka ja kohde
+  eivät muutu. Projektiin tallennus ja renderin avaaminen säilyttävät arvon.
+  Tarkentuva renderi käynnistyy uudelleen ilman geometrian tai BVH:n
+  uudelleenrakennusta. Kuvaviennin kamerakopio säilyttää objektiivin.
+- Kuvista tarkistettu erikseen maalatut yläpinnat sekä 24 mm tarkentuva
+  renderi. Kahdeksan näytteen testikuva on kohinainen; testi varmistaa
+  kameran päivityksen, ei lopullisen renderin laatua.
+
 ## V0.34.2 — selkeä pintavalinta
 
 438 yksikkö-/CAD-testiä hyväksytty (84 tiedostoa). Pintavalinnan, Offsetin,

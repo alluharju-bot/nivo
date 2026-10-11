@@ -6,6 +6,9 @@ import {
   type Appearance,
 } from '../model/materials';
 import { SurfaceFinish } from './SurfaceFinish';
+import { PaintScope } from './PaintScope';
+import { MaterialPicker } from './MaterialPicker';
+import type { PaintScope as Scope } from '../model/faceMaterials';
 export function PaintPanel({
   appearance,
   color,
@@ -15,6 +18,10 @@ export function PaintPanel({
   onChange,
   onAll,
   onLinked,
+  scope,
+  onScope,
+  picking,
+  onPick,
 }: {
   appearance: Appearance;
   color: string;
@@ -24,9 +31,15 @@ export function PaintPanel({
   onChange: (appearance: Appearance, color: string) => void;
   onAll: (all: boolean) => void;
   onLinked: (linked: boolean) => void;
+  scope: Scope;
+  onScope: (scope: Scope) => void;
+  picking: boolean;
+  onPick: () => void;
 }) {
   return (
     <section className="paint-panel" aria-label="Maalipensselin paletti">
+      <PaintScope value={scope} onChange={onScope} />
+      <MaterialPicker active={picking} onClick={onPick} />
       <label>
         Materiaali
         <select
@@ -59,7 +72,7 @@ export function PaintPanel({
           onChange={(e) => onChange(appearance, e.target.value)}
         />
       </label>
-      {count > 1 && (
+      {scope === 'body' && count > 1 && (
         <label>
           Kohde
           <select

@@ -3,6 +3,14 @@
 UTF-8 JSON, tunniste `format: "nivo"` ja `version: 8`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
+Valinnaiset v0.35.0-kentät:
+
+- `body.faceMaterials`: CAD-pinnan indeksi → `{ color, appearance }`. Puuttuva
+  arvo perii osan perusmateriaalin. Pintaviite vastaa BRepin pintajärjestystä;
+  topologiamuutokset siirtävät materiaalit vastaaville pinnoille.
+- `settings.render.focalLength`: renderkameran polttoväli 12–200 mm,
+  oletus 35 mm. Kameran täyden kennon vastaavuus käyttää 36 mm filmiporttia.
+
 ```json
 {
   "format": "nivo",
