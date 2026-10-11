@@ -2,6 +2,35 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.34.0 — osatyypit ja määrälaskenta, 11.10.2026
+
+- Projektikohtaiset nimetyt tyypit ja laskentatapa kpl / m / aihioala m².
+  Oikean paneelin Tyyppi-valinta toimii yksittäisille osille ja monivalinnalle.
+  Luonti, nimeäminen, laskentatavan vaihto ja tyypin poisto ovat peruttavia;
+  tyypin poisto säilyttää osat. Hold estää osan luokituksen muuttamisen.
+- Valinnan yhteenveto ja Valitse kaikki samantyyppiset. Osat → Määrät näyttää
+  projektin tai ryhmän määrät sekä pituus-/aihioerittelyn. CSV-vienti sisältää
+  yksikön, laskentaperusteen ja puuttuvien mittojen määrän.
+- Jokainen esiintymä lasketaan kerran, myös piilotetut. Apumuodot ja piirrokset
+  rajataan pois. Tyyppi kopioituu, mutta ei linkitä geometriaa tai muuta ryhmitystä.
+- Aihiomitat ovat osan omassa suunnassa, eivät maailman X/Y/Z-ulkomittoja.
+  Siirto, kierto, skaalaus, pyöristys ja tunnetun aihion työstö päivittävät tiedot.
+  Suorakulmainen osa tunnistetaan myös jälkikäteen kierrettynä. Tuntematon muoto
+  tai vino venytys vaatii vahvistetut aihiomitat; puutteet näkyvät summissa ja CSV:ssä.
+- Aihioala = pituus × leveys yhdeltä puolelta; aukkoja ei vähennetä. Omat
+  aihiomitat tarkistetaan geometrian muututtua. Kelvollisia aihioita käytetään
+  myös leikkauslistassa, kun kaikki kolme mittaa ovat tiedossa.
+- Tyyppi on kevyesti osan nimen ja ryhmän yhteydessä. Laskennan lisämitat ovat
+  avattavassa osiossa; taulukon osat ladataan näkyviin vasta erittelyä avatessa.
+  Tyypin vaihto ei rakenna piirtoverkkoa uudelleen.
+
+### Seuraavaksi — materiaalitarpeesta hankintaan
+
+- Lautojen ja runkopuiden katkaisusuunnitelma varastopituuksista, sahausura ja hukka.
+- Erikseen nimetty nettopinta-ala aukkojen vähennyksillä; aihioala säilyy omana tapanaan.
+- Johdetut määrät, esimerkiksi neljä ruuvia laudelautaa kohti, ilman ruuvien mallintamista.
+- Hankintavara ja pakkaus-/varastopituudet erilleen mallin todellisista määristä.
+
 ## V0.33.2 — yhdisteltävät skaalausakselit, 10.10.2026
 
 - Oikean paneelin X/Y/Z ovat itsenäisiä valintoja. Valitut akselit käyttävät

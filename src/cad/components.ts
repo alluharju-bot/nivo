@@ -3,6 +3,7 @@ import { bodySchema, type Body, type Vec3 } from '../model/project';
 import { add, sub } from '../model/geometry';
 import { bodyFromShape, createShape } from './kernel';
 import type { TransformCache } from './buildCache';
+import { transformQuantityBasis } from '../model/quantityBasis';
 
 /** Place a definition's exact geometry into each instance's own rigid frame. */
 export function instantiateComponents(
@@ -42,7 +43,7 @@ export function instantiateComponents(
             )));
       if (Math.abs(q.w) > 1 - 1e-10 && sharedReferences) {
         const origin = transform(source.origin);
-        return bodySchema.parse({
+        const result = bodySchema.parse({
           ...target,
           feature: source.feature,
           origin,
@@ -60,6 +61,12 @@ export function instantiateComponents(
               }
             : undefined,
         });
+        result.quantityBasis = target.quantityBasis?.manual
+          ? target.quantityBasis
+          : source.quantityBasis?.manual
+            ? undefined
+            : transformQuantityBasis(source, result, (v) => v);
+        return result;
       }
       sourceShape ??= cache?.shape(source) ?? createShape(source);
       let placed = sourceShape.clone();
@@ -112,6 +119,15 @@ export function instantiateComponents(
               }
             : undefined,
         });
+        result.quantityBasis = target.quantityBasis?.manual
+          ? target.quantityBasis
+          : source.quantityBasis?.manual
+            ? undefined
+            : transformQuantityBasis(
+                source,
+                result,
+                (v) => new Vector3(...v).applyQuaternion(q).toArray() as Vec3,
+              );
         cache?.prepare(result, placed);
         return result;
       } finally {

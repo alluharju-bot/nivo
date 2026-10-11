@@ -8,6 +8,7 @@ import type { EdgeDetailResult } from './protocol';
 import { filletPrism } from './prismFillet';
 import { detailEdgeIndices } from './detailEdges';
 import type { TransformCache } from './buildCache';
+import { transformQuantityBasis } from '../model/quantityBasis';
 
 export function detailEdges(
   body: Body,
@@ -81,6 +82,7 @@ export function detailEdges(
       operation,
       size,
     };
+    next.quantityBasis = transformQuantityBasis(body, next, (v) => v);
     const mesh = meshBody(next, result);
     cache?.prepare(next, result, mesh);
     return { body: next, mesh };
@@ -101,7 +103,9 @@ export function removeEdgeTreatment(body: Body): Body {
   if (!body.edgeTreatment) return body;
   const shape = detailSourceShape(body);
   try {
-    return bodyFromShape(body, shape);
+    const next = bodyFromShape(body, shape);
+    next.quantityBasis = transformQuantityBasis(body, next, (v) => v);
+    return next;
   } finally {
     shape.delete();
   }

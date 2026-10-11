@@ -8,6 +8,7 @@ import { bodyFromShape, createShape, meshBody } from './kernel';
 import { shapeVertexReferences } from './vertexReferences';
 import type { TransformCache } from './buildCache';
 import { scaledTessellation } from './scaledTessellation';
+import { transformQuantityBasis } from '../model/quantityBasis';
 
 export async function scaleBodies(
   bodies: Body[],
@@ -48,6 +49,12 @@ export async function scaleBodies(
                 )
               : undefined,
           }),
+        );
+        result.at(-1)!.quantityBasis = transformQuantityBasis(
+          body,
+          result.at(-1)!,
+          local,
+          uniform ? factors[0] : NaN,
         );
       } catch (error) {
         if (error instanceof ZodError) throw new Error(projectValidationMessage(error));
@@ -97,6 +104,12 @@ export async function scaleBodies(
             curveSnaps: body.curveSnaps,
             vertexRefs: Object.fromEntries(references.map(({ key, point }) => [key, local(point)])),
           }),
+        );
+        result.at(-1)!.quantityBasis = transformQuantityBasis(
+          body,
+          result.at(-1)!,
+          (v) => v.map((n, i) => n * factors[i]) as Vec3,
+          uniform ? factors[0] : NaN,
         );
         if (cache && !previous?.mesh.curveStations) {
           // Uniform scaling keeps analytic surfaces; meshing its result is

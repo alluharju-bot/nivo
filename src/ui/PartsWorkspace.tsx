@@ -6,23 +6,37 @@ import { assemblyParts, explodeParts, partRows, partsCSV } from '../model/parts'
 import { createRenderScene, renderDefaults } from '../render/scene';
 import { downloadFile, safeFilename } from '../storage/projects';
 import { formatLength } from '../model/units';
-import { groupPath } from '../model/groups';
+import { groupPath, groupBodies } from '../model/groups';
 import type { CutSettings } from '../model/cutSettings';
 import { CutWorkspace } from './CutWorkspace';
+import { QuantitiesWorkspace } from './QuantitiesWorkspace';
+import type { QuantityChange } from './QuantityProperties';
 
 export function PartsWorkspace({
   project,
   meshes,
   selectedGroupId,
   onCutSettings,
+  initialTab = 'exploded',
+  busy,
+  onChange,
+  onSelect,
 }: {
   project: Project;
   meshes: BodyMesh[];
   selectedGroupId?: string;
   onCutSettings: (settings: CutSettings) => Promise<boolean>;
+  initialTab?: 'exploded' | 'cutting' | 'quantities';
+  busy: boolean;
+  onChange: QuantityChange;
+  onSelect: (ids: string[]) => void;
 }) {
   const [target, setTarget] = useState(selectedGroupId ?? 'all');
-  const [tab, setTab] = useState<'exploded' | 'cutting'>('exploded');
+  const [tab, setTab] = useState(initialTab);
+  const quantityScope = useMemo(
+    () => (target === 'all' ? project.bodies : groupBodies(project, target)),
+    [project.bodies, project.groups, target],
+  );
   const bodies = useMemo(() => assemblyParts(project, target), [project, target]);
   useEffect(() => {
     if (target !== 'all' && !project.groups.some((g) => g.id === target)) setTarget('all');
@@ -32,7 +46,7 @@ export function PartsWorkspace({
   return (
     <section
       className="parts-workspace"
-      aria-label="Osaluettelo, räjäytyskuva ja leikkauslista"
+      aria-label="Osaluettelo, määrät, räjäytyskuva ja leikkauslista"
       data-cutting={tab === 'cutting'}
     >
       <div className="parts-workspace-toolbar">
@@ -43,9 +57,12 @@ export function PartsWorkspace({
           <button aria-pressed={tab === 'cutting'} onClick={() => setTab('cutting')}>
             Leikkauslista
           </button>
+          <button aria-pressed={tab === 'quantities'} onClick={() => setTab('quantities')}>
+            Määrät
+          </button>
         </div>
         <label>
-          Kokoonpano
+          Rajaus
           <select
             aria-label="Osaluettelon kohde"
             value={target}
@@ -60,7 +77,17 @@ export function PartsWorkspace({
           </select>
         </label>
       </div>
-      {tab === 'exploded' ? (
+      {tab === 'quantities' ? (
+        <QuantitiesWorkspace
+          project={project}
+          bodies={quantityScope}
+          meshes={meshes}
+          title={title}
+          busy={busy}
+          onChange={onChange}
+          onSelect={onSelect}
+        />
+      ) : tab === 'exploded' ? (
         <ExplodedParts project={project} meshes={meshes} target={target} />
       ) : (
         <CutWorkspace

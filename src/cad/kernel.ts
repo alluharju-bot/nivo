@@ -1,6 +1,7 @@
 import { isPlanarFace, isLinearEdge } from './planarity';
 import { shapeEdges, shapeFaces } from './topology';
 import { detailSourceShape } from './detailSource';
+import { updatedQuantityBounds } from './quantityBounds';
 import {
   drawRectangle,
   drawCircle,
@@ -507,7 +508,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
   }
   const local = shape.clone().translate(origin.map((n) => -n) as Vec3);
   try {
-    return bodySchema.parse({
+    const result = bodySchema.parse({
       ...body,
       origin,
       component: body.component
@@ -533,6 +534,9 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
         topologyId: uid(),
       },
     });
+    if (sources.length && body.quantityBasis && !body.quantityBasis.manual)
+      result.quantityBasis = updatedQuantityBounds(body, result, shape);
+    return result;
   } finally {
     local.delete();
   }

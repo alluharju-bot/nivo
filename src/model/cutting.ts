@@ -56,10 +56,27 @@ export function cutGeometryKey(body: Body) {
  * explicit blank dimensions instead of silently being flattened into panels.
  */
 export function rectangularCutSize(body: Body, mesh?: BodyMesh): CutPart['dimensions'] {
+  return rectangularCutFrame(body, mesh)?.dimensions;
+}
+
+/** Keep directions paired with dimensions for orientation-independent quantities. */
+export function rectangularCutFrame(body: Body, mesh?: BodyMesh) {
+  const ordered = (sizes: number[], axes: Vec3[]) => {
+    const order = [0, 1, 2].sort((a, b) => sizes[b] - sizes[a]);
+    return {
+      dimensions: order.map((i) => clean(sizes[i])) as Vec3,
+      axes: order.map((i) => axes[i]) as [Vec3, Vec3, Vec3],
+    };
+  };
   if (body.feature.type === 'rectangle-extrusion')
-    return [body.feature.width, body.feature.depth, body.feature.height]
-      .sort((a, b) => b - a)
-      .map(clean) as [number, number, number];
+    return ordered(
+      [body.feature.width, body.feature.depth, body.feature.height],
+      [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+    );
   if (!mesh || !mesh.verticesCAD.length || mesh.faces.some((f) => !f.planar)) return;
   const axes: Vec3[] = [];
   for (const face of mesh.faces) {
@@ -82,7 +99,7 @@ export function rectangularCutSize(body: Body, mesh?: BodyMesh): CutPart['dimens
     Math.abs(volume - mesh.volume) > Math.max(0.001, volume * 1e-8)
   )
     return;
-  return sizes.sort((a, b) => b - a).map(clean) as [number, number, number];
+  return ordered(sizes, axes);
 }
 
 export function cuttingParts(
@@ -97,9 +114,16 @@ export function cuttingParts(
     const preset = findPreset(body.appearance?.preset ?? body.material ?? 'matte');
     const asset = body.appearance?.assetId;
     const outdated = !!override?.blank && override.blank.geometryKey !== cutGeometryKey(body);
+    const stock =
+      body.quantityBasis?.geometryKey === cutGeometryKey(body) &&
+      body.quantityBasis.dimensions.every((d) => d >= 0.1)
+        ? body.quantityBasis
+        : undefined;
     const dimensions = outdated
       ? undefined
-      : (override?.blank?.dimensions ?? rectangularCutSize(body, byId.get(body.id)));
+      : (override?.blank?.dimensions ??
+        stock?.dimensions ??
+        rectangularCutSize(body, byId.get(body.id)));
     return {
       id: body.id,
       number: i + 1,
@@ -134,7 +158,7 @@ export function cuttingParts(
           ? 'length'
           : 'free'),
       included: override?.included ?? true,
-      manual: !!override?.blank,
+      manual: !!override?.blank || !!stock?.manual,
       issue: outdated
         ? 'Muoto muuttui. Vahvista aihion mitat uudelleen.'
         : !dimensions

@@ -1,8 +1,28 @@
-# Validointi — 10.10.2026
+# Validointi — 11.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.34.0 — osatyypit ja määrälaskenta
+
+428 yksikkö-/CAD-testiä hyväksytty (82 tiedostoa). Määrälaskennan 10
+selaintapausta hyväksytty työpöytä- ja tablettiprofiileissa. Lisäksi 22
+skaalauksen ja leikkauslistan regressiotapausta hyväksytty. Tuotantokäännös,
+TypeScript ja lisenssitarkistus hyväksytty.
+
+- Tyypin luonti monivalinnalle, yhteispituus, pinta-ala ja kappaleet,
+  pituuserittely, CSV, tallennus/uudelleenavaus ja valinta tyypin mukaan.
+- Piilotetut osat ja alaryhmät lasketaan, rakennusapumuodot rajataan pois.
+  Luokituksen muuttaminen ei rakenna geometriaa uudelleen.
+- Kopiot säilyttävät tyypin. Linkitettyjen kokojen muutokset päivittävät määrät;
+  itsenäinen luokitus ei muuta geometrian linkitystä. Peru palauttaa määrät.
+- Pyöristetty ja eri akselien ympäri kierretty lauta säilyttää paikallisen
+  pituutensa. Aukko ei pienennä aihioalaa; lyhentäminen päivittää pituuden myös
+  vinossa asennossa. Vino venytys pyytää mittojen vahvistusta.
+- Käsin annetut aihiomitat, puuttuvien mittojen näkyminen, vanhentuneen
+  aihion tunnistus, tyypin muokkaus/poisto, Hold ja virhesyötteet tarkistettu.
+- Paneeli ja määränäkymä tarkistettu kuvista molemmissa näyttökoissa.
 
 ## V0.33.2 — yhdisteltävät skaalausakselit
 

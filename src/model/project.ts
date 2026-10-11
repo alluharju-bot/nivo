@@ -5,6 +5,7 @@ import { sectionSchema } from './sections';
 import { referenceImageSchema } from './referenceImages';
 import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
 import { cutSettingsSchema } from './cutSettings';
+import { partTypeSchema, quantityBasisSchema, typeNameKey } from './quantitySchema';
 import { z } from 'zod';
 import { resolveAnchor } from './guides';
 import { polygonError } from './polygon';
@@ -216,6 +217,8 @@ export const bodySchema = z.object({
   locked: z.boolean().default(false),
   hidden: z.boolean().default(false),
   groupId: id.optional(),
+  partTypeId: id.optional(),
+  quantityBasis: quantityBasisSchema.optional(),
   vertexRefs: z.record(z.string().max(512), pointSchema).optional(),
   linearEdges: z.array(z.tuple([pointSchema, pointSchema])).optional(),
 });
@@ -360,6 +363,7 @@ export const projectSchema = z
     drawingSheets: z.array(drawingSheetSchema).max(50).optional(),
     referenceImages: z.array(referenceImageSchema).max(50).optional(),
     materials: z.array(customMaterialSchema).max(200).optional(),
+    partTypes: z.array(partTypeSchema).max(1000).optional(),
     bodies: z.array(bodySchema).max(MAX_PROJECT_BODIES),
     groups: z.array(groupSchema).max(1000).default([]),
     dimensions: z.array(dimensionSchema).max(3000),
@@ -420,12 +424,18 @@ export const projectSchema = z
       p.sections ?? [],
       p.drawingSheets ?? [],
       p.referenceImages ?? [],
+      p.partTypes ?? [],
     ]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });
     }
     if (p.bodies.some((body) => body.groupId && !p.groups.some((g) => g.id === body.groupId)))
       ctx.addIssue({ code: 'custom', message: 'Kappale viittaa puuttuvaan ryhmään.' });
+    const partTypes = new Set((p.partTypes ?? []).map((t) => t.id));
+    if (p.bodies.some((b) => b.partTypeId && !partTypes.has(b.partTypeId)))
+      ctx.addIssue({ code: 'custom', message: 'Osan tyyppi puuttuu projektista.' });
+    if (new Set((p.partTypes ?? []).map((t) => typeNameKey(t.name))).size !== partTypes.size)
+      ctx.addIssue({ code: 'custom', message: 'Osatyyppien nimien tulee olla yksilöllisiä.' });
     if (p.settings.activeSectionId && !p.sections?.some((s) => s.id === p.settings.activeSectionId))
       ctx.addIssue({ code: 'custom', message: 'Aktiivinen poikkileikkaus puuttuu.' });
     if (p.referenceImages?.some((image) => !p.assets?.[image.assetId]))

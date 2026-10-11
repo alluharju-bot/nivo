@@ -28,6 +28,25 @@ Ensisijaiset lähteet:
 - [OCCT-lisenssi](https://github.com/Open-Cascade-SAS/OCCT/blob/master/LICENSE_LGPL_21.txt)
 - [OCCT-poikkeus](https://github.com/Open-Cascade-SAS/OCCT/blob/master/OCCT_LGPL_EXCEPTION.txt)
 
+## Osatyypit ja määrät — v0.34.0
+
+Projektin `partTypes` määrittelee nimet ja laskentatavat. Osan `partTypeId`
+on esiintymän oma luokitus, erillään kansioryhmästä, kokoonpanosta ja
+linkitetystä geometriasta. Määrälaskenta käyttää kaikkia rajauksen malliosia,
+myös piilotettuja, ja laskee jokaisen esiintymän kerran.
+
+`quantityBasis` tallentaa aihion paikalliset mitat ja akselit sekä geometrian
+avaimen. Kierto muuntaa akselit, skaalaus myös mitat. Tunnetun automaattisen
+aihion työstö mittaa tarkat CAD-rajat samassa paikallisessa kehyksessä;
+geometrian reikä ei muuta bruttoalaa. Käyttäjän oma aihio tai vinoutunut kehys
+vaatii muodonmuutoksen jälkeen vahvistuksen. Puuttuvia mittoja ei arvata
+maailman akselien rajalaatikosta. Valinnan, projektitaulukon, CSV:n ja
+leikkauslistan mitat käyttävät samaa aihiotietoa.
+
+Luokitus on historiaan tallentuva metatietomuutos. Se ei invalidioi CAD-
+tai näyttöverkkovälimuistia. Tyypin summat lasketaan mallimuutoksista;
+taulukon pitkä osaerittely avataan ja lisätään DOM:iin vasta pyydettäessä.
+
 ## Vastuut
 
 ```text

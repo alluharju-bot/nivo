@@ -3,6 +3,17 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.34.0** lisää projektin omat **osatyypit ja määrälaskennan**.
+Valitse yksi tai useampi osa ja luo **Tyyppi → Uusi tyyppi**: esimerkiksi
+Laudelauta ja laskentatavaksi **Pituus · m**. Valinnan tiedoissa näkyvät
+kappalemäärä ja yhteispituus. **Valitse kaikki samantyyppiset** kokoaa tyypin osat.
+**Osat → Määrät** näyttää projektin tai ryhmän tyypit, pituuserittelyn ja CSV-viennin.
+Vaihtoehdot ovat **kpl, m ja aihioala m²**; piilotetut osat ja kopiot lasketaan
+mukaan, apugeometria jätetään pois. Kierto säilyttää pituuden. Tunnetun aihion
+työstö päivittää mitat osan omassa suunnassa; epäselvät mitat vahvistetaan käsin.
+Aihioalasta ei vähennetä aukkoja. Tyyppi luokittelee osat itsenäisesti niiden
+ryhmästä, kokoonpanosta ja geometrian linkityksestä.
+
 Versio **0.33.2** lisää yhdisteltävät **X/Y/Z**-painikkeet skaalaukseen.
 Jätä esimerkiksi **X ja Y** päälle ja kytke **Z pois**, niin leveys ja syvyys
 muuttuvat samalla kertoimella ja korkeus säilyy. Rajaus toimii myös kahvoista

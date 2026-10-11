@@ -6,6 +6,7 @@ import { bodyFromShape, createShape } from './kernel';
 import { shapeVertexReferences } from './vertexReferences';
 import { rotateMesh } from './rotateMesh';
 import type { TransformCache } from './buildCache';
+import { transformQuantityBasis } from '../model/quantityBasis';
 
 /** Rotate the exact BRep, preserving the identity of every attached vertex. */
 export function rotateBodies(
@@ -102,6 +103,15 @@ export function rotateBodies(
           ]),
         ),
       });
+      const q = new Quaternion().setFromAxisAngle(
+        new Vector3(...direction),
+        (angle * Math.PI) / 180,
+      );
+      result.quantityBasis = transformQuantityBasis(
+        body,
+        result,
+        (v) => new Vector3(...v).applyQuaternion(q).toArray() as Vec3,
+      );
       // Drawing stations use arc-length coordinates. Read their serialized
       // geometry on commit so station keys are identical after a fresh load.
       if (!previous?.mesh.curveStations)

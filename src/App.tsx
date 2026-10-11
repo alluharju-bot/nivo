@@ -159,6 +159,7 @@ import type { ToolDock } from './ui/ToolRail';
 import { removeSelection, selectionUnit, inAssembly } from './model/selection';
 import { asComponent, uniqueComponents } from './model/components';
 import { PartsWorkspace } from './ui/PartsWorkspace';
+import { QuantityProperties } from './ui/QuantityProperties';
 import { useEditor } from './useEditor';
 import {
   bounds,
@@ -587,6 +588,7 @@ export default function App() {
 
   const [renderOpen, setRenderOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
+  const [partsInitialTab, setPartsInitialTab] = useState<'exploded' | 'quantities'>('exploded');
   const [groupMove, setGroupMove] = useState<TreeMove>();
   const [groupDestination, setGroupDestination] = useState('');
   const [openingDraft, setOpeningDraft] = useState<{
@@ -3726,7 +3728,32 @@ export default function App() {
     setSurfaceMode('new');
     setRenderOpen(false);
     setPartsOpen(true);
+    setPartsInitialTab('exploded');
     setTool('select');
+  };
+  const selectQuantityParts = (ids: string[]) => {
+    activityHistory.prepare(actionContext);
+    closeRender();
+    setEditingBodyId(undefined);
+    setOpenedAssembly(undefined);
+    setSurfaceMode('new');
+    setIsolated(undefined);
+    setSelectedIds(ids);
+    setSelected(ids[0]);
+    setSelectedGroupId(undefined);
+    setSelectedFace(undefined);
+    pickedFaceRef.current = undefined;
+    setAwaitingStart(true);
+    setSelectedGuideIds([]);
+    setSelectedDimensionIds([]);
+    setSelectedMarkupIds([]);
+    setPanelOpen(true);
+    const hidden = project.bodies.filter(
+      (b) => ids.includes(b.id) && !bodyVisible(b, project.groups),
+    ).length;
+    editor.setMessage(
+      `${ids.length} osaa valittu.${hidden ? ` Näistä ${hidden} on piilossa.` : ''}`,
+    );
   };
   const dimensionSelection = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
@@ -7606,6 +7633,17 @@ export default function App() {
                     </p>
                   )}
                   {canDivideSurface && surfaceActions}
+                  {!!selectedIds.length && (
+                    <QuantityProperties
+                      key={selectedIds.join('|')}
+                      project={project}
+                      meshes={editor.meshes}
+                      ids={selectedIds}
+                      busy={busy}
+                      onChange={editor.transact}
+                      onSelect={selectQuantityParts}
+                    />
+                  )}
                   {body &&
                     selectedIds.length === 1 &&
                     !featureIsSolid(body.feature) &&
@@ -7988,6 +8026,17 @@ export default function App() {
                     </span>
                     <span>v{import.meta.env.VITE_APP_VERSION}</span>
                   </div>
+                  {!body && !selectedGroup && (
+                    <button
+                      className="button outlined full"
+                      onClick={() => {
+                        openParts();
+                        setPartsInitialTab('quantities');
+                      }}
+                    >
+                      Projektin määrät
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -8297,6 +8346,10 @@ export default function App() {
           project={project}
           meshes={editor.meshes}
           selectedGroupId={selectedGroupId}
+          initialTab={partsInitialTab}
+          busy={busy}
+          onChange={editor.transact}
+          onSelect={selectQuantityParts}
           onCutSettings={(cutting) =>
             editor.transact(
               { ...project, settings: { ...project.settings, cutting } },
@@ -8374,7 +8427,7 @@ export default function App() {
           </span>
           <span role="status">
             {partsOpen
-              ? 'Osat · räjäytyskuva ja leikkauslista · Esc palaa malliin'
+              ? 'Osat · määrät, räjäytyskuva ja leikkauslista · Esc palaa malliin'
               : renderOpen
                 ? 'Renderöinti · materiaalit ja valo · Esc palaa malliin'
                 : markupMode
@@ -8458,7 +8511,7 @@ export default function App() {
         />
         <span className="status-right">
           {partsOpen
-            ? 'Osat / leikkauslista'
+            ? 'Osat / määrät / leikkauslista'
             : renderOpen
               ? 'Esityskuva'
               : mode === 'model'
