@@ -44,6 +44,8 @@ import type { ColorPreview } from '../model/colorPreview';
 import { downloadFile, safeFilename } from '../storage/projects';
 import { createRenderScene, materialNames, type RenderSettings } from './scene';
 import { LightingPanel } from './LightingPanel';
+import { SavedRenderViews } from './SavedRenderViews';
+import type { RenderView } from '../model/renderViews';
 
 type Props = {
   onPaint: (
@@ -59,6 +61,8 @@ type Props = {
   meshes: BodyMesh[];
   selectedIds: string[];
   settings: RenderSettings;
+  views?: RenderView[];
+  onViews: (views: RenderView[]) => Promise<boolean>;
   name: string;
   busy: boolean;
   error: string;
@@ -143,7 +147,9 @@ export function RenderStage(props: Props) {
     lightingCommitRef.current = next;
     previewLighting(next);
     try {
-      if (JSON.stringify(next) !== JSON.stringify(settings)) await props.onSettings(next);
+      if (JSON.stringify(next) !== JSON.stringify(settings))
+        return (await props.onSettings(next)) !== false;
+      return true;
     } finally {
       if (lightingDraftRef.current === next) {
         lightingDraftRef.current = undefined;
@@ -1006,6 +1012,16 @@ export function RenderStage(props: Props) {
             />
           </div>
           <div className="render-tab-content" hidden={renderTab !== 'image'}>
+            <SavedRenderViews
+              views={props.views ?? []}
+              busy={busy}
+              onViews={props.onViews}
+              onCapture={() => api.current?.cameraView()}
+              onRestore={async (view) => {
+                if (await commitLighting({ ...effectiveSettings, focalLength: view.focalLength }))
+                  api.current?.restoreCameraView(view);
+              }}
+            />
             <section className="trace-controls" aria-label="Renderkameran objektiivi">
               <label className="lighting-range">
                 <span>

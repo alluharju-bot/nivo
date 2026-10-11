@@ -35,6 +35,7 @@ import { DisplayControls } from './ui/DisplayControls';
 import { selectionDescription } from './model/activity';
 import { bezierInstruction } from './model/bezier';
 import { ThroughShapesPanel } from './ui/ThroughShapesPanel';
+import { SurfaceLevelsPanel } from './ui/SurfaceLevelsPanel';
 import { CurvePointsPanel } from './ui/CurvePointsPanel';
 import { upsertGuide } from './model/guideMerge';
 import { GuidePointMenu } from './ui/GuidePointMenu';
@@ -469,6 +470,8 @@ export default function App() {
   const [penMode, setPenMode] = useState<'line' | 'bezier'>('line');
   const [bezierStyle, setBezierStyle] = useState<'smooth' | 'bezier'>('smooth');
   const [loftOpen, setLoftOpen] = useState(false);
+  const [surfaceLevelsOpen, setSurfaceLevelsOpen] = useState(false);
+  const [levelEditingId, setLevelEditingId] = useState<string>();
   const [loftIds, setLoftIds] = useState<string[]>([]);
   const [loftPreview, setLoftPreview] = useState<import('./cad/protocol').EdgeDetailResult>();
   const [penRotation, setPenRotation] = useState<PenRotation>();
@@ -1369,6 +1372,7 @@ export default function App() {
       return;
     }
     if (loftOpen && !force) {
+      if (surfaceLevelsOpen && levelEditingId) return;
       if (id) {
         const candidate = project.bodies.find((b) => b.id === id);
         if (candidate && !featureIsSolid(candidate.feature))
@@ -1633,6 +1637,8 @@ export default function App() {
   const begin = (next: Tool) => {
     if (busy) return;
     setLoftOpen(false);
+    setSurfaceLevelsOpen(false);
+    setLevelEditingId(undefined);
     setLoftPreview(undefined);
     if (next !== 'select' && next !== 'navigate') activityHistory.prepare(actionContext);
     setPartsOpen(false);
@@ -4189,6 +4195,7 @@ export default function App() {
           return;
         }
         if (loftOpen) {
+          if (surfaceLevelsOpen && levelEditingId) return;
           setLoftIds((old) => [
             ...new Set([
               ...old,
@@ -4952,7 +4959,33 @@ export default function App() {
     begin(next);
     setPanelOpen(true);
   };
+  const openSurfaceLevels = () => {
+    begin('select');
+    resetGesture();
+    setEditingBodyId(undefined);
+    setSurfaceMode('new');
+    setPanelOpen(true);
+    const existing = body?.feature.type === 'brep' && body.feature.surfaceLevels ? body : undefined;
+    setLevelEditingId(existing?.id);
+    setLoftIds(
+      existing
+        ? [existing.id]
+        : selectedIds.filter((id) =>
+            project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
+          ),
+    );
+    setSurfaceLevelsOpen(true);
+    setLoftOpen(true);
+  };
   const commands: Command[] = [
+    {
+      id: 'surface-levels',
+      label: 'Pinnan korkeudet',
+      group: 'Muodot',
+      keywords: 'kaato lattia kaivo rinne korkeus rajaus pinta',
+      reason: busy ? 'Odota laskennan valmistumista.' : undefined,
+      run: openSurfaceLevels,
+    },
     ...tools.map((t) => ({
       id: `tool-${t.id}`,
       label: t.label,
@@ -5793,6 +5826,7 @@ export default function App() {
                 setTool('select');
                 setCabinetOpen(true);
               }}
+              onSurfaceLevels={openSurfaceLevels}
               onThroughShapes={() => {
                 begin('select');
                 resetGesture();
@@ -6309,6 +6343,7 @@ export default function App() {
               detailTarget={detailTarget}
               detailPreview={tool === 'detail' ? detailPreview.result : undefined}
               surfacePreview={loftOpen ? loftPreview : undefined}
+              surfacePreviewSources={loftOpen && surfaceLevelsOpen ? loftIds : undefined}
               detailSize={offsetDistance}
               detailSizeLocked={locked.has('offset')}
               detailOperation={detailOperation}
@@ -6512,6 +6547,7 @@ export default function App() {
               onSelect={select}
               onSelectMany={(ids, additive, guideIds = [], dimensionIds = [], markupIds = []) => {
                 if (loftOpen) {
+                  if (surfaceLevelsOpen && levelEditingId) return;
                   setLoftIds(
                     [...new Set([...(additive ? loftIds : []), ...ids])].filter((id) =>
                       project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
@@ -6988,41 +7024,94 @@ export default function App() {
 
         {panelOpen && mode === 'model' && loftOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
-            <ThroughShapesPanel
-              onHelp={() => setHelp(true)}
-              bodies={project.bodies}
-              ids={loftIds}
-              onIds={setLoftIds}
-              cad={editor.cad}
-              busy={busy}
-              onPreview={setLoftPreview}
-              onClose={() => {
-                if (busy) editor.cancel();
-                setLoftOpen(false);
-                setLoftPreview(undefined);
-              }}
-              onCommit={async (result, ids, hide) => {
-                const next = { ...result.body, groupId: openedAssembly };
-                activityHistory.prepare(actionContext);
-                const ok = await editor.transact(
-                  {
-                    ...project,
-                    bodies: [
-                      ...project.bodies.map((b) =>
-                        hide && ids.includes(b.id) ? { ...b, hidden: true } : b,
-                      ),
-                      next,
-                    ],
-                  },
-                  `Muotojen läpi · ${ids.length} profiilia. Lähtömuodot säilyvät mallilistassa.`,
-                );
-                if (ok) {
+            {surfaceLevelsOpen ? (
+              <SurfaceLevelsPanel
+                key={levelEditingId ?? 'new'}
+                bodies={project.bodies}
+                ids={loftIds}
+                onIds={setLoftIds}
+                existing={project.bodies.find((b) => b.id === levelEditingId)}
+                cad={editor.cad}
+                busy={busy}
+                onPreview={setLoftPreview}
+                onClose={() => {
+                  if (busy) editor.cancel();
                   setLoftOpen(false);
                   setLoftPreview(undefined);
-                  select(next.id, undefined, false, true);
-                }
-              }}
-            />
+                }}
+                onCommit={async (result, ids, hide) => {
+                  const existing = project.bodies.find((b) => b.id === levelEditingId);
+                  if (existing && bodyLocked(existing, project.groups)) {
+                    editor.setError(
+                      'Kappale on kiinnitetty. Vapauta se ennen korkeuksien muokkaamista.',
+                    );
+                    return;
+                  }
+                  const next = {
+                    ...result.body,
+                    groupId: existing ? existing.groupId : openedAssembly,
+                  };
+                  activityHistory.prepare(actionContext);
+                  const ok = await editor.transact(
+                    {
+                      ...project,
+                      bodies: existing
+                        ? project.bodies.map((b) => (b.id === existing.id ? next : b))
+                        : [
+                            ...project.bodies.map((b) =>
+                              hide && ids.includes(b.id) ? { ...b, hidden: true } : b,
+                            ),
+                            next,
+                          ],
+                    },
+                    existing
+                      ? 'Pinnan korkeudet päivitetty.'
+                      : 'Korkeusrajauksista luotu yhtenäinen pinta.',
+                  );
+                  if (ok) {
+                    setLoftOpen(false);
+                    setLoftPreview(undefined);
+                    select(next.id, undefined, false, true);
+                  }
+                }}
+              />
+            ) : (
+              <ThroughShapesPanel
+                onHelp={() => setHelp(true)}
+                bodies={project.bodies}
+                ids={loftIds}
+                onIds={setLoftIds}
+                cad={editor.cad}
+                busy={busy}
+                onPreview={setLoftPreview}
+                onClose={() => {
+                  if (busy) editor.cancel();
+                  setLoftOpen(false);
+                  setLoftPreview(undefined);
+                }}
+                onCommit={async (result, ids, hide) => {
+                  const next = { ...result.body, groupId: openedAssembly };
+                  activityHistory.prepare(actionContext);
+                  const ok = await editor.transact(
+                    {
+                      ...project,
+                      bodies: [
+                        ...project.bodies.map((b) =>
+                          hide && ids.includes(b.id) ? { ...b, hidden: true } : b,
+                        ),
+                        next,
+                      ],
+                    },
+                    `Muotojen läpi · ${ids.length} profiilia. Lähtömuodot säilyvät mallilistassa.`,
+                  );
+                  if (ok) {
+                    setLoftOpen(false);
+                    setLoftPreview(undefined);
+                    select(next.id, undefined, false, true);
+                  }
+                }}
+              />
+            )}
           </aside>
         )}
         {panelOpen && mode === 'model' && !loftOpen && (
@@ -7885,6 +7974,18 @@ export default function App() {
                     </p>
                   )}
                   {canDivideSurface && surfaceActions}
+                  {body?.feature.type === 'brep' &&
+                    body.feature.surfaceLevels &&
+                    selectedIds.length === 1 && (
+                      <button
+                        className="button subtle full"
+                        disabled={busy || !!movementBlocked}
+                        onClick={openSurfaceLevels}
+                      >
+                        Muokkaa pinnan korkeuksia
+                      </button>
+                    )}
+
                   {!!selectedIds.length && (
                     <QuantityProperties
                       key={selectedIds.join('|')}
@@ -8625,6 +8726,10 @@ export default function App() {
           meshes={visibleMeshes}
           selectedIds={selectedIds}
           settings={project.settings.render ?? renderDefaults}
+          views={project.renderViews}
+          onViews={(renderViews) =>
+            editor.transact({ ...project, renderViews }, 'Kuvakulmat tallennettu projektiin.')
+          }
           name={project.name}
           busy={busy}
           error={editor.error}

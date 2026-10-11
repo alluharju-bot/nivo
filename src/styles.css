@@ -6835,3 +6835,74 @@ p {
     min-height: 44px;
   }
 }
+
+.level-boundaries {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+.level-boundaries li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line, #dededb);
+}
+.level-boundaries label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.level-boundaries label > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.level-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.level-value input {
+  width: 88px;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--line, #dededb);
+  border-radius: 6px;
+  background: white;
+  font: inherit;
+  color: inherit;
+  text-align: right;
+}
+.level-boundaries .loft-row-actions {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.level-slopes {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.level-slopes p {
+  margin: 5px 0;
+}
+.saved-render-views {
+  border-bottom: 1px solid var(--line, #dededb);
+  padding: 0 0 14px;
+  margin-bottom: 16px;
+}
+.saved-render-views summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.saved-view-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0;
+}
+.saved-view-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.saved-view-row button {
+  padding: 6px;
+}

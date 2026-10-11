@@ -2,6 +2,34 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.0 — pintojen korkeudet, nopea historia ja tallennetut kuvakulmat
+
+- **Muodot → Pinnan korkeudet** tekee yhtenäisen CAD-pinnan 2–12 sisäkkäisestä
+  suljetusta tasomuodosta. Suorakulmiot, ympyrät ja muut tasoprofiilit toimivat
+  rajoina. Korkeudet annetaan suhteessa ensimmäisen rajauksen piirtotasoon.
+  Sisimmän rajan voi jättää aukoksi; pohjan syvyys tekee umpiosan tasaisella alapinnalla.
+- Esikatselu näyttää muuttuvan pinnan. Jokaisesta vyöhykkeestä näytetään
+  pintaverkosta mitattu kaltevuusväli sekä nousu/lasku sisäänpäin. Tasakorkuinen
+  neliö ja ympyrä eivät tarkoita yhtä samaa kaatoprosenttia kaikkiin suuntiin.
+  Risteävät/koskettavat rajat, taittuva projektiopinta ja liian ohut pohja hylätään.
+- **Muokkaa pinnan korkeuksia** valmiin osan tiedoissa palauttaa säädöt.
+  Rajaukset tallentuvat osaan; lähdemuotojen piilottaminen tai poistaminen ei
+  riko muokkausta. Siirto, kierto, tasaskaalaus ja linkitetyt kopiot säilyttävät
+  säädöt. Muut geometriaoperaatiot viimeistelevät tavallisen CAD-osan.
+- [Käyttöohje ja rajaukset](surface-levels.fi.md). Tämä on ensimmäinen
+  korkeuksilla ohjattu pintatoiminto, ei vielä vapaa minkä tahansa osan
+  yksittäisten verteksien/reunojen muokkaus. Yhteiseen ulkoreunaan osuvat
+  sisärajat, useat kaivot ja vapaat muodonmuutokset jäävät backlogiin.
+- CAD-historia säilyttää aiempia muotoja rajatussa **64 MiB / 24 geometriaa**
+  välimuistissa. Sama muoto tallennetaan kerran kopioiden määrästä riippumatta.
+  Peru/Palauta käyttää valmista tarkkaa muotoa ja verkkoa; ylisuuri muoto
+  lasketaan edelleen normaalisti. Muistiraja on arvio, ei WASM-keon tarkka mitta.
+- Tallennushistoria käyttää muuttumattomien tilojen jo tehtyä serialisointia
+  uudelleen ja ohittaa vanhentuneet tallennuspyynnöt ennen serialisointia.
+- **Renderöi → Kuva → Kuvakulmat** tallentaa kameran, kohdepisteen ja polttovälin
+  projektiin. Nimeä napsauttamalla nimeä, palauta silmäkuvakkeella, päivitä tai
+  poista rivin kuvakkeista. Kuvakulma ei muuta mallin geometriaa.
+
 ## V0.35.0 — pintamaalaus, pipetti, kynän kulma ja renderkameran objektiivi
 
 - P:n **Koko osa / Pinta** rajaa maalauksen. Pintavalinnasta aloitettu P avaa
@@ -678,6 +706,11 @@ vähentäminen, mitatut valotehot sekä suurten sisätilojen renderin suoritusky
   tarkkuuden valinta hallitulla muistibudjetilla sekä sisätilan valaistusopastus.
 
 ## Suunnitteluehdotus — reunojen siirto ja liittyvien pintojen mukautuminen
+
+**V0.36.0:** sisäkkäisiin tasorajauksiin perustuva korkeuspinta on toteutettu
+omana toimintona (yllä). Alla kuvattu yleinen reunojen vapaa siirto on edelleen
+jatkotyötä. Tavallinen M/R/L käsittelee osaa käyttäjän myöhemmän linjauksen mukaan;
+vapaa pintamuotoilu tarvitsee oman selkeästi erottuvan toiminnon.
 
 Tavoite on **yleinen mallinnustoiminto**, ei vain kaatolattiatyökalu.
 Valitse reuna tai reunaketju (myös koko ympyrän kehä), siirrä M:llä ja

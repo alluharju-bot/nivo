@@ -1,6 +1,7 @@
 import { scaleBodies } from './scaling';
 import { sphereBody, bezierPath, knifeBodies } from './modeling';
 import { throughShapes } from './throughShapes';
+import { surfaceLevels } from './surfaceLevels';
 import { fillPenRegions } from './penRegions';
 import { penPath, splitWithPath, cutOpening, divideSurfaces, faceProfile } from './paths';
 import { CadBuildCache } from './buildCache';
@@ -71,7 +72,11 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
           request.mode,
           request.outline,
         );
-      else if (request.type === 'through-shapes')
+      else if (request.type === 'surface-levels') {
+        const result = surfaceLevels(request.profiles, request.options, request.existing);
+        detailPreview = { key: bodyMeshKey(result.body), mesh: result.mesh };
+        reply.result = result;
+      } else if (request.type === 'through-shapes')
         reply.result = throughShapes(request.profiles, request.options);
       else if (request.type === 'knife')
         reply.result = knifeBodies(request.targets, request.rays, request.curveNormal);

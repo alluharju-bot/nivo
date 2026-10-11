@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.0** lisää **Muodot → Pinnan korkeudet**: piirrä esimerkiksi lattian,
+suihkualueen ja pyöreän kaivon rajat, anna korkeudet **0 / −10 / −20 mm** ja
+muodosta yhtenäinen pinta tai paksu lattia. Korkeuksia voi muuttaa myöhemmin
+osan tiedoista. [Ohje ja esimerkkimalli](docs/surface-levels.fi.md).
+Raskaiden osien Peru/Palauta hyödyntää rajattua geometriavälimuistia.
+**Renderöi → Kuva → Kuvakulmat** tallentaa nimetyt kamerapaikat ja polttovälit projektiin.
+
 Versio **0.35.0** lisää **P → Koko osa / Pinta** -maalauksen ja **Pipetin (I)**.
 Pipetti poimii osoitetun pinnan materiaalin, sävyn, kiillon ja tekstuurin sijoittelun;
 seuraava napsautus maalaa. Myös lukitusta osasta voi poimia materiaalin.

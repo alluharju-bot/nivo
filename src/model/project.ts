@@ -1,3 +1,5 @@
+import { surfaceLevelsSchema } from './surfaceLevels';
+import { renderViewSchema } from './renderViews';
 import { drawingSheetSchema } from './drawingSheets';
 import { modelDisplaySchema } from './display';
 import { annotationStyle } from './annotationStyle';
@@ -82,6 +84,7 @@ const brepFeature = z.object({
   data: z.string().min(1).max(16_000_000),
   solid: z.boolean(),
   topologyId: id,
+  surfaceLevels: surfaceLevelsSchema.optional(),
 });
 const profileFeature = z
   .object({
@@ -373,6 +376,7 @@ export const projectSchema = z
     drawingSheets: z.array(drawingSheetSchema).max(50).optional(),
     referenceImages: z.array(referenceImageSchema).max(50).optional(),
     materials: z.array(customMaterialSchema).max(200).optional(),
+    renderViews: z.array(renderViewSchema).max(50).optional(),
     partTypes: z.array(partTypeSchema).max(1000).optional(),
     bodies: z.array(bodySchema).max(MAX_PROJECT_BODIES),
     groups: z.array(groupSchema).max(1000).default([]),
@@ -436,6 +440,7 @@ export const projectSchema = z
       p.drawingSheets ?? [],
       p.referenceImages ?? [],
       p.partTypes ?? [],
+      p.renderViews ?? [],
     ]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });

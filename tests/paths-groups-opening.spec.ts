@@ -175,7 +175,7 @@ test('quick opening previews actual targets, cuts wall layers locally and undoes
     .getByRole('checkbox', { name: 'Tee kohteista uniikkeja · muuta vain valittuja' })
     .check();
   await expect(page.getByTestId('viewport')).toHaveAttribute(
-    'data-move-hovered',
+    'data-opening-targets',
     JSON.stringify([front.id, back.id]),
   );
   await page.screenshot({ path: info.outputPath('door-opening.png') });

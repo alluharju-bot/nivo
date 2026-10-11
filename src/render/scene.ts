@@ -36,6 +36,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { BodyMesh } from '../cad/protocol';
 import { bounds, type Body, type Project } from '../model/project';
+import type { RenderView } from '../model/renderViews';
 
 export type RenderSettings = NonNullable<Project['settings']['render']>;
 export const renderDefaults: RenderSettings = { environment: 'studio', exposure: 1, shadows: true };
@@ -612,6 +613,27 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     sync,
     fit,
     settings: settingsOnly,
+    cameraView: (): Omit<RenderView, 'id' | 'name'> => ({
+      position: camera.position.toArray(),
+      target: controls.target.toArray(),
+      focalLength: current().settings.focalLength ?? defaultFocalLength,
+    }),
+    restoreCameraView(view: RenderView) {
+      camera.position.set(...view.position);
+      camera.up.set(0, 0, 1);
+      controls.target.set(...view.target);
+      const distance = camera.position.distanceTo(controls.target);
+      controls.minDistance = Math.min(controls.minDistance, distance / 2);
+      controls.maxDistance = Math.max(controls.maxDistance, distance * 2);
+      camera.near = Math.min(camera.near, distance / 10000);
+      camera.far = Math.max(camera.far, distance * 4);
+      setCameraLens(camera, view.focalLength);
+      camera.lookAt(controls.target);
+      camera.updateMatrixWorld();
+      controls.update();
+      progressive.interaction(false);
+      draw();
+    },
     trace: progressive,
     capture: async () => {
       await Promise.all([environmentReady, library.ready()]);

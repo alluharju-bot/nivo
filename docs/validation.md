@@ -1,8 +1,48 @@
-# Validointi — 11.10.2026
+# Validointi — 12.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.36.0 — korkeuspinnat, historia ja kuvakulmat
+
+454 yksikkö-/CAD-testiä hyväksytty (89 tiedostoa); yksityisen mallin erillinen
+suorituskykytesti ohitetaan tavallisessa ajossa. Paikallinen benchmark ajettiin
+erikseen. TypeScript, tuotantokäännös, lisenssit ja muuttuneiden tiedostojen
+muotoilu tarkistettu. [Mitatut ajat ja rajat](performance.md).
+
+- CAD: 2110 × 2750 mm ulkoraja, 900 × 900 mm sisäraja ja tarkka Ø100 mm aukko;
+  korkeudet 0 / −10 / −20 ja tasapohja −60. Ehjä umpiosageometria, paksuudeton
+  pinta, suljettu keskusta, tallennus/avaus, peräkkäiset korkeusmuutokset,
+  kierto, tasaskaalaus sekä kierretyt linkitetyt esiintymät.
+- Kiinnitetty kulmamittapiste seuraa rajausta kahden korkeusmuutoksen ja
+  tiedoston uudelleenavaamisen yli. Koskettavat, väärässä järjestyksessä olevat
+  ja erilliset rajat sekä liian lähellä oleva pohja hylätään. Hold estää työstön.
+- Työpöytä- ja tablettiprofiilissa korkeuspinnan esikatselu, peruuttaminen,
+  virheellinen/tyhjä syöte, työkaluvaihto, listavalinta, luonti, muokkaus,
+  selainpalautus sekä Peru/Palauta. Esimerkkimalli tuotettu testatuilla CAD-toiminnoilla.
+- Kuvakulman nimeäminen, kameran ja polttovälin palautus, tallennus, avaaminen,
+  poistaminen ja peruminen. Kohtausgeometriaa ei rakenneta uudelleen.
+  Polttoväli ja tarkentuva renderi sekä pysyvä tekstuurityökalu tarkistettu.
+- Vanhojen työkalujen regressiot: Offset → ontelo → läpireikä, pyöreiden reunojen
+  viiste ja pyöristys, kynän pinnanjako, leikkauskohteen valinta mallista,
+  syvyysrajaus, linkitetyn kohteen uniikki leikkaus, pintamaalaus/pipetti,
+  negatiivinen siirto, kopion toisto, kokoonpanot, valintasuorakulmiot ja
+  Muotojen läpi. Yksi vanha leikkaustesti korjattiin käyttämään aukon omaa
+  kohdekorostustietoa siirtotyökalun hover-tiedon sijaan; kuvan ja toiminnan
+  tarkistus vahvisti, ettei kyseessä ollut geometriavirhe.
+- Yhtenäinen CAD-ketju: tasomuoto → pursotus → offset → ontelo → pyöreä
+  läpivienti → pyöristys → materiaali → linkitetty kopio → materiaalimuutos
+  → Peru/Palauta → tiedoston avaus. Molemmat osat säilyvät ehjinä.
+- Historian 110 muokkauksen / 300 osan koe säilyttää valintakontekstin,
+  perumisen, uudelleentekemisen, uuden haaran ja 8 MiB:n tallennusrajan.
+  CAD-välimuistin budjetti, vapautus ja virheestä palautuminen on testattu.
+
+Rajoitukset: tämä ei ole vielä yleinen verteksi-/reunadeformaatio eikä monen
+kaivon ratkaisu. Kaltevuusväli on geometrinen arvio, ei virtaus- tai
+rakennusmääräyssimulaatio. Materiaalin erikseen maalatut muuttuvat pinnat
+seuraavat nykyistä CAD-pintavastaavuutta; kokonaan uudelleen muodostetut
+pinnat voivat periä osan perusmateriaalin.
 
 ## V0.35.0 — pintamaalaus, pipetti, kynän kulma ja polttoväli
 

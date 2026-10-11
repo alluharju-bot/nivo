@@ -42,6 +42,54 @@ function close(a: number[], b: number[], precision = 5) {
   expect(a.length).toBe(b.length);
   a.forEach((n, i) => expect(n).toBeCloseTo(b[i], precision));
 }
+it('undoes and redoes rotated and scaled geometry without rebuilding, with bounded retention', async () => {
+  const cache = new CadBuildCache(64 * 1024 * 1024, 2),
+    body = perforated();
+  try {
+    const [initial] = cache.build([body]);
+    const [rotated] = rotateBodies([body], [0, 0, 0], [0, 0, 1], 35, cache);
+    cache.build([rotated]);
+    const [scaled] = await scaleBodies([rotated], [0, 0, 0], [1.1, 1.1, 1.1], cache);
+    const [final] = cache.build([scaled]);
+    const mesh = vi.spyOn(kernel, 'meshBody'),
+      create = vi.spyOn(kernel, 'createShape');
+    cache.build([rotated]);
+    const [undo] = cache.build([body]);
+    close(undo.mesh.vertices, initial.mesh.vertices);
+    cache.build([rotated]);
+    const [redo] = cache.build([scaled]);
+    close(redo.mesh.vertices, final.mesh.vertices);
+    expect(kernel.shapeIsValid(redo.shape)).toBe(true);
+    expect(mesh).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(cache.historySize.geometries).toBeLessThanOrEqual(2);
+    expect(cache.historySize.estimatedBytes).toBeLessThanOrEqual(64 * 1024 * 1024);
+    cache.dispose();
+    expect(cache.historySize).toEqual({ geometries: 0, estimatedBytes: 0 });
+  } finally {
+    cache.dispose();
+  }
+});
+
+it('evicts oversized history safely and never remembers a failed build', () => {
+  const cache = new CadBuildCache(1),
+    body = makeBody(20, 30, 40);
+  try {
+    cache.build([body]);
+    const changed = { ...body, feature: { ...body.feature, width: 25 } };
+    cache.build([changed]);
+    expect(cache.historySize.geometries).toBe(0);
+    const mesh = vi.spyOn(kernel, 'meshBody');
+    cache.build([body]);
+    expect(mesh).toHaveBeenCalledTimes(1);
+    expect(() =>
+      cache.build([{ ...body, id: 'bad', feature: { ...body.feature, width: 0 } }]),
+    ).toThrow();
+    expect(kernel.shapeIsValid(cache.get(body)!.shape)).toBe(true);
+  } finally {
+    cache.dispose();
+  }
+});
 it('moves the only complex part and replaces it with a copy without retessellation; exact anchors and circles follow', () => {
   const cache = new CadBuildCache(),
     body = perforated();

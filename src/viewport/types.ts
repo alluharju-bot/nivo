@@ -132,6 +132,7 @@ export interface ViewportProps {
   detailTarget?: EdgeDetailTarget;
   detailPreview?: EdgeDetailResult;
   surfacePreview?: EdgeDetailResult;
+  surfacePreviewSources?: string[];
   detailSize: number;
   detailSizeLocked: boolean;
   detailOperation: 'fillet' | 'chamfer';

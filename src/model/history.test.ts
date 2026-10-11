@@ -85,3 +85,30 @@ it('migrates version 5 project history together with the active project', () => 
   ).toBe(true);
   expect(history.undo().version).toBe(8);
 });
+
+it('keeps repeated saves, branching, and action contexts consistent throughout a long session', () => {
+  const start = {
+    ...freshProject(),
+    bodies: Array.from({ length: 300 }, (_, i) => makeBody(48, 98, 2400, [i * 60, 0, 0])),
+  };
+  const history = new History(start);
+  for (let i = 1; i <= 110; i++) {
+    history.commit(
+      { ...history.current, name: `Vaihe ${i}` },
+      { label: `Muutos ${i}`, actionId: `action-${i}`, context: { ids: [start.bodies[0].id] } },
+    );
+    if (i % 10 === 0) history.serialize();
+  }
+  history.undo();
+  history.undo();
+  const serialized = history.serialize()!;
+  expect(new TextEncoder().encode(serialized).length).toBeLessThanOrEqual(8 * 1024 * 1024);
+  expect(history.serialize()).toBe(serialized);
+  const restored = new History(parseProject(JSON.stringify(history.current)));
+  expect(restored.restore(serialized)).toBe(true);
+  expect(restored.undoInfo?.context?.ids).toEqual([start.bodies[0].id]);
+  expect(restored.redo().name).toBe('Vaihe 109');
+  restored.commit({ ...restored.current, name: 'Uusi jatko' });
+  expect(restored.canRedo).toBe(false);
+  expect(restored.undo().name).toBe('Vaihe 109');
+});

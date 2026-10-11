@@ -7,6 +7,7 @@ import { shapeVertexReferences } from './vertexReferences';
 import { rotateMesh } from './rotateMesh';
 import type { TransformCache } from './buildCache';
 import { transformQuantityBasis } from '../model/quantityBasis';
+import { transformSurfaceLevels } from './surfaceLevelTransforms';
 
 /** Rotate the exact BRep, preserving the identity of every attached vertex. */
 export function rotateBodies(
@@ -108,6 +109,14 @@ export function rotateBodies(
         new Vector3(...direction),
         (angle * Math.PI) / 180,
       );
+      const levels = body.feature.type === 'brep' ? body.feature.surfaceLevels : undefined;
+      if (levels)
+        transformSurfaceLevels(
+          body,
+          result,
+          (s) => s.rotate(angle, pivot, direction),
+          new Vector3(...levels.normal).applyQuaternion(q).toArray() as Vec3,
+        );
       result.quantityBasis = transformQuantityBasis(
         body,
         result,

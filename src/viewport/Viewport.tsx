@@ -783,6 +783,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           scaling.factors.some((f) => Math.abs(f - 1) > 1e-10) &&
           scaling.ids.includes(object.userData.id)) ||
         (current().tool === 'detail' && current().detailPreview?.body.id === object.userData.id) ||
+        current().surfacePreview?.body.id === object.userData.id ||
+        (current().surfacePreview &&
+          current().surfacePreviewSources?.includes(object.userData.id)) ||
         (moved && !current().copyMove && selectedIds.has(object.userData.id)) ||
         (rotation &&
           !rotation.copy &&
@@ -1779,6 +1782,7 @@ export function Viewport(props: Props) {
       props.spherePreview,
       props.detailPreview,
       props.surfacePreview,
+      props.surfacePreviewSources,
       props.detailPreviewSize,
       props.faceTarget,
       props.faceDistance,

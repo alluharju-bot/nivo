@@ -5,6 +5,7 @@ import { bodyFromShape, createShape } from './kernel';
 import type { TransformCache } from './buildCache';
 import { transferFaceMaterials } from './faceMaterials';
 import { transformQuantityBasis } from '../model/quantityBasis';
+import { transformSurfaceLevels } from './surfaceLevelTransforms';
 
 /** Place a definition's exact geometry into each instance's own rigid frame. */
 export function instantiateComponents(
@@ -143,6 +144,18 @@ export function instantiateComponents(
                 result,
                 (v) => new Vector3(...v).applyQuaternion(q).toArray() as Vec3,
               );
+        const levels = source.feature.type === 'brep' ? source.feature.surfaceLevels : undefined;
+        if (levels)
+          transformSurfaceLevels(
+            source,
+            result,
+            (s) => {
+              if (Math.abs(sin) > 1e-9)
+                s = s.rotate((angle * 180) / Math.PI, from, [q.x / sin, q.y / sin, q.z / sin]);
+              return s.translate(sub(to, from));
+            },
+            new Vector3(...levels.normal).applyQuaternion(q).toArray() as Vec3,
+          );
         cache?.prepare(result, placed);
         return result;
       } finally {

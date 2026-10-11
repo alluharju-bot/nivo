@@ -3,6 +3,20 @@
 UTF-8 JSON, tunniste `format: "nivo"` ja `version: 8`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
+Valinnaiset v0.36.0-kentät:
+
+- `feature.surfaceLevels` BRep-osassa: yhteinen yksikkönormaali, 2–12
+  `boundaries`-rajausta (`name`, paikallisen nollatason suljetun CAD-viivan
+  serialisointi `wire`, `height`), `openCenter` ja `baseDepth`. Valmis BRep
+  on edelleen tarkka piirto-/työstögeometria. Resepti ei viittaa lähdeosien
+  tunnisteisiin; itsenäinen korkeuksien muokkaus onnistuu ilman niitä.
+- `renderViews`: enintään 50 nimettyä kuvakulmaa. `id`, `name`, `position`,
+  `target` ja `focalLength` (12–200 mm). Kameran paikka ja kohde eivät saa olla
+  samat. Kuvakulmien poistaminen/nimeäminen kulkee normaalin historian kautta.
+- Vanha v8-lukija voi jättää nämä valinnaiset kentät pois; BRep-geometria säilyy,
+  mutta vanhassa sovellusversiossa uudelleen tallennettu tiedosto menettää
+  korkeuksien reseptin ja nimetyt kuvakulmat.
+
 Valinnaiset v0.35.0-kentät:
 
 - `body.faceMaterials`: CAD-pinnan indeksi → `{ color, appearance }`. Puuttuva

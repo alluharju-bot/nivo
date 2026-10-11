@@ -10,6 +10,7 @@ import type { TransformCache } from './buildCache';
 import { scaledTessellation } from './scaledTessellation';
 import { transformQuantityBasis } from '../model/quantityBasis';
 import { remapFaceMaterials } from '../model/faceMaterials';
+import { transformSurfaceLevels } from './surfaceLevelTransforms';
 
 export async function scaleBodies(
   bodies: Body[],
@@ -113,6 +114,15 @@ export async function scaleBodies(
           (v) => v.map((n, i) => n * factors[i]) as Vec3,
           uniform ? factors[0] : NaN,
         );
+        const levels = body.feature.type === 'brep' ? body.feature.surfaceLevels : undefined;
+        if (levels && uniform)
+          transformSurfaceLevels(
+            body,
+            result.at(-1)!,
+            (s) => s.scale(factors[0], pivot),
+            levels.normal,
+            factors[0],
+          );
         if (cache && !previous?.mesh.curveStations) {
           // Uniform scaling keeps analytic surfaces; meshing its result is
           // already cheap. The source-first path helps the affine/NURBS case.

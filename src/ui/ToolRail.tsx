@@ -58,6 +58,7 @@ export function ToolRail({
   onShape,
   onCabinet,
   onThroughShapes,
+  onSurfaceLevels,
   dock,
   onDock,
   measureMode,
@@ -72,6 +73,7 @@ export function ToolRail({
   onShape: (shape: 'rectangle' | 'circle' | 'ellipse' | 'polygon' | 'sphere' | 'bezier') => void;
   onCabinet: () => void;
   onThroughShapes: () => void;
+  onSurfaceLevels: () => void;
   dock: ToolDock;
   onDock: (dock: ToolDock) => void;
   measureMode: MeasureMode;
@@ -394,6 +396,15 @@ export function ToolRail({
           >
             <Shapes />
             <span>Muotojen läpi</span>
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              onSurfaceLevels();
+            }}
+          >
+            <PanelsTopLeft />
+            <span>Pinnan korkeudet</span>
           </button>
           <button
             onClick={() => {

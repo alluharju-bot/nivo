@@ -8,11 +8,70 @@ import { translateMesh } from './translateMesh';
 type Entry = { key: string; geometry: string; origin: Vec3; shape: AnyShape; mesh: BodyMesh };
 type Prepared = { key: string; shape: AnyShape; mesh?: BodyMesh };
 
+function retainedMeshBytes(value: unknown, seen = new Set<object>()): number {
+  if (typeof value === 'string') return value.length * 2;
+  if (!value || typeof value !== 'object') return 8;
+  if (seen.has(value)) return 0;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    if (!value.length || typeof value[0] === 'number') return 32 + value.length * 8;
+    return 32 + value.reduce((bytes, item) => bytes + 8 + retainedMeshBytes(item, seen), 0);
+  }
+  return (
+    48 +
+    Object.values(value).reduce<number>(
+      (bytes, item) => bytes + 8 + retainedMeshBytes(item, seen),
+      0,
+    )
+  );
+}
+
 /** Owns CAD wrappers. A placement change reuses the previous exact shape and
  * tessellation, including when the first/only instance in the scene moves. */
 export class CadBuildCache {
   private entries = new Map<string, Entry>();
   private prepared = new Map<string, Prepared>();
+  // One representative per geometry, not one copy per placed instance. Old
+  // versions are useful for undo/redo and own their CAD wrappers until evicted.
+  private retained = new Map<string, { entry: Entry; bytes: number }>();
+  private retainedBytes = 0;
+
+  constructor(
+    private historyBudget = 64 * 1024 * 1024,
+    private historyLimit = 24,
+  ) {}
+
+  get historySize() {
+    return { geometries: this.retained.size, estimatedBytes: this.retainedBytes };
+  }
+
+  private forget(geometry: string) {
+    const old = this.retained.get(geometry);
+    if (!old) return;
+    old.entry.shape.delete();
+    this.retainedBytes -= old.bytes;
+    this.retained.delete(geometry);
+  }
+
+  private retain(entry: Entry) {
+    // Deleting a copied assembly can retire thousands of identical instances.
+    // Count/store its geometry once, not once per instance.
+    if (this.retained.has(entry.geometry)) {
+      entry.shape.delete();
+      return;
+    }
+    // Include serialized geometry, JS arrays/metadata and a conservative CAD
+    // allowance. Native OCCT allocations are not directly measurable in JS.
+    const bytes = entry.geometry.length * 4 + retainedMeshBytes(entry.mesh);
+    if (bytes > this.historyBudget || this.historyLimit < 1) {
+      entry.shape.delete();
+      return;
+    }
+    this.retained.set(entry.geometry, { entry, bytes });
+    this.retainedBytes += bytes;
+    while (this.retainedBytes > this.historyBudget || this.retained.size > this.historyLimit)
+      this.forget(this.retained.keys().next().value!);
+  }
 
   get(body: Body) {
     const entry = this.entries.get(body.id);
@@ -42,9 +101,10 @@ export class CadBuildCache {
   build(bodies: Body[], preview?: { key: string; mesh: BodyMesh }): Entry[] {
     const next = new Map<string, Entry>(),
       allocated: AnyShape[] = [];
-    const templates = new Map<string, Entry>();
-    for (const entry of this.entries.values())
-      if (!templates.has(entry.geometry)) templates.set(entry.geometry, entry);
+    const templates = new Map<string, Entry>(
+      [...this.retained].map(([key, value]) => [key, value.entry]),
+    );
+    for (const entry of this.entries.values()) templates.set(entry.geometry, entry);
     try {
       for (const body of bodies) {
         const key = bodyMeshKey(body),
@@ -79,7 +139,15 @@ export class CadBuildCache {
       allocated.forEach((shape) => shape.delete());
       throw error;
     }
-    for (const [id, entry] of this.entries) if (next.get(id) !== entry) entry.shape.delete();
+    const activeGeometry = new Set([...next.values()].map((entry) => entry.geometry));
+    // Release restored versions before making room for the state we left; doing
+    // this afterward would evict an extra undo version at the budget boundary.
+    for (const geometry of activeGeometry) this.forget(geometry);
+    for (const [id, entry] of this.entries) {
+      if (next.get(id) === entry) continue;
+      if (activeGeometry.has(entry.geometry)) entry.shape.delete();
+      else this.retain(entry);
+    }
     this.entries = next;
     this.clearPrepared();
     return [...next.values()];
@@ -89,6 +157,7 @@ export class CadBuildCache {
     this.clearPrepared();
     for (const entry of this.entries.values()) entry.shape.delete();
     this.entries.clear();
+    for (const geometry of this.retained.keys()) this.forget(geometry);
   }
 }
 

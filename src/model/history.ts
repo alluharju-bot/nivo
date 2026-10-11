@@ -10,6 +10,7 @@ export class History {
   private future: Project[] = [];
   private weights = new WeakMap<Project, number>();
   private actions = new WeakMap<Project, ActionInfo>();
+  private packed = new WeakMap<Project, { info?: ActionInfo; data: string; bytes: number }>();
   get undoInfo() {
     return this.actions.get(this.current);
   }
@@ -118,17 +119,26 @@ export class History {
     // Encode each retained snapshot and asset once. Repeatedly stringifying the
     // entire history while trimming it freezes large models on every edit.
     const encoder = new TextEncoder();
-    const pack = (p: Project) =>
-      JSON.stringify({
+    const pack = (p: Project) => {
+      const info = this.actions.get(p),
+        cached = this.packed.get(p);
+      if (cached && cached.info === info) return cached;
+      const data = JSON.stringify({
         ...p,
         assets: p.assets ? Object.keys(p.assets) : undefined,
-        _history: this.actions.get(p),
+        _history: info,
       });
+      const packed = { info, data, bytes: encoder.encode(data).length };
+      // Immutable snapshots share their encoding between saves. Oversized
+      // projects cannot fit the journal, so do not retain a second large string.
+      if (packed.bytes <= MAX_SAVED_BYTES) this.packed.set(p, packed);
+      return packed;
+    };
     const current = pack(this.current),
       past: string[] = [],
       future: string[] = [];
     const assets = new Map<string, string>();
-    let bytes = encoder.encode(current).length + 70;
+    let bytes = current.bytes + 70;
     const extraAssets = (p: Project) =>
       Object.entries(p.assets ?? {})
         .filter(([id]) => !assets.has(id))
@@ -155,7 +165,7 @@ export class History {
         data = pack(project),
         addedAssets = extraAssets(project);
       const size =
-        encoder.encode(data).length +
+        data.bytes +
         1 +
         addedAssets.reduce((sum, [, value]) => sum + encoder.encode(value).length + 1, 0);
       if (bytes + size > maxBytes) {
@@ -166,9 +176,9 @@ export class History {
       }
       bytes += size;
       keepAssets(addedAssets);
-      destination.unshift(data);
+      destination.unshift(data.data);
     }
-    const data = `{"version":2,"assets":{${[...assets.values()].join(',')}},"current":${current},"past":[${past.join(',')}],"future":[${future.join(',')}]}`;
+    const data = `{"version":2,"assets":{${[...assets.values()].join(',')}},"current":${current.data},"past":[${past.join(',')}],"future":[${future.join(',')}]}`;
     return encoder.encode(data).length <= maxBytes ? data : undefined;
   }
 

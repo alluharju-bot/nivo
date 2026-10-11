@@ -1,5 +1,39 @@
 # Mallinnusnäkymän suorituskyky
 
+## V0.36.0 — geometrian historia, 12.10.2026
+
+Peru/Palauta säilyttää aiemman tarkan CAD-muodon ja näyttöverkon rajatussa
+välimuistissa. Sama geometria lasketaan kerran, vaikka siitä olisi monta kopiota.
+Nykyisen mallin lisäksi muistissa pidetään enintään 24 vanhaa geometriaa ja
+64 MiB:n laskennallisen budjetin verran dataa. Vanhimmat poistetaan ensin.
+Yksittäinen liian suuri versio ohittaa välimuistin. Vapautukset poistavat
+CAD-kääreet; epäonnistunut rakennus säilyttää edellisen ehjän välimuistin.
+
+| Rei'itetyn kiukaan kierto Z 30°, historian CAD-vaihe | Ilman säilytystä | Säilytyksellä |
+| ---------------------------------------------------- | ---------------: | ------------: |
+| Peru                                                 |       4 147,7 ms |       36,1 ms |
+| Palauta                                              |       4 140,1 ms |       35,0 ms |
+
+Sama 725-pintainen osa kuin aiemmassa paikallisessa kiuasvertailussa, Apple M1 Pro /
+16 Gt, Node 24.14.0 ja OCCT WASM. Mitattu vain `CadBuildCache.build`, ei selaimen
+näkymäpäivitystä, työntekijäviestejä, historian tallennusta tai varsinaista
+kierto-/skaalausoperaatiota. Yksi vertailupari; mittauksen aikana ei ajettu
+rinnakkaisia selaintestejä. Säilytetyn geometrian muistiarvio noin 57,7 MiB.
+[Raaka-ajat](benchmarks/v0360-undo.json) sisältävät vain mittaustiedot.
+
+Muistiarvio laskee numerojonot ja metatiedot sekä varauksen serialisoidulle
+geometrialle ja CAD-rakenteelle. Se **ei ole WASM-keon tarkka muistimittaus**.
+Nollasiirtymä palauttaa saman näyttöverkon; historiallisia osia ei kopioida
+uudelleen pelkän identtisen palautuksen vuoksi. Vanha versio ei säily ikuisesti:
+kun budjetti täyttyy tai worker käynnistyy uudelleen, tarvittava osa lasketaan
+normaalisti. Raskaan osan ensimmäinen akseliskaalaus tarvitsee yhä CAD-laskennan.
+
+Tallennushistoria käyttää muuttumattomien projektitilojen koodauksia uudelleen.
+Vanhentuneet jonopyynnöt ohitetaan ennen serialisointia. 110 muokkauksen / 300 osan
+stressitestissä viimeiset Peru/Palauta-vaiheet, valintakonteksti, uusi haara ja
+8 MiB:n tallennusraja säilyvät. Nykyisen mallin tallennus on edelleen atominen
+historian kanssa, ja tallennustilan loppuessa tallennetaan ensisijaisesti malli.
+
 ## V0.33.1 — raskaiden osien muunnokset, 10.10.2026
 
 Siirto rakensi aiemmin myös yksittäisen kiukaan geometrian ja koko piirtoverkon

@@ -1,0 +1,24 @@
+{
+  "environment": {
+    "date": "2026-10-12",
+    "machine": "Apple M1 Pro, 16 GB",
+    "runtime": "Node 24.14.0, OCCT WASM",
+    "scope": "CadBuildCache.build only; 725-face perforated part; one comparison pair; no parallel browser/tests"
+  },
+  "withoutRetention": {
+    "undoMs": 4147.672916,
+    "redoMs": 4140.1365829999995,
+    "faces": 725,
+    "edgeSegments": 58786,
+    "geometries": 0,
+    "estimatedBytes": 0
+  },
+  "retained": {
+    "undoMs": 36.0779999999977,
+    "redoMs": 34.97299999999814,
+    "faces": 725,
+    "edgeSegments": 58786,
+    "geometries": 1,
+    "estimatedBytes": 60470094
+  }
+}

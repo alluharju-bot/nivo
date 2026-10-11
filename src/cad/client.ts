@@ -131,6 +131,18 @@ export class CadClient {
   throughShapes(profiles: Body[], options: import('./throughShapes').ThroughShapesOptions) {
     return this.request<EdgeDetailResult>({ type: 'through-shapes', profiles, options });
   }
+  surfaceLevels(
+    profiles: Body[],
+    options: import('../model/surfaceLevels').SurfaceLevelOptions,
+    existing?: Body,
+  ) {
+    return this.request<import('./surfaceLevels').SurfaceLevelsResult>({
+      type: 'surface-levels',
+      profiles,
+      options,
+      existing,
+    });
+  }
   knife(targets: Body[], rays: import('./modeling').KnifeRay[], curveNormal?: Vec3) {
     return this.request<import('./modeling').KnifeResult>({
       type: 'knife',

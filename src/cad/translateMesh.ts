@@ -3,6 +3,7 @@ import type { Vec3, VertexAnchor } from '../model/project';
 
 /** Repeated CAD parts share topology. Positions and anchor ownership remain per-part. */
 export function translateMesh(mesh: BodyMesh, id: string, delta: Vec3): BodyMesh {
+  if (mesh.id === id && delta.every((n) => n === 0)) return mesh;
   const point = (p: Vec3) => p.map((n, i) => n + delta[i]) as Vec3;
   const positions = (values: number[]) => values.map((n, i) => n + delta[i % 3]);
   const anchor = (a: VertexAnchor) => ({ ...a, bodyId: id });

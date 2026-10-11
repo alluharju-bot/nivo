@@ -87,6 +87,12 @@ export interface SectionResult {
 }
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
+  | {
+      type: 'surface-levels';
+      profiles: Body[];
+      options: import('../model/surfaceLevels').SurfaceLevelOptions;
+      existing?: Body;
+    }
   | { type: 'scale'; bodies: Body[]; pivot: Vec3; factors: Vec3 }
   | { type: 'sphere'; center: Vec3; radius: number; name: string }
   | {
@@ -152,6 +158,7 @@ export interface ProbeResult {
 export interface CadReply {
   id: number;
   result?:
+    | import('./surfaceLevels').SurfaceLevelsResult
     | import('./penRegions').PenRegions
     | SectionResult
     | BodyMesh[]

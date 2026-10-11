@@ -37,12 +37,12 @@ export function useEditor() {
   const persist = useCallback(
     (next: Project) => {
       const r = ++saveRevision.current;
-      const snapshot = history.serialize();
       setSaveStatus('Tallennetaan…');
       saveQueue.current = saveQueue.current
         .catch(() => {})
         .then(async () => {
           if (r !== saveRevision.current) return;
+          const snapshot = history.serialize();
           const historySaved = await saveLocal(next, snapshot);
           if (r === saveRevision.current)
             setSaveStatus(
