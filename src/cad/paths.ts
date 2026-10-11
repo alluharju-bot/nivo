@@ -30,7 +30,7 @@ import { rotateVector } from '../model/transforms';
 import { sketchFrame, frameV } from '../model/sketch';
 import type { BodyMesh, SplitResult } from './protocol';
 import { splitFace } from './operations';
-import { cutShapes } from './cut';
+import { cutShapes, cutResultState } from './cut';
 
 /** An open pen path is exact wire geometry, never an implicitly closed face. */
 export function penPath(points: Vec3[], name: string): Body {
@@ -304,20 +304,16 @@ export function cutOpening(
       const source = createShape(body);
       let result: AnyShape | undefined;
       try {
-        const before = solidVolume(source);
         result = cutShapes(source, tools);
         if (!shapeIsValid(result)) throw new Error('Aukko ei muodosta ehjää leikkausta.');
-        const solids = result.solids;
-        const empty = !solids.length;
-        solids.forEach((s) => s.delete());
-        const volume = empty ? 0 : solidVolume(result);
-        if (Math.abs(volume - before) < Math.max(1e-7, before * 1e-10)) return [body];
+        const { empty, changed } = cutResultState(source, result);
+        if (!changed) return [body];
         if (body.locked)
           throw new Error(
             `Aukko osuu kiinnitettyyn osaan ”${body.name}”. Vapauta Hold tai poista osa kohteista.`,
           );
         affected.add(body.id);
-        return volume > 1e-7 ? [bodyFromShape(body, result)] : [];
+        return empty ? [] : [bodyFromShape(body, result)];
       } finally {
         result?.delete();
         source.delete();

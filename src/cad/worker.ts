@@ -24,6 +24,7 @@ import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
 import { detailEdges, removeEdgeTreatment } from './details';
 import { instantiateComponents } from './components';
+import { removeSurfaceFaces } from './surfaces';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 const cache = new CadBuildCache();
@@ -83,6 +84,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = cutOpening(request.profile, request.targets, request.options);
       else if (request.type === 'face-profile')
         reply.result = faceProfile(request.body, request.face);
+      else if (request.type === 'remove-faces')
+        reply.result = removeSurfaceFaces(request.body, request.faces, cache);
       else if (request.type === 'divide-surfaces')
         reply.result = divideSurfaces(request.profile, request.targets);
       else if (request.type === 'instances')

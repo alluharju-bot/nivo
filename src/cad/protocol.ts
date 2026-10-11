@@ -127,6 +127,7 @@ export type CadRequest =
   | { type: 'offset-face'; body: Body; face: FaceRef; distance: number }
   | { type: 'offset-outline'; body: Body; face: FaceRef; distance: number }
   | { type: 'remove-boundary'; body: Body; faces: [FaceRef, FaceRef] }
+  | { type: 'remove-faces'; body: Body; faces: FaceRef[] }
   | {
       type: 'edge-detail';
       body: Body;

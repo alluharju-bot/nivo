@@ -1,5 +1,33 @@
-import { cast, getOC, type AnyShape } from 'replicad';
-import { exactBounds } from './kernel';
+import { cast, getOC, measureArea, type AnyShape, type Shape3D } from 'replicad';
+import { exactBounds, solidVolume } from './kernel';
+
+function hasFaces(shape: AnyShape) {
+  const oc = getOC();
+  const explorer = new oc.TopExp_Explorer(
+    shape.wrapped,
+    oc.TopAbs_ShapeEnum.TopAbs_FACE,
+    oc.TopAbs_ShapeEnum.TopAbs_SHAPE,
+  );
+  try {
+    return explorer.More();
+  } finally {
+    explorer.delete();
+  }
+}
+
+/** A cut may remove only a loose surface, or leave one after all solids are gone. */
+export function cutResultState(source: AnyShape, result: AnyShape) {
+  const empty = !hasFaces(result);
+  if (empty) return { empty, changed: true };
+  const before = solidVolume(source),
+    after = solidVolume(result);
+  if (Math.abs(after - before) >= Math.max(1e-7, before * 1e-12)) return { empty, changed: true };
+  const area = measureArea(source as Shape3D);
+  return {
+    empty,
+    changed: Math.abs(measureArea(result as Shape3D) - area) >= Math.max(1e-7, area * 1e-12),
+  };
+}
 
 type Box = ReturnType<typeof exactBounds>;
 const disjoint = (a: Box, b: Box) =>
@@ -43,10 +71,7 @@ export function cutShapes(source: AnyShape, tools: AnyShape[]): AnyShape {
         const next = cast(operation.Shape());
         result.delete();
         result = next;
-        const solids = result.solids;
-        const empty = !solids.length;
-        solids.forEach((s) => s.delete());
-        if (empty) break;
+        if (!hasFaces(result)) break;
       } finally {
         operation.delete();
       }

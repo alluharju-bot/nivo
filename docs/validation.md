@@ -4,6 +4,27 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.34.1 — paksuudettoman keskialueen poistaminen
+
+436 yksikkö-/CAD-testiä hyväksytty (83 tiedostoa). Pinnanjakoon, valintaan,
+muokkaustilaan, Cut-leikkaukseen ja pinnan poistoon liittyvät 28 selaintapausta
+hyväksytty työpöytä- ja tablettiprofiileissa. TypeScript, tuotantokäännös,
+muotoilu ja lisenssitarkistus hyväksytty.
+
+- Selaimessa ympyrä → 8 mm ulkokehä → 50 mm pursotus → muokkaustila →
+  keskialueen valinta → X ja Delete. Keskialue poistuu, seinämät ja tilavuus
+  säilyvät. Peru/Palauta ja uudelleenavaus tarkistettu.
+- Samankokoinen 40 mm sylinterileikkuri poistaa paksuudettoman keskikiekon,
+  vaikka tilavuus ei muutu ja leikkurin pää on samassa tasossa keskikiekon kanssa.
+- Molempiin suuntiin tehty offset, vino piirtotaso, osittainen pintaleikkaus,
+  Leikkaa aukko, ohi menevä leikkuri ja leikkaussarjan jatkaminen sen jälkeen,
+  kun vain tasopintoja on jäljellä. Myös 90 leikkurin regressiotestit hyväksytty.
+- Poisto ennen pursotusta tuottaa rengasprofiilin, joka pursottuu ontoksi.
+  Erilliset piirrosreunat ja linkitettyjen kopioiden sijoittelu säilyvät.
+- Hold ja vanhentunut pintaviite hylätään. Umpinaisen osan kuorta ei rikota.
+  Muokkaustilassa Delete ilman pintavalintaa ei poista koko osaa; tavallinen
+  osan poistaminen muokkaustilan ulkopuolella toimii edelleen.
+
 ## V0.34.0 — osatyypit ja määrälaskenta
 
 428 yksikkö-/CAD-testiä hyväksytty (82 tiedostoa). Määrälaskennan 10

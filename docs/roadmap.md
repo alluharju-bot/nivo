@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.34.1 — offset-kehän keskialueen poistaminen, 11.10.2026
+
+- Osan muokkaustilassa tavallinen napsautus valitsee pinnan. X/Delete,
+  oikean reunan Poista pinta ja kontekstivalikko poistavat valitun
+  paksuudettoman alueen; koko osaa ei poisteta vahingossa pintavalinnan puuttuessa.
+  Muokkaustilan ulkopuolella tavallinen osavalinta ja Shift-monivalinta säilyvät.
+- Toimii sekä jaetulle 2D-luonnokselle että pursotetun kehän keskelle jäävälle
+  tasoalueelle. Kehän tilavuus, muut pinnat ja erilliset viivat säilyvät.
+  Umpinaisen osan kuorta ei avata tällä komennolla. Hold, linkitetyt kopiot,
+  tallennus ja Peru/Palauta käyttävät tavallista muutosketjua.
+- Cut ja Leikkaa aukko tunnistavat myös pinta-alan muutoksen. Pelkän
+  tilavuuden vertailu palautti aiemmin alkuperäisen osan ja johti virheelliseen
+  ”Työstökappaleet eivät leikkaa kohteita” -ilmoitukseen. Jäljelle jäävät
+  tasopinnat säilyvät myös silloin, kun leikkaus poistaa kaikki tilavuusosat.
+- Jatko: useiden pinta-alueiden valinta yhdellä kertaa. Shiftin viitehaku
+  Push/Pullissa säilyy nykyisenä.
+
 ## V0.34.0 — osatyypit ja määrälaskenta, 11.10.2026
 
 - Projektikohtaiset nimetyt tyypit ja laskentatapa kpl / m / aihioala m².
@@ -842,7 +859,7 @@ sen yli. Epäselvästä toiminnasta kysytään ennen kyseisen muutoksen toteutus
 - Ympyrän ja yksinkertaisen sylinterin säde/halkaisija muokattavaksi myös
   luonnin jälkeen. Keskipiste säilytetään ja siihen voi tarttua. Ensimmäinen
   kokonaisuus ei yritä palauttaa mielivaltaisesti leikatun BRepin parametreja.
-- **Poista pinta** tarkoittaa tässä yksitasoisen muodon valittujen alueiden
+- **Poista pinta** (yhden alueen poisto toteutettu v0.34.1) tarkoittaa yksitasoisen muodon valittujen alueiden
   poistoa: esimerkiksi sisäympyrä pois kiekosta, jolloin jää rengaspinta.
   Sama koskee suorakulmioita ja muita suljettuja tasomuotoja sekä monivalintaa.
   Tämä ei ole läpireikäoperaatio eikä automaattinen umpinaisen osan kuoren avaus.

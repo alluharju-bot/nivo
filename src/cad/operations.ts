@@ -19,7 +19,7 @@ import {
   solidVolume,
 } from './kernel';
 import type { SplitResult } from './protocol';
-import { cutShapes } from './cut';
+import { cutShapes, cutResultState } from './cut';
 import type { TransformCache } from './buildCache';
 import { shapeFaces } from './topology';
 
@@ -333,15 +333,11 @@ export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' |
     const cutters = tools.map((b) => keep(createShape(b).asShape3D()));
     return targets.flatMap((body) => {
       const source = keep(createShape(body).asShape3D());
-      const before = solidVolume(source);
       const result = keep(cutShapes(source, cutters));
       if (!shapeIsValid(result)) throw new Error('Leikkaus ei muodosta ehjää kappaletta.');
-      const solids = result.solids,
-        hasSolids = solids.length > 0;
-      solids.forEach((s) => s.delete());
-      const volume = hasSolids ? solidVolume(result) : 0;
-      if (volume < 1e-7) return [];
-      if (Math.abs(volume - before) < Math.max(1e-7, before * 1e-12)) return [body];
+      const { empty, changed } = cutResultState(source, result);
+      if (empty) return [];
+      if (!changed) return [body];
       return [bodyFromShape(body, result)];
     });
   } finally {

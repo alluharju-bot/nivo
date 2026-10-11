@@ -104,6 +104,9 @@ export class CadClient {
   pushPull(body: Body, face: FaceRef, distance: number) {
     return this.request<Body>({ type: 'push-pull', body, face, distance });
   }
+  removeFaces(body: Body, faces: FaceRef[]) {
+    return this.request<Body[]>({ type: 'remove-faces', body, faces });
+  }
   faceSpan(body: Body, face: FaceRef, point?: Vec3) {
     return this.request<FaceSpan>({ type: 'face-span', body, face, point });
   }

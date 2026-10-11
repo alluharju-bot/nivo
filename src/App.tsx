@@ -1370,7 +1370,9 @@ export default function App() {
           : undefined,
     );
     pickedFaceRef.current = id && face ? { bodyId: id, face } : undefined;
-    setSelectedFace(force ? face : undefined);
+    // In an opened part, a click selects a surface region. Outside it, keep
+    // ordinary whole-part selection and Shift's existing multi-part behavior.
+    setSelectedFace(force || (editingBodyId === id && !extend) ? face : undefined);
     setAwaitingStart(true);
     setMeasureMenu(false);
     resetGesture();
@@ -3329,6 +3331,26 @@ export default function App() {
   const removeBody = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
     if (busy) return;
+    if (editingBodyId && tool === 'select' && ids.length) {
+      if (!body || body.id !== editingBodyId || !selectedFace) {
+        editor.setMessage('Valitse poistettava pinta. Lopeta muokkaus poistaaksesi koko osan.');
+        return;
+      }
+      let kept = true;
+      if (
+        await editor.transact(async () => {
+          requireMovable([body], project.groups);
+          const result = await editor.cad.removeFaces(body, [selectedFace]);
+          kept = result.length > 0;
+          return kept
+            ? { ...project, bodies: project.bodies.map((b) => (b.id === body.id ? result[0] : b)) }
+            : removeSelection(project, [body.id]);
+        }, 'Pinta poistettu. Peru palauttaa sen.')
+      ) {
+        select(kept ? body.id : undefined, undefined, false, true);
+      }
+      return;
+    }
     if (
       !ids.length &&
       !selectedGuideIds.length &&
@@ -4699,7 +4721,10 @@ export default function App() {
                 ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }]
                 : []),
               {
-                label: `Poista valinta (${selectedIds.length})`,
+                label:
+                  editingBodyId && selectedFace
+                    ? 'Poista pinta'
+                    : `Poista valinta (${selectedIds.length})`,
                 run: () => void removeBody(),
                 reason: movementBlocked,
                 disabled: busy || !selectedIds.length,
@@ -7730,7 +7755,9 @@ export default function App() {
                           : featureIsSolid(body.feature)
                             ? 'CAD-kappale'
                             : 'Tasoluonnos'}
-                        {selectedFace ? ` · ${faceNames[selectedFace] ?? 'Valittu pinta'}` : ''}
+                        {selectedFace
+                          ? ` · ${editingBodyId ? 'Valittu pinta · X / Delete' : (faceNames[selectedFace] ?? 'Valittu pinta')}`
+                          : ''}
                       </span>
                       <div className="dimensions-grid">
                         <div>
@@ -7793,11 +7820,13 @@ export default function App() {
                               <Copy size={15} /> Kopioi
                             </button>
                             <button
-                              aria-label="Poista kappale"
-                              disabled={busy || !!movementBlocked}
+                              aria-label={editingBodyId ? 'Poista pinta' : 'Poista kappale'}
+                              disabled={
+                                busy || !!movementBlocked || (!!editingBodyId && !selectedFace)
+                              }
                               onClick={() => void removeBody()}
                             >
-                              <Trash2 size={15} /> Poista
+                              <Trash2 size={15} /> {editingBodyId ? 'Poista pinta' : 'Poista'}
                             </button>
                           </div>
                           <div className="selection-actions object-quick-actions primary-object-actions">

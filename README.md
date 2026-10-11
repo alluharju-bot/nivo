@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.34.1** korjaa offset-kehän keskelle jäävän paksuudettoman pinnan
+poistamisen. Avaa osa muokattavaksi, napsauta keskialuetta ja paina **X/Delete**
+tai **Poista pinta**. Myös **Cut** ja **Leikkaa aukko** tunnistavat pelkän
+pinta-alueen poistumisen, vaikka kappaleen tilavuus ei muutu. Peru palauttaa
+pinnan. Umpinaisen osan seinäpinnat säilyvät; niiden aukot tehdään Push/Pullilla
+tai leikkaamalla.
+
 Versio **0.34.0** lisää projektin omat **osatyypit ja määrälaskennan**.
 Valitse yksi tai useampi osa ja luo **Tyyppi → Uusi tyyppi**: esimerkiksi
 Laudelauta ja laskentatavaksi **Pituus · m**. Valinnan tiedoissa näkyvät
