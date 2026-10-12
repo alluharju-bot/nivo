@@ -1,3 +1,4 @@
+import { watchGraphicsContext, contextLostMessage } from '../viewport/graphicsContext';
 import { defaultFocalLength } from './cameraLens';
 import { EmissionControls } from '../ui/EmissionControls';
 import { SurfaceMaps } from '../ui/MaterialSurface';
@@ -163,6 +164,10 @@ export function RenderStage(props: Props) {
   const [exportMode, setExportMode] = useState<'quick' | 'path'>('quick');
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
+  const [graphicsError, setGraphicsError] = useState('');
+  const [generation, retryGraphics] = useState(0);
+  const recoveredView =
+    useRef<ReturnType<ReturnType<typeof createRenderScene>['cameraView']>>(undefined);
   const [renderTab, setRenderTab] = useState<'material' | 'lighting' | 'image'>('material');
   const [traceOptions, setTraceOptions] = useState<TraceOptions>(traceDefaults);
   const [trace, setTrace] = useState<TraceStatus>({ state: 'off', samples: 0 });
@@ -249,17 +254,39 @@ export function RenderStage(props: Props) {
     onTraceStatus: setTrace,
   };
   useEffect(() => {
+    let unwatch: (() => void) | undefined;
     try {
+      setGraphicsError('');
       api.current = createRenderScene(host.current!, () => latest.current);
       api.current.sync();
+      api.current.trace.configure(traceOptions);
+      if (recoveredView.current)
+        api.current.restoreCameraView({ ...recoveredView.current, id: 'recovered', name: '' });
+      const canvas = host.current!.querySelector('canvas')!;
+      unwatch = watchGraphicsContext(
+        canvas,
+        () => {
+          api.current?.trace.stop();
+          setGraphicsError(contextLostMessage);
+        },
+        () => retryGraphics((n) => n + 1),
+      );
+      // Render mode starts with the live raster view, then refines at rest.
+      // After a GPU reset leave refinement off until the user opts in again.
+      if (!generation && !props.renderJobActive && bodies.length) void api.current.trace.start();
     } catch (e) {
-      setError((e as Error).message);
+      console.error('Nivo: renderöintinäkymän alustus epäonnistui', e);
+      api.current?.dispose();
+      api.current = undefined;
+      setGraphicsError(e instanceof Error ? e.message : 'Renderöintinäkymän alustus epäonnistui.');
     }
     return () => {
+      unwatch?.();
+      recoveredView.current = api.current?.cameraView();
       api.current?.dispose();
       api.current = undefined;
     };
-  }, []);
+  }, [generation]);
   useEffect(() => {
     api.current?.sync();
     api.current?.color(props.colorPreview);
@@ -468,6 +495,14 @@ export function RenderStage(props: Props) {
     <section className="render-workspace" aria-label="Renderöinti">
       <div className="render-view">
         <div ref={host} className="render-host" />
+        {graphicsError && (
+          <div className="viewport-error" role="alert">
+            <p>{graphicsError}</p>
+            <button className="button outlined" onClick={() => retryGraphics((n) => n + 1)}>
+              Yritä 3D-näkymää uudelleen
+            </button>
+          </div>
+        )}
         <div className="render-toolbar">
           <button
             className="button subtle"
@@ -1120,24 +1155,7 @@ export function RenderStage(props: Props) {
                 </button>
               </div>
               <div className="trace-options" hidden={trace.state === 'off'}>
-                <label>
-                  Esikatselun tarkkuus
-                  <select
-                    aria-label="Esikatselun tarkkuus"
-                    value={traceOptions.quality}
-                    onChange={(e) => {
-                      const next = {
-                        ...traceOptions,
-                        quality: e.target.value as TraceOptions['quality'],
-                      };
-                      setTraceOptions(next);
-                      api.current?.trace.configure(next);
-                    }}
-                  >
-                    <option value="draft">Kevyt</option>
-                    <option value="full">Täysi</option>
-                  </select>
-                </label>
+                <p className="muted">Tarkkuus kasvaa automaattisesti kameran pysähdyttyä.</p>
                 <label>
                   Tarkennuksen tavoite
                   <select
@@ -1272,7 +1290,7 @@ export function RenderStage(props: Props) {
                   onClick={async () => {
                     setExporting(true);
                     try {
-                      api.current?.trace.stop();
+                      api.current?.trace.release();
                       const snapshot = await api.current?.capture();
                       if (snapshot)
                         props.onStartRender(

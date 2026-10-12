@@ -61,7 +61,10 @@ test('an imported colored texture stays colored in progressive and background pa
   await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
     timeout: 100_000,
   });
-  await expect(page.getByTestId('render-canvas')).toHaveAttribute('data-trace-tiles', '1');
+  await expect(page.getByTestId('render-canvas')).toHaveAttribute(
+    'data-trace-presentation',
+    'whole-frame',
+  );
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Tallenna tarkentuva kuva PNG', exact: true }).click();
   const file = await pending;

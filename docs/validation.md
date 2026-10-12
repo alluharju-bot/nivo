@@ -4,6 +4,35 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.2 — automaattinen renderi ja WebGL-palautuminen
+
+468 yksikkö-/CAD-testiä hyväksytty (92 tiedostoa); kaksi yksityisen tiedoston
+vaativaa testiä ohitetaan tavallisessa yksikkötestiajossa. Renderi- ja
+palautumistesteissä hyväksyttiin 15 työpöytä- ja 6 tablettiprofiilin tapausta
+(työpöydän määrään sisältyy paikallinen yksityisen mallin testi).
+
+- Tarkennus alkaa automaattisesti ilman kameran liikuttamista ja kasvattaa
+  resoluutiota. Peruutettu orbit vapauttaa tarkennuksen; kameraa liikutettaessa
+  näytteet nollautuvat ja jatko alkaa karkeasta kuvasta.
+- GPU-erien jono odottaa edellisen erän valmistumista lukitsematta JavaScriptiä.
+  Laaja, korkea, Retina- ja 8K-näkymä pysyvät esikatselun pikselibudjetissa.
+- WebGL2-kontekstin luonnin estäminen ja uudelleenyritys; todellinen
+  `WEBGL_lose_context` molemmissa näkymissä, grafiikan palautus, osan säilyminen
+  tiedostossa ja renderkameran asento. Kameraa verrataan liukulukutoleranssilla.
+- Materiaalitekstuurien värit sekä esikatselussa että ladatussa PNG-kuvassa;
+  PBR-pintojen lataus, valotus, aurinko, varjot ja muuttumaton geometriavälimuisti.
+- Kolme esikatselun ja kuvatyön vuorottelua: GL-tekstuurien määrä pysyy samana
+  jokaisen vapautuksen jälkeen. Kuvalaskennan peruminen ja jatkuminen
+  mallinnusnäkymässä; todellinen PNG-tiedosto tarkistetaan pikselitasolla.
+- Yksityinen 176 osan saunamalli testattu paikallisesti, 2× pikselitiheydellä.
+  Esikatselu saavutti 1999 × 1500 / 8 näytettä, orbit nollasi tarkennuksen,
+  tarkennus jatkui pysähtymisen jälkeen ja suljettu konteksti vapautui.
+  Mallia tai sen kuvia ei sisällytetä julkaisuun.
+
+Kaatumisen alkuperäistä GPU- tai käyttöjärjestelmälokia ei ollut saatavilla.
+Korjaukset rajaavat havaittuja kuormitusriskejä; ne eivät takaa toipumista
+selaimen tai näytönohjainprosessin kaikista mahdollisista kaatumisista.
+
 ## V0.36.1 — aihiomitat, reunapoiminta ja renderin kirkkauspiikit
 
 465 yksikkö-/CAD-testiä hyväksytty (90 tiedostoa); kaksi paikallisen tiedoston

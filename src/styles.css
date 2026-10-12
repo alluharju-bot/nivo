@@ -1121,6 +1121,7 @@ p {
 }
 .viewport-error {
   position: absolute;
+  z-index: 20;
   inset: 100px 30px auto;
   background: white;
   padding: 20px;

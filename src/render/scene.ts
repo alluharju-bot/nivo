@@ -37,6 +37,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { BodyMesh } from '../cad/protocol';
 import { bounds, type Body, type Project } from '../model/project';
 import type { RenderView } from '../model/renderViews';
+import { createRenderer } from '../viewport/graphicsContext';
 
 export type RenderSettings = NonNullable<Project['settings']['render']>;
 export const renderDefaults: RenderSettings = { environment: 'studio', exposure: 1, shadows: true };
@@ -64,7 +65,7 @@ type Props = {
 
 export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   const scene = new THREE.Scene();
-  const renderer = new THREE.WebGLRenderer({
+  const renderer = createRenderer({
     antialias: true,
     preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
@@ -126,6 +127,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   let extent = 100,
     initialized = false;
   const draw = (materials = false, invalidate = true) => {
+    if (disposed || renderer.getContext().isContextLost()) return;
     renderer.render(scene, camera);
     if (invalidate) progressive.invalidate(false, materials);
     else progressive.display();
@@ -253,7 +255,6 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   };
   let previousModel: RenderModel | undefined;
   let sceneBuilds = 0;
-  let prepareTimer = 0;
   const sync = () => {
     const next = current();
     if (canUpdateSurfaces(previousModel, next)) {
@@ -445,8 +446,6 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     canvas.dataset.bodyCount = String(model.children.length);
     canvas.dataset.sceneBuilds = String(++sceneBuilds);
     previousModel = { ...next };
-    clearTimeout(prepareTimer);
-    prepareTimer = window.setTimeout(() => progressive.prepare(), 600);
   };
   let previousLighting = '';
   let previousEnvironment: RenderSettings['environment'] | undefined;
@@ -711,7 +710,6 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     },
     dispose() {
       disposed = true;
-      clearTimeout(prepareTimer);
       progressive.dispose();
       observer.disconnect();
       cancelAnimationFrame(cameraFrame);

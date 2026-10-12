@@ -2,6 +2,29 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.2 — automaattisesti tarkentuva esikatselu ja grafiikan palautuminen
+
+- Renderöi näyttää heti nopean kuvan ja aloittaa tarkentumisen automaattisesti.
+  Kameran liikkuessa käytetään nopeaa kuvaa. Pysähdyttyä aloitustarkkuus on
+  enintään 640 px pidemmältä sivulta, sitten resoluutio kasvaa vaiheittain.
+  Kevyt/Täysi-valinta poistuu; Nopea säilyy tarkentumisen poiskytkentään.
+- Kokonainen edellinen näyte säilyy näkyvissä, kun seuraavaa lasketaan pienissä
+  erissä. Näkyvää ruutu ruudulta pyyhkäisyä ei tehdä. GPU-jonossa on enintään
+  yksi laskentaerä. Esikatselu on enintään 3 MP / 2560 px pidemmältä sivulta;
+  erillinen kuvarenderi säilyttää käyttäjän valitseman kuvakoon.
+- Esikatselun resurssit vapautetaan ennen erillisen kuvatyön aloittamista.
+  Kirjaston puuttuvia vapautuksia täydennetään, käyttämättömät pienkuvapuskurit
+  jätetään 1 × 1 -kokoon ja täysruutulaskennan tarpeettomat syvyyspuskurit poistuvat.
+- WebGL-yhteyden katkeaminen erotetaan tuen puuttumisesta. Selain saa palauttaa
+  yhteyden, ja näkymässä on myös uudelleenyritys. Renderin kuvakulma säilyy;
+  palautumisen jälkeen tarkennus käynnistetään itse, jotta sama raskas työ ei
+  ala välittömästi uudelleen. Mallinnusnäkymä vapauttaa suljetun kontekstinsa.
+
+Jatkoon: syvyys- ja normaalitietoinen kohinanpoisto sekä kameran liikkeen
+huomioiva aiempien näytteiden uudelleenkäyttö. Ohuet LEDit, peilit, lasi ja
+pienet saumakohdat tarvitsevat vertailutestit, jotta suodatus ei hävitä detaljeja
+tai levitä valoa esteiden läpi. Nämä eivät kuulu tähän julkaisuun.
+
 ## V0.36.1 — aihiomitat, reunojen valinta ja kaarevalle pinnalle piirtäminen
 
 - Aihiomitat tallentuvat myös profiloituihin ja BRep-osiin ilman osatyypin

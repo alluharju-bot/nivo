@@ -3,7 +3,7 @@ import { ready } from './helpers';
 import { makeBody } from '../src/model/project';
 import { defaultAppearance } from '../src/model/materials';
 
-test('refinement starts at rest, switches to full resolution, and recovers a cancelled camera drag', async ({
+test('refinement starts at rest, automatically increases resolution, and recovers a cancelled camera drag', async ({
   page,
 }, info) => {
   test.skip(
@@ -18,24 +18,17 @@ test('refinement starts at rest, switches to full resolution, and recovers a can
   const canvas = page.getByTestId('render-canvas');
   const quick = await canvas.screenshot();
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
-  await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
   const status = page.getByTestId('trace-status');
   await expect(status).toContainText('Tavoite saavutettu', { timeout: 120000 });
   await expect(canvas).toHaveAttribute('data-trace-opacity', '1');
-  const draftSize = await canvas.getAttribute('data-trace-size');
   expect((await canvas.screenshot()).equals(quick)).toBe(false);
-  await page.getByLabel('Esikatselun tarkkuus', { exact: true }).selectOption('full');
-  await expect(status).toContainText('Tavoite saavutettu', { timeout: 120000 });
   const fullSize = await canvas.evaluate(
     (el) => `${(el as HTMLCanvasElement).width}x${(el as HTMLCanvasElement).height}`,
   );
   await expect(canvas).toHaveAttribute('data-trace-size', fullSize);
-  expect(fullSize).not.toBe(draftSize);
-  await expect(canvas).toHaveAttribute('data-trace-opacity', '1');
-  await page.getByLabel('Esikatselun tarkkuus', { exact: true }).selectOption('draft');
-  await expect(status).toContainText('Tavoite saavutettu');
-  await expect(canvas).toHaveAttribute('data-trace-opacity', '1');
+  expect(Number(await canvas.getAttribute('data-trace-resolution-step'))).toBeGreaterThan(0);
+  await expect(page.getByLabel('Esikatselun tarkkuus', { exact: true })).toHaveCount(0);
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('0');
   await page.getByRole('button', { name: 'Tauota renderöinti', exact: true }).click();
   await expect(status).toContainText('Tauolla');
@@ -51,7 +44,8 @@ test('refinement starts at rest, switches to full resolution, and recovers a can
   // Losing focus can swallow pointerup. It must not require another orbit to resume.
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   await expect(canvas).toHaveAttribute('data-trace-interactive', 'false');
-  await expect(status).toContainText('Tavoite saavutettu');
+  await expect(canvas).toHaveAttribute('data-trace-resolution-step', '0');
+  await expect(status).toContainText('Tavoite saavutettu', { timeout: 120000 });
   await page.mouse.up({ button: 'right' });
   // A normal release may also lose capture; the gate must stay open.
   await expect(canvas).toHaveAttribute('data-trace-interactive', 'false');

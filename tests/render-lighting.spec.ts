@@ -185,7 +185,6 @@ test('sun changes resume refinement without rebuilding geometry or reuploading P
   await expect(canvas).toHaveAttribute('data-trace-samples', '8');
   expect((await canvas.screenshot()).equals(natural)).toBe(false);
   await expect(canvas).toHaveAttribute('data-trace-scene-builds', builds!);
-  await page.getByLabel('Esikatselun tarkkuus', { exact: true }).selectOption('full');
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('256');
   await expect(canvas).toHaveAttribute('data-trace-samples', '256', { timeout: 180_000 });
   await expect(canvas).toHaveAttribute('data-trace-opacity', '1');

@@ -48,6 +48,7 @@ import { surfaceFaceRanges } from './faceRanges';
 import { faceColors, selectedFaceMaterial } from './faceFeedback';
 import { faceMaterialBody } from '../model/faceMaterials';
 import { createTriangleIndex } from './triangleIndex';
+import { createRenderer, watchGraphicsContext, contextLostMessage } from './graphicsContext';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   capture: () => Promise<Blob>;
@@ -69,16 +70,16 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   markupOverlay.classList.add('model-markups');
   markupOverlay.setAttribute('aria-label', 'Pinta-alueet ja huomautukset');
   let lastMarkupContent = '';
-  container.append(markupOverlay);
   const scene = new THREE.Scene();
   const bodyBatches = createBodyBatches(scene);
   const moveBatches = createBodyBatches(scene, true);
   scene.background = new THREE.Color('#eaece6');
-  const renderer = new THREE.WebGLRenderer({
+  const renderer = createRenderer({
     antialias: true,
     alpha: false,
     logarithmicDepthBuffer: true,
   });
+  container.append(markupOverlay);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.localClippingEnabled = true;
   renderer.shadowMap.enabled = true;
@@ -168,6 +169,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     }
   };
   const renderNow = () => {
+    if (disposed || renderer.getContext().isContextLost()) return;
     textureEditor?.update();
     // Keep useful depth precision at CAD scales instead of a fixed 1:10,000,000 range.
     const distance = camera.position.distanceTo(clippingSphere.center),
@@ -1627,9 +1629,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     current,
     render,
   });
-  resize();
-  sync();
-  return {
+  const result: SceneApi = {
     capture: async () => {
       await materialLibrary.ready();
       if (disposed) throw new Error('Mallinnusnäkymä on suljettu.');
@@ -1709,9 +1709,18 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       metalEnvironment?.dispose();
       key.shadow.dispose();
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
     },
   };
+  try {
+    resize();
+    sync();
+    return result;
+  } catch (error) {
+    result.dispose();
+    throw error;
+  }
 }
 
 export function Viewport(props: Props) {
@@ -1720,19 +1729,36 @@ export function Viewport(props: Props) {
     api = useRef<SceneApi | undefined>(undefined);
   const hadGeometry = useRef(false);
   const [error, setError] = useState('');
+  const [generation, retry] = useState(0);
   latest.current = props;
   useEffect(() => {
+    let unwatch: (() => void) | undefined;
     try {
+      setError('');
       api.current = makeScene(host.current!, () => latest.current);
       latest.current.onCaptureReady?.(api.current.capture);
-    } catch {
-      setError('3D-näkymä tarvitsee WebGL2-tuen. Tarkista selaimen laitteistokiihdytys.');
+      if (generation && latest.current.meshes.length) api.current.command({ id: 0, type: 'fit' });
+      const canvas = host.current!.querySelector('canvas')!;
+      unwatch = watchGraphicsContext(
+        canvas,
+        () => setError(contextLostMessage),
+        () => {
+          setError('');
+          api.current?.sync();
+          api.current?.preview();
+        },
+      );
+    } catch (cause) {
+      console.error('Nivo: 3D-näkymän alustus epäonnistui', cause);
+      setError(cause instanceof Error ? cause.message : '3D-näkymän alustus epäonnistui.');
     }
     return () => {
       latest.current.onCaptureReady?.(undefined);
+      unwatch?.();
       api.current?.dispose();
+      api.current = undefined;
     };
-  }, []);
+  }, [generation]);
   useEffect(() => {
     api.current?.sync();
     api.current?.interactionSync();
@@ -1849,12 +1875,16 @@ export function Viewport(props: Props) {
     if (props.command) api.current?.command(props.command);
   }, [props.command]);
   return (
-    <div className="viewport" ref={host}>
+    <>
+      <div className="viewport" ref={host} />
       {error && (
         <div className="viewport-error" role="alert">
-          {error}
+          <p>{error}</p>
+          <button className="button outlined" onClick={() => retry((n) => n + 1)}>
+            Yritä 3D-näkymää uudelleen
+          </button>
         </div>
       )}
-    </div>
+    </>
   );
 }

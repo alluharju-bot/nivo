@@ -45,8 +45,11 @@ test('PBR changes retain geometry, exposure retains samples and prepared renderi
     (c) =>
       !!(c as HTMLCanvasElement).getContext('webgl2')?.getExtension('KHR_parallel_shader_compile'),
   );
-  if (native)
-    await expect(canvas).toHaveAttribute('data-trace-prepared', 'true', { timeout: 30000 });
+  await expect
+    .poll(async () => Number(await canvas.getAttribute('data-trace-samples')), {
+      timeout: native ? 30000 : 120000,
+    })
+    .toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
   const started = Date.now();
   await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();

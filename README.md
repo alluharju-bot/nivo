@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.2** aloittaa renderin kevyesti ja tarkentaa kuvaa automaattisesti
+kameran pysähdyttyä. Erillinen Kevyt/Täysi-valinta poistuu. Kameraa liikuttaessa
+palataan heti nopeaan esikatseluun; näkyvä kuva päivittyy kokonaisina näytteinä.
+GPU-laskenta ja esikatselun kuvakoko ovat rajattuja. Grafiikkayhteyden katkeamisesta
+voi palautua projektia tyhjentämättä, ja renderkamera säilyy palautuksessa.
+
 Versio **0.36.1** tallentaa myös profiloitujen osien aihiomitat automaattisesti.
 Pituus on pisin mitta; linkitetyt kopiot jakavat mitat. Pyöristys ja viiste
 säilyttävät aihion ilman uutta tarkistuspyyntöä. **F** valitsee nykyisiä reunoja,

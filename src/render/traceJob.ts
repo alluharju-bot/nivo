@@ -4,6 +4,7 @@ import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
 import { configureEmitterSampling } from './emitterSampling';
 import { traceDenoise } from './traceDenoise';
+import { traceResources } from './traceResources';
 
 export type RenderJobOptions = { width: number; samples: number; denoise?: boolean };
 export type RenderJobProgress = {
@@ -50,6 +51,7 @@ export async function renderSnapshot(
     tracer: WebGLPathTracer | undefined,
     environment: GradientEquirectTexture | undefined;
   const pendingGPU: WebGLSync[] = [];
+  let resources: ReturnType<typeof traceResources> | undefined;
   const { width, samples: target } = options,
     height = Math.max(1, Math.round(width / snapshot.aspect));
   const started = performance.now();
@@ -100,6 +102,8 @@ export async function renderSnapshot(
     configureTraceEnvironment(environment, snapshot.scene);
     snapshot.scene.environment ??= environment;
     tracer = new WebGLPathTracer(renderer);
+    resources = traceResources(tracer);
+    resources.resize(width, height);
     tracer.tiles.set(Math.ceil(width / 256), Math.ceil(height / 256));
     tracer.bounces = 16;
     tracer.transmissiveBounces = 12;
@@ -192,7 +196,8 @@ export async function renderSnapshot(
       const gl = renderer.getContext() as WebGL2RenderingContext;
       pendingGPU.forEach((fence) => gl.deleteSync(fence));
     }
-    tracer?.dispose();
+    if (resources) resources.dispose();
+    else tracer?.dispose();
     denoise.dispose();
     environment?.dispose();
     snapshot.dispose();

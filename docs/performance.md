@@ -1,4 +1,39 @@
-# Mallinnusnäkymän suorituskyky
+# Suorituskyky
+
+## V0.36.2 — tarkentuvan esikatselun kuormitus, 12.10.2026
+
+Esikatselu aloittaa enintään 640 px:n pidemmästä sivusta ja kasvattaa resoluutiota
+1,5-kertaisin askelin. Lopullinen esikatselu on enintään 3 000 000 pikseliä ja
+2560 px pidemmältä sivulta. Pienemmällä näytöllä päädytään natiivikokoon.
+Kameraa liikutettaessa näytetään rasterikuva ja seuraava tarkennus alkaa taas
+pienestä kuvasta. Kuvaviennin erillisen laskentatyön koko säilyy ennallaan.
+
+Yksi GPU-erä sisältää enintään 256 × 256 säteenseurattavaa pikseliä. Seuraavaa
+erää ei lähetetä ennen edellisen valmistumista (`fenceSync`, ei odottavaa
+`finish`-kutsua). Vain kokonainen näyte kopioidaan näkyväksi. Erillinen valmis
+kuva säilyttää esikatselun myös resoluutiota kasvatettaessa, joten ruutujen
+laskentajärjestys ei näy käyttäjälle. Suodatus ei muuta kerättyä valodataa.
+
+Kolme RGBA32F-kertymäpuskuria ja yksi valmis kuva vievät enimmäistarkkuudella
+laskennallisesti noin 192 MB (183 MiB) väripuskurimuistia. Tämä **ei ole koko
+sovelluksen GPU-muistinkäyttö**: mukana ovat lisäksi materiaalikartat, geometria,
+varjot ja selaimen piirtoalusta. Esikatselun materiaalikartasto on erikseen
+rajattu enintään 128 MiB:iin. Käyttämätöntä kirjaston pienkuvaa ei suurenneta
+ja täysruutulaskennan syvyyspuskurit on poistettu.
+
+Ennen erillistä kuvatyötä esikatselun kertymä, kartasto, BVH-tekstuurit ja
+sisäiset taustatekstuurit vapautetaan. Pinned-kirjaston `dispose` ei yksin
+vapauta näitä kaikkia. Three-version taulukkotekstuurin omistaja haetaan
+rendereristä, koska `texture.renderTarget` voi olla null: pelkkä
+`texture.dispose()` ei silloin vapauta kartaston framebufferia.
+
+Kolmen esikatselu–kuvavienti-kierroksen WebGL-testissä esikatselukontekstin
+elossa olevien GPU-tekstuurien määrä palautui joka kerralla arvoon **14 / 14 / 14**.
+Tämä on yhden testimallin resurssivuodon regressiotesti, ei tavuraportti.
+Yksityinen 176 osan projekti tarkentui Retina-emuloinnissa kokoon **1999 × 1500**,
+kamera liikkui tarkennuksen keskeltä ja mallinnukseen paluu vapautti renderin
+WebGL-kontekstin. Testi ei ole yleinen FPS-lupaus eikä varmenna käyttäjän
+alkuperäisen selainkaatumisen täsmällistä syytä.
 
 ## V0.36.0 — geometrian historia, 12.10.2026
 
