@@ -31,6 +31,22 @@ Käyttäjän tarkennus 12.10.2026. Suunniteltu jatkokehitys; ei vielä toteutett
   muokkaustila; viitteen vaihto ja peruminen. Aloituspiste, aktiivinen pinta
   ja viitekappale säilyvät oikeina koko eleen ja numerosyötön ajan.
 
+## V0.36.9 — kynän tartunta pinnan jakamista varten
+
+- Jaetulta reunalta alkavan viivan pinta ratkaistaan osan oman geometrian
+  perusteella ennen muiden osien tai mittaviivojen viitteitä. Lähellä oleva
+  ylempi piste ei enää estä oikean piirtopinnan tunnistusta perspektiivissä.
+- Saman pinnan reuna on vahva kohde. Reunaan kuuluvat kulmat, keskipisteet ja
+  apuviivaristeykset säilyvät täsmällisinä; myös pinnan keskipistettä voi käyttää
+  välipisteenä. Reunasta reunaan päättyvä viiva jakaa muokattavan pinnan heti.
+- X/Y/Z-, Shift- ja R-suunnassa haetaan suunnan ja reunan todellinen risteys.
+  Vino reuna ei jätä päätepistettä hiiren projektion vuoksi pinnan sisäpuolelle.
+- Numerosyöttö ohittaa tartunnan. Liian lyhyeksi kirjoitettua viivaa ei jatketa
+  reunaan automaattisesti. Tietoinen Shift-viite voi edelleen olla eri tasossa;
+  vapaa piirto voi yhä liittyä kolmiulotteisiin pisteisiin.
+- Komponentin muokkausraja ja lukitus säilyvät. Yllä oleva laajempi
+  Shift-aloitusviitekehys on edelleen erillinen suunniteltava kokonaisuus.
+
 ## V0.36.8 — siirto osan omien suuntien mukaan
 
 - Siirtosuunnat poimitaan tartuttavan osan todellisista CAD-reunoista.

@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.9** parantaa kynän pinnanjakoa: piirtopinta tunnistetaan osan
+omista reunoista ennen ulkopuolisia viitteitä. Saman pinnan reunat, kulmat ja
+keskipisteet saavat etusijan lähellä oleviin tason ulkopuolisiin pisteisiin.
+Lukittu suunta tarttuu reunan todelliseen risteykseen. Kirjoitettu mitta
+ohittaa tartunnan; Shiftin viitepoiminta ja vapaa kolmiulotteinen piirto säilyvät.
+
 Versio **0.36.8** siirtää vinoa osaa sen omien reunojen suuntaisesti.
 Magentan suuntalinjan näkee osan läpi. Kirjoitettu mitta ja ruudukon askel
 lasketaan tätä suuntaa pitkin; positiivinen mitta seuraa vetoa.

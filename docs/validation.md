@@ -4,6 +4,28 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.9 — kynän pinnanjako ja reunatartunta
+
+489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).
+124 selaintapausta hyväksytty: 62 työpöydällä ja 62 tablettiprofiilissa.
+Tuotantobuild `/nivo/`-polulle ja muutettujen tiedostojen muotoilu tarkistettu.
+
+- Virhe toistettiin ennen korjausta: komponentin yläpinnan vastareunaa
+  osoitettaessa 8 mm ylempänä oleva mittaviivan piste vei päätepisteen väärälle
+  tasolle ja esti pinnanjaon. Korjattu tapaus toimii perspektiivissä sekä
+  vapaasti että heti ensimmäisen pisteen jälkeen Y-akselille lukittuna.
+- Reuna–reuna, kulma–reuna, kulma–kulma ja keskipiste–keskipiste jakavat pinnan
+  ensimmäisellä yrityksellä ylhäältä ja perspektiivissä myös hieman reunan
+  viereen osoitettaessa. Komponentti säilyy yhtenä osana; Undo palauttaa lähteen.
+- Vinoreunaisessa osassa X-, Shift- ja R-lukitus päätyvät samaan tarkkaan
+  risteykseen [950, 200, 50], vaikka kohdistin on pisteen [948, 208, 50] kohdalla.
+  Kirjoitettu 930 mm jää 930 mm:iin eikä muuta alkuperäistä pintaa.
+- Pinnankeskipiste toimii välipisteenä; seuraava reuna päättää jaon. Aiemmat
+  apuviivaristeykset, negatiivisten suuntien mitat, Shift-projektiot eri
+  korkeuksista, vinot loft-pinnat ja kaivon ympärille piirretyt kaadot säilyvät.
+- Lukitus, komponentin muokkausraja, pinnan jatkokäsittely Push/Pullilla,
+  tallennus, uudelleenlataus ja Peru/Palauta tarkistettu selaimessa.
+
 ## V0.36.8 — vino siirto ja magenta suuntapalaute
 
 489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).

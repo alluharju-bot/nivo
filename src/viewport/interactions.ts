@@ -1409,12 +1409,14 @@ export function installInteractions({
   const edgeAt = (
     event: PointerEvent,
     accepts: (point: Vec3, bodyId: string) => boolean = () => true,
+    acceptsEdge: (edge: ReferenceEdge) => boolean = () => true,
   ) => {
     setRay(event);
     const rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
     const candidates = referenceEdges(event)
+      .filter(acceptsEdge)
       .map(({ mesh, edge, synthetic, curve, key }) => {
         const point = new THREE.Vector3();
         raycaster.ray.distanceSqToSegment(
@@ -1788,6 +1790,103 @@ export function installInteractions({
           }
         : undefined)
     );
+  };
+  const penSurfaceEdge = (reference: ReferenceEdge) => {
+    const target = drawingTarget;
+    return (
+      !!target &&
+      reference.mesh.id === target.bodyId &&
+      [reference.edge.start, reference.edge.end].every(
+        (point) => Math.abs(dot(sub(point, target.point), target.normal)) < 1e-5,
+      ) &&
+      (!reference.edge.circle ||
+        Math.abs(dot(reference.edge.circle.normal, target.normal)) > 1 - 1e-6)
+    );
+  };
+  const onPenEdge = (point: Vec3, edge: ReferenceEdge['edge']) =>
+    Math.hypot(
+      ...sub(
+        point,
+        edge.circle
+          ? onCurve(point, edge)
+          : closestOnSnapLine(point, { id: 'edge', points: [edge.start, edge.end], mode: 'free' }),
+      ),
+    ) < 1e-5;
+  const penBoundaryAt = (
+    event: PointerEvent,
+    start: Vec3,
+    direction: Vec3,
+    reference?: Vec3,
+  ): Snap | undefined => {
+    if (
+      !drawingTarget ||
+      Math.abs(dot(direction, drawingTarget.normal)) > 1e-6 ||
+      Math.abs(dot(sub(start, drawingTarget.point), drawingTarget.normal)) > 1e-5
+    )
+      return;
+    const rect = canvas.getBoundingClientRect();
+    const candidates = referenceEdges(event)
+      .filter(penSurfaceEdge)
+      .flatMap(({ edge, key }) => {
+        if (reference && !onPenEdge(reference, edge)) return [];
+        const point = guideEdgeIntersection(
+          { id: 'pen-direction', points: [start, add(start, direction)] },
+          edge,
+        );
+        if (!point || Math.hypot(...sub(point, start)) < 1e-6) return [];
+        const p = screen(point),
+          distance = Math.hypot(p.x - event.clientX + rect.left, p.y - event.clientY + rect.top);
+        return p.z >= -1 && p.z <= 1 && distance <= snapRadius(event, 'line') && visiblePoint(point)
+          ? [{ point, distance, edge, key }]
+          : [];
+      })
+      .sort((a, b) => a.distance - b.distance);
+    const picked = candidates[0];
+    if (!picked) return;
+    highlightEdge(picked.edge);
+    return {
+      point: picked.point,
+      key: `${picked.key}:pen-boundary`,
+      label: 'Pinnan reuna · suunnan risteys',
+      line: [picked.edge.start, picked.edge.end],
+    };
+  };
+  /** On-surface drawing prefers its own boundary before nearby off-plane references.
+   * Shift remains a deliberate 3D reference search; without a nearby surface
+   * candidate the pen can still draw freely to a real off-plane anchor. */
+  const penReferenceAt = (event: PointerEvent, start: Vec3): Snap | undefined => {
+    const accepts = (point: Vec3) => Math.hypot(...sub(point, start)) > 1e-6;
+    if (
+      !drawingTarget ||
+      Math.abs(dot(sub(start, drawingTarget.point), drawingTarget.normal)) > 1e-5 ||
+      shift ||
+      current().axis ||
+      current().penRotation
+    )
+      return referenceAt(event, accepts);
+    const onPlane = (point: Vec3) =>
+      accepts(point) &&
+      Math.abs(dot(sub(point, drawingTarget!.point), drawingTarget!.normal)) < 1e-5;
+    const edge = edgeAt(event, (point) => onPlane(point), penSurfaceEdge);
+    const planar = referenceAt(event, onPlane);
+    if (edge) {
+      const onEdge = planar && onPenEdge(planar.point, edge.edge);
+      const p = planar && screen(planar.point),
+        rect = canvas.getBoundingClientRect();
+      const deliberatelyAimed =
+        p &&
+        Math.hypot(p.x - event.clientX + rect.left, p.y - event.clientY + rect.top) <= 2 &&
+        edge.distance > 6;
+      if (planar && (onEdge || deliberatelyAimed)) return planar;
+      highlightEdge(edge.edge);
+      return {
+        point: edge.point,
+        key: edge.key,
+        label: 'Pinnan reuna',
+        line: [edge.edge.start, edge.edge.end],
+      };
+    }
+    return planar ?? referenceAt(event, accepts);
   };
   let dimensionSession:
     | {
@@ -2635,7 +2734,47 @@ export function installInteractions({
       lastPenPoint = picked.point;
       return picked.point;
     }
-    const found = referenceAt(event, (point) => Math.hypot(...sub(point, start)) > 1e-6);
+    // An edge belongs to two faces. Resolve the intended face from this part's
+    // surface/boundary before an unrelated guide can influence the drawing plane.
+    if (props.penPoints.length === 1 && drawingTarget && !shiftDirection && !props.penRotation) {
+      const targetId = drawingTarget.bodyId;
+      const hit = faceAt(event);
+      const sourcePoint = nearest(
+        event,
+        false,
+        (point, key) => key.startsWith(`${targetId}:`) && Math.hypot(...sub(point, start)) > 1e-6,
+        true,
+      );
+      const sourceEdge = sourcePoint
+        ? undefined
+        : edgeAt(event, (point, id) => id === targetId && Math.hypot(...sub(point, start)) > 1e-6);
+      const through =
+        sourcePoint?.point ??
+        sourceEdge?.point ??
+        (hit?.target.bodyId === targetId ? hit.target.point : undefined);
+      const mesh = props.meshes.find((m) => m.id === targetId);
+      if (through && mesh) {
+        setRay(event);
+        const face = contextualFace(
+          mesh,
+          start,
+          raycaster.ray.direction.clone().negate().toArray() as Vec3,
+          through,
+        );
+        if (
+          face &&
+          face.ref !== drawingTarget.face &&
+          (!props.axis || Math.abs(dot(face.normal, axisVector(props.axis))) < 1e-6)
+        ) {
+          drawingTarget = { bodyId: mesh.id, face: face.ref, normal: face.normal, point: start };
+          drawingPlane = sketchFrame(start, face.normal);
+          canvas.dataset.sketchPlane = JSON.stringify(face.normal);
+          props.onSketchPlane(drawingPlane, drawingTarget);
+          highlightFace(drawingTarget, true);
+        }
+      }
+    }
+    const found = penReferenceAt(event, start);
     if (props.penRotation) {
       const rotation = props.penRotation;
       const raw = framePoint(event, rotation.frame);
@@ -2644,7 +2783,11 @@ export function installInteractions({
       const angle = turning ? penAngle(rotation.frame, raw) : rotation.angle;
       if (turning) props.onPenAngle(angle);
       const direction = penAngleDirection({ ...rotation, angle });
-      const picked = event.shiftKey ? found : undefined;
+      const boundary =
+        !turning && (!event.shiftKey || found)
+          ? penBoundaryAt(event, start, direction, event.shiftKey ? found?.point : undefined)
+          : undefined;
+      const picked = boundary ?? (event.shiftKey ? found : undefined);
       let distance = turning
         ? Math.hypot(...sub(raw, start))
         : dot(sub(picked?.point ?? linePoint(event, start, direction), start), direction);
@@ -2665,30 +2808,6 @@ export function installInteractions({
       props.onPenHover(point);
       lastPenPoint = point;
       return point;
-    }
-    if (props.penPoints.length === 1 && drawingTarget && !props.axis && !shiftDirection) {
-      const targetId = drawingTarget.bodyId;
-      const hit = faceAt(event);
-      const through =
-        found?.point ??
-        (hit?.target.bodyId === drawingTarget.bodyId ? hit.target.point : undefined);
-      const mesh = props.meshes.find((m) => m.id === targetId);
-      if (through && mesh) {
-        setRay(event);
-        const face = contextualFace(
-          mesh,
-          start,
-          raycaster.ray.direction.clone().negate().toArray() as Vec3,
-          through,
-        );
-        if (face && face.ref !== drawingTarget.face) {
-          drawingTarget = { bodyId: mesh.id, face: face.ref, normal: face.normal, point: start };
-          drawingPlane = sketchFrame(start, face.normal);
-          canvas.dataset.sketchPlane = JSON.stringify(face.normal);
-          props.onSketchPlane(drawingPlane, drawingTarget);
-          highlightFace(drawingTarget, true);
-        }
-      }
     }
     // A camera turn can put the original plane edge-on. Intersecting that
     // plane then freezes the pointer or sends it far away. Free drawing uses
@@ -2721,7 +2840,12 @@ export function installInteractions({
     }
     const direction = props.axis ? axisVector(props.axis) : shiftDirection;
     if (start && direction) {
-      const picked = found?.point;
+      const boundary =
+        !shift || found
+          ? penBoundaryAt(event, start, direction, shift ? found?.point : undefined)
+          : undefined;
+      const pickedReference = boundary ?? found;
+      const picked = pickedReference?.point;
       let point = picked
         ? projectOnLine(picked, start, direction)
         : linePoint(event, start, direction);
@@ -2736,7 +2860,7 @@ export function installInteractions({
       show({
         point,
         key: 'constraint',
-        label: `${props.axis ? props.axis.toUpperCase() : 'Suunta lukittu'} · ${picked ? `${found!.label} · Pituus poimittu` : 'Poimi pituus pisteestä tai reunasta'}`,
+        label: `${props.axis ? props.axis.toUpperCase() : 'Suunta lukittu'} · ${picked ? `${pickedReference!.label} · Pituus poimittu` : 'Poimi pituus pisteestä tai reunasta'}`,
         line: [start, point],
       });
       if (picked) {
@@ -4224,10 +4348,10 @@ export function installInteractions({
       );
       return;
     }
-    // Move has its own source/target picker below, including selection exclusion
-    // and axis projection. A second generic reference search is both redundant
-    // and expensive while dragging a dense part.
-    const hovered = props.tool === 'move' ? undefined : referenceAt(event);
+    // Move and Pen have their own contextual pickers below. A second generic
+    // search costs another dense-mesh pass and can display an unrelated reference
+    // over the actual pen endpoint.
+    const hovered = ['move', 'pen'].includes(props.tool) ? undefined : referenceAt(event);
     hoveredReference = hovered;
     if (hovered) {
       acquired = hovered;
