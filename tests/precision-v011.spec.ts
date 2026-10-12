@@ -56,7 +56,13 @@ test('move locks one axis, X/Y/Z change it and released Ctrl keeps the copy', as
   await expect(page.locator('.object-list .object-select')).toHaveCount(3);
   const result = await save(page),
     copy = result.bodies.find((b) => b.id !== a.id && b.id !== result.bodies[1].id)!;
-  expect(result.bodies[0]).toEqual(a);
+  // Copies are linked components by default; the source geometry and placement stay intact.
+  expect(copy.component?.id).toBeTruthy();
+  expect(result.bodies[0]).toEqual({
+    ...a,
+    purpose: 'component',
+    component: expect.objectContaining({ id: copy.component!.id }),
+  });
   expect(copy.origin[0]).toBeCloseTo(250, 6);
   expect(copy.origin[1]).toBe(a.origin[1]);
   expect(copy.origin[2]).toBe(a.origin[2]);

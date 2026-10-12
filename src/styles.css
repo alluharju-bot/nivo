@@ -2524,6 +2524,23 @@ p {
   gap: 15px;
   padding: 16px 22px;
 }
+.rotation-panel .axis-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.rotation-panel .axis-switch button {
+  min-height: 36px;
+  border: 1px solid #c9d8c4;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.rotation-panel .axis-switch button[aria-pressed='true'] {
+  background: #d9ebd8;
+  border-color: #6b9a70;
+  color: #244d3c;
+  font-weight: 650;
+}
 .rotation-picks {
   display: flex;
   flex-wrap: wrap;

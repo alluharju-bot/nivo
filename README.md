@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.5** tuo Rotaten **Valitse ankkuri** -painikkeen heti näkyviin.
+Napsauta kulmaa, reunaa tai mittaviivaa ja vedä osan toisesta pisteestä tai renkaasta.
+Kierto tarttuu mittaviivoihin ja muiden osien pisteisiin täsmällisellä kulmalla;
+Shift vapauttaa tartunnan. Keskipiste säilyy oletuksena.
+
 Versio **0.36.4** korjaa suurten mallien lyhyeksi kutistuvan Peru-historian.
 100 vaihetta käyttää yhteistä geometriaa, ja myös selaimeen tallennetaan enintään
 100 vaihetta. Toimintohistoria näyttää todellisen Peru/Palauta-määrän;

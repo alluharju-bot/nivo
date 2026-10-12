@@ -5,7 +5,7 @@ import { rotationRadius } from '../src/model/transforms';
 import { view } from './helpers';
 
 async function ready(page: Page, bodies: Body[]) {
-  await page.goto('/');
+  await page.goto(process.env.NIVO_BASE_PATH ?? '/');
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
   await page.getByTestId('project-file').setInputFiles({
     name: 'workspace.nivo',

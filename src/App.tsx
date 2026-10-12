@@ -1581,6 +1581,11 @@ export default function App() {
   };
   const changeRotation = (patch: Partial<Rotation>) => {
     if (!rotationRef.current) return;
+    if (patch.pivot || patch.picking) {
+      lockRef.current.delete('angle');
+      setLocked(new Set(lockRef.current));
+      writeFields({ angle: '0' });
+    }
     rotationRef.current = { ...rotationRef.current, ...patch };
     setRotationDraft(rotationRef.current);
   };
@@ -5300,8 +5305,8 @@ export default function App() {
                         ? rotation.picking === 'edge'
                           ? 'Osoita suoraa reunaa kiertoakseliksi.'
                           : rotation.picking === 'point'
-                            ? 'Napsauta kiertopiste näkymästä.'
-                            : 'Vedä kiertorengasta tai kirjoita kulma.'
+                            ? 'Napsauta ankkuri kulmasta, reunasta tai mittaviivasta.'
+                            : 'Vedä osan pisteestä tai kiertorenkaasta. Valitse ankkuri vaihtaa kiertopisteen.'
                         : 'Valitse kierrettävä osa näkymästä tai listasta.'
                       : tool === 'detail'
                         ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
@@ -6793,6 +6798,10 @@ export default function App() {
               onRotationAxis={(axis) => changeRotation({ axis, picking: undefined })}
               onStart={() => {
                 activityHistory.prepare(actionContext);
+                if (tool === 'rotate') {
+                  lockRef.current.delete('angle');
+                  setLocked(new Set(lockRef.current));
+                }
                 gestureActive.current = true;
                 setAwaitingStart(false);
               }}

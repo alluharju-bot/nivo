@@ -20,6 +20,19 @@ export function RotationPanel({
   if (!rotation) return null;
   return (
     <section className="rotation-panel" aria-label="Kierron asetukset">
+      <div className="rotation-picks" aria-label="Pyörityksen ankkuri">
+        <button
+          disabled={busy}
+          aria-pressed={rotation.picking === 'point'}
+          onClick={() => onChange({ picking: rotation.picking === 'point' ? undefined : 'point' })}
+          title="Napsauta kulmaa, reunaa tai mittaviivaa. Ankkuri pysyy paikallaan kierron aikana."
+        >
+          <MousePointer2 size={14} /> Valitse ankkuri
+        </button>
+        <button disabled={busy} onClick={onCenter}>
+          Keskipiste
+        </button>
+      </div>
       <label className="checkbox-label">
         <input
           type="checkbox"
@@ -42,20 +55,9 @@ export function RotationPanel({
           </button>
         ))}
       </div>
-      <span className="eyebrow">KIERTOPISTE</span>
       <div className="rotation-picks">
-        <button disabled={busy} onClick={onCenter}>
-          Keskipiste
-        </button>
         <button disabled={busy} onClick={() => onChange({ pivot: [0, 0, 0], picking: undefined })}>
           <Crosshair size={14} /> Origo
-        </button>
-        <button
-          disabled={busy}
-          aria-pressed={rotation.picking === 'point'}
-          onClick={() => onChange({ picking: rotation.picking === 'point' ? undefined : 'point' })}
-        >
-          <MousePointer2 size={14} /> Poimi kiertopiste
         </button>
         <button
           disabled={busy}

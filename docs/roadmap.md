@@ -2,6 +2,22 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.5 — kierron ankkuri ja suuntaviitteet
+
+- **R → Valitse ankkuri**: sama kulmien, keskipisteiden, reunojen, mittaviivojen
+  ja risteysten poiminta kuin muissa piirtotyökaluissa. Oranssi piste näyttää
+  paikallaan pysyvän ankkurin. Keskipiste on edelleen oletus ja palautettavissa.
+- Valitun osan pisteestä voi vetää suoraan kierron; renkaat ja numerosyöttö
+  säilyvät. Kiertoakselin X/Y/Z-valinta näkyy oikeassa paneelissa korostettuna.
+- Mittaviivat, apuviivat ja muiden osien kulmat, reunat sekä pintojen keskipisteet
+  antavat tarkan suuntaviitteen. Valittu geometria ei tartu itseensä.
+- Ilman viitekohdetta säilyvät 5° askel ja vahvempi 90° tartunta. Shift antaa
+  vapaan kierron. Ctrl-kopiointi ja usean osan yhteinen kierto toimivat myös
+  valitusta ankkurista. Ankkurin valitseminen ei tee historiavaihetta.
+- Tason ulkopuolisesta viitteestä käytetään kiertotasoon projisoitua suuntaa.
+  Kierto ei skaalaa osaa tai muuta pisteen etäisyyttä ankkurista: kauempana
+  oleva tavoite antaa suunnan, ei muuta osan pituutta. Valitse akseli ennen vetoa.
+
 ## V0.36.4 — suurten mallien Peru-historia
 
 - 100 vaihetta myös selaimen palautushistoriassa. Muuttumattomat osat, geometria

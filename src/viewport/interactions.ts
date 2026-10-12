@@ -10,7 +10,7 @@ import { onCurve } from '../model/curveSnap';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { rotationAngle } from '../model/rotationSnap';
+import { rotationAngle, rotationDirection, rotationReferenceAngle } from '../model/rotationSnap';
 import { sectionDistance } from '../model/sections';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import {
@@ -1796,7 +1796,11 @@ export function installInteractions({
   let dimensionPress:
     { x: number; y: number; stage: 'start' | 'end' | 'place'; id: number } | undefined;
   // Move uses one screen-space picker for hover, press and drop. Geometry always wins over grid.
-  const moveSnapAt = (event: PointerEvent, source: boolean) => {
+  const moveSnapAt = (
+    event: PointerEvent,
+    source: boolean,
+    options: { accepts?: (point: Vec3) => boolean; surfaceCenters?: boolean } = {},
+  ) => {
     const props = current(),
       rect = container.getBoundingClientRect();
     // Dense curved boundaries can contain tens of thousands of segments. Read
@@ -1857,13 +1861,17 @@ export function installInteractions({
     for (const body of eligible) {
       const bodyEdges = allEdges.filter((e) => e.mesh.id === body.id);
       for (const p of [
-        ...modelSnapPoints([body], props.meshes),
+        ...modelSnapPoints([body], props.meshes, options.surfaceCenters ? 'surface' : 'body'),
         ...intersectionPoints(bodyEdges),
       ]) {
         const q = project(p.point),
           distance = Math.hypot(q.x - x, q.y - y);
         const priority = snapPriority(p);
-        if (distance < snapRadius(event, priority <= 0 ? 'point' : 'mid') && Math.abs(q.z) <= 1)
+        if (
+          distance < snapRadius(event, priority <= 0 ? 'point' : 'mid') &&
+          Math.abs(q.z) <= 1 &&
+          (!options.accepts || options.accepts(p.point))
+        )
           candidates.push({
             ...p,
             bodyId: body.id,
@@ -1882,10 +1890,15 @@ export function installInteractions({
           undefined,
           point,
         );
+        if (edge.circle) point.set(...onCurve(point.toArray() as Vec3, edge));
         const p = point.toArray() as Vec3,
           q = project(p),
           distance = Math.hypot(q.x - x, q.y - y);
-        if (distance < snapRadius(event, 'line') && Math.abs(q.z) <= 1)
+        if (
+          distance < snapRadius(event, 'line') &&
+          Math.abs(q.z) <= 1 &&
+          (!options.accepts || options.accepts(p))
+        )
           candidates.push({
             point: p,
             key,
@@ -1900,7 +1913,7 @@ export function installInteractions({
       }
     }
     if (!source) {
-      const guide = guideAt(event, excluded);
+      const guide = guideAt(event, excluded, options.accepts);
       if (guide) {
         const p = project(guide.point),
           distance = Math.hypot(p.x - x, p.y - y);
@@ -2462,6 +2475,7 @@ export function installInteractions({
       showMoveAxis();
       scaleDrag = undefined;
       rotationDrag = undefined;
+      canvas.dataset.rotationTarget = '';
       offsetSession = undefined;
       detailSession = undefined;
       canvas.dataset.detailDragging = '';
@@ -3056,25 +3070,81 @@ export function installInteractions({
       .filter((h) => h.distance < 11)
       .sort((a, b) => a.distance - b.distance)[0];
   };
-  const rotationPoint = (event: PointerEvent) => {
-    const vertex = nearest(event),
-      edge = edgeAt(event),
-      hit = faceAt(event, true);
+  const rotationPivotAt = (event: PointerEvent): Snap | undefined => {
+    const snapped = referenceAt(event);
+    if (snapped) return snapped;
+    highlightEdge();
+    const hit = faceAt(event, true);
     const rotation = current().rotation;
-    return (
-      vertex?.point ??
-      edge?.point ??
+    const point =
       hit?.target.point ??
       (rotation
         ? framePoint(event, sketchFrame(rotation.pivot, rotation.axis))
-        : planePoint(event, workPlane(), [0, 0, 0]))
-    );
+        : planePoint(event, workPlane(), [0, 0, 0]));
+    return point ? { point, key: 'free', label: hit ? 'Pinta' : 'Kiertotaso' } : undefined;
+  };
+  const rotationPoint = (event: PointerEvent) => rotationPivotAt(event)?.point;
+  const rotationSourceAt = (event: PointerEvent) => {
+    const rotation = current().rotation;
+    if (!rotation || rotation.picking || Math.abs(rotation.angle) > 1e-8) return;
+    return moveSnapAt(event, true, {
+      accepts: (point) => !!rotationDirection(point, rotation.pivot, rotation.axis),
+    });
+  };
+  const startRotationDrag = (event: PointerEvent, point: Vec3, axis: Vec3, radius: number) => {
+    const props = current(),
+      rotation = props.rotation!;
+    const pivot = rotation.pivot,
+      reference = rotationDirection(point, pivot, axis);
+    if (!reference) return;
+    const tangent = cross(axis, reference),
+      a = screen(point),
+      b = screen(add(point, scale(tangent, radius)));
+    const pixelsPerRadian = Math.max(20, Math.hypot(b.x - a.x, b.y - a.y));
+    setRay(event);
+    rotationDrag = {
+      pivot,
+      axis,
+      reference,
+      initial: rotation.angle,
+      total: 0,
+      last: 0,
+      x: event.clientX,
+      y: event.clientY,
+      tangentX: (b.x - a.x) / pixelsPerRadian,
+      tangentY: (b.y - a.y) / pixelsPerRadian,
+      pixelsPerRadian,
+      edgeOn: Math.abs(dot(raycaster.ray.direction.toArray() as Vec3, axis)) < 0.08,
+    };
+    props.onRotationAxis(axis);
+    props.onStart();
+    highlightFace();
+    show();
+    drag = {
+      start: pivot,
+      origin: pivot,
+      screenX: event.clientX,
+      screenY: event.clientY,
+      height: 0,
+      plane: 'XY',
+      second: false,
+      movingIds: rotation.ids,
+    };
+    canvas.setPointerCapture(event.pointerId);
   };
   const updateRotation = (event: PointerEvent) => {
     const active = rotationDrag;
     if (!active) return;
+    // Reuse Move's exact screen-space targets, excluding the rotating selection.
+    // Shift remains a free-rotation override, including reference snapping.
+    const snapped = !shift
+      ? moveSnapAt(event, false, {
+          accepts: (p) => !!rotationDirection(p, active.pivot, active.axis),
+          surfaceCenters: true,
+        })
+      : undefined;
     let angle: number;
-    if (active.edgeOn)
+    if (!snapped && active.edgeOn)
       angle =
         active.initial +
         ((((event.clientX - active.x) * active.tangentX +
@@ -3083,21 +3153,26 @@ export function installInteractions({
           180) /
           Math.PI;
     else {
-      const point = framePoint(event, sketchFrame(active.pivot, active.axis));
-      if (!point || Math.hypot(...sub(point, active.pivot)) < 1e-6) return;
-      const direction = unit(sub(point, active.pivot));
-      const raw =
-        (Math.atan2(
-          dot(active.axis, cross(active.reference, direction)),
-          dot(active.reference, direction),
-        ) *
-          180) /
-        Math.PI;
+      const point = snapped?.point ?? framePoint(event, sketchFrame(active.pivot, active.axis));
+      const direction = point && rotationDirection(point, active.pivot, active.axis);
+      if (!direction) return;
+      const raw = rotationReferenceAngle(active.reference, direction, active.axis);
       active.total += ((raw - active.last + 540) % 360) - 180;
       active.last = raw;
       angle = active.initial + active.total;
     }
-    current().onRotationAngle(rotationAngle(angle, shift));
+    canvas.dataset.rotationTarget = snapped?.key ?? '';
+    show(
+      snapped
+        ? {
+            ...snapped,
+            label: `${snapped.label} · kierron suuntaviite`,
+            line: [active.pivot, snapped.point],
+          }
+        : undefined,
+    );
+    if (!snapped) highlightEdge();
+    current().onRotationAngle(snapped ? angle : rotationAngle(angle, shift));
   };
   let contextStart: { x: number; y: number } | undefined;
   const contextEvent = (event: MouseEvent) => event.preventDefault();
@@ -3152,6 +3227,7 @@ export function installInteractions({
       shapeSession = undefined;
       scaleDrag = undefined;
       rotationDrag = undefined;
+      canvas.dataset.rotationTarget = '';
       blocked = true;
       show();
       return;
@@ -3215,7 +3291,7 @@ export function installInteractions({
         !selectableGuideAt(event) &&
         !(props.tool === 'move' && moveSnapAt(event, true)) &&
         !(props.tool === 'scale' && scaleHandleAt(event)) &&
-        !(props.tool === 'rotate' && rotationHandleAt(event)) &&
+        !(props.tool === 'rotate' && (rotationHandleAt(event) || rotationSourceAt(event))) &&
         !(props.tool === 'detail' && detailEdgeAt(event)) &&
         !(props.tool === 'measure' && (vertexAt(event) || edgeAt(event) || guideAt(event)));
       if (
@@ -3396,46 +3472,29 @@ export function installInteractions({
         return;
       }
       const handle = rotationHandleAt(event);
+      const source = !handle ? rotationSourceAt(event) : undefined;
       if (handle && rotation) {
-        const axis = handle.axis,
-          pivot = rotation.pivot;
-        const point = framePoint(event, sketchFrame(pivot, axis)) ?? handle.point;
-        const reference = unit(sub(point, pivot)),
-          tangent = cross(axis, reference);
-        const a = screen(handle.point),
-          b = screen(add(handle.point, scale(tangent, handle.radius)));
-        const pixelsPerRadian = Math.max(20, Math.hypot(b.x - a.x, b.y - a.y));
-        setRay(event);
-        rotationDrag = {
-          pivot,
-          axis,
-          reference,
-          initial: rotation.angle,
-          total: 0,
-          last: 0,
-          x: event.clientX,
-          y: event.clientY,
-          tangentX: (b.x - a.x) / pixelsPerRadian,
-          tangentY: (b.y - a.y) / pixelsPerRadian,
-          pixelsPerRadian,
-          edgeOn: Math.abs(dot(raycaster.ray.direction.toArray() as Vec3, axis)) < 0.08,
-        };
-        props.onRotationAxis(axis);
-        drag = {
-          start: pivot,
-          origin: pivot,
-          screenX: event.clientX,
-          screenY: event.clientY,
-          height: 0,
-          plane: 'XY',
-          second: false,
-        };
-        canvas.setPointerCapture(event.pointerId);
+        const point = framePoint(event, sketchFrame(rotation.pivot, handle.axis)) ?? handle.point;
+        startRotationDrag(event, point, handle.axis, handle.radius);
+      } else if (source && rotation) {
+        startRotationDrag(
+          event,
+          source.point,
+          rotation.axis,
+          Math.hypot(...sub(source.point, rotation.pivot)),
+        );
       } else {
         const hit = editableFaceAt(event, true);
         if (hit) {
           const body = props.bodies.find((b) => b.id === hit.target.bodyId);
           if (body?.locked) props.onSnap('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
+          else if (rotation?.ids.includes(hit.target.bodyId))
+            startRotationDrag(
+              event,
+              hit.target.point,
+              rotation.axis,
+              Math.hypot(...sub(hit.target.point, rotation.pivot)),
+            );
           else props.onRotationPick(hit.target.point, undefined, hit.target.bodyId);
         }
       }
@@ -3870,37 +3929,39 @@ export function installInteractions({
       }
       const rotation = props.rotation;
       if (rotation?.picking) {
-        const edge = edgeAt(event);
-        highlightEdge(rotation.picking === 'edge' ? edge?.edge : undefined);
-        const point = rotation.picking === 'edge' ? edge?.point : rotationPoint(event);
-        show(
-          point
-            ? {
-                point,
-                key: 'rotation-pivot',
-                label: rotation.picking === 'edge' ? 'Reuna · kiertoakseli' : 'Kiertopiste',
-              }
-            : undefined,
-        );
+        highlightFace();
+        props.onSelectionHover?.(undefined);
+        if (rotation.picking === 'edge') {
+          const edge = edgeAt(event);
+          highlightEdge(edge?.edge);
+          show(
+            edge ? { point: edge.point, key: edge.key, label: 'Reuna · kiertoakseli' } : undefined,
+          );
+        } else {
+          const snapped = rotationPivotAt(event);
+          show(snapped ? { ...snapped, label: `${snapped.label} · aseta ankkuri` } : undefined);
+        }
       } else {
         const handle = rotationHandleAt(event),
-          face = !handle && faceAt(event);
+          source = !handle ? rotationSourceAt(event) : undefined,
+          face = !handle && !source ? faceAt(event) : undefined;
         canvas.dataset.rotationHandle = handle?.name ?? '';
-        highlightFace(face ? face.target : undefined);
+        highlightFace();
+        props.onSelectionHover?.(source?.bodyId ?? (face ? face.target.bodyId : undefined));
         show(
           handle
-            ? {
-                point: handle.point,
-                key: 'rotation-handle',
-                label: `Kierrä · ${handle.name}`,
-              }
-            : face
-              ? {
-                  point: face.target.point,
-                  key: 'rotation-body',
-                  label: 'Valitse kierrettävä kappale',
-                }
-              : undefined,
+            ? { point: handle.point, key: 'rotation-handle', label: `Kierrä · ${handle.name}` }
+            : source
+              ? { ...source, label: `${source.label} · vedä kiertääksesi` }
+              : face
+                ? {
+                    point: face.target.point,
+                    key: 'rotation-body',
+                    label: rotation?.ids.includes(face.target.bodyId)
+                      ? 'Vedä tästä kiertääksesi'
+                      : 'Valitse kierrettävä kappale',
+                  }
+                : undefined,
         );
       }
       return;
@@ -4202,6 +4263,7 @@ export function installInteractions({
       drag = undefined;
       scaleDrag = undefined;
       rotationDrag = undefined;
+      canvas.dataset.rotationTarget = '';
       dimensionPress = undefined;
       detailSession = undefined;
       clearSelectionBox();
@@ -4325,6 +4387,7 @@ export function installInteractions({
         }
         scaleDrag = undefined;
         rotationDrag = undefined;
+        canvas.dataset.rotationTarget = '';
       } else if (props.tool === 'offset') {
         if (moved || active.second) {
           // Use the last pointermove value. A click must not overwrite a typed dimension.
@@ -4421,6 +4484,7 @@ export function installInteractions({
     drag = undefined;
     scaleDrag = undefined;
     rotationDrag = undefined;
+    canvas.dataset.rotationTarget = '';
     if (!pointers.size) blocked = false;
   };
   const cancel = (event: PointerEvent) => {
@@ -4442,6 +4506,7 @@ export function installInteractions({
     canvas.dataset.depthKind = '';
     scaleDrag = undefined;
     rotationDrag = undefined;
+    canvas.dataset.rotationTarget = '';
     if (!pointers.size) blocked = false;
   };
   let controlCopyBefore: boolean | undefined;
@@ -4690,6 +4755,7 @@ export function installInteractions({
     drag = undefined;
     scaleDrag = undefined;
     rotationDrag = undefined;
+    canvas.dataset.rotationTarget = '';
     pointers.clear();
     blocked = false;
     show();

@@ -249,12 +249,16 @@ export const toolGuides = [
     steps: [
       step(
         'Valitse osa ja kiertopiste',
-        'Poimi kiertopiste mallista tai käytä osan keskipistettä.',
+        'Keskipiste on oletus. Valitse ankkuri ja napsauta kulmaa, reunaa tai mittaviivaa.',
       ),
-      step('Vedä kiertorengasta', 'Kierto tarttuu 5° välein ja vahvemmin pääsuuntiin.', '45°'),
+      step(
+        'Vedä osan pisteestä tai renkaasta',
+        'Osoita mittaviivaa tai toisen osan pistettä tarkaksi suuntaviitteeksi. Muuten kierto tarttuu 5° välein.',
+        '45°',
+      ),
       step('Hyväksy', 'Vapauta veto tai kirjoita kulma ja paina Enter.', 'Enter'),
     ],
-    tip: 'Ctrl-napautus kytkee kopioinnin päälle tai pois; alkuperäinen jää paikalleen. Shift vapauttaa kulmatartunnan. X/Y/Z vaihtaa akselin, jonka voi poimia myös suorasta reunasta.',
+    tip: 'Ctrl-napautus kytkee kopioinnin päälle tai pois; alkuperäinen jää paikalleen. Shift vapauttaa kulma- ja viitetartunnan. X/Y/Z valitsee kiertoakselin; valitse se ennen vetoa. Tason ulkopuolinen viite antaa suunnan kiertotasossa, mutta ei muuta osan kokoa tai ankkuria.',
   },
   {
     id: 'fillet',

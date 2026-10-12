@@ -801,6 +801,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     renderer.domElement.dataset.copyMove = String(current().copyMove);
     renderer.domElement.dataset.movePreview = String(!!moved);
     renderer.domElement.dataset.copyRotation = String(!!rotation?.copy);
+    renderer.domElement.dataset.rotationPivot = rotation ? JSON.stringify(rotation.pivot) : '';
+    renderer.domElement.dataset.rotationAxis = rotation ? JSON.stringify(rotation.axis) : '';
     renderer.domElement.dataset.detailPreview = current().detailPreview?.body.id ?? '';
     renderer.domElement.dataset.detailPreviewSize = current().detailPreviewSize?.toString() ?? '';
     renderer.domElement.dataset.offsetPreview = current().offsetOutline
@@ -936,7 +938,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           12,
           8,
         ),
-        new THREE.MeshBasicMaterial({ color: '#f4e8c4', depthTest: false }),
+        new THREE.MeshBasicMaterial({ color: '#e39145', depthTest: false }),
       );
       pivot.position.set(...rotation.pivot);
       pivot.renderOrder = 97;

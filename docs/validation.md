@@ -4,6 +4,29 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.5 — kierron ankkuri ja tartunnat
+
+479 yksikkö-/CAD-testiä hyväksytty; kolme yksityisen tiedoston vaativaa testiä
+on ohitettu tavallisessa ajossa. Tuotantopaketti, lisenssit ja muuttuneiden
+lähdetiedostojen muotoilu tarkistettu.
+11 työpöydän ja 7 tablettiprofiilin selaintapausta hyväksytty.
+
+- Kulmaltaan paikallaan pysyvän 200 × 40 × 80 mm osan toinen kulma suunnataan
+  mittaviivan pisteeseen [160, 0, 120]. Kulma on −36,86989765° Y-akselin ympäri,
+  ja tuloksen mitat/sijainti sekä Undo tarkistetaan tallennetusta CAD-mallista.
+  Valitun pinnan napsautus ei palauta ankkuria keskipisteeseen.
+- Ankkuri poimitaan viivojen risteyksestä, päätepisteestä ja reunan keskipisteestä
+  sekä perspektiivissä. Keskipisteeseen palaaminen ja Esc eivät muuta geometriaa.
+- Kierrettävän osan omat pisteet eivät lukitse vetoa. Toisen osan kulma,
+  reunan keskipiste, reunan vapaa kohta ja pinnan keskipiste toimivat myös
+  eri syvyydellä: viite antaa suunnan kiertotasossa.
+- Monivalinta pysyy koossa, Ctrl kopioi kaikki valitut osat ja Undo palauttaa.
+  Alkuperäinen reunasta poimittu kiertoakseli, 5°/90° rengastartunta ja Shift
+  säilyvät. Myös rei'itetyn osan siirto, mittaviivatavoite ja skaalaus tarkistetaan.
+- Vanhan siirtotestin oletus linkittämättömästä kopiosta päivitettiin vastaamaan
+  nykyistä tarkoitettua komponenttilinkitystä; lähteen geometria ja sijainti
+  tarkistetaan edelleen muuttumattomiksi, ja kopion linkki tarkistetaan erikseen.
+
 ## V0.36.4 — Peru-historian kapasiteetti
 
 477 yksikkö-/CAD-tapausta hyväksytty: koko 475 testin ajo sekä kaksi sen jälkeen
