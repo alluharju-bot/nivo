@@ -45,11 +45,15 @@ export function useEditor() {
         .then(async () => {
           if (r !== saveRevision.current) return;
           const snapshot = history.serialize();
+          const shortened = history.savedSteps < history.undoCount + history.redoCount;
+          const savedSteps = history.savedSteps;
           const historySaved = await saveLocal(next, snapshot);
           if (r === saveRevision.current)
             setSaveStatus(
               historySaved
-                ? 'Tallessa selaimessa'
+                ? shortened
+                  ? `Malli tallessa; ${savedSteps} historiavaihetta mahtui tallennukseen`
+                  : 'Tallessa selaimessa'
                 : 'Malli tallessa; historia ei mahtunut tallennukseen',
             );
         })
@@ -247,6 +251,9 @@ export function useEditor() {
     },
     cancel,
     canUndo: history.canUndo,
+    undoCount: history.undoCount,
+    redoCount: history.redoCount,
+    historyMemoryLimited: history.memoryLimited,
     canRedo: history.canRedo,
     revision: () => revision.current,
   };

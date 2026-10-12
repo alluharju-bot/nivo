@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { History } from './history';
 import { freshProject, makeBody, parseProject } from './project';
+import { readHistoryGraph } from './historyGraph';
 
 it('restores both directions, and a new edit discards the restored redo branch', () => {
   const start = freshProject(),
@@ -25,11 +26,17 @@ it('bounds saved history by bytes and steps, retaining the nearest undo steps', 
   const history = new History(freshProject());
   for (let i = 0; i < 30; i++) history.commit({ ...history.current, name: `Vaihe ${i}` });
   const snapshot = JSON.parse(history.serialize()!);
-  expect(snapshot.past).toHaveLength(20);
-  expect(snapshot.past.at(-1).name).toBe('Vaihe 28');
-  const small = history.serialize(2000)!;
-  expect(new TextEncoder().encode(small).length).toBeLessThanOrEqual(2000);
-  expect(JSON.parse(small).past.at(-1).name).toBe('Vaihe 28');
+  expect(snapshot.past).toHaveLength(30);
+  expect(readHistoryGraph(snapshot.nodes)(snapshot.past.at(-1))).toMatchObject({
+    name: 'Vaihe 28',
+  });
+  const small = history.serialize(4000)!;
+  expect(new TextEncoder().encode(small).length).toBeLessThanOrEqual(4000);
+  const restored = new History(history.current);
+  expect(restored.restore(small)).toBe(true);
+  expect(restored.peekUndo()?.name).toBe('Vaihe 28');
+  expect(restored.undoCount).toBeLessThan(30);
+  expect(JSON.parse(history.serialize(undefined, 20)!).past).toHaveLength(20);
   expect(history.serialize(5)).toBeUndefined();
   expect(history.peekUndo()?.name).toBe('Vaihe 28');
 });

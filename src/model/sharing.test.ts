@@ -21,11 +21,15 @@ test('validation reuses untouched bodies and CAD features across edits and undo'
 });
 test('large snapshots trim the oldest in-memory undo entries without changing the current model', () => {
   const project = { ...freshProject(), bodies: [makeBody()] };
-  const history = new History(project, JSON.stringify(project).length * 2 * 3.1);
+  const history = new History(project, new History(project).retainedBytes + 1500);
   for (let i = 0; i < 20; i++) history.commit({ ...project, name: `Step ${i}` });
   expect(history.current.name).toBe('Step 19');
+  expect(history.memoryLimited).toBe(true);
+  expect(history.retainedBytes).toBeLessThanOrEqual(new History(project).retainedBytes + 1500);
   expect(history.undo().name).toBe('Step 18');
-  expect(history.undo().name).toBe('Step 17');
+  const count = history.undoCount;
+  expect(count).toBeLessThan(19);
+  while (history.canUndo) history.undo();
   expect(history.canUndo).toBe(false);
-  expect(history.redo().name).toBe('Step 18');
+  expect(history.redoCount).toBe(count + 1);
 });

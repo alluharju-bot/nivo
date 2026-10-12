@@ -4,6 +4,29 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.4 — Peru-historian kapasiteetti
+
+477 yksikkö-/CAD-tapausta hyväksytty: koko 475 testin ajo sekä kaksi sen jälkeen
+lisättyä historian reunatapausta. Yksityisen saunamallin sadan siirto-/nimeämisvaiheen
+mallitesti ajettiin lisäksi erikseen; se ohitetaan tavallisessa ajossa.
+Tuotantopaketti, lisenssit ja muutettujen tiedostojen muotoilu tarkistettu.
+Neljä työpöydän ja neljä tablettiprofiilin selaintapausta hyväksytty.
+
+- Noin 7 MB:n BRep-datalla 100 vaihetta säilyy muistissa ja selaintallenteessa.
+  Sata erillistä geometriaeditointia pienempään osaan säilyy suuren muuttumattoman
+  osan rinnalla. Molempiin suuntiin palautuminen, toimintojen valintakontekstit,
+  aiempaan leikkaukseen palaaminen, uuden haaran aloitus ja vapautuva muisti tarkistetaan.
+- Vanhojen v1/v2-historioiden palautuminen, saman kuvatunnisteen eri versiot,
+  tilarajaan osuva mennyt haara ja säilyvä redo-haara sekä vialliset ja
+  kohtuuttomasti laajenevat tallenneviitteet testataan.
+- Näkyvä työpöytäselaintesti käyttää yksityistä 176 osan saunamallia: 105
+  nimeämistä tavallisella käyttöliittymällä, sivun päivitys, 100 perumista,
+  toinen päivitys, redo ja uuden haaran aloittaminen. Historiapaneeli näyttää
+  määrät 100/0, 0/100 ja haaran jälkeen 1/1. Testi onnistui 57,5 sekunnissa.
+- Olemassa olevat selaintestit varmistavat oikean CAD-pinnan palautumisen
+  päivityksen jälkeen, rikkoutuneen historian ohittamisen, tallennustilan
+  loppumisen varapolun ja aukon leikkauksen geometrian/valintojen palautuksen.
+
 ## V0.36.3 — säilyttävä renderikuva
 
 470 yksikkö-/CAD-testiä hyväksytty (93 tiedostoa); kaksi yksityisen tiedoston

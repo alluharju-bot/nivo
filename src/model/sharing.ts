@@ -2,7 +2,7 @@ import type { Project } from './project';
 
 /** Compare validated JSON data without allocating serialized copies of BReps.
  * Optional undefined properties are equivalent to absent JSON properties. */
-function equal(a: unknown, b: unknown): boolean {
+export function equalJson(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
   if (Array.isArray(a) || Array.isArray(b))
@@ -10,14 +10,14 @@ function equal(a: unknown, b: unknown): boolean {
       Array.isArray(a) &&
       Array.isArray(b) &&
       a.length === b.length &&
-      a.every((v, i) => equal(v, b[i]))
+      a.every((v, i) => equalJson(v, b[i]))
     );
   const left = a as Record<string, unknown>,
     right = b as Record<string, unknown>;
   const keys = Object.keys(left).filter((k) => left[k] !== undefined);
   return (
     keys.length === Object.keys(right).filter((k) => right[k] !== undefined).length &&
-    keys.every((k) => Object.hasOwn(right, k) && equal(left[k], right[k]))
+    keys.every((k) => Object.hasOwn(right, k) && equalJson(left[k], right[k]))
   );
 }
 
@@ -29,7 +29,7 @@ export function shareProjectData(previous: Project, next: Project): Project {
     const byId = new Map(old.map((item) => [item.id, item]));
     const shared = items.map((item) => {
       const existing = byId.get(item.id);
-      return existing && equal(existing, item) ? existing : item;
+      return existing && equalJson(existing, item) ? existing : item;
     });
     return old.length === shared.length && old.every((item, i) => item === shared[i])
       ? old
@@ -40,7 +40,7 @@ export function shareProjectData(previous: Project, next: Project): Project {
     previous.bodies,
     next.bodies.map((body) => {
       const before = oldBodies.get(body.id);
-      return before && equal(before.feature, body.feature)
+      return before && equalJson(before.feature, body.feature)
         ? { ...body, feature: before.feature }
         : body;
     }),
@@ -53,7 +53,7 @@ export function shareProjectData(previous: Project, next: Project): Project {
     dimensions: reuse(previous.dimensions, next.dimensions),
     guides: reuse(previous.guides, next.guides),
     annotations: next.annotations ? reuse(previous.annotations ?? [], next.annotations) : undefined,
-    assets: equal(previous.assets, next.assets) ? previous.assets : next.assets,
+    assets: equalJson(previous.assets, next.assets) ? previous.assets : next.assets,
     sections: next.sections ? reuse(previous.sections ?? [], next.sections) : undefined,
     referenceImages: next.referenceImages
       ? reuse(previous.referenceImages ?? [], next.referenceImages)

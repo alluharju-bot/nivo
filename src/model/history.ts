@@ -1,16 +1,38 @@
-import { parseProject, type Project } from './project';
+import { parseProject, projectSchema, type Project } from './project';
+import { equalJson, shareProjectData } from './sharing';
+import { HistoryMemory } from './historyMemory';
+import { HistoryGraphWriter, readHistoryGraph } from './historyGraph';
 import { actionInfoSchema, type ActionInfo } from './activity';
 import { hiddenItems, newlyHidden, type HiddenItems } from './visibility';
 
 const MAX_SAVED_BYTES = 8 * 1024 * 1024;
-const MAX_SAVED_STEPS = 20;
+export const MAX_HISTORY_STEPS = 100;
 
 export class History {
   private past: Project[] = [];
   private future: Project[] = [];
-  private weights = new WeakMap<Project, number>();
+  private memory = new HistoryMemory();
+  private active: Project;
+  memoryLimited = false;
+  savedSteps = 0;
   private actions = new WeakMap<Project, ActionInfo>();
-  private packed = new WeakMap<Project, { info?: ActionInfo; data: string; bytes: number }>();
+  get current() {
+    return this.active;
+  }
+  set current(next: Project) {
+    this.memory.retain(next);
+    this.memory.release(this.active);
+    this.active = next;
+  }
+  get undoCount() {
+    return this.past.length;
+  }
+  get redoCount() {
+    return this.future.length;
+  }
+  get retainedBytes() {
+    return this.memory.bytes;
+  }
   get undoInfo() {
     return this.actions.get(this.current);
   }
@@ -31,7 +53,7 @@ export class History {
     const timeline = [...this.past, this.current, ...this.future.slice().reverse()];
     const index = timeline.indexOf(before.project);
     this.past = timeline.slice(0, index);
-    this.current = before.project;
+    this.active = before.project;
     this.future = timeline.slice(index + 1).reverse();
     return this.current;
   }
@@ -41,27 +63,21 @@ export class History {
     this.current = next;
   }
   constructor(
-    public current: Project,
+    current: Project,
     private memoryBudget = 64 * 1024 * 1024,
-  ) {}
-  private weight(project: Project) {
-    let weight = this.weights.get(project);
-    if (weight === undefined) {
-      // Conservative serialized UTF-16 estimate; shared CAD features reduce the
-      // actual retained object graph further. This bounds snapshots, not WebGL/WASM.
-      weight = JSON.stringify(project).length * 2;
-      this.weights.set(project, weight);
-    }
-    return weight;
+  ) {
+    this.active = current;
+    this.memory.retain(current);
+  }
+  private clearFuture() {
+    this.future.forEach((p) => this.memory.release(p));
+    this.future = [];
   }
   private trimMemory() {
-    let total = [...this.past, ...this.future, this.current].reduce(
-      (n, p) => n + this.weight(p),
-      0,
-    );
-    while (total > this.memoryBudget && (this.past.length || this.future.length)) {
+    while (this.memory.bytes > this.memoryBudget && (this.past.length || this.future.length)) {
       const list = this.past.length >= this.future.length ? this.past : this.future;
-      total -= this.weight(list.shift()!);
+      this.memory.release(list.shift()!);
+      this.memoryLimited = true;
     }
   }
   get canUndo() {
@@ -71,11 +87,12 @@ export class History {
     return this.future.length > 0;
   }
   commit(next: Project, info?: ActionInfo) {
+    this.memory.retain(this.current);
     this.past.push(this.current);
-    if (this.past.length > 100) this.past.shift();
+    if (this.past.length > MAX_HISTORY_STEPS) this.memory.release(this.past.shift()!);
     this.current = next;
     if (info) this.actions.set(next, info);
-    this.future = [];
+    this.clearFuture();
     this.trimMemory();
   }
   peekUndo() {
@@ -102,7 +119,7 @@ export class History {
     const previous = this.past.pop();
     if (previous) {
       this.future.push(this.current);
-      this.current = previous;
+      this.active = previous;
     }
     return this.current;
   }
@@ -110,50 +127,29 @@ export class History {
     const next = this.future.pop();
     if (next) {
       this.past.push(this.current);
-      this.current = next;
+      this.active = next;
     }
     return this.current;
   }
-  /** Store the nearest undo/redo steps within a bounded browser-storage budget. */
-  serialize(maxBytes = MAX_SAVED_BYTES, maxSteps = MAX_SAVED_STEPS): string | undefined {
-    // Encode each retained snapshot and asset once. Repeatedly stringifying the
-    // entire history while trimming it freezes large models on every edit.
-    const encoder = new TextEncoder();
-    const pack = (p: Project) => {
-      const info = this.actions.get(p),
-        cached = this.packed.get(p);
-      if (cached && cached.info === info) return cached;
-      const data = JSON.stringify({
-        ...p,
-        assets: p.assets ? Object.keys(p.assets) : undefined,
-        _history: info,
-      });
-      const packed = { info, data, bytes: encoder.encode(data).length };
-      // Immutable snapshots share their encoding between saves. Oversized
-      // projects cannot fit the journal, so do not retain a second large string.
-      if (packed.bytes <= MAX_SAVED_BYTES) this.packed.set(p, packed);
-      return packed;
-    };
+  /** Store shared geometry once and retain the nearest steps in both directions. */
+  serialize(maxBytes = MAX_SAVED_BYTES, maxSteps = MAX_HISTORY_STEPS): string | undefined {
+    this.savedSteps = 0;
+    const graph = new HistoryGraphWriter(),
+      encoder = new TextEncoder();
+    const pack = (project: Project) =>
+      graph.encode({ ...project, _history: this.actions.get(project) });
     const current = pack(this.current),
-      past: string[] = [],
-      future: string[] = [];
-    const assets = new Map<string, string>();
-    let bytes = current.bytes + 70;
-    const extraAssets = (p: Project) =>
-      Object.entries(p.assets ?? {})
-        .filter(([id]) => !assets.has(id))
-        .map(([id, asset]) => [id, `${JSON.stringify(id)}:${JSON.stringify(asset)}`] as const);
-    const keepAssets = (entries: readonly (readonly [string, string])[]) =>
-      entries.forEach(([id, data]) => assets.set(id, data));
-    const initial = extraAssets(this.current);
-    bytes += initial.reduce((sum, [, data]) => sum + encoder.encode(data).length + 1, 0);
-    if (bytes > maxBytes) return;
-    keepAssets(initial);
-    const nextPast = this.past.slice(-maxSteps),
-      nextFuture = this.future.slice(-maxSteps);
+      past: unknown[] = [],
+      future: unknown[] = [];
+    // Reserve header and all root references. The graph's byte count includes separators.
+    const limit = Math.min(MAX_HISTORY_STEPS, Math.max(0, Math.floor(maxSteps)));
+    const overhead = 128 + (limit + 1) * 10;
+    if (graph.bytes + overhead > maxBytes) return;
+    const nextPast = this.past.slice(-limit),
+      nextFuture = this.future.slice(-limit);
     let pastOpen = true,
       futureOpen = true;
-    for (let step = 0; step < maxSteps; step++) {
+    for (let step = 0; step < limit; step++) {
       const usePast =
         pastOpen &&
         nextPast.length > 0 &&
@@ -161,34 +157,45 @@ export class History {
       const source = usePast ? nextPast : nextFuture,
         destination = usePast ? past : future;
       if ((usePast && !pastOpen) || (!usePast && !futureOpen) || !source.length) break;
-      const project = source.pop()!,
-        data = pack(project),
-        addedAssets = extraAssets(project);
-      const size =
-        data.bytes +
-        1 +
-        addedAssets.reduce((sum, [, value]) => sum + encoder.encode(value).length + 1, 0);
-      if (bytes + size > maxBytes) {
+      const checkpoint = graph.checkpoint;
+      const root = pack(source.pop()!);
+      if (graph.bytes + overhead > maxBytes) {
+        graph.rollback(checkpoint);
         if (usePast) pastOpen = false;
         else futureOpen = false;
         step--;
-        continue;
-      }
-      bytes += size;
-      keepAssets(addedAssets);
-      destination.unshift(data.data);
+      } else destination.unshift(root);
     }
-    const data = `{"version":2,"assets":{${[...assets.values()].join(',')}},"current":${current.data},"past":[${past.join(',')}],"future":[${future.join(',')}]}`;
-    return encoder.encode(data).length <= maxBytes ? data : undefined;
+    const data = `{"version":3,"nodes":${graph.json()},"current":${JSON.stringify(current)},"past":${JSON.stringify(past)},"future":${JSON.stringify(future)}}`;
+    if (encoder.encode(data).length > maxBytes) return;
+    this.savedSteps = past.length + future.length;
+    return data;
   }
 
   /** A missing, damaged or stale history must never prevent opening the active model. */
   restore(serialized?: string): boolean {
+    this.past.forEach((p) => this.memory.release(p));
     this.past = [];
-    this.future = [];
+    this.clearFuture();
+    this.memoryLimited = false;
     if (!serialized || new TextEncoder().encode(serialized).length > MAX_SAVED_BYTES) return false;
     try {
       const data = JSON.parse(serialized);
+      if (
+        !data ||
+        !Array.isArray(data.past) ||
+        !Array.isArray(data.future) ||
+        data.past.length + data.future.length > MAX_HISTORY_STEPS
+      )
+        return false;
+      const shared = data.version === 3;
+      if (shared) {
+        const read = readHistoryGraph(data.nodes);
+        data.current = read(data.current);
+        data.past = data.past.map(read);
+        data.future = data.future.map(read);
+        data.version = 1;
+      }
       if (data.version === 2) {
         const unpack = (p: any) => ({
           ...p,
@@ -201,19 +208,27 @@ export class History {
         data.future = data.future.map(unpack);
         data.version = 1;
       }
+      // v3 contains current-schema objects. Avoid serializing a multi-megabyte
+      // BRep 100 times just to validate it. Legacy formats still run migrations.
+      const validate = (raw: unknown) =>
+        shared ? projectSchema.parse(raw) : parseProject(JSON.stringify(raw));
       if (
         data.version !== 1 ||
-        !Array.isArray(data.past) ||
-        !Array.isArray(data.future) ||
-        data.past.length + data.future.length > MAX_SAVED_STEPS ||
-        JSON.stringify(parseProject(JSON.stringify(data.current))) !==
-          JSON.stringify(parseProject(JSON.stringify(this.current)))
+        !equalJson(validate(data.current), projectSchema.parse(this.current))
       )
         return false;
-      const past = data.past.map((project: unknown) => parseProject(JSON.stringify(project)));
-      const future = data.future.map((project: unknown) => parseProject(JSON.stringify(project)));
+      let previous = this.current;
+      const restoreProject = (raw: unknown) => {
+        previous = shareProjectData(previous, validate(raw));
+        return previous;
+      };
+      // Walk outwards from current so unchanged CAD features stay shared after reload.
+      const past = data.past.slice().reverse().map(restoreProject).reverse();
+      previous = this.current;
+      const future = data.future.slice().reverse().map(restoreProject).reverse();
       this.past = past;
       this.future = future;
+      for (const p of [...past, ...future]) this.memory.retain(p);
       const restoreInfo = (project: Project, raw: any) => {
         const info = actionInfoSchema.safeParse(raw?._history);
         if (info.success) this.actions.set(project, info.data);

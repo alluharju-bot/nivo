@@ -8859,6 +8859,9 @@ export default function App() {
           entries={activityHistory.entries}
           current={actionContext}
           busy={busy}
+          undoCount={editor.undoCount}
+          redoCount={editor.redoCount}
+          memoryLimited={editor.historyMemoryLimited}
           canRestoreOperation={(entry) =>
             !!entry.operation &&
             (entry.actionId

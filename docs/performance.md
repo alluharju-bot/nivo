@@ -1,5 +1,33 @@
 # Suorituskyky
 
+## V0.36.4 — jaettu Peru-historia, 12.10.2026
+
+Vanha 64 MiB:n muistiarvio summasi koko projektin JSON-koon jokaiselle vaiheelle,
+vaikka BRep ja muuttumattomat osat olivat samoja olioita. Yksityisessä 176 osan
+saunamallissa tämä jätti vain **4** peruttavaa toimintoa. Uusi viitelaskenta
+veloittaa jaetun oliograafin ja samanarvoiset merkkijonot kerran. Undo/redo
+siirtää viitteitä, ja uuden haaran aloittaminen vapauttaa hylätyt tulevat vaiheet.
+Arvio koskee projektidataa, ei selaimen koko muistia tai CAD/GPU-välimuisteja.
+
+Selaintallenteen v3 käyttää jaettua JSON-graafia: oliot, taulukot ja pitkät
+merkkijonot tallennetaan kerran. Historiaraja on **100** sekä muistissa että
+selaintallenteessa (aiemmin tallenteessa 20). Nykyinen projekti ja historia
+kirjoitetaan edelleen yhtenä IndexedDB-transaktiona. Levytilavirheen varapolku
+säilyttää nykyisen mallin. Vanhoja v1/v2-historioita voidaan yhä lukea.
+
+Saunamallilla 110 siirto-/nimeämismuutoksesta säilyivät viimeiset **100**.
+Kaksi perumista, tallennus, palautus, 100 perumista/redo-operaatiota ja uuden
+haaran aloittaminen tarkistettiin. Tallenne oli **6 263 078 tavua** ja muistiarvio
+**12 253 170 tavua**. Yhdessä paikallisessa Node-ajossa tallenteen muodostus vei
+41 ms ja sadan vaiheen validointi/palautus 1,31 s; nämä eivät ole selainlatenssin
+yleisiä takuita. Mallia ei sisällytetä lähdekoodiin.
+
+64 MiB:n muistiraja ja 8 MiB:n tallennusraja säilyvät. Sata toisistaan poikkeavaa
+raskasta geometriatulosta voi edelleen ylittää budjetin: tätä ei peitetä lupaamalla
+rajatonta historiaa. Todellinen Peru/Palauta-määrä ja muistirajasta johtuva
+lyhennys näkyvät toimintohistoriassa; osittainen tallennus näkyy tallennustilassa.
+Tallennetun graafin viitteet ja laajeneminen tarkistetaan ennen projektivalidointia.
+
 ## V0.36.3 — kuvan säilyttävä tarkennus, 12.10.2026
 
 Esikatselu etenee lopullisesta kuvakoosta johdetuilla 2× askelilla. Esimerkiksi

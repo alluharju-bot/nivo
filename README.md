@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.4** korjaa suurten mallien lyhyeksi kutistuvan Peru-historian.
+100 vaihetta käyttää yhteistä geometriaa, ja myös selaimeen tallennetaan enintään
+100 vaihetta. Toimintohistoria näyttää todellisen Peru/Palauta-määrän;
+muisti- ja tallennusrajojen aiheuttama lyhentäminen ilmoitetaan.
+
 Versio **0.36.3** säilyttää karkean renderikuvan seuraavan tarkkuuden pohjana.
 Pikselit tarkentuvat neljään pienempään; uusi valolaskenta korvaa vanhan kuvan
 asteittain. Vanhan kuvan vaikutus poistuu kokonaan kahdeksassa näytteessä.

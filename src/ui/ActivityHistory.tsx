@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { History, RotateCcw, X } from 'lucide-react';
+import { MAX_HISTORY_STEPS } from '../model/history';
 import {
   sameSelection,
   hasSelection,
@@ -11,6 +12,9 @@ export function ActivityHistory({
   entries,
   current,
   busy,
+  undoCount,
+  redoCount,
+  memoryLimited,
   onRestore,
   canRestoreOperation,
   onRestoreOperation,
@@ -18,6 +22,9 @@ export function ActivityHistory({
   entries: Activity[];
   current: SelectionContext;
   busy: boolean;
+  undoCount: number;
+  redoCount: number;
+  memoryLimited: boolean;
   onRestore: (context: SelectionContext) => void;
   canRestoreOperation: (entry: Activity) => boolean;
   onRestoreOperation: (entry: Activity) => void;
@@ -130,8 +137,11 @@ export function ActivityHistory({
             </ol>
           )}
           <small>
-            Enintään 100 merkintää tässä välilehdessä. Vanha valinta palauttaa mallissa yhä näkyvät
-            osat.
+            Peruttavissa {undoCount} / {MAX_HISTORY_STEPS} toimintoa · Uudelleen tehtävissä{' '}
+            {redoCount}.
+            {memoryLimited && ' Vanhimpia vaiheita poistettiin historian muistirajan vuoksi.'}{' '}
+            Toimintolista säilyttää enintään 100 merkintää. Vanha valinta palauttaa mallissa yhä
+            näkyvät osat.
           </small>
         </section>
       )}

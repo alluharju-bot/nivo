@@ -2,6 +2,18 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.4 — suurten mallien Peru-historia
+
+- 100 vaihetta myös selaimen palautushistoriassa. Muuttumattomat osat, geometria
+  ja kuvat jaetaan, ja saman BRep-tekstin kopiot tallennetaan kerran.
+- Muistiarvio laskee jaetut tiedot kerran; yksittäinen siirto tai nimeäminen ei
+  veloita koko mallin kokoa uudelleen. Hylätty redo-haara vapautetaan.
+- Toimintohistoria näyttää peruttavien ja uudelleen tehtävien vaiheiden määrän.
+  Muistirajan vuoksi lyhennetty historia ja tallennukseen mahtunut osajoukko
+  ilmoitetaan. Rajat säilyvät: 64 MiB arvioitu projektihistoria, 8 MiB tallenne.
+- Vanhojen historiaversioiden palautus, valintakontekstit, leikkaukseen palaaminen
+  ja viimeisen piilotuksen palautus säilyvät. Viallinen historia ei estä mallin avaamista.
+
 ## V0.36.3 — kuvan säilyttävä tarkennus
 
 - Esikatselun resoluutio kaksinkertaistuu molempiin suuntiin. Yksi karkea
