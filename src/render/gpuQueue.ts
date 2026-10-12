@@ -14,7 +14,10 @@ export function gpuQueue(gl: WebGL2RenderingContext) {
       return true;
     },
     submit() {
+      if (pending) throw new Error('Edellinen renderöintierä on vielä kesken.');
       pending = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+      if (!pending)
+        throw new Error('Renderöinnin synkronointi epäonnistui. Aloita tarkennus uudelleen.');
       gl.flush();
     },
     dispose() {

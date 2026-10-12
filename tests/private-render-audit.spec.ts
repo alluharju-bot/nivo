@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ready } from './helpers';
+import { readFile } from 'node:fs/promises';
 
 test.use({ deviceScaleFactor: 2 });
 const modelPath = process.env.NIVO_AUDIT_MODEL;
@@ -14,7 +15,17 @@ test('private large model refines at Retina resolution, resets promptly on navig
     if (m.type() === 'error') errors.push(m.text());
   });
   await ready(page);
-  await page.getByTestId('project-file').setInputFiles(modelPath!);
+  const camera = process.env.NIVO_TRACE_VIEW
+    ? JSON.parse(await readFile(process.env.NIVO_TRACE_VIEW, 'utf8'))
+    : undefined;
+  const project = JSON.parse(await readFile(modelPath!, 'utf8'));
+  await page.getByTestId('project-file').setInputFiles({
+    name: 'private-render-audit.nivo',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({ ...project, ...(camera ? { renderViews: [camera] } : {}) }),
+    ),
+  });
   await expect
     .poll(async () => Number(await page.getByTestId('viewport').getAttribute('data-mesh-count')), {
       timeout: 90000,
@@ -23,6 +34,10 @@ test('private large model refines at Retina resolution, resets promptly on navig
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   const canvas = page.getByTestId('render-canvas');
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
+  if (camera) {
+    await page.locator('.saved-render-views > summary').click();
+    await page.getByRole('button', { name: `Katso: ${camera.name}`, exact: true }).click();
+  }
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
   await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
     timeout: 150000,

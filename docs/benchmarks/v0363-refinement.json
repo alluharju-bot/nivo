@@ -1,0 +1,243 @@
+{
+  "environment": "Apple M1 Pro, 16 GB, Chromium 153.0.8010.12; headed Playwright, 1440x960 viewport, DPR 2",
+  "baseline": "e4b08bf3ffe9e050243aa9a88e275297f6678a7b",
+  "comparison": "v0.36.3 continuous-refinement experiment",
+  "method": "Already loaded scene and shaders; time from refinement restart to 64 samples at 1999x1500. Camera and quality settings fixed within each comparison. No concurrent tests. Interior comparison is one completed run per version, not a statistical performance guarantee.",
+  "measurements": [
+    {
+      "label": "before-v0362",
+      "model": "single-pbr-board",
+      "dpr": 2,
+      "samples": 64,
+      "runs": [
+        {
+          "firstImageMs": 75.80000019073486,
+          "completeMs": 47006.5,
+          "frameP95Ms": 9.299999952316284,
+          "frameMaxMs": 11.100000143051147,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "640x480",
+              "atMs": 75.80000019073486
+            },
+            {
+              "size": "960x720",
+              "atMs": 459.2000000476837
+            },
+            {
+              "size": "1440x1080",
+              "atMs": 1767.6000001430511
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 6454.200000047684
+            }
+          ]
+        },
+        {
+          "firstImageMs": 102.09999990463257,
+          "completeMs": 45993.5,
+          "frameP95Ms": 9.299999952316284,
+          "frameMaxMs": 10.900000095367432,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "640x480",
+              "atMs": 102.09999990463257
+            },
+            {
+              "size": "960x720",
+              "atMs": 535.3999998569489
+            },
+            {
+              "size": "1440x1080",
+              "atMs": 1909.6999998092651
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 6193.899999856949
+            }
+          ]
+        },
+        {
+          "firstImageMs": 108.5,
+          "completeMs": 46616.700000047684,
+          "frameP95Ms": 9.299999952316284,
+          "frameMaxMs": 11.700000047683716,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "640x480",
+              "atMs": 108.5
+            },
+            {
+              "size": "960x720",
+              "atMs": 458.40000009536743
+            },
+            {
+              "size": "1440x1080",
+              "atMs": 1741.9000000953674
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 6350.200000047684
+            }
+          ]
+        }
+      ],
+      "errors": []
+    },
+    {
+      "label": "after-v0363",
+      "model": "single-pbr-board",
+      "dpr": 2,
+      "samples": 64,
+      "runs": [
+        {
+          "firstImageMs": 47.799999952316284,
+          "completeMs": 36813.700000047684,
+          "frameP95Ms": 9.299999952316284,
+          "frameMaxMs": 11,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "499x375",
+              "atMs": 47.799999952316284
+            },
+            {
+              "size": "999x750",
+              "atMs": 323.7000000476837
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 1719.7000000476837
+            }
+          ]
+        },
+        {
+          "firstImageMs": 78.30000019073486,
+          "completeMs": 62408,
+          "frameP95Ms": 9.299999952316284,
+          "frameMaxMs": 13.400000095367432,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "499x375",
+              "atMs": 78.30000019073486
+            },
+            {
+              "size": "999x750",
+              "atMs": 394.90000009536743
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 1736.7000000476837
+            },
+            {
+              "size": "499x375",
+              "atMs": 25573.5
+            },
+            {
+              "size": "999x750",
+              "atMs": 25848.400000095367
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 27324.200000047684
+            }
+          ],
+          "excluded": "Resolution restarted during measurement; cause was not recorded in this run."
+        },
+        {
+          "firstImageMs": 68.79999995231628,
+          "completeMs": 35979.89999985695,
+          "frameP95Ms": 9.299999952316284,
+          "frameMaxMs": 13.700000047683716,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "499x375",
+              "atMs": 68.79999995231628
+            },
+            {
+              "size": "999x750",
+              "atMs": 360.5
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 1718.7999999523163
+            }
+          ]
+        }
+      ],
+      "errors": []
+    },
+    {
+      "label": "before-v0362",
+      "model": "private-176-parts-interior",
+      "dpr": 2,
+      "samples": 64,
+      "runs": [
+        {
+          "firstImageMs": 228.90000009536743,
+          "completeMs": 178136.90000009537,
+          "frameP95Ms": 9.299999952316284,
+          "frameMaxMs": 64.20000004768372,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "640x480",
+              "atMs": 228.90000009536743
+            },
+            {
+              "size": "960x720",
+              "atMs": 1586.2000000476837
+            },
+            {
+              "size": "1440x1080",
+              "atMs": 6659.900000095367
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 23748.5
+            }
+          ]
+        }
+      ],
+      "note": "First fully completed timing run; further repeats were stopped. No concurrent GPU tests."
+    },
+    {
+      "label": "after-v0363",
+      "model": "private-176-parts-interior",
+      "dpr": 2,
+      "samples": 64,
+      "runs": [
+        {
+          "firstImageMs": 172.30000019073486,
+          "completeMs": 165441.40000009537,
+          "frameP95Ms": 10,
+          "frameMaxMs": 53.40000009536743,
+          "size": "1999x1500",
+          "stages": [
+            {
+              "size": "499x375",
+              "atMs": 172.30000019073486
+            },
+            {
+              "size": "999x750",
+              "atMs": 1289.6000001430511
+            },
+            {
+              "size": "1999x1500",
+              "atMs": 7489.100000143051
+            }
+          ],
+          "resets": [],
+          "input": []
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.3** säilyttää karkean renderikuvan seuraavan tarkkuuden pohjana.
+Pikselit tarkentuvat neljään pienempään; uusi valolaskenta korvaa vanhan kuvan
+asteittain. Vanhan kuvan vaikutus poistuu kokonaan kahdeksassa näytteessä.
+GPU-erät hyödyntävät vapaata kapasiteettia rajatusti ja väistävät kameran liikettä.
+Edellinen renderi on tallessa Git-tagissa
+`render-before-continuous-refinement-v0.36.2`.
+
 Versio **0.36.2** aloittaa renderin kevyesti ja tarkentaa kuvaa automaattisesti
 kameran pysähdyttyä. Erillinen Kevyt/Täysi-valinta poistuu. Kameraa liikuttaessa
 palataan heti nopeaan esikatseluun; näkyvä kuva päivittyy kokonaisina näytteinä.

@@ -8,9 +8,11 @@ export function traceResolutions(width: number, height: number) {
     2560 / Math.max(width, height),
     Math.sqrt(previewPixelBudget / (width * height)),
   );
-  const first = Math.min(maximum, 640 / Math.max(width, height));
-  const scales = [first];
-  while (scales.at(-1)! < maximum) scales.push(Math.min(maximum, scales.at(-1)! * 1.5));
+  // Work backwards from the final size so each coarse pixel has four children.
+  // Apart from one-pixel rounding, a retained parent costs at most 1/4 of the
+  // current image. Avoid a nearly-full-sized extra target at the final step.
+  const scales = [maximum];
+  while (scales[0] * Math.max(width, height) > 640) scales.unshift(scales[0] / 2);
   return scales.map((scale) => ({
     scale,
     width: Math.max(1, Math.floor(width * scale)),

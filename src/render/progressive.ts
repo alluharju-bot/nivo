@@ -7,6 +7,7 @@ import { configureEmitterSampling } from './emitterSampling';
 import { traceResources } from './traceResources';
 import { traceResolutions } from './traceResolution';
 import { traceImage } from './traceImage';
+import { refinementSamples } from './traceRefinement';
 import { gpuQueue } from './gpuQueue';
 import { isTraceEnvironment } from './environment';
 
@@ -51,6 +52,7 @@ export function progressiveRenderer(
     needsSize = true;
   const image = traceImage();
   const queue = gpuQueue(renderer.getContext() as WebGL2RenderingContext);
+  let batchTiles = 1;
   let samplingConfigured = false;
   let snapshot: THREE.Scene | undefined;
   let lightingDirty = false;
@@ -146,6 +148,7 @@ export function progressiveRenderer(
     resources = traceResources(tracer);
     tracer.renderToCanvas = false;
     renderer.domElement.dataset.tracePresentation = 'whole-frame';
+    renderer.domElement.dataset.traceRefinement = 'retained-coarse';
     tracer.renderDelay = 0;
     tracer.bounces = 16;
     tracer.transmissiveBounces = 12;
@@ -164,7 +167,10 @@ export function progressiveRenderer(
         throw new Error(
           'Näytönohjaimen yhteys katkesi. Palauta 3D-näkymä tai käynnistä selain uudelleen.',
         );
-      if (!queue.ready()) return;
+      if (!queue.ready()) {
+        batchTiles = Math.max(1, Math.floor(batchTiles / 2));
+        return;
+      }
       if (dirty) {
         if (!preparing) {
           preparing = true;
@@ -208,31 +214,49 @@ export function progressiveRenderer(
         return;
       }
       if (needsSize) quality();
-      const before = Math.floor(tracer.samples);
-      tracer.renderSample();
-      const samples = Math.floor(tracer.samples);
-      if (samples > before) {
-        image.capture(renderer, tracer.target, samples);
-        present();
-        renderer.domElement.dataset.traceSamples = String(samples);
-        renderer.domElement.dataset.traceOpacity = '1';
-        renderer.domElement.dataset.tracePresentedSize = renderer.domElement.dataset.traceSize;
-        if (samples === 1) checkTraceUpload(renderer);
-        // Converge briefly before adding pixels. Retain this image through the
-        // transition; don't flash the raster fallback or show a tile sweep.
-        if (resolution < resolutions().length - 1 && samples >= 4 + resolution * 4) {
-          resolution++;
-          needsSize = true;
-          tracer.reset();
-        } else if (
-          resolution === resolutions().length - 1 &&
-          options.maxSamples > 0 &&
-          samples >= options.maxSamples
-        ) {
-          complete = true;
-          status('complete');
+      // Use spare GPU capacity without tying every small tile to a screen
+      // refresh. One bounded batch stays in flight, with at most 4 tiles. Stop
+      // starting more tiles once CPU submission takes 4 ms; a single driver
+      // call cannot be interrupted. Yield to camera and UI events between batches.
+      const batchStarted = performance.now();
+      let submitted = 0;
+      for (let tile = 0; tile < batchTiles; tile++) {
+        const before = tracer.samples;
+        tracer.renderSample();
+        submitted++;
+        const samples = Math.floor(tracer.samples);
+        if (samples > Math.floor(before)) {
+          image.capture(renderer, tracer.target, samples);
+          present();
+          renderer.domElement.dataset.traceSamples = String(samples);
+          renderer.domElement.dataset.traceOpacity = '1';
+          renderer.domElement.dataset.traceHistoryWeight = String(image.historyWeight);
+          renderer.domElement.dataset.tracePresentedSize = renderer.domElement.dataset.traceSize;
+          if (samples === 1) checkTraceUpload(renderer);
+          // The coarse image is only a display estimate. Never put its colors
+          // into the new tracer's radiance sum or inflate its sample count.
+          if (
+            resolution < resolutions().length - 1 &&
+            samples >= (resolution === 0 ? 4 : refinementSamples)
+          ) {
+            resolution++;
+            needsSize = true;
+            tracer.reset();
+            break;
+          } else if (
+            resolution === resolutions().length - 1 &&
+            options.maxSamples > 0 &&
+            samples >= options.maxSamples
+          ) {
+            complete = true;
+            status('complete');
+            break;
+          }
         }
+        if (tracer.samples === before || performance.now() - batchStarted >= 4) break;
       }
+      renderer.domElement.dataset.traceBatchTiles = String(submitted);
+      batchTiles = Math.min(4, batchTiles + 1);
       queue.submit();
       if (!complete && performance.now() - lastStatus > 400) {
         status(image.ready ? 'rendering' : 'loading');
@@ -242,15 +266,20 @@ export function progressiveRenderer(
       fail(e);
     }
   };
-  const reset = () => {
+  let resets = 0;
+  const reset = (reason: string) => {
+    renderer.domElement.dataset.traceReset = String(++resets);
+    renderer.domElement.dataset.traceResetReason = reason;
     complete = false;
     resolution = 0;
     needsSize = true;
+    batchTiles = 1;
     image.clear();
     if (tracer) tracer.pausePathTracing = false;
     tracer?.reset();
     renderer.domElement.dataset.traceSamples = '0';
     renderer.domElement.dataset.traceOpacity = '0';
+    renderer.domElement.dataset.traceHistoryWeight = '0';
     if (enabled)
       status(
         paused ? 'paused' : interacting ? 'rendering' : 'loading',
@@ -262,7 +291,7 @@ export function progressiveRenderer(
       return enabled;
     },
     resize() {
-      reset();
+      reset('resize');
     },
     configure(next: TraceOptions) {
       const sameTarget = next.maxSamples === options.maxSamples;
@@ -280,7 +309,7 @@ export function progressiveRenderer(
     },
     restart() {
       paused = false;
-      reset();
+      reset('restart');
     },
     async start() {
       if (enabled) {
@@ -312,7 +341,7 @@ export function progressiveRenderer(
         // The camera can move while tracing is off or being prepared. Refresh
         // its uniforms without rebuilding the already prepared geometry.
         tracer!.setCamera(camera);
-        reset();
+        reset('start');
         loop();
       } catch (e) {
         if (!disposed && token === request) fail(e);
@@ -371,12 +400,12 @@ export function progressiveRenderer(
         tracer.updateCamera();
         settleAt = performance.now() + 100;
         if (paused) renderer.render(scene, camera);
-        reset();
+        reset(rebuildScene ? 'geometry' : updateMaterials ? 'material' : 'camera');
       }
     },
     lighting() {
       lightingDirty = true;
-      if (enabled) reset();
+      if (enabled) reset('lighting');
     },
     display() {
       if (!enabled || dirty || interacting) return;

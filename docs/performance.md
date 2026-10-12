@@ -1,5 +1,66 @@
 # Suorituskyky
 
+## V0.36.3 — kuvan säilyttävä tarkennus, 12.10.2026
+
+Esikatselu etenee lopullisesta kuvakoosta johdetuilla 2× askelilla. Esimerkiksi
+1999 × 1500 -kuva alkaa koosta 499 × 375, jatkaa kokoon 999 × 750 ja päätyy
+lopulliseen kokoon. Sama 3 MP / 2560 px raja säilyy.
+
+Vanha karkea kuva säilyy erillisessä pienessä väripuskurissa. Näyttökuva on
+sekoitus tästä kuvasta ja uuden tarkkuuden oikeasta valokertymästä. Vanhan kuvan
+paino pienenee smoothstep-käyrällä nollaan kahdeksassa näytteessä. Se ei lisää
+laskennallista näytemäärää eikä muuta tracerin valokertymää. Ensimmäinen taso
+laskee neljä näytettä, muut välitasot kahdeksan. Lopullinen taso laskee käyttäjän
+valitseman tavoitteen. Kameran tai sisällön muutos tyhjentää kuvat.
+
+Kohinanpoisto on esikatselussa käytössä alusta lähtien, jos se on valittu.
+Se ei enää katkea tarkkuuden vaihtuessa. Erillisen kuvatyön laskenta ja
+kohinanpoiston käyttäytyminen ovat ennallaan.
+
+GPU-jonossa on edelleen enintään yksi laskentaerä. Erässä voi olla 1–4 ruutua
+(kukin enintään 256 × 256), jotta näytön virkistys ei pakota jokaista pientä
+ruutua omaan selainkehykseensä. Eräkoko pienenee, jos edellinen erä ei ole
+valmistunut. Uutta ruutua ei aloiteta 4 ms CPU-aikabudjetin ylityttyä.
+Yksittäistä ajurikutsua ei voi katkaista kesken; tämä ei ole 4 ms GPU-aikatakuu.
+
+Säilytettävä edellinen kuva vie korkeintaan neljänneksen nykyisen kuvan
+pikseleistä. Väripuskurien laskennallinen enimmäiskoko on siirtymän aikana
+**204 MB (195 MiB)**, ja siirtymän jälkeen **192 MB**. Tämä ei sisällä koko
+GPU-muistinkäyttöä. Vanha puskuri vapautuu myös kesken siirtymän tapahtuvassa
+kameran muutoksessa, kuvatyön aloituksessa ja renderin sulkemisessa.
+
+Palautuspiste on Git-tagissa `render-before-continuous-refinement-v0.36.2`
+(`e4b08bf`). Kokeilu on erillinen commit, jonka peruminen palauttaa aiemman
+renderipolun ilman historian uudelleenkirjoitusta.
+
+### Paikallinen ennen/jälkeen-vertailu
+
+Apple M1 Pro / 16 Gt, Chromium 153, näkyvä selain, 2× pikselitiheys.
+Malli ja varjostimet ovat valmiiksi ladattuina; aika mitataan tarkennuksen
+uudelleenkäynnistyksestä lopullisen **1999 × 1500 / 64 näytteen** valmistumiseen.
+Valonlaskenta säilyy 16 heijastuksessa ja 12 läpäisyssä, samalla kameralla ja
+materiaaleilla. Mittausten aikana ei ajeta muita testejä.
+
+| Näkymä                                         | V0.36.2 | V0.36.3 |
+| ---------------------------------------------- | ------: | ------: |
+| PBR-puulevy, kokonaisaika                      |  46,6 s |  36,4 s |
+| Saunan **sisänäkymä**, kokonaisaika            | 178,1 s | 165,4 s |
+| Saunan ensimmäinen lopullisen tarkkuuden näyte |  23,7 s |   7,5 s |
+
+Puulevyn luvut ovat kolmen vanhan ja kahden keskeytymättömän uuden ajon
+mediaanit. Yksi uuden version ajo nollautui kesken mittauksen; sitä ei käytetä
+vertailussa ja se on merkitty raakadataan. Seuraaviin mittauksiin lisättiin
+nollauksen syyn ja syötetapahtumien seuranta. Sisävertailussa on yksi valmis
+ajo kummastakin versiosta: noin **7 %** lyhyempi kokonaisaika tässä mittauksessa,
+ei yleinen nopeuslupaus. Uudessa sisäajossa ei tapahtunut nollauksia tai syötteitä.
+64 näytteen sisäkuva on edelleen kohinainen; testi ei mittaa kohinattoman
+asiakaskuvan valmistumisaikaa. Karkeasta kuvasta säilytetään näyttöarvio,
+ei nelinkertaista määrää oikeita valonäytteitä.
+
+[Raaka-ajat](benchmarks/v0363-refinement.json). RAF-välit kuvaavat JavaScriptin
+ajoitusta; ne eivät ole kameran FPS- tai näytönohjaimen valmistumisaikamittaus.
+Yksityinen malli ja sen kuvat säilyvät vain paikallisessa testiympäristössä.
+
 ## V0.36.2 — tarkentuvan esikatselun kuormitus, 12.10.2026
 
 Esikatselu aloittaa enintään 640 px:n pidemmästä sivusta ja kasvattaa resoluutiota

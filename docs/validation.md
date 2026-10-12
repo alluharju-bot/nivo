@@ -4,6 +4,37 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.3 — säilyttävä renderikuva
+
+470 yksikkö-/CAD-testiä hyväksytty (93 tiedostoa); kaksi yksityisen tiedoston
+vaativaa yksikkötestiä ohitetaan tavallisessa ajossa. Tuotantopaketti ja
+lisenssitarkistus onnistuvat. 14 työpöydän ja 6 tablettiprofiilin selaintapausta
+hyväksytty; työpöydän määrään sisältyy paikallinen saunan sisänäkymän testi.
+Erilliset ajoitusvertailut on kuvattu [suorituskykymuistiossa](performance.md).
+
+- Todellinen WebGL-väritesti ajaa tuotannon `traceImage`-moduulin: punainen
+  karkea kuva säilyy uuden sinisen kuvan alussa, sekoittuu välivaiheessa ja
+  poistuu kokonaan kahdeksannessa näytteessä. Seuraava tarkkuusvaihe ei palauta
+  vanhaa punaista väriä. Nollaus kesken siirtymän poistaa koko historian.
+- Samassa GPU-testissä elossa olevien tekstuurien määrä on siirtymässä kolme,
+  valmistuttua kaksi ja nollauksen jälkeen yksi (testin oma lähdetekstuuri).
+- Selaimessa tarkkuusvaiheiden vanhan kuvan painot pienenevät ja ovat lopussa
+  nolla. Kameran liike poistaa historian heti. Tarkennus jatkuu myös
+  keskeytyneen pointer-operaation jälkeen.
+- Kolme esikatselu–kuvatyö-kierrosta palauttavat GPU-tekstuurimäärän edelleen
+  arvoihin **14 / 14 / 14**. Tarkennuksen, PNG-viennin, PBR-materiaalien,
+  valotuksen ja WebGL-palautumisen regressiot tarkistetaan selaimessa.
+- Suorituskykyvertailussa käytetään tuotantopaketteja, 2× pikselitiheyttä,
+  samaa 1999 × 1500 -lopputarkkuutta ja 64 näytettä. Saunasta käytetään
+  **sisäkuvakulmaa**, joka palautetaan samasta kamerapaikasta ja polttovälistä.
+  Mallia, kuvakulmatiedostoa tai sen kuvia ei sisällytetä julkaisuun.
+
+Paikallinen vertailu voidaan ajaa komennolla
+`NIVO_TRACE_BENCHMARK=vertailu NIVO_TRACE_RUNS=1 NIVO_TRACE_VIEW=/polku/kamera.json NIVO_AUDIT_MODEL=/polku/malli.nivo NIVO_PREVIEW=1 NIVO_BASE_PATH=/nivo/ npx playwright test tests/render-refinement-benchmark.spec.ts --project=desktop --headed`.
+Kameratiedosto käyttää tallennetun kuvakulman kenttiä `id`, `name`, `position`,
+`target` ja `focalLength`. Benchmark hylkää uuden version ajon, jos renderi
+nollautuu ensimmäisen kuvan valmistumisen jälkeen; tapahtuman syy kirjataan.
+
 ## V0.36.2 — automaattinen renderi ja WebGL-palautuminen
 
 468 yksikkö-/CAD-testiä hyväksytty (92 tiedostoa); kaksi yksityisen tiedoston

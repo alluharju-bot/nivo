@@ -3,9 +3,10 @@ import { traceResolutions, previewPixelBudget } from './traceResolution';
 
 it('starts coarse, increases resolution without overshooting, and reaches native size on a normal view', () => {
   const sizes = traceResolutions(1440, 900);
-  expect(sizes[0]).toMatchObject({ width: 640, height: 400 });
+  expect(sizes[0]).toMatchObject({ width: 360, height: 225 });
   expect(sizes.at(-1)).toMatchObject({ width: 1440, height: 900 });
   expect(sizes.every((s, i) => !i || s.width > sizes[i - 1].width)).toBe(true);
+  expect(sizes.map((s) => s.width)).toEqual([360, 720, 1440]);
   expect(traceResolutions(320, 240)).toEqual([{ scale: 1, width: 320, height: 240 }]);
 });
 
@@ -21,6 +22,13 @@ it('bounds wide, tall, Retina and 8K preview allocations independently of browse
       expect(size.width * size.height).toBeLessThanOrEqual(previewPixelBudget);
       expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(2560);
       expect(Math.abs(size.width / size.height / (w / h) - 1)).toBeLessThan(0.015);
+    }
+    const sizes = traceResolutions(w, h);
+    for (let i = 1; i < sizes.length; i++) {
+      // A parent cannot become a second full-size allocation at the last step.
+      expect(sizes[i - 1].width * sizes[i - 1].height).toBeLessThanOrEqual(
+        (sizes[i].width * sizes[i].height) / 4,
+      );
     }
   }
 });

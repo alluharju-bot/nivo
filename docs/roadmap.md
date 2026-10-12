@@ -2,6 +2,26 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.3 — kuvan säilyttävä tarkennus
+
+- Esikatselun resoluutio kaksinkertaistuu molempiin suuntiin. Yksi karkea
+  pikseli vastaa neljää seuraavan vaiheen pikseliä (kuvakoon pyöristys huomioiden).
+- Edellinen karkea kuva säilyy uuden vaiheen väliaikaisena väriarviona.
+  Sen paino pienenee tasaisesti ja on nolla kahdeksannessa näytteessä.
+  Lopulliseen valolaskentaan ei jää karkeasta kuvasta perittyä väriä.
+- Kohinanpoisto ei vaihdu päälle/pois jokaisen tarkkuusvaiheen alussa.
+  Vain kokonaiset näytteet näytetään, ilman näkyvää ruutujen laskentapyyhkäisyä.
+- Yksi rajattu GPU-erä kerrallaan, enintään neljä pientä ruutua. Seuraavaa
+  ruutua ei aloiteta 4 ms CPU-aikabudjetin ylityttyä; yksittäistä ajurikutsua
+  ei voi katkaista kesken. Eräkoko pienenee GPU:n jäädessä
+  jälkeen. Kamera, materiaali- ja valaistusmuutokset tyhjentävät vanhan kuvan.
+- Palautuspiste: `render-before-continuous-refinement-v0.36.2` (`e4b08bf`).
+  Kokeilu on oma commit, jonka voi perua `git revert` -komennolla.
+
+Tämä säilyttää aiemman **kuvan**, ei siirrä vanhan pikselin näytteitä neljän
+uuden pikselin näytemääräksi. Yksittäisten säteiden uudelleenkäyttö sekä
+syvyys- ja normaalitietoinen rekonstruktio ovat edelleen myöhempää työtä.
+
 ## V0.36.2 — automaattisesti tarkentuva esikatselu ja grafiikan palautuminen
 
 - Renderöi näyttää heti nopean kuvan ja aloittaa tarkentumisen automaattisesti.
