@@ -2,6 +2,35 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## Backlog — yhteinen Shift-viitekehys ja piirron aloitus toisesta kappaleesta
+
+Käyttäjän tarkennus 12.10.2026. Suunniteltu jatkokehitys; ei vielä toteutettu.
+
+- Keskeinen käyttötapaus: käyttäjä piirtää aktiivisen kappaleen pinnalle, mutta
+  haluaa poimia **jo piirron aloituspisteelle** Shift-viitteen toisesta kappaleesta.
+  Esimerkiksi kaapin pinnalle alkava piirros kohdistetaan viereisen kaapin
+  kulmaan, reunaan tai keskipisteeseen.
+- Aktiivinen kappale, muokkauskohde ja piirtotaso säilyvät. Viitekappale antaa
+  kohdistuksen; sen osoittaminen ei siirrä piirtoa sen pinnalle, vaihda valintaa
+  tai muuta viitekappaletta. Myös eri korkeudella tai eri tasossa oleva viite
+  pitää voida hyödyntää aktiivisessa piirtotasossa.
+- Viitepiste, siitä johdettu magenta suunta ja piirtotasolla toteutuva
+  aloituspiste erotetaan selvästi. Suuntapalaute näkyy tarvittaessa osan läpi.
+  Numeerinen mitoitus ja ruudukko eivät saa siirtää vahvistettua aloituspistettä.
+- Toteutetaan yhteisenä toimintalogiikkana kynälle, muototyökaluille sekä
+  mitta- ja apuviivoille, sekä soveltuvin osin muiden työkalujen viitehakuun.
+  Sama periaate tarvitaan ennen ensimmäistä pistettä ja kesken toiminnon,
+  sekä osan muokkaustilassa että tavallisessa mallintamisessa.
+- Säilytetään toimiva Push/Pullin tavoitehaku ja siirron/kierron viitetartunta.
+  Tarkennetaan käyttäjän esimerkeillä ennen toteutusta viitteen poiminnan,
+  suunnan lukituksen ja Shiftin vapautuksen suhde sekä se, miten ulkoinen viite
+  kohdistetaan aktiiviseen tasoon. Tavoite on sama, ennakoitava käytös ilman
+  ylimääräisiä työkalun tai muokkaustilan vaihtoja.
+- Hyväksymistestit: suorakulmion ja kynäviivan aloitus toisen osan kulman,
+  reunan ja keskipisteen viitteellä; eri syvyys/korkeus; vino aktiivinen pinta;
+  muokkaustila; viitteen vaihto ja peruminen. Aloituspiste, aktiivinen pinta
+  ja viitekappale säilyvät oikeina koko eleen ja numerosyötön ajan.
+
 ## V0.36.8 — siirto osan omien suuntien mukaan
 
 - Siirtosuunnat poimitaan tartuttavan osan todellisista CAD-reunoista.
