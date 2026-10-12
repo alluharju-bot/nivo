@@ -26,6 +26,7 @@ import { rotateBodies } from './transforms';
 import { detailEdges, removeEdgeTreatment } from './details';
 import { instantiateComponents } from './components';
 import { removeSurfaceFaces } from './surfaces';
+import { readStep, writeStep, printMeshes } from './exchange';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 const cache = new CadBuildCache();
@@ -44,6 +45,14 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
+      else if (request.type === 'release-history') {
+        cache.releaseHistory();
+        detailPreview = undefined;
+      } else if (request.type === 'import-step')
+        reply.result = await readStep(request.data, request.name);
+      else if (request.type === 'export-step') reply.result = await writeStep(request.bodies);
+      else if (request.type === 'print-meshes')
+        reply.result = printMeshes(request.bodies, request.tolerance);
       else if (request.type === 'section')
         reply.result = sectionBodies(request.bodies, request.section, request.drawing, (body) => {
           const entry = cache.get(body);

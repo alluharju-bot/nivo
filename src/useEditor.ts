@@ -34,11 +34,13 @@ export function useEditor() {
   const revision = useRef(0);
   const saveRevision = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const saveError = useRef<Error | undefined>(undefined);
   const lastHidden = useMemo(() => history.lastHidden(), [history, project]);
 
   const persist = useCallback(
     (next: Project) => {
       const r = ++saveRevision.current;
+      saveError.current = undefined;
       setSaveStatus('Tallennetaan…');
       saveQueue.current = saveQueue.current
         .catch(() => {})
@@ -48,7 +50,8 @@ export function useEditor() {
           const shortened = history.savedSteps < history.undoCount + history.redoCount;
           const savedSteps = history.savedSteps;
           const historySaved = await saveLocal(next, snapshot);
-          if (r === saveRevision.current)
+          if (r === saveRevision.current) {
+            saveError.current = undefined;
             setSaveStatus(
               historySaved
                 ? shortened
@@ -56,8 +59,10 @@ export function useEditor() {
                   : 'Tallessa selaimessa'
                 : 'Malli tallessa; historia ei mahtunut tallennukseen',
             );
+          }
         })
         .catch((e: Error) => {
+          saveError.current = e;
           if (r === saveRevision.current) {
             setSaveStatus('Tallennus epäonnistui');
             setError(e.message);
@@ -66,6 +71,11 @@ export function useEditor() {
     },
     [history],
   );
+
+  const flushSave = useCallback(async () => {
+    await saveQueue.current;
+    if (saveError.current) throw saveError.current;
+  }, []);
 
   useEffect(() => {
     const current = ++revision.current;
@@ -108,6 +118,7 @@ export function useEditor() {
       label: string,
       mode: 'commit' | 'replace' | 'undo' | 'redo' | 'restore' = 'commit',
       details?: Omit<ActionInfo, 'label'>,
+      savedHistory?: string,
     ) => {
       const current = ++revision.current;
       const info =
@@ -118,6 +129,12 @@ export function useEditor() {
       setError('');
       setMessage('Lasketaan tarkkaa geometriaa…');
       try {
+        if (mode === 'replace') {
+          // Finish this project's write before changing its history or active ID.
+          // Every edit is already queued. Do not manufacture an unused empty
+          // library entry just because the user opens a file after launch.
+          await flushSave();
+        }
         let resolved = typeof candidate === 'function' ? await candidate() : candidate;
         if (current !== revision.current) return false;
         if (mode === 'commit') {
@@ -156,7 +173,7 @@ export function useEditor() {
                 }
               : d,
           ),
-          updatedAt: new Date().toISOString(),
+          updatedAt: mode === 'replace' ? resolved.updatedAt : new Date().toISOString(),
         });
         if (!validated.success) throw new Error(projectValidationMessage(validated.error));
         let next = shareProjectData(history.current, validated.data);
@@ -165,7 +182,12 @@ export function useEditor() {
           next.bodies === history.current.bodies ? undefined : await cad.build(next.bodies);
         if (current !== revision.current) return false;
         if (built) next = captureQuantityBases(next, built);
-        if (mode === 'undo') history.undo();
+        if (mode === 'replace') {
+          await cad.releaseProjectHistory();
+          if (current !== revision.current) return false;
+          history.current = next;
+          history.restore(savedHistory);
+        } else if (mode === 'undo') history.undo();
         else if (mode === 'redo') history.redo();
         else if (mode === 'restore') {
           if (!details?.actionId || !history.restoreBeforeAction(details.actionId))
@@ -195,7 +217,7 @@ export function useEditor() {
         if (current === revision.current) setBusy(false);
       }
     },
-    [cad, history, persist],
+    [cad, history, persist, flushSave],
   );
 
   const undo = () => {
@@ -229,6 +251,7 @@ export function useEditor() {
     setError,
     setMessage,
     saveStatus,
+    flushSave,
     transact,
     undo,
     redo,

@@ -181,6 +181,10 @@ export function texturePlacement(texture: THREE.Texture, placement: TexturePlace
 }
 /** Shared local millimetre UVs: every PBR channel and both renderers use the same frame. */
 export function materialUV(geometry: THREE.BufferGeometry, body: Body) {
+  if (body.feature.type === 'mesh' && body.feature.uv) {
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(body.feature.uv, 2));
+    return;
+  }
   const positions = geometry.getAttribute('position'),
     normals = geometry.getAttribute('normal');
   const inverse = textureFrameMatrix(body).invert(),

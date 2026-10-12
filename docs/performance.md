@@ -1,5 +1,35 @@
 # Suorituskyky
 
+## V0.37.0 — usean projektin kirjasto, 13.10.2026
+
+Projektikirjaston kortit luetaan erillisestä IndexedDB-metatietotaulusta.
+Listaus ei pura muiden projektien geometriaa tai historiaa. Valitun projektin
+avaaminen lukee sen oman mallin ja historian. Vaihto vapauttaa edellisen
+projektin CAD-historiavälimuistin säilyttäen juuri avatun geometrian.
+Tuotujen kolmiomallien siirto käyttää valmista näyttöverkkoa.
+
+Paikallinen näkyvän Chromium-selaimen mittaus Apple M1 Pro / 16 Gt:
+yksityinen **589 osan** projekti, **488 näkyvää** osaa. Testisovelluksen omaan
+erilliseen selaintallennukseen tallennettiin kahdeksan mallia. Varsinaista käyttäjän tallennetta ei muutettu.
+
+| Mittaus                                            |              Tulos |
+| -------------------------------------------------- | -----------------: |
+| Projektidatan yhteiskoko                           | 46 082 328 merkkiä |
+| Listaukseen luetut metatiedot                      |      1 113 merkkiä |
+| Metatietoluku, 10 ajon mediaani / suurin           |       0,2 / 0,7 ms |
+| Kaikkien mallien luku ja JSON-jäsennys vertailuksi |           176,7 ms |
+| Kirjastopainalluksesta korttien näkymiseen         |             147 ms |
+| Yksittäisen mallin ensimmäinen avaus testissä      |           5 834 ms |
+
+Vertailu kaikkien mallien lukemiseen on tarkoituksella suoraviivainen
+vertailutoteutus, **ei aiemman Nivo-version projektikirjasto**. Aiemmassa
+versiossa oli yksi automaattitallenne. Kameraa käännettiin 60 syöteaskeleella:
+geometrian rakennusten määrä pysyi arvossa 488. Tämä ei ole FPS-mittaus eikä
+lupaus kaikkien laitteiden vasteajoista. Mallin avaamisen CAD-laskenta voi
+edelleen kestää sekunteja. Historialla on edelleen oma muistibudjettinsa.
+
+[Mittausdata](benchmarks/v0370-library.json). Yksityistä mallia ei julkaista.
+
 ## V0.36.4 — jaettu Peru-historia, 12.10.2026
 
 Vanha 64 MiB:n muistiarvio summasi koko projektin JSON-koon jokaiselle vaiheelle,

@@ -17,7 +17,7 @@ export function useActivityHistory(
   const [, update] = useState(0);
   const persist = () => {
     try {
-      sessionStorage.setItem('nivo-activity', journal.current.serialize());
+      sessionStorage.setItem(`nivo-activity:${projectId}`, journal.current.serialize());
     } catch {
       /* Optional tab history. */
     }
@@ -27,7 +27,10 @@ export function useActivityHistory(
     if (!ready || loaded.current === projectId) return;
     let saved: string | undefined;
     try {
-      saved = sessionStorage.getItem('nivo-activity') ?? undefined;
+      saved =
+        sessionStorage.getItem(`nivo-activity:${projectId}`) ??
+        sessionStorage.getItem('nivo-activity') ??
+        undefined;
     } catch {}
     journal.current = new ActivityJournal(projectId, saved);
     loaded.current = projectId;

@@ -52,6 +52,11 @@ export function resolveAnchor(bodies: Body[], anchor: Anchor): Vec3 | undefined 
   }
   const body = bodies.find((b) => b.id === anchor.bodyId);
   if (!body) return;
+  if (body.feature.type === 'mesh' && anchor.key.startsWith('mesh:')) {
+    const index = Number(anchor.key.slice(5));
+    if (Number.isInteger(index) && index >= 0 && index * 3 + 2 < body.feature.vertices.length)
+      return add(body.origin, body.feature.vertices.slice(index * 3, index * 3 + 3) as Vec3);
+  }
   if (
     anchor.key.startsWith('reference:') &&
     body.feature.type !== 'brep' &&

@@ -27,23 +27,6 @@ export function ObjectActions({
   return (
     <section className="object-actions-panel" aria-label="Kappaleen toiminnot">
       <details className="inspector-disclosure">
-        <summary>Ryhmä</summary>
-        <div className="disclosure-content">
-          <label className="modeling-field">
-            Ryhmä
-            <select
-              aria-label="Kappaleen ryhmä"
-              disabled={busy || body.locked}
-              value={body.groupId ?? ''}
-              onChange={(e) => onGroup(e.target.value || undefined)}
-            >
-              <option value="">Ei ryhmää</option>
-              <GroupOptions groups={groups} />
-            </select>
-          </label>
-        </div>
-      </details>
-      <details className="inspector-disclosure">
         <summary>
           Väri <span className="color-summary" style={{ background: body.color }} />
         </summary>

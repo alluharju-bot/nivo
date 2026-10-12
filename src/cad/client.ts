@@ -13,12 +13,17 @@ import type {
 } from './protocol';
 import type { Body, FaceRef, Vec3 } from '../model/project';
 import { bodyMeshKey } from './meshKey';
+import { Matrix4, Quaternion, Vector3 } from 'three';
+import { around, meshBody as importedMeshBody, transformMesh } from '../exchange/mesh';
+import { translateMesh } from './translateMesh';
+import { requireMovable } from '../model/transforms';
 
 export class CadClient {
   private buildQueue: Promise<unknown> = Promise.resolve();
   private generation = 0;
   private meshKeys = new Map<string, string>();
   private meshes = new Map<string, BodyMesh>();
+  private nativeTemplates = new WeakMap<Body['feature'], BodyMesh>();
   private worker?: Worker;
   private counter = 0;
   private detailPreview?: { body: Body; key: string; result: Promise<EdgeDetailResult> };
@@ -74,14 +79,55 @@ export class CadClient {
     const order = bodies.map((body) => body.id);
     const removed = [...this.meshKeys.keys()].some((id) => !keys.has(id));
     if (updates.length || removed) {
-      const delta = await this.request<BodyMesh[]>({ type: 'sync', updates, order });
+      const delta = await this.request<BodyMesh[]>({
+        type: 'sync',
+        updates: updates.filter((b) => b.feature.type !== 'mesh'),
+        order: bodies.filter((b) => b.feature.type !== 'mesh').map((b) => b.id),
+      });
       for (const mesh of delta) this.meshes.set(mesh.id, mesh);
+      for (const body of updates.filter((b) => b.feature.type === 'mesh')) {
+        let template = this.nativeTemplates.get(body.feature);
+        if (!template) {
+          template = importedMeshBody({ ...body, origin: [0, 0, 0] });
+          this.nativeTemplates.set(body.feature, template);
+        }
+        this.meshes.set(body.id, translateMesh(template, body.id, body.origin));
+      }
       for (const id of this.meshes.keys()) if (!keys.has(id)) this.meshes.delete(id);
       this.meshKeys = keys;
     }
     return order.map((id) => this.meshes.get(id)!);
   }
   instances(source: Body, targets: Body[]) {
+    if (source.feature.type === 'mesh' && source.component) {
+      const from = new Matrix4()
+        .compose(
+          new Vector3(...source.origin).add(new Vector3(...source.component.offset)),
+          new Quaternion(...source.component.rotation),
+          new Vector3(1, 1, 1),
+        )
+        .invert();
+      return Promise.resolve(
+        targets.map((target) => {
+          if (!target.component) throw new Error('Komponenttilinkki puuttuu.');
+          const matrix = new Matrix4()
+            .compose(
+              new Vector3(...target.origin).add(new Vector3(...target.component.offset)),
+              new Quaternion(...target.component.rotation),
+              new Vector3(1, 1, 1),
+            )
+            .multiply(from);
+          const transformed = transformMesh(source, matrix);
+          return {
+            ...target,
+            feature: transformed.feature,
+            origin: transformed.origin,
+            component: { ...target.component, offset: transformed.component!.offset },
+            quantityBasis: transformed.quantityBasis,
+          };
+        }),
+      );
+    }
     return targets.length
       ? this.request<Body[]>({ type: 'instances', source, targets })
       : Promise.resolve([]);
@@ -95,11 +141,51 @@ export class CadClient {
   probe() {
     return this.request<ProbeResult>({ type: 'probe' });
   }
-  scale(bodies: Body[], pivot: Vec3, factors: Vec3) {
-    return this.request<Body[]>({ type: 'scale', bodies, pivot, factors }, 120_000);
+  importStep(data: ArrayBuffer, name: string) {
+    return this.request<Body[]>({ type: 'import-step', data, name }, 120_000);
   }
-  rotate(bodies: Body[], pivot: Vec3, axis: Vec3, angle: number) {
-    return this.request<Body[]>({ type: 'rotate', bodies, pivot, axis, angle });
+  exportStep(bodies: Body[]) {
+    return this.request<Blob>({ type: 'export-step', bodies }, 120_000);
+  }
+  async releaseProjectHistory() {
+    this.detailPreview = undefined;
+    this.nativeTemplates = new WeakMap();
+    if (this.worker) await this.request<void>({ type: 'release-history' });
+  }
+  printMeshes(bodies: Body[], tolerance: number) {
+    return this.request<import('../exchange/export').ExportMesh[]>(
+      { type: 'print-meshes', bodies, tolerance },
+      120_000,
+    );
+  }
+  async scale(bodies: Body[], pivot: Vec3, factors: Vec3) {
+    requireMovable(bodies);
+    if (factors.some((n) => !Number.isFinite(n) || n <= 0))
+      throw new Error('Skaalauskertoimen tulee olla positiivinen.');
+    const cad = bodies.filter((b) => b.feature.type !== 'mesh');
+    const result = cad.length
+      ? await this.request<Body[]>({ type: 'scale', bodies: cad, pivot, factors }, 120_000)
+      : [];
+    const changed = new Map(result.map((b) => [b.id, b]));
+    return bodies.map(
+      (b) =>
+        changed.get(b.id) ?? transformMesh(b, around(pivot, new Matrix4().makeScale(...factors))),
+    );
+  }
+  async rotate(bodies: Body[], pivot: Vec3, axis: Vec3, angle: number) {
+    requireMovable(bodies);
+    if (!Number.isFinite(angle) || Math.hypot(...axis) < 1e-9)
+      throw new Error('Tarkista kiertokulma ja akseli.');
+    const cad = bodies.filter((b) => b.feature.type !== 'mesh');
+    const result = cad.length
+      ? await this.request<Body[]>({ type: 'rotate', bodies: cad, pivot, axis, angle })
+      : [];
+    const changed = new Map(result.map((b) => [b.id, b]));
+    const matrix = around(
+      pivot,
+      new Matrix4().makeRotationAxis(new Vector3(...axis).normalize(), (angle * Math.PI) / 180),
+    );
+    return bodies.map((b) => changed.get(b.id) ?? transformMesh(b, matrix));
   }
   pushPull(body: Body, face: FaceRef, distance: number) {
     return this.request<Body>({ type: 'push-pull', body, face, distance });

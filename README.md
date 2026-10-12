@@ -3,6 +3,24 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.37.0** lisää **Projektikirjaston** projektin nimen viereen:
+useita selaimeen tallentuvia projekteja omine historioineen sekä **Omat osat**
+uudelleenkäyttöä varten. **Lisää malli nykyiseen projektiin** tuo toisen
+Nivo-mallin ryhmineen, materiaaleineen ja sisäisine linkkeineen yhdellä peruttavalla
+toiminnolla. **Tallenna valinta kirjastoon** löytyy valinnan toimintovalikosta.
+
+**Avaa** ja **Lisää malliin** lukevat myös STEP/STP-, STL- ja GLB/glTF-tiedostoja.
+STEP on muokattavaa CAD-geometriaa; kolmiomalleja voi siirtää, kiertää, skaalata
+ja maalata. **Vie 3D-malli** tallentaa STL:n 3D-tulostuksen sliceriin, STEP:n
+CAD-ohjelmaan tai GLB:n materiaaleineen. STL-viennissä valitaan tarkkuus ja
+sijoitus tulostusalustalle, ja avonaiset pinnat ilmoitetaan.
+
+Valintapaneelin **Piilota**, **Hold** ja **Linkitetty/Uniikki** ovat heti näkyvissä.
+Uniikiksi muuttaminen irrottaa linkin; linkitettäessä käyttäjä valitsee lähtöosan.
+Oikean napin valikko kokoaa muut komennot **Muokkaa**, **Järjestä** ja
+**Tallenna ja vie** -kohtiin. Koko näytön Esc huomioi selaimen tuen, jotta
+kokonäytöstä poistuminen ei samalla peru keskeneräistä työkalua.
+
 Versio **0.36.13** korjaa tarkentuvan renderin väärille osille päätyvät
 pintamateriaalit ja LED-pinnat. Sama korjaus koskee tallennettavaa renderikuvaa.
 Push/Pull muuttaa reunakäsitellyn levyn koko päätyä säilyttäen pyöristykset

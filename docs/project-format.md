@@ -406,3 +406,43 @@ mittaluvulla esityksessä. Tyhjä/puuttuva teksti käyttää automaattista esity
 Ankkurit, mitan arvo ja geometria eivät muutu tekstin mukana. SVG-vienti escapettaa
 tekstin. `settings.measurementsHidden` on yhteinen näkyvyyskytkin, joka ei muuta
 merkintöjen yksittäisiä `hidden`-arvoja. Muutokset ovat v8:n valinnaisia lisäkenttiä.
+
+## Tuodut kolmiomallit (v0.37.0)
+
+`feature.type: "mesh"` säilyttää STL-/GLB-/glTF-geometrian ilman raskasta
+kolmioiden muuttamista CAD-pinnoiksi. `vertices`, `normals`, `triangles` ja
+valinnainen `uv` ovat osan paikallisessa koordinaatistossa, jonka minimi on nolla.
+`width/depth/height` validoidaan pisteistä; `solid` kuvaa tuonnissa tarkistettua
+reunojen sulkeutuneisuutta. Valinnainen `groups:[{start,count}]` jakaa indeksit
+pintamateriaaleille. Ryhmät kattavat indeksit järjestyksessä ilman aukkoja tai
+päällekkäisyyttä. Materiaalit tallentuvat `body.faceMaterials`-kenttään.
+
+Kolmiomallia voi siirtää, kiertää, skaalata, kopioida, linkittää, maalata,
+mitata, piilottaa, lukita ja käyttää tartuntana. Tarkat CAD-pintaoperaatiot
+antavat selkeän ilmoituksen STEP-mallin tarpeesta. Kolmiomallin sisältävä
+v8-projekti tarvitsee Nivon v0.37.0:n tai uudemman; vanhat mallityypit ja
+vanhat projektit säilyvät yhteensopivina. Uutta tyyppiä ei esitetä vanhalle
+lukijalle valheellisena BRep-geometriana.
+
+`Lisää malliin` antaa tuonnin osille, ryhmille, linkkiperheille, aineistoille ja
+merkinnöille uudet tunnisteet. Viittaukset siirtyvät mukana. Geometrian
+paikalliset topologiatunnisteet säilyvät. Saman niminen ja samalla tavalla
+laskettava osatyyppi käytetään uudelleen; eri laskentatavat pidetään erillisinä.
+Nykyisen projektin kamera- ja valaistusasetuksia ei korvata. Tuonti on yksi
+peruttava muokkaus. Ulkoiseen tiedostoon ei synny päivittyvää linkkiä.
+
+## Paikallinen projektikirjasto (v0.37.0)
+
+IndexedDB-tietokanta `nivo`, versio 2:
+
+- `entries`: kevyt luettelo (`id`, nimi, muokkausaika, osamäärä, laji
+  `project/part`, valinnainen 240 × 160 pienkuva).
+- `sessions`: projektikohtainen JSON, rajattu Peru-historia ja kirjoitusversio.
+- `projects.activeId`: viimeksi avoin projekti.
+
+Versio 1:n `active` ja `history` siirretään yhtenä tietokantatransaktiona.
+Projektia vaihdettaessa keskeneräinen tallennus valmistuu ensin; historia ei
+jatku toiseen projektiin. Kirjaston listaus ei lue koko mallien geometriaa.
+Muissa välilehdissä tapahtuneet kirjoitukset tunnistetaan versiosta ja vanhan
+välilehden ylikirjoitus hylätään. Käyttäjän nykyinen muistissa oleva malli säilyy
+ladattavaksi tiedostona. Kirjasto on selain-/sivustokohtainen, ei pilvisynkronointi.

@@ -91,6 +91,10 @@ export interface SectionResult {
 }
 export type DrawingView = 'front' | 'right' | 'top';
 export type CadRequest =
+  | { type: 'release-history' }
+  | { type: 'import-step'; data: ArrayBuffer; name: string }
+  | { type: 'export-step'; bodies: Body[] }
+  | { type: 'print-meshes'; bodies: Body[]; tolerance: number }
   | {
       type: 'surface-levels';
       profiles: Body[];
@@ -162,6 +166,8 @@ export interface ProbeResult {
 export interface CadReply {
   id: number;
   result?:
+    | Blob
+    | import('../exchange/export').ExportMesh[]
     | import('./surfaceLevels').SurfaceLevelsResult
     | import('./penRegions').PenRegions
     | SectionResult

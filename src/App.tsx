@@ -1,3 +1,13 @@
+import { ProjectLibrary } from './ui/ProjectLibrary';
+import { ImportDialog, ExportDialog } from './ui/ExchangeDialogs';
+import { useFullscreen } from './ui/useFullscreen';
+import { mergeProject, selectionProject } from './model/projectImport';
+import {
+  listLocalProjects,
+  saveLocal,
+  updateThumbnail,
+  type LocalSession,
+} from './storage/projects';
 import { edgeDetailRequests } from './model/edgeSelections';
 import { setCuttingSettings } from './model/quantities';
 import {
@@ -60,7 +70,7 @@ import {
   varyTextures,
   type TextureVariation,
 } from './model/textureVariation';
-import { ContextActions, type QuickAction } from './ui/ContextActions';
+import { ContextActions, organizeActions, type QuickAction } from './ui/ContextActions';
 import { CommandSearch } from './ui/CommandSearch';
 import type { Command } from './ui/commands';
 import { ToolContext } from './ui/ToolContext';
@@ -765,7 +775,15 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [help, setHelp] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement);
+  const { fullscreen, escapeCaptured, toggleFullscreen } = useFullscreen(editor.setError);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryRevision, setLibraryRevision] = useState(0);
+  const [exportOpen, setExportOpen] = useState(false);
+  const importMode = useRef<'open' | 'add'>('open');
+  const [importFiles, setImportFiles] = useState<File[]>();
+  const [savePartName, setSavePartName] = useState<string>();
+  const [linkDialog, setLinkDialog] = useState(false);
+  const [linkSourceId, setLinkSourceId] = useState('');
   useEffect(() => {
     if (!headerMenuOpen) return;
     const outside = (event: PointerEvent) => {
@@ -782,20 +800,6 @@ export default function App() {
       document.removeEventListener('keydown', escape);
     };
   }, [headerMenuOpen]);
-  useEffect(() => {
-    const changed = () => setFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', changed);
-    return () => document.removeEventListener('fullscreenchange', changed);
-  }, []);
-  const toggleFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
-      setHeaderMenuOpen(false);
-    } catch {
-      editor.setError('Selain ei sallinut koko näytön tilaa tässä ikkunassa.');
-    }
-  };
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides' | 'markups'>('objects');
   const fileInput = useRef<HTMLInputElement>(null);
   const inspectorDetails = useRef<HTMLDivElement>(null);
@@ -3848,19 +3852,111 @@ export default function App() {
       setEditingBodyId(undefined);
     }
   }, [project.groups, openedAssembly]);
+  const resetProjectWorkspace = () => {
+    setEditingBodyId(undefined);
+    setOpenedAssembly(undefined);
+    setSelectedGroupId(undefined);
+    setSelected(undefined);
+    setSelectedIds([]);
+    setSelectedFace(undefined);
+    setSurfaceMode('new');
+    finishOperation();
+    setTool('select');
+    setMode('model');
+    setPartsOpen(false);
+    setRenderOpen(false);
+    setLibraryOpen(false);
+    changeView('iso', true);
+  };
+  const openProjectSession = async (session: LocalSession) => {
+    const ok = await editor.transact(
+      session.project,
+      'Projekti avattu.',
+      'replace',
+      undefined,
+      session.history,
+    );
+    if (ok) resetProjectWorkspace();
+    return ok;
+  };
   const newProject = async () => {
-    if (
-      await editor.transact(
-        freshProject(),
-        'Uusi projekti. Aiemman työn saat takaisin Peru-toiminnolla.',
-      )
-    ) {
-      setEditingBodyId(undefined);
-      setSurfaceMode('new');
-      finishOperation();
-      setMode('model');
-      setPartsOpen(false);
-      setRenderOpen(false);
+    await openProjectSession({ project: freshProject() });
+  };
+  const addProject = async (incoming: Project, place = false) => {
+    const merged = mergeProject(project, incoming);
+    if (!(await editor.transact(merged.project, `Lisätty malliin: ${incoming.name}.`)))
+      return false;
+    setEditingBodyId(undefined);
+    setOpenedAssembly(undefined);
+    setSurfaceMode('new');
+    finishOperation();
+    setMode('model');
+    setPartsOpen(false);
+    setRenderOpen(false);
+    setLibraryOpen(false);
+    setSelectedIds(merged.ids);
+    setSelected(merged.ids[0]);
+    setSelectedGroupId(merged.group.id);
+    setSelectedFace(undefined);
+    setPanelOpen(true);
+    setTool(place ? 'move' : 'select');
+    setAwaitingStart(true);
+    editor.setMessage(
+      `Lisätty ${merged.ids.length} osaa ryhmään ”${merged.group.name}”. Siirrä · M`,
+    );
+    return true;
+  };
+  const savingPart = useRef(false);
+  const saveSelectionToLibrary = async () => {
+    if (!savePartName?.trim() || savingPart.current || busy) return;
+    savingPart.current = true;
+    try {
+      const saved = selectionProject(project, selectedIds, savePartName.trim());
+      await saveLocal(saved, undefined, { kind: 'part', activate: false });
+      setSavePartName(undefined);
+      editor.setMessage('Valinta tallennettu omiin osiin.');
+    } catch (e) {
+      editor.setError((e as Error).message);
+    } finally {
+      savingPart.current = false;
+    }
+  };
+  const chooseImport = (mode: 'open' | 'add') => {
+    importMode.current = mode;
+    fileInput.current?.click();
+  };
+  const openLibrary = async () => {
+    try {
+      await editor.flushSave();
+      // Initial empty projects have no edit yet; store them before listing the library.
+      if (!(await listLocalProjects()).some((entry) => entry.id === project.id))
+        await saveLocal(project);
+      setLibraryOpen(true);
+      if (captureModel.current && !renderOpen) {
+        const bitmap = await createImageBitmap(await captureModel.current());
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 240;
+          canvas.height = 160;
+          const ctx = canvas.getContext('2d')!,
+            scale = Math.min(240 / bitmap.width, 160 / bitmap.height);
+          ctx.fillStyle = '#f0f3f1';
+          ctx.fillRect(0, 0, 240, 160);
+          ctx.drawImage(
+            bitmap,
+            (240 - bitmap.width * scale) / 2,
+            (160 - bitmap.height * scale) / 2,
+            bitmap.width * scale,
+            bitmap.height * scale,
+          );
+          await updateThumbnail(project.id, canvas.toDataURL('image/jpeg', 0.72));
+          setLibraryRevision((value) => value + 1);
+        } finally {
+          bitmap.close();
+        }
+      }
+    } catch (e) {
+      editor.setError((e as Error).message);
     }
   };
   const example = async () => {
@@ -3868,6 +3964,7 @@ export default function App() {
       await editor.transact(
         cabinetProject(),
         'Esimerkkikaappi avattu. Jokainen levy on erillinen muokattava kappale.',
+        'replace',
       )
     ) {
       setEditingBodyId(undefined);
@@ -3887,10 +3984,11 @@ export default function App() {
       if (!response.ok) throw new Error('Esimerkkiprojektia ei saatu avattua.');
       if (
         await editor.transact(
-          parseProject(await response.text()),
+          { ...parseProject(await response.text()), id: uid() },
           curves
             ? 'Käyräesimerkki avattu. Lähtömuodot löytyvät piilotettuina mallilistasta. Muodot → Muotojen läpi luo uuden pinnan.'
             : 'Viimeistelty kaappiesimerkki avattu. Tutki reunakäsittelyjä F:llä, mittoja ja renderin tekstuureja.',
+          'replace',
         )
       ) {
         setEditingBodyId(undefined);
@@ -3905,25 +4003,24 @@ export default function App() {
       editor.setError((error as Error).message);
     }
   };
-  const importProject = async (file?: File) => {
+  const importProject = async (files: File[] = []) => {
+    const file = files.find((f) => /\.(nivo|json|step|stp|stl|glb|gltf)$/i.test(f.name));
     if (!file) return;
     try {
       if (file.size > 64 * 1024 * 1024)
         throw new Error('Projektitiedosto on liian suuri (enintään 64 MiB).');
-      const loaded = parseProject(await file.text());
-      if (await editor.transact(loaded, 'Projekti avattu.', 'replace')) {
-        setEditingBodyId(undefined);
-        setSurfaceMode('new');
-        finishOperation();
-        setMode('model');
-        setPartsOpen(false);
-        setRenderOpen(false);
-        changeView('iso', true);
+      if (!/\.(nivo|json)$/i.test(file.name)) {
+        setImportFiles(files);
+        return;
       }
+      const loaded = parseProject(await file.text());
+      if (importMode.current === 'add') await addProject(loaded);
+      else await openProjectSession({ project: { ...loaded, id: uid() } });
     } catch (e) {
       editor.setError((e as Error).message);
+    } finally {
+      if (fileInput.current) fileInput.current.value = '';
     }
-    if (fileInput.current) fileInput.current.value = '';
   };
   const openRender = () => {
     setLoftOpen(false);
@@ -4033,7 +4130,17 @@ export default function App() {
   // a redo pressed immediately after undo renders the new object list.
   useLayoutEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || cabinetOpen || actionMenu) return;
+      if (
+        event.defaultPrevented ||
+        cabinetOpen ||
+        actionMenu ||
+        libraryOpen ||
+        importFiles ||
+        exportOpen ||
+        savePartName !== undefined ||
+        linkDialog
+      )
+        return;
       if (loftOpen) {
         if (event.key === 'Escape') {
           event.preventDefault();
@@ -4356,17 +4463,22 @@ export default function App() {
       onMove={(move, parentId, targetBodyId) => void arrangeTree(move, parentId, targetBodyId)}
     />
   );
-  const linkSelected = async () => {
-    if (!body || busy) return;
-    const source = { ...asComponent(body), localMaterial: false, localTexture: false };
+  const linkSelected = async (sourceId = selected) => {
+    const sourceBody = project.bodies.find((b) => b.id === sourceId);
+    if (!sourceBody || busy) return;
+    const source = { ...asComponent(sourceBody), localMaterial: false, localTexture: false };
     const targets = project.bodies
-      .filter((b) => selectedIdSet.has(b.id) && b.id !== body.id)
+      .filter((b) => selectedIdSet.has(b.id) && b.id !== sourceBody.id)
       .map((b) => asComponent(b, source.component!.id));
     if ([source, ...targets].some((b) => bodyLocked(b, project.groups))) {
       editor.setError('Vapauta Hold ennen komponenttien linkittämistä.');
       return;
     }
-    await editor.transact(
+    if (targets.some((b) => (b.feature.type === 'mesh') !== (source.feature.type === 'mesh'))) {
+      editor.setError('Linkitä CAD-osat keskenään ja kolmiomallit keskenään.');
+      return;
+    }
+    const linked = await editor.transact(
       async () => {
         const placed = await editor.cad.instances(source, targets);
         const changes = new Map(
@@ -4389,6 +4501,7 @@ export default function App() {
         ? 'Osat linkitetty lähtöosan geometriaan. Sijainnit ja kierrot säilyivät.'
         : 'Komponentti luotu. Sen kopiot ovat linkitettyjä.',
     );
+    if (linked) setLinkDialog(false);
   };
   const makeUnique = () => {
     void editor.transact(
@@ -4401,6 +4514,17 @@ export default function App() {
         ? 'Ryhmän osat erotettu muista kopioista. Ryhmän sisäiset linkit säilyivät.'
         : 'Valinnan komponenttilinkit irrotettu.',
     );
+  };
+  const linkedSelection =
+    selectedIds.length > 0 &&
+    project.bodies.filter((b) => selectedIdSet.has(b.id)).every((b) => !!b.component);
+  const toggleLink = () => {
+    if (linkedSelection) makeUnique();
+    else if (selectedIds.length > 1) void linkSelected();
+    else {
+      setLinkSourceId('');
+      setLinkDialog(true);
+    }
   };
   const paintParts = (
     ids: string[],
@@ -4999,9 +5123,6 @@ export default function App() {
                     },
                   ]
                 : []),
-              ...(project.bodies.some((b) => selectedIdSet.has(b.id) && b.component)
-                ? [{ label: 'Tee uniikiksi', run: makeUnique, disabled: busy }]
-                : []),
               {
                 label:
                   editingBodyId && selectedFace
@@ -5012,7 +5133,37 @@ export default function App() {
                 disabled: busy || !selectedIds.length,
               },
             ];
+  if (
+    selectedIds.length &&
+    !selectedGuideIds.length &&
+    !selectedDimensionIds.length &&
+    !selectedMarkupIds.length
+  )
+    quickActions.push(
+      {
+        label: linkedSelection ? 'Linkitetty · tee uniikiksi' : 'Uniikki · linkitä',
+        run: toggleLink,
+        disabled: busy || !!movementBlocked,
+      },
+      {
+        label: 'Tallenna valinta kirjastoon',
+        run: () => setSavePartName(selectedGroup?.name ?? body?.name ?? 'Oma osa'),
+        disabled: busy,
+      },
+      { label: 'Vie 3D-malli…', run: () => setExportOpen(true), disabled: busy },
+    );
   quickActions.push({ label: 'Näkyvyys', run: () => {}, children: visibilityActions });
+  if (body || selectedGroup)
+    quickActions.push({
+      label: 'Nimeä…',
+      disabled: busy || (!selectedGroup && selectedIds.length !== 1),
+      run: () => {
+        setPanelOpen(true);
+        requestAnimationFrame(() =>
+          document.querySelector<HTMLButtonElement>('.panel-title .inline-name')?.click(),
+        );
+      },
+    });
   const chooseOther = () => {
     if (actionMenu?.candidates?.length) {
       setPickList({ ...actionMenu, candidates: actionMenu.candidates });
@@ -5565,7 +5716,7 @@ export default function App() {
     );
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" onContextMenu={(e) => e.preventDefault()}>
       <header className="app-header">
         <a
           className="brand"
@@ -5611,6 +5762,15 @@ export default function App() {
           </button>
         </div>
 
+        <button
+          className="library-trigger icon-button"
+          aria-label="Projektikirjasto"
+          title="Projektit ja omat osat"
+          disabled={!ready || busy}
+          onClick={() => void openLibrary()}
+        >
+          <FolderOpen size={19} />
+        </button>
         <div className="project-heading">
           <input
             aria-label="Projektin nimi"
@@ -5663,7 +5823,7 @@ export default function App() {
             <IconButton
               label="Avaa projektitiedosto"
               disabled={busy}
-              onClick={() => fileInput.current?.click()}
+              onClick={() => chooseImport('open')}
             >
               <FolderOpen />
             </IconButton>
@@ -5682,6 +5842,22 @@ export default function App() {
             >
               <Download size={17} />
             </button>
+          </div>
+          <div className="header-actions exchange-actions">
+            <IconButton
+              label="Lisää malli nykyiseen projektiin"
+              disabled={busy}
+              onClick={() => chooseImport('add')}
+            >
+              <Plus size={17} />
+            </IconButton>
+            <IconButton
+              label="Vie 3D-malli"
+              disabled={busy || !project.bodies.length}
+              onClick={() => setExportOpen(true)}
+            >
+              <Download size={17} />
+            </IconButton>
           </div>
           <div className="history-controls">
             <IconButton
@@ -5861,9 +6037,10 @@ export default function App() {
           ref={fileInput}
           data-testid="project-file"
           type="file"
-          accept=".nivo,.json,application/json"
+          accept=".nivo,.json,.step,.stp,.stl,.glb,.gltf,.bin,.png,.jpg,.jpeg,.webp"
+          multiple
           hidden
-          onChange={(e) => void importProject(e.target.files?.[0])}
+          onChange={(e) => void importProject(Array.from(e.target.files ?? []))}
         />
       </header>
 
@@ -8093,7 +8270,71 @@ export default function App() {
                       {selectedGroup?.kind === 'assembly' ? ' · Kokoonpano' : ''}
                     </p>
                   )}
-                  {linkNotice}
+                  {body && !selectedGroup && (
+                    <>
+                      <label className="selection-group-field">
+                        Ryhmä
+                        <select
+                          aria-label="Kappaleen ryhmä"
+                          disabled={busy || !!movementBlocked}
+                          value={
+                            new Set(
+                              project.bodies
+                                .filter((b) => selectedIdSet.has(b.id))
+                                .map((b) => b.groupId ?? ''),
+                            ).size > 1
+                              ? '__mixed__'
+                              : (body.groupId ?? '')
+                          }
+                          onChange={(e) =>
+                            void patchBodies(selectedIds, { groupId: e.target.value || undefined })
+                          }
+                        >
+                          <option value="">Päätaso</option>
+                          <option value="__mixed__" disabled>
+                            Useita ryhmiä
+                          </option>
+                          <GroupOptions groups={project.groups} />
+                        </select>
+                      </label>
+                      <div className="selection-essentials">
+                        <button
+                          title="Piilota valinta · H"
+                          aria-label="Piilota valinta"
+                          disabled={busy}
+                          onClick={() => void hideSelected()}
+                        >
+                          <EyeOff size={15} /> Piilota
+                        </button>
+                        <button
+                          title="Hold · G"
+                          aria-label="Hold-lukitus"
+                          aria-pressed={!!movementBlocked}
+                          disabled={busy}
+                          onClick={holdSelected}
+                        >
+                          <LockKeyhole size={15} />
+                          {movementBlocked ? 'Lukittu' : 'Hold'}
+                        </button>
+                        <button
+                          title={linkedSelection ? 'Tee valinnasta uniikki' : 'Linkitä osat'}
+                          aria-label="Komponentin linkitys"
+                          aria-pressed={linkedSelection}
+                          disabled={busy || !!movementBlocked}
+                          onClick={toggleLink}
+                        >
+                          <Link2 size={15} />
+                          {linkedSelection ? 'Linkitetty' : 'Uniikki'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {linkedSelection && body?.component && (
+                    <small className="selection-link-count">
+                      {project.bodies.filter((b) => b.component?.id === body.component?.id).length}{' '}
+                      linkitettyä osaa · yhteinen muoto
+                    </small>
+                  )}
                   {holdNotice}
                   {canDivideSurface && surfaceActions}
                   {body?.feature.type === 'brep' &&
@@ -8202,9 +8443,11 @@ export default function App() {
                       <span className="selection-tag" data-face-selected={!!selectedFace}>
                         {selectedIds.length > 1
                           ? `Valinnan kokonaismitat · ${selectedIds.length} osaa`
-                          : featureIsSolid(body.feature)
-                            ? 'CAD-kappale'
-                            : 'Tasoluonnos'}
+                          : body.feature.type === 'mesh'
+                            ? 'Kolmiomalli'
+                            : featureIsSolid(body.feature)
+                              ? 'CAD-kappale'
+                              : 'Tasoluonnos'}
                         {selectedFace
                           ? ` · ${editingBodyId ? 'Valittu pinta · X / Delete' : (faceNames[selectedFace] ?? 'Valittu pinta')}`
                           : ''}
@@ -8302,14 +8545,11 @@ export default function App() {
                               Kierrä
                             </button>
                             <button
-                              aria-label="Kiinnitä paikalleen"
-                              aria-pressed={!!body.locked}
-                              onClick={holdSelected}
-                              disabled={busy}
-                              title="Kiinnitä / vapauta · G"
+                              aria-label="Skaalaa valittuja"
+                              onClick={() => begin('scale')}
+                              disabled={busy || !!movementBlocked}
                             >
-                              <LockKeyhole size={15} />
-                              {body.locked ? 'Vapauta' : 'Kiinnitä'}
+                              <ScalingIcon size={15} /> Skaalaa
                             </button>
                           </div>
                         </>
@@ -8381,59 +8621,20 @@ export default function App() {
                           changeAppearance(selectedIds.length ? selectedIds : [body.id], ...args)
                         }
                       />
-                      {body && !selectedGroup && (
+                      {body.component && (
                         <details className="component-actions inspector-disclosure">
-                          <summary>Komponentti ja linkitys</summary>
-                          <p>
-                            {body.component
-                              ? `Linkitetty komponentti · ${project.bodies.filter((b) => b.component?.id === body.component?.id).length} esiintymää`
-                              : body.purpose === 'component'
-                                ? 'Komponentti · ensimmäinen kopio luo linkin'
-                                : 'Erillinen kappale'}
-                          </p>
-                          {selectedIds.length > 1 ? (
-                            <>
-                              <p>
-                                Linkitys käyttää osan ”{body.name}” muotoa. Valittujen osien
-                                sijainnit ja kierrot säilyvät.
-                              </p>
-                              <button
-                                className="button outlined"
-                                disabled={busy}
-                                onClick={() => void linkSelected()}
-                              >
-                                Linkitä valitut tähän osaan
-                              </button>
-                            </>
-                          ) : (
-                            !body.component && (
-                              <button
-                                className="button outlined"
-                                disabled={busy}
-                                onClick={() => void linkSelected()}
-                              >
-                                Tee komponentti
-                              </button>
-                            )
-                          )}
-                          {project.bodies.some((b) => selectedIdSet.has(b.id) && b.component) && (
-                            <button className="button subtle" disabled={busy} onClick={makeUnique}>
-                              Tee uniikiksi
-                            </button>
-                          )}
-                          {body.component && (
-                            <label className="checkbox-label">
-                              <CommitCheckbox
-                                label="Esiintymäkohtainen materiaali"
-                                checked={!!body.localMaterial}
-                                disabled={busy}
-                                onChange={(localMaterial) =>
-                                  patchBodies(selectedIds, { localMaterial })
-                                }
-                              />
-                              Materiaali vain tälle esiintymälle
-                            </label>
-                          )}
+                          <summary>Materiaalin jakaminen</summary>
+                          <label className="checkbox-label">
+                            <CommitCheckbox
+                              label="Esiintymäkohtainen materiaali"
+                              checked={!!body.localMaterial}
+                              disabled={busy || !!movementBlocked}
+                              onChange={(localMaterial) =>
+                                patchBodies(selectedIds, { localMaterial })
+                              }
+                            />{' '}
+                            Materiaali vain tälle esiintymälle
+                          </label>
                         </details>
                       )}
                       {objectActions}
@@ -8741,6 +8942,120 @@ export default function App() {
           </div>
         </SelectionDialog>
       )}
+      {fullscreen && (
+        <div className="fullscreen-hint">
+          {escapeCaptured
+            ? 'Esc · peruuta toiminto. Poistu koko näytöstä yläpalkin painikkeella tai pidä Esc pohjassa.'
+            : 'Esc · poistu koko näytöstä. Työkalu säilyy.'}
+        </div>
+      )}
+      {libraryOpen && (
+        <ProjectLibrary
+          activeId={project.id}
+          revision={libraryRevision}
+          onOpen={openProjectSession}
+          onAdd={addProject}
+          onNew={newProject}
+          onRenameActive={async (name) => {
+            if (await editor.transact({ ...project, name }, 'Projekti nimetty.'))
+              await editor.flushSave();
+          }}
+          onImport={chooseImport}
+          onClose={() => setLibraryOpen(false)}
+        />
+      )}
+      {importFiles && (
+        <ImportDialog
+          files={importFiles}
+          mode={importMode.current}
+          cad={editor.cad}
+          onClose={() => setImportFiles(undefined)}
+          onAccept={(incoming, place) =>
+            importMode.current === 'add'
+              ? addProject(incoming, place)
+              : openProjectSession({ project: incoming })
+          }
+        />
+      )}
+      {exportOpen && (
+        <ExportDialog
+          project={project}
+          ids={selectedIds}
+          meshes={editor.meshes}
+          cad={editor.cad}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
+      {linkDialog && (
+        <SelectionDialog title="Linkitä osa" onClose={() => setLinkDialog(false)}>
+          <label>
+            Muoto ja materiaali osasta
+            <select
+              aria-label="Linkityksen lähtöosa"
+              value={linkSourceId}
+              disabled={busy}
+              onChange={(e) => setLinkSourceId(e.target.value)}
+            >
+              <option value="">Valitse osa…</option>
+              {project.bodies
+                .filter((b) => !selectedIdSet.has(b.id) && !bodyLocked(b, project.groups))
+                .map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <p className="muted">
+            Valittu osa ottaa lähtöosan muodon. Sijainti ja kierto säilyvät. Myöhemmät muokkaukset
+            jaetaan.
+          </p>
+          <div className="dialog-actions">
+            <button
+              className="button dark"
+              disabled={busy || !linkSourceId}
+              onClick={() => void linkSelected(linkSourceId)}
+            >
+              Linkitä
+            </button>
+            <button disabled={busy} onClick={() => setLinkDialog(false)}>
+              Peruuta
+            </button>
+          </div>
+        </SelectionDialog>
+      )}
+      {savePartName !== undefined && (
+        <SelectionDialog
+          title="Tallenna valinta kirjastoon"
+          onAccept={() => void saveSelectionToLibrary()}
+          onClose={() => setSavePartName(undefined)}
+        >
+          <label>
+            Nimi
+            <input
+              autoFocus
+              aria-label="Kirjasto-osan nimi"
+              maxLength={120}
+              value={savePartName}
+              onChange={(e) => setSavePartName(e.target.value)}
+            />
+          </label>
+          <p className="muted">
+            {selectedIds.length} osaa. Ryhmät, materiaalit ja valinnan sisäiset linkitykset
+            säilyvät.
+          </p>
+          <div className="dialog-actions">
+            <button
+              className="button dark"
+              disabled={!savePartName.trim() || busy}
+              onClick={() => void saveSelectionToLibrary()}
+            >
+              Tallenna kirjastoon
+            </button>
+            <button onClick={() => setSavePartName(undefined)}>Peruuta</button>
+          </div>
+        </SelectionDialog>
+      )}
       {actionMenu && (
         <ContextActions
           {...actionMenu}
@@ -8757,7 +9072,10 @@ export default function App() {
           actions={
             actionMenu.visibilityOnly
               ? visibilityActions
-              : [...quickActions, { label: 'Valitse toinen', run: chooseOther, disabled: busy }]
+              : organizeActions([
+                  ...quickActions,
+                  { label: 'Valitse toinen', run: chooseOther, disabled: busy },
+                ])
           }
           onClose={() => setActionMenu(undefined)}
         />

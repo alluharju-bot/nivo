@@ -1,0 +1,19 @@
+{
+  "environment": "Apple M1 Pro, 16 GB, headed Playwright Chromium, 1440x960",
+  "date": "2026-10-13",
+  "bodies": 589,
+  "visibleBodies": 488,
+  "initialOpenMs": 5834,
+  "libraryVisibleMs": 147,
+  "orbitInput60StepsMs": 1046,
+  "geometryBuildsBefore": 488,
+  "geometryBuildsAfter": 488,
+  "entries": 8,
+  "projectCharacters": 46082328,
+  "metadataCharacters": 1113,
+  "metadataMedianMs": 0.2,
+  "metadataMaxMs": 0.7,
+  "naiveReadMs": 176.7,
+  "parsedModels": 8,
+  "comparison": "Naive read-and-parse of all saved sessions, not an earlier version of Nivo."
+}

@@ -367,3 +367,20 @@ it('retains drawing curve stations through cached rotation, reload and another r
     cache.dispose();
   }
 });
+
+it('releases the previous project history without rebuilding the currently displayed geometry', () => {
+  const cache = new CadBuildCache();
+  const before = makeBody(20, 30, 40),
+    after = makeBody(30, 40, 50);
+  try {
+    cache.build([before]);
+    const [current] = cache.build([after]);
+    expect(cache.historySize.geometries).toBe(1);
+    cache.releaseHistory();
+    expect(cache.historySize).toEqual({ geometries: 0, estimatedBytes: 0 });
+    expect(cache.build([after])[0].mesh).toBe(current.mesh);
+    expect(kernel.shapeIsValid(cache.get(after)!.shape)).toBe(true);
+  } finally {
+    cache.dispose();
+  }
+});

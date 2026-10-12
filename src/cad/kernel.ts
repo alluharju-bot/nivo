@@ -63,6 +63,10 @@ export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
 }
 
 export function createShape(body: Body): AnyShape {
+  if (body.feature.type === 'mesh')
+    throw new Error(
+      'Tuotu kolmiomalli tukee siirtoa, kiertoa, skaalausta ja materiaaleja. Tarkkaan pintamuokkaukseen tuo STEP-malli.',
+    );
   bodySchema.parse(body);
   if (body.feature.type === 'brep') {
     const shape = deserializeShape(body.feature.data);

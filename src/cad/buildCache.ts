@@ -159,6 +159,10 @@ export class CadBuildCache {
     this.entries.clear();
     for (const geometry of this.retained.keys()) this.forget(geometry);
   }
+  releaseHistory() {
+    this.clearPrepared();
+    for (const geometry of this.retained.keys()) this.forget(geometry);
+  }
 }
 
 export type TransformCache = Pick<CadBuildCache, 'shape' | 'prepare' | 'get'>;

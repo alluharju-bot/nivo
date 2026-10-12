@@ -56,6 +56,53 @@ const polygonFeature = z
     }
   });
 const extent = z.number().finite().min(0).max(100_000);
+const meshFeature = z
+  .object({
+    type: z.literal('mesh'),
+    width: extent,
+    depth: extent,
+    height: extent,
+    vertices: z.array(coordinate).min(9).max(3_000_000),
+    triangles: z.array(z.number().int().min(0)).min(3).max(1_500_000),
+    normals: z.array(z.number().finite()).max(3_000_000).optional(),
+    uv: z.array(z.number().finite()).max(2_000_000).optional(),
+    groups: z
+      .array(z.object({ start: z.number().int().min(0), count: z.number().int().min(3) }))
+      .max(1000)
+      .optional(),
+    solid: z.boolean(),
+  })
+  .superRefine((f, ctx) => {
+    const count = f.vertices.length / 3;
+    const min = [Infinity, Infinity, Infinity],
+      max = [-Infinity, -Infinity, -Infinity];
+    f.vertices.forEach((n, i) => {
+      min[i % 3] = Math.min(min[i % 3], n);
+      max[i % 3] = Math.max(max[i % 3], n);
+    });
+    if (
+      !Number.isInteger(count) ||
+      f.triangles.length % 3 ||
+      f.triangles.some((i) => i >= count) ||
+      (f.normals && f.normals.length !== f.vertices.length) ||
+      (f.uv && f.uv.length !== count * 2) ||
+      f.groups?.some(
+        (g, i) =>
+          g.start % 3 ||
+          g.count % 3 ||
+          g.start !== (i ? f.groups![i - 1].start + f.groups![i - 1].count : 0) ||
+          g.start + g.count > f.triangles.length,
+      ) ||
+      (f.groups?.length &&
+        f.groups.at(-1)!.start + f.groups.at(-1)!.count !== f.triangles.length) ||
+      min.some((n) => Math.abs(n) > 1e-4) ||
+      max.some((n, i) => Math.abs(n - [f.width, f.depth, f.height][i]) > 1e-4)
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Kolmiomallin pisteet, kolmiot tai mitat ovat virheelliset.',
+      });
+  });
 const planarFeature = z
   .object({
     type: z.literal('planar-polygon'),
@@ -143,6 +190,7 @@ const unionFeature = z
       ctx.addIssue({ code: 'custom', message: 'Yhdistä vain tilavuuskappaleita.' });
   });
 const featureSchema = z.discriminatedUnion('type', [
+  meshFeature,
   rectangleFeature,
   polygonFeature,
   planarFeature,
@@ -748,7 +796,7 @@ export function makePolygonBody(points: Vec3[], name = 'Kynämuoto'): Body {
 export function featureIsSolid(feature: Body['feature']): boolean {
   return feature.type === 'profile-extrusion'
     ? Math.abs(feature.distance) > 1e-8
-    : feature.type === 'brep'
+    : feature.type === 'brep' || feature.type === 'mesh'
       ? feature.solid
       : feature.type === 'planar-polygon'
         ? false

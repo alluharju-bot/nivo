@@ -2,6 +2,36 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.37.0 — projektikirjasto, mallien tuonti ja 3D-vienti
+
+- Useita selaimeen tallentuvia projekteja, omat historiat, nimeäminen,
+  monistaminen, haku, pienkuvat ja poisto. Vanha automaattitallenne siirtyy mukaan.
+- Avaa projekti ja Lisää malliin ovat erilliset toiminnot. Tuonti säilyttää
+  ryhmät, kokoonpanot, tyypit, materiaalit, merkinnät ja sisäiset linkit omilla
+  tunnisteillaan. Nykyinen kamera ja valaistus säilyvät. Peru poistaa koko tuonnin.
+- Tallenna valinta kirjastoon: omat osat uudelleenkäyttöön toisissa projekteissa.
+- STEP/STP tuodaan tarkaksi CAD-geometriaksi. STL ja GLB/glTF tuodaan kevyinä
+  kolmiomalleina; yksikkö ja yläsuunta ovat valittavissa. GLB/glTF säilyttää
+  pintavärit, UV:t sekä tuetut albedo-, normaali-, karheus- ja metallisuuskartat.
+  glTF:n .bin- ja kuvatiedostot valitaan samalla kertaa. Etäviitteitä ei haeta.
+- 3D-vienti: STL tulostukseen (mm, tarkkuus, reunojen sulkeutuneisuuden tarkistus,
+  valinta/näkyvät osat, yhteinen sijoitus alustalle), STEP tarkalle geometrialle,
+  GLB materiaaleineen. Viipalointi ja tulostimen ohjaus tehdään slicerissa.
+- Valintapaneelin ensisijaiset asiat: nimi, ryhmä, tyyppi, Piilota, Hold sekä
+  yksi Linkitetty/Uniikki-tilapainike. Uniikki osa linkitetään käyttäjän valitsemaan
+  lähtöosaan; mitään aiempaa perhettä ei muisteta automaattista paluuta varten.
+- Oikean napin valikko: tavalliset toiminnot näkyvissä, Muokkaa/Järjestä/
+  Tallenna ja vie alavalikoissa, yhtenäiset ikonit ja näppäinvihjeet. Selaimen
+  oma kontekstivalikko estetään sovelluksen alueella myös valikon päällä.
+- Koko näytön Esc käyttää tuettua Keyboard Lockia. Ilman tukea selaimen
+  poistumispainallus säilyttää työkalun; seuraava Esc peruu Nivon toiminnon.
+- Kirjasto lukee listat pelkistä metatiedoista. Projektin vaihto vapauttaa vanhan
+  CAD-historiavälimuistin, ja kolmiomallin siirto käyttää valmista näyttöverkkoa.
+- Jatko: DWG/SKP/IFC ja 2D-tuonti, pakatut glTF-mallit, animaatiot, tuodun
+  kolmiomallin CAD-muokkaus, 3MF sekä varsinainen tulostuksen korjaus/viipalointi.
+  STEP-tuonti säilyttää geometrian ja sijoittelun; alkuperäisiä CAD-reseptejä,
+  kokoonpanonimiä ja kaikkia valmistajakohtaisia metatietoja ei luvata palauttaa.
+
 ## Backlog — yhteinen Shift-viitekehys ja piirron aloitus toisesta kappaleesta
 
 Käyttäjän tarkennus 12.10.2026. Suunniteltu jatkokehitys; ei vielä toteutettu.
