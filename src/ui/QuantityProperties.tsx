@@ -164,6 +164,7 @@ function QuantityDimensions({
   return (
     <details className="quantity-dimensions" open={!!part.issue}>
       <summary>Laskennan mitat{part.manual ? ' · oma aihio' : ''}</summary>
+      <p>Pituus on aihion pisin mitta. Linkitetyt kopiot käyttävät samoja mittoja.</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -208,7 +209,7 @@ function QuantityDimensions({
         <button type="submit" disabled={busy}>
           Vahvista aihiomitat
         </button>
-        {part.body.quantityBasis?.manual && (
+        {part.manual && (
           <button
             type="button"
             disabled={busy}

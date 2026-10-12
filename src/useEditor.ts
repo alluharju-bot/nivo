@@ -16,6 +16,8 @@ import { synchronizeComponents } from './model/components';
 import { assertHolds } from './model/holds';
 import type { ActionInfo, Activity, SelectionContext } from './model/activity';
 import { uid } from './model/project';
+import { captureQuantityBases } from './model/quantityBasis';
+import { preserveDetailBlanks } from './model/quantities';
 
 export function useEditor() {
   const [cad] = useState(() => new CadClient());
@@ -66,14 +68,16 @@ export function useEditor() {
     void (async () => {
       try {
         const restored = await loadLocalSession();
-        const initial = restored?.project ?? history.current;
-        const built = await cad.build(initial.bodies);
+        const saved = restored?.project ?? history.current;
+        const built = await cad.build(saved.bodies);
+        const initial = captureQuantityBases(preserveDetailBlanks(saved, saved), built);
         if (current !== revision.current) return;
         history.current = initial;
         history.restore(restored?.history);
         setProject(initial);
         setMeshes(built);
         setSaveStatus(restored ? 'Tallessa selaimessa' : 'Uusi projekti');
+        if (initial !== saved) persist(initial);
         setMessage(
           restored
             ? 'Edellinen työ palautettu. Voit jatkaa siitä, mihin jäit.'
@@ -92,7 +96,7 @@ export function useEditor() {
       revision.current++;
       cad.cancel();
     };
-  }, [cad, history]);
+  }, [cad, history, persist]);
 
   const transact = useCallback(
     async (
@@ -118,7 +122,9 @@ export function useEditor() {
             cad.instances(source, targets),
           );
           assertHolds(history.current, resolved);
+          resolved = preserveDetailBlanks(history.current, resolved);
         }
+        if (mode === 'replace') resolved = preserveDetailBlanks(resolved, resolved);
         if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
           ...resolved,
@@ -149,11 +155,12 @@ export function useEditor() {
           updatedAt: new Date().toISOString(),
         });
         if (!validated.success) throw new Error(projectValidationMessage(validated.error));
-        const next = shareProjectData(history.current, validated.data);
+        let next = shareProjectData(history.current, validated.data);
         // View-only changes retain the exact mesh objects and avoid worker round trips.
         const built =
           next.bodies === history.current.bodies ? undefined : await cad.build(next.bodies);
         if (current !== revision.current) return false;
+        if (built) next = captureQuantityBases(next, built);
         if (mode === 'undo') history.undo();
         else if (mode === 'redo') history.redo();
         else if (mode === 'restore') {

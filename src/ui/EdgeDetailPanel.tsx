@@ -1,6 +1,8 @@
 import { Check, X } from 'lucide-react';
 export function EdgeDetailPanel({
   retained,
+  editing,
+  onEditPrevious,
   onRemove,
   onFinalize,
   operation,
@@ -18,6 +20,8 @@ export function EdgeDetailPanel({
   onFullRound,
 }: {
   retained: boolean;
+  editing: boolean;
+  onEditPrevious: () => void;
   onRemove: () => void;
   onFinalize: () => void;
   operation: 'fillet' | 'chamfer';
@@ -68,7 +72,12 @@ export function EdgeDetailPanel({
         <button disabled={!count || busy} onClick={clear}>
           Tyhjennä reunavalinta
         </button>
-        {retained && (
+        {retained && !editing && (
+          <button disabled={busy} onClick={onEditPrevious}>
+            Muokkaa edellistä käsittelyä
+          </button>
+        )}
+        {retained && editing && (
           <button
             disabled={busy}
             onClick={onFinalize}
@@ -78,6 +87,12 @@ export function EdgeDetailPanel({
           </button>
         )}
       </div>
+      {editing && (
+        <p>
+          Muokkaat edellistä käsittelyä. Valitse Uusi reunakäsittely lisätäksesi uuden pyöristyksen
+          tai viisteen.
+        </p>
+      )}
       {retained && (
         <details className="tool-advanced">
           <summary>Nykyinen reunakäsittely</summary>

@@ -782,7 +782,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         (scaling &&
           scaling.factors.some((f) => Math.abs(f - 1) > 1e-10) &&
           scaling.ids.includes(object.userData.id)) ||
-        (current().tool === 'detail' && current().detailPreview?.body.id === object.userData.id) ||
+        (current().tool === 'detail' &&
+          current().detailPreviews?.some((p) => p.body.id === object.userData.id)) ||
         current().surfacePreview?.body.id === object.userData.id ||
         (current().surfacePreview &&
           current().surfacePreviewSources?.includes(object.userData.id)) ||
@@ -838,27 +839,37 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     }
     renderer.domElement.dataset.surfacePreview = current().surfacePreview ? 'true' : 'false';
     if ((current().tool === 'detail' && current().detailPreview) || current().surfacePreview) {
-      const { mesh: data, body } = current().surfacePreview ?? current().detailPreview!;
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
-      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
-      geometry.setIndex(data.triangles);
-      const surface = new THREE.Mesh(
-        geometry,
-        new THREE.MeshStandardMaterial({
-          color: body.color,
-          roughness: 0.8,
-          side: THREE.DoubleSide,
-          polygonOffset: true,
-          polygonOffsetFactor: 1,
-          polygonOffsetUnits: 1,
-        }),
-      );
-      surface.userData.orbitSurface = true;
-      ghost.add(surface);
-      const outline = new THREE.BufferGeometry();
-      outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
-      ghost.add(new THREE.LineSegments(outline, new THREE.LineBasicMaterial({ color: '#267aa8' })));
+      const previews = current().surfacePreview
+        ? [current().surfacePreview!]
+        : (current().detailPreviews ?? [current().detailPreview!]);
+      for (const { mesh: data, body } of previews) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
+        geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
+        geometry.setIndex(data.triangles);
+        const surface = new THREE.Mesh(
+          geometry,
+          new THREE.MeshStandardMaterial({
+            color: body.color,
+            roughness: 0.8,
+            side: THREE.DoubleSide,
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 1,
+          }),
+        );
+        surface.userData.orbitSurface = true;
+        ghost.add(surface);
+        // Smooth detail previews show the surface and the explicit orange selection.
+        // CAD seam/radius lines remain available in the part's editing view.
+        if (current().surfacePreview || current().editingBodyId === body.id) {
+          const outline = new THREE.BufferGeometry();
+          outline.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
+          ghost.add(
+            new THREE.LineSegments(outline, new THREE.LineBasicMaterial({ color: '#267aa8' })),
+          );
+        }
+      }
       render();
       return;
     }
@@ -1781,6 +1792,7 @@ export function Viewport(props: Props) {
       props.preview,
       props.spherePreview,
       props.detailPreview,
+      props.detailPreviews,
       props.surfacePreview,
       props.surfacePreviewSources,
       props.detailPreviewSize,

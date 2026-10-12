@@ -3,6 +3,14 @@
 UTF-8 JSON, tunniste `format: "nivo"` ja `version: 8`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
+V0.36.1 täydentää olemassa olevan valinnaisen `body.quantityBasis`-kentän
+myös profiloiduille ja BRep-osille luotaessa sekä vanhaa tiedostoa avattaessa.
+`dimensions` on pisimmästä lyhimpään; `axes` seuraa samaa järjestystä.
+`geometryKey` sitoo mitat geometriaan ja `manual` merkitsee käyttäjän aihiota.
+Reunatyöstö päivittää tunnisteen säilyttäen mitat. Linkitetyt kopiot jakavat
+mittaperustan omissa asennoissaan. Formaattiversio ei muutu. Tarkat sylinteripinnat
+ja renderin kirkkausraja ovat laskennan tietoja, eivät uusia projektikenttiä.
+
 Valinnaiset v0.36.0-kentät:
 
 - `feature.surfaceLevels` BRep-osassa: yhteinen yksikkönormaali, 2–12

@@ -76,11 +76,7 @@ export function instantiateComponents(
               }
             : undefined,
         });
-        result.quantityBasis = target.quantityBasis?.manual
-          ? target.quantityBasis
-          : source.quantityBasis?.manual
-            ? undefined
-            : transformQuantityBasis(source, result, (v) => v);
+        result.quantityBasis = transformQuantityBasis(source, result, (v) => v);
         return result;
       }
       sourceShape ??= cache?.shape(source) ?? createShape(source);
@@ -135,15 +131,11 @@ export function instantiateComponents(
               }
             : undefined,
         });
-        result.quantityBasis = target.quantityBasis?.manual
-          ? target.quantityBasis
-          : source.quantityBasis?.manual
-            ? undefined
-            : transformQuantityBasis(
-                source,
-                result,
-                (v) => new Vector3(...v).applyQuaternion(q).toArray() as Vec3,
-              );
+        result.quantityBasis = transformQuantityBasis(
+          source,
+          result,
+          (v) => new Vector3(...v).applyQuaternion(q).toArray() as Vec3,
+        );
         const levels = source.feature.type === 'brep' ? source.feature.surfaceLevels : undefined;
         if (levels)
           transformSurfaceLevels(

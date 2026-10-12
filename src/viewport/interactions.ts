@@ -13,7 +13,13 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { rotationAngle } from '../model/rotationSnap';
 import { sectionDistance } from '../model/sections';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
-import { contextualFace, moveAxisFromScreen } from './picking';
+import {
+  cameraSnapPenalty,
+  cylinderHit,
+  contextualFace,
+  moveAxisFromScreen,
+  projectedSegmentPoint,
+} from './picking';
 import {
   projectSelectionBounds,
   projectGuideSelectionBounds,
@@ -883,7 +889,7 @@ export function installInteractions({
               }))
             : []),
         ];
-    return points
+    const ranked = points
       .filter((p) => accepts(p.point, p.key) && (!surfaceOnly || !p.key.endsWith(':center')))
       .map((p) => ({
         ...p,
@@ -896,10 +902,15 @@ export function installInteractions({
           p.distance < snapRadius(event, p.priority <= 0 ? 'point' : 'mid') &&
           p.depth >= -1 &&
           p.depth <= 1,
-      )
+      );
+    const proximity = cameraSnapPenalty(ranked, camera());
+    return ranked
       .sort(
         (a, b) =>
-          snapScore(a.distance, a.priority) - snapScore(b.distance, b.priority) ||
+          snapScore(a.distance, a.priority) +
+            proximity(a.point) -
+            snapScore(b.distance, b.priority) -
+            proximity(b.point) ||
           (Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance),
       )
       .find((p) =>
@@ -954,6 +965,15 @@ export function installInteractions({
     const data = current().meshes.find((m) => m.id === hit.object.userData.id),
       index = (hit.faceIndex ?? 0) * 3;
     const face = data?.faces.find((f) => index >= f.start && index < f.start + f.count);
+    const curved = face?.cylinder
+      ? cylinderHit(raycaster.ray, face.cylinder, hit.point)
+      : undefined;
+    const localNormal = hit.normal ?? hit.face?.normal;
+    const normal =
+      curved?.normal ??
+      (!face?.planar && localNormal
+        ? (localNormal.clone().transformDirection(hit.object.matrixWorld).toArray() as Vec3)
+        : face?.normal);
     return face && data
       ? {
           hit,
@@ -961,16 +981,18 @@ export function installInteractions({
           target: {
             bodyId: data.id,
             face: face.ref,
-            normal: face.normal,
-            point: face.planar
-              ? sub(
-                  hit.point.toArray() as Vec3,
-                  scale(
-                    face.normal,
-                    dot(sub(hit.point.toArray() as Vec3, face.center), face.normal),
-                  ),
-                )
-              : (hit.point.toArray() as Vec3),
+            normal: normal!,
+            point:
+              curved?.point ??
+              (face.planar
+                ? sub(
+                    hit.point.toArray() as Vec3,
+                    scale(
+                      face.normal,
+                      dot(sub(hit.point.toArray() as Vec3, face.center), face.normal),
+                    ),
+                  )
+                : (hit.point.toArray() as Vec3)),
           },
         }
       : undefined;
@@ -1016,7 +1038,7 @@ export function installInteractions({
       );
       if (face) return { bodyId, face: face.ref, normal: face.normal, point: anchor };
     }
-    return hit?.face.planar ? hit.target : undefined;
+    return hit?.target;
   };
   const referenceImageAt = (event: PointerEvent) => {
     setRay(event);
@@ -1070,7 +1092,11 @@ export function installInteractions({
       target?.point ??
       nearest(event, false, () => true, true)?.point ??
       image?.point ?? [0, 0, 0];
-    const frame = sketchFrame(scale(normal, dot(normal, anchor)), normal);
+    const curved =
+      target &&
+      !props.meshes.find((m) => m.id === target.bodyId)?.faces.find((f) => f.ref === target.face)
+        ?.planar;
+    const frame = sketchFrame(curved ? anchor : scale(normal, dot(normal, anchor)), normal);
     if (!exact && !target && !guide && !image) {
       setRay(event);
       if (Math.abs(dot(raycaster.ray.direction.toArray() as Vec3, normal)) < 0.02) {
@@ -1080,10 +1106,13 @@ export function installInteractions({
     }
     const raw = exact?.point ?? framePoint(event, frame);
     if (!raw) return;
-    const point = exact?.point ?? frameSnap(raw, frame, undefined, event);
+    const point =
+      exact?.point ?? (curved && !explicit ? anchor : frameSnap(raw, frame, undefined, event));
     if (exact) show(exact);
+    else if (curved) show({ point, key: 'surface-tangent', label: 'Pinnan tangenttitaso' });
     const matchesSurface =
       target &&
+      !curved &&
       Math.abs(Math.abs(dot(normal, target.normal)) - 1) < 1e-5 &&
       Math.abs(dot(sub(anchor, target.point), normal)) < 1e-5;
     canvas.dataset.sketchPlane = JSON.stringify(frame.normal);
@@ -1203,6 +1232,11 @@ export function installInteractions({
     const props = current(),
       rect = canvas.getBoundingClientRect();
     const cursor = new THREE.Vector2(event.clientX - rect.left, event.clientY - rect.top);
+    const activeCamera = camera();
+    const projection = new THREE.Matrix4().multiplyMatrices(
+      activeCamera.projectionMatrix,
+      activeCamera.matrixWorldInverse,
+    );
     const candidates: {
       target: BoundaryTarget;
       point: THREE.Vector3;
@@ -1217,22 +1251,21 @@ export function installInteractions({
         for (let i = 0; i < boundary.lines.length; i += 6) {
           const start = boundary.lines.slice(i, i + 3) as Vec3,
             end = boundary.lines.slice(i + 3, i + 6) as Vec3;
-          const a = screen(start),
-            b = screen(end),
-            dx = b.x - a.x,
-            dy = b.y - a.y;
-          const t = Math.max(
-            0,
-            Math.min(1, ((cursor.x - a.x) * dx + (cursor.y - a.y) * dy) / (dx * dx + dy * dy || 1)),
+          const pick = projectedSegmentPoint(
+            start,
+            end,
+            activeCamera,
+            rect.width,
+            rect.height,
+            cursor.x,
+            cursor.y,
+            projection,
           );
-          const distance = Math.hypot(cursor.x - a.x - t * dx, cursor.y - a.y - t * dy);
-          const depth = a.z + t * (b.z - a.z);
-          if (distance > 12 || depth < -1 || depth > 1) continue;
+          if (!pick || pick.distance > 12) continue;
           candidates.push({
             target: { ...boundary, bodyId: mesh.id },
-            point: new THREE.Vector3(...start).lerp(new THREE.Vector3(...end), t),
-            distance,
-            depth,
+            ...pick,
+            point: new THREE.Vector3(...pick.point),
           });
         }
       }
@@ -1256,11 +1289,21 @@ export function installInteractions({
       );
     })?.target;
   };
+  const detailEdgesFor = (mesh: BodyMesh) => {
+    const target = current().detailTarget;
+    const selection = [target, ...(target?.others ?? [])].find((t) => t?.bodyId === mesh.id);
+    return (selection?.editing ? mesh.sourceDetailEdges : undefined) ?? mesh.detailEdges ?? [];
+  };
   const detailEdgeAt = (event: PointerEvent) => {
     const props = current(),
       rect = container.getBoundingClientRect();
     const x = event.clientX - rect.left,
       y = event.clientY - rect.top;
+    const activeCamera = camera();
+    const projection = new THREE.Matrix4().multiplyMatrices(
+      activeCamera.projectionMatrix,
+      activeCamera.matrixWorldInverse,
+    );
     const candidates: {
       bodyId: string;
       index: number;
@@ -1275,28 +1318,22 @@ export function installInteractions({
         props.bodies.find((b) => b.id === mesh.id)?.locked
       )
         continue;
-      for (const edge of mesh.sourceDetailEdges ?? mesh.detailEdges ?? [])
+      for (const edge of detailEdgesFor(mesh))
         for (let i = 0; i < edge.lines.length; i += 6) {
           const a = edge.lines.slice(i, i + 3) as Vec3,
             b = edge.lines.slice(i + 3, i + 6) as Vec3;
-          const p = screen(a),
-            q = screen(b),
-            dx = q.x - p.x,
-            dy = q.y - p.y;
-          const t = Math.max(
-            0,
-            Math.min(1, ((x - p.x) * dx + (y - p.y) * dy) / (dx * dx + dy * dy || 1)),
+          const pick = projectedSegmentPoint(
+            a,
+            b,
+            activeCamera,
+            rect.width,
+            rect.height,
+            x,
+            y,
+            projection,
           );
-          const distance = Math.hypot(x - p.x - t * dx, y - p.y - t * dy),
-            depth = p.z + t * (q.z - p.z);
-          if (distance < snapRadius(event, 'line') && depth >= -1 && depth <= 1)
-            candidates.push({
-              bodyId: mesh.id,
-              index: edge.index,
-              point: add(a, scale(sub(b, a), t)),
-              distance,
-              depth,
-            });
+          if (pick && pick.distance < snapRadius(event, 'line'))
+            candidates.push({ bodyId: mesh.id, index: edge.index, ...pick });
         }
     }
     candidates.sort((a, b) =>
@@ -1314,16 +1351,21 @@ export function installInteractions({
     });
   };
   const highlightDetail = (hover?: { bodyId: string; index: number }) => {
-    const selected = current().detailTarget;
+    const target = current().detailTarget;
+    const selected = target ? [target, ...(target.others ?? [])] : [];
+    canvas.dataset.detailSelection = JSON.stringify(
+      selected.map(({ bodyId, indices, editing }) => ({ bodyId, indices, editing: !!editing })),
+    );
     for (const [line, matches] of [
       [
         detailSelected,
-        (id: string, index: number) => id === selected?.bodyId && selected.indices.includes(index),
+        (id: string, index: number) =>
+          selected.some((t) => t.bodyId === id && t.indices.includes(index)),
       ],
       [detailHover, (id: string, index: number) => id === hover?.bodyId && hover.index === index],
     ] as const) {
       const positions = current().meshes.flatMap((m) =>
-        (m.sourceDetailEdges ?? m.detailEdges ?? [])
+        detailEdgesFor(m)
           .filter((e) => matches(m.id, e.index))
           .flatMap((e) => e.lines),
       );
@@ -1874,10 +1916,14 @@ export function installInteractions({
     // Rank first, then test visibility until the first usable anchor. Checking
     // every tessellated edge before ranking scales badly on perforated parts.
     // Guides already perform their own visibility/x-ray checks in guideAt.
+    const proximity = cameraSnapPenalty(candidates, camera());
     const found = candidates
       .sort(
         (a, b) =>
-          snapScore(a.distance, a.priority) - snapScore(b.distance, b.priority) ||
+          snapScore(a.distance, a.priority) +
+            proximity(a.point) -
+            snapScore(b.distance, b.priority) -
+            proximity(b.point) ||
           (Math.hypot(...sub(a.point, b.point)) <= 1e-5
             ? (b.surfacePriority ?? 0) - (a.surfacePriority ?? 0)
             : 0) ||

@@ -1,9 +1,10 @@
 import { uid, type Body, type Project, type Vec3 } from './project';
 import type { BodyMesh } from '../cad/protocol';
 import { cutGeometryKey } from './cutting';
-import { quantityBasis } from './quantityBasis';
+import { orderedQuantityBasis, quantityBasis } from './quantityBasis';
 import { partTypeSchema, typeNameKey, type PartType } from './quantitySchema';
 import { requireMovable } from './transforms';
+import type { CutSettings } from './cutSettings';
 
 export const quantityUnits = { count: 'kpl', length: 'm', area: 'm²' } as const;
 export const quantityMethods = {
@@ -58,9 +59,11 @@ export function quantityRows(project: Project, bodies: Body[], meshes: BodyMesh[
     }
     const basis = row.unit === 'count' ? undefined : quantityBasis(body, meshById.get(body.id));
     const blank = project.settings.cutting?.parts?.[body.id]?.blank;
-    const dimensions =
-      basis?.dimensions ??
-      (blank?.geometryKey === cutGeometryKey(body) ? blank.dimensions : undefined);
+    const dimensions = blank
+      ? blank.geometryKey === cutGeometryKey(body)
+        ? orderedQuantityBasis(blank).dimensions
+        : undefined
+      : basis?.dimensions;
     const length = dimensions?.[0],
       width = dimensions?.[1];
     const value =
@@ -82,7 +85,7 @@ export function quantityRows(project: Project, bodies: Body[], meshes: BodyMesh[
       dimensions,
       value,
       issue,
-      manual: !!basis?.manual || (!basis && !!blank),
+      manual: !!basis?.manual || !!blank,
     });
     row.count++;
     if (value === undefined) row.missing++;
@@ -112,6 +115,71 @@ export function quantityRows(project: Project, bodies: Body[], meshes: BodyMesh[
   );
 }
 
+/** Replacing a roundover changes topology, not the blank that is bought/cut.
+ * Carry explicit cutting-list allowances through the same edit and linked copies. */
+export function preserveDetailBlanks(before: Project, after: Project): Project {
+  const cutting = after.settings.cutting;
+  if (!cutting?.parts || before.id !== after.id) return after;
+  const previous = new Map(before.bodies.map((b) => [b.id, b]));
+  const changed = new Set<string>(),
+    families = new Set<string>();
+  for (const body of after.bodies) {
+    const old = previous.get(body.id),
+      treatment = body.edgeTreatment;
+    if (!old || !treatment || cutGeometryKey(old) === cutGeometryKey(body)) continue;
+    const source = cutGeometryKey({ ...body, feature: treatment.source });
+    if (
+      source === cutGeometryKey(old) ||
+      (old.edgeTreatment?.id === treatment.id &&
+        source === cutGeometryKey({ ...old, feature: old.edgeTreatment.source }))
+    ) {
+      changed.add(body.id);
+      if (body.component) families.add(body.component.id);
+    }
+  }
+  let updated = false;
+  const parts = { ...cutting.parts };
+  for (const body of after.bodies) {
+    const old = previous.get(body.id),
+      entry = parts[body.id];
+    if (!entry?.blank) continue;
+    // Recover older files only when the saved blank matches the exact source
+    // of this edge treatment. Unrelated stale allowances still need review.
+    const knownSource =
+      body.edgeTreatment &&
+      entry.blank.geometryKey === cutGeometryKey({ ...body, feature: body.edgeTreatment.source });
+    const oldBasis = old?.quantityBasis,
+      nextBasis = body.quantityBasis;
+    const retainedStock =
+      old &&
+      oldBasis &&
+      nextBasis &&
+      oldBasis.geometryKey === cutGeometryKey(old) &&
+      nextBasis.geometryKey === cutGeometryKey(body) &&
+      orderedQuantityBasis(oldBasis).dimensions.every(
+        (n, i) => Math.abs(n - orderedQuantityBasis(nextBasis).dimensions[i]) < 1e-6,
+      );
+    if (
+      !knownSource &&
+      (!old ||
+        entry.blank.geometryKey !== cutGeometryKey(old) ||
+        !(
+          retainedStock ||
+          changed.has(body.id) ||
+          (body.component && families.has(body.component.id))
+        ))
+    )
+      continue;
+    const key = cutGeometryKey(body);
+    if (entry.blank.geometryKey === key) continue;
+    parts[body.id] = { ...entry, blank: { ...entry.blank, geometryKey: key } };
+    updated = true;
+  }
+  return updated
+    ? { ...after, settings: { ...after.settings, cutting: { ...cutting, parts } } }
+    : after;
+}
+
 export function assignPartType(
   project: Project,
   ids: string[],
@@ -135,10 +203,9 @@ export function assignPartType(
         partTypeId: typeId,
         quantityBasis:
           type && type.unit !== 'count'
-            ? (quantityBasis(b, meshById.get(b.id)) ??
-              (blank?.geometryKey === cutGeometryKey(b)
-                ? { ...blank, manual: true }
-                : b.quantityBasis))
+            ? blank?.geometryKey === cutGeometryKey(b)
+              ? orderedQuantityBasis({ ...blank, manual: true })
+              : (quantityBasis(b, meshById.get(b.id)) ?? b.quantityBasis)
             : b.quantityBasis,
       };
     }),
@@ -179,8 +246,12 @@ export function removePartType(project: Project, typeId: string): Project {
 
 export function setQuantityDimensions(project: Project, id: string, dimensions?: Vec3): Project {
   const body = project.bodies.find((b) => b.id === id);
-  requireMovable(body ? [body] : [], project.groups);
-  const type = project.partTypes?.find((t) => t.id === body!.partTypeId);
+  if (!body) throw new Error('Valittua osaa ei löydy.');
+  const linked = project.bodies.filter(
+    (b) => b.id === id || (body?.component && b.component?.id === body.component.id),
+  );
+  requireMovable(linked, project.groups);
+  const type = project.partTypes?.find((t) => t.id === body.partTypeId);
   if (
     dimensions &&
     (dimensions.some((n) => !Number.isFinite(n) || n < 0 || n > 100000) ||
@@ -190,19 +261,44 @@ export function setQuantityDimensions(project: Project, id: string, dimensions?:
     throw new Error(
       'Anna positiivinen pituus ja neliölaskentaan myös leveys (enintään 100 000 mm).',
     );
+  const cutting = project.settings.cutting;
+  const parts = cutting?.parts && { ...cutting.parts };
+  for (const b of linked) {
+    if (!parts?.[b.id]?.blank) continue;
+    parts[b.id] = {
+      ...parts[b.id],
+      blank: dimensions?.every((n) => n >= 0.1)
+        ? orderedQuantityBasis({ dimensions, geometryKey: cutGeometryKey(b) })
+        : undefined,
+    };
+  }
   return {
     ...project,
+    settings:
+      cutting && parts ? { ...project.settings, cutting: { ...cutting, parts } } : project.settings,
     bodies: project.bodies.map((b) =>
-      b.id === id
+      linked.includes(b)
         ? {
             ...b,
             quantityBasis: dimensions
-              ? { dimensions, geometryKey: cutGeometryKey(b), manual: true }
+              ? orderedQuantityBasis({ dimensions, geometryKey: cutGeometryKey(b), manual: true })
               : undefined,
           }
         : b,
     ),
   };
+}
+
+/** Cutting and quantity panels edit the same blank; other per-instance settings stay local. */
+export function setCuttingSettings(project: Project, cutting: CutSettings): Project {
+  let result: Project = { ...project, settings: { ...project.settings, cutting } };
+  for (const body of project.bodies) {
+    const old = project.settings.cutting?.parts?.[body.id]?.blank;
+    const next = cutting.parts?.[body.id]?.blank;
+    if (JSON.stringify(old) !== JSON.stringify(next))
+      result = setQuantityDimensions(result, body.id, next?.dimensions);
+  }
+  return result;
 }
 
 const csvCell = (value: string | number) => {

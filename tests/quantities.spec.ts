@@ -121,7 +121,8 @@ test('manual stock dimensions, type editing and removal are explicit, undoable a
   await ready(page, [circle]);
   await choose(page, [circle.id]);
   await createType(page, 'Pyöreä kansi', 'area');
-  await expect(page.getByTestId('selection-quantities')).toContainText('1 tarkistettavaa');
+  await expect(page.getByTestId('selection-quantities')).toContainText('0,04 m²');
+  await page.getByText('Laskennan mitat', { exact: true }).click();
   await page.getByLabel('Laskennan pituus').fill('220');
   await page.getByLabel('Laskennan leveys').fill('220');
   await page.getByRole('button', { name: 'Vahvista aihiomitat', exact: true }).click();

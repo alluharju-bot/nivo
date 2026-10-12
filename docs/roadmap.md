@@ -2,6 +2,37 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.1 — aihiomitat, reunojen valinta ja kaarevalle pinnalle piirtäminen
+
+- Aihiomitat tallentuvat myös profiloituihin ja BRep-osiin ilman osatyypin
+  määrittämistä. Vanhat projektit täydentyvät avattaessa. Mitat ja niiden
+  suunnat pysyvät pareina; pisin mitta on aina pituus. Kierto ei kasvata mittoja
+  maailman akselien mukaan. Leikattu osa mitataan omassa aihiosuunnassaan.
+- Linkitetyt kopiot jakavat geometriset ja käsin annetut laskentamitat.
+  Määrälaskenta ja leikkauslistan oma aihio päivittävät saman mittaperustan.
+  Tyypit, syysuunta ja materiaalin luokittelu säilyvät esiintymäkohtaisina.
+- Pyöristys ja viiste säilyttävät automaattiset mitat ja käsin annetun
+  työstövaran myös linkitetyissä kopioissa. Vanhan tiedoston aiheeton
+  tarkistuspyyntö korjataan, jos mitan geometriatunniste vastaa viimeisen
+  reunakäsittelyn lähdettä. Muun muotomuutoksen vanhentunutta työstövaraa
+  ei hyväksytä automaattisesti.
+- F aloittaa uuden käsittelyn nykyiseen geometriaan. **Muokkaa edellistä
+  käsittelyä** avaa aiemman säteen/viisteen. Reunoja voi valita useasta osasta;
+  linkitettyjen kopioiden vastaavat reunat yhdistetään yhdeksi käsittelyksi.
+  Hyväksyntä on yksi peruttava toiminto, virhe ei tallenna osittaista tulosta.
+- Läheltä tähtääminen käyttää perspektiivikorjattua reunapistettä ja leikkaa
+  kameran taakse jäävät viivanosat. Lähempää kulmapistettä suositaan maltillisesti.
+  Tyhjän pinnan napsautus säilyttää reunavalinnan. Esikatselu jättää säteen
+  saumaviivat pois; osan muokkausnäkymässä ne ovat käytettävissä.
+- Kaareva pinta antaa piirtämiselle paikallisen tangenttitason. Sylinteristä
+  lasketaan tarkka kosketuspiste ja normaali; muilla kaarevilla pinnoilla
+  käytetään pintaverkon normaalia. Taso säilyy koon muuttuessa. Tämä tekee
+  tasomuodon, ei vielä pinnan ympäri kietoutuvaa piirrosta.
+- Tarkentuvan renderin sekä kuvarenderin epäsuorat näytteet saavat yhteisen
+  kirkkausrajan ennen keskiarvoistusta. Näkyvät valopinnat ja ensimmäisen
+  pinnan suora valaistus säilyvät. Poikkeuksellisen kirkkaat kaustiset kuviot
+  voivat himmentyä; tämä on tarkoituksellinen firefly-kohinan kompromissi.
+
 ## V0.36.0 — pintojen korkeudet, nopea historia ja tallennetut kuvakulmat
 
 - **Muodot → Pinnan korkeudet** tekee yhtenäisen CAD-pinnan 2–12 sisäkkäisestä

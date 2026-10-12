@@ -8,6 +8,7 @@ export interface CadFace {
   normal: Vec3;
   center: Vec3;
   planar: boolean;
+  cylinder?: { origin: Vec3; axis: Vec3; radius: number; sign: number };
 }
 export interface FaceTarget {
   bodyId: string;
@@ -51,6 +52,7 @@ export interface BodyMesh {
   edges: number[];
   faces: CadFace[];
   volume: number;
+  stock?: import('../model/quantitySchema').QuantityBasis;
   verticesCAD: { point: Vec3; anchor: VertexAnchor }[];
   midpointsCAD: Vec3[];
   edgesCAD: CadEdge[];
@@ -63,6 +65,8 @@ export interface BodyMesh {
 export interface EdgeDetailTarget {
   bodyId: string;
   indices: number[];
+  editing?: boolean;
+  others?: EdgeDetailTarget[];
 }
 export interface EdgeDetailResult {
   body: Body;

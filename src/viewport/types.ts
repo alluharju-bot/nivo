@@ -131,6 +131,7 @@ export interface ViewportProps {
   onEditBlocked: (position: { x: number; y: number }) => void;
   detailTarget?: EdgeDetailTarget;
   detailPreview?: EdgeDetailResult;
+  detailPreviews?: EdgeDetailResult[];
   surfacePreview?: EdgeDetailResult;
   surfacePreviewSources?: string[];
   detailSize: number;

@@ -4,6 +4,48 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.1 — aihiomitat, reunapoiminta ja renderin kirkkauspiikit
+
+465 yksikkö-/CAD-testiä hyväksytty (90 tiedostoa); kaksi paikallisen tiedoston
+vaativaa testiä ohitetaan tavallisessa ajossa. Uusi yksityisen mallin auditointi
+ajettiin erikseen. 33 työpöydän ja 34 tablettiprofiilin selaintapausta hyväksytty
+(työpöydällä lisäksi yksi tarkoituksella ohitettu kosketustapaus).
+
+- Käyttäjän paikallinen 176 osan projekti rakennettiin tarkalla CAD-ytimellä.
+  Kaikki tyypitetyt määrärivit saivat mitat ilman puuttuvia vahvistuksia.
+  Profiloidun 2350 × 48 × 18 mm osan mitat täydentyvät automaattisesti.
+  Skaalaus vaihtaa pisimmän akselin tarvittaessa; kierto säilyttää mitat.
+- Sekä automaattinen aihio että käsin annettu 2250 × 100 × 30 mm työstövara
+  säilyvät pyöristyksessä, viisteessä, koon muokkauksessa ja käsittelyn
+  poistossa. Linkitetty 37° kierretty kopio säilyttää leikkauslistan mitat.
+  Todellinen koon muutos jättää vanhentuneen työstövaran tarkistettavaksi.
+  Vanhat, reunatyöstön lähteeseen varmasti liittyvät mitat palautuvat.
+- Selaimessa määrät, CSV, tiedoston avaus, linkitetty skaalaus, oma aihio,
+  leikkauslistan asettelu ja Peru/Palauta. Vanha testi odotti pyöreälle levylle
+  puuttuvia mittoja; se päivitettiin tarkistamaan automaattinen 200 × 200 × 18
+  aihio ja erikseen annettava 210 × 210 × 18 työstövara.
+- Pitkän reunan poiminta läheltä perspektiivissä, riippumattomien osien sekä
+  linkitettyjen kopioiden yhteinen reunavalinta ja yhden toiminnon peruminen.
+  Puolipyöreän osan jatkopyöristys/viiste, säteen hiirisäätö, virheestä toipuminen,
+  Hold sekä toisen sormen/pointercancelin peruutus testattu.
+- Käyttäjän ämpärin kahvan 24 sallittua reunaa testattiin yksittäin uudella
+  0,5 mm pyöristyksellä; kaikki hyväksyttiin. Tämä ei takaa mielivaltaisia
+  säteitä tai kaikkien reunojen yhtäaikaista pyöristystä.
+- Ympyrän tarkka tangenttialoitus sylinterillä, halkaisijan toistuva vaihto,
+  tallennus ja avaus. Varsinaisen ämpärimallin kyljelle piirretty Ø24 mm ympyrä
+  tarkistettiin myös näkyvässä selaimessa ja kuvasta. Tasopiirtojen vanhat
+  pinnanristeys-/Shift-tartunnat tarkistettiin kosketusprofiilissa.
+- Renderin shader-adapteri tarkistaa käytetyn kirjastoversion seitsemän
+  valokertymäkohtaa. GPU:n liukulukukohteesta mitattiin, että epäsuora
+  miljoonakertainen piikki rajautuu arvoon 10, värisuhteet säilyvät ja tavallinen
+  valaistus sekä suoraan näkyvä emissio pysyvät ennallaan. NaN/Infinity
+  eivät päädy kertymään. Esikatselu, PBR-vaihto, valotus, raakakuva/kohinanpoisto,
+  kameran liike ja taustalla valmistuva PNG-kuva läpäisivät selaintestit.
+
+Kirkkausraja vähentää firefly-pisteitä, mutta ei ole lupaus täysin kohinattomasta
+kuvasta kaikissa kohtauksissa. Rajaus voi vähentää erittäin kirkkaiden kaustisten
+heijastusten energiaa. Yksityistä projektia ja sen testikuvia ei julkaista.
+
 ## V0.36.0 — korkeuspinnat, historia ja kuvakulmat
 
 454 yksikkö-/CAD-testiä hyväksytty (89 tiedostoa); yksityisen mallin erillinen

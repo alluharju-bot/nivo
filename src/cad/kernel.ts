@@ -1,7 +1,7 @@
-import { isPlanarFace, isLinearEdge } from './planarity';
+import { cylindricalSurface, isPlanarFace, isLinearEdge } from './planarity';
 import { shapeEdges, shapeFaces } from './topology';
 import { detailSourceShape } from './detailSource';
-import { updatedQuantityBounds } from './quantityBounds';
+import { measuredStock, updatedQuantityBounds } from './quantityBounds';
 import {
   drawRectangle,
   drawCircle,
@@ -274,6 +274,11 @@ export function meshBody(
       normal: normal as Vec3,
       center: center.toTuple(),
       planar,
+      cylinder: cylindricalSurface(
+        face,
+        mesh.vertices.slice(vertex * 3, vertex * 3 + 3) as Vec3,
+        normal,
+      ),
     };
     center.delete();
     return result;
@@ -427,6 +432,7 @@ export function meshBody(
     edges: displayEdges ?? shape.meshEdges({ tolerance: 0.15 }).lines,
     faces,
     volume: featureIsSolid(body.feature) ? solidVolume(shape) : 0,
+    stock: measuredStock(body, shape),
     verticesCAD,
     midpointsCAD,
     edgesCAD,
@@ -539,8 +545,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
         topologyId: uid(),
       },
     });
-    if (sources.length && body.quantityBasis && !body.quantityBasis.manual)
-      result.quantityBasis = updatedQuantityBounds(body, result, shape);
+    if (sources.length) result.quantityBasis = updatedQuantityBounds(body, result, shape);
     return result;
   } finally {
     local.delete();

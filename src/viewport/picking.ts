@@ -1,7 +1,84 @@
 import type { Axis, Vec3 } from '../model/project';
 import type { BodyMesh } from '../cad/protocol';
 import { dot, sub } from '../model/geometry';
-import { Triangle, Vector3 } from 'three';
+import { Camera, Matrix4, Ray, Triangle, Vector3, Vector4 } from 'three';
+import type { CadFace } from '../cad/protocol';
+
+export function cylinderHit(ray: Ray, surface: NonNullable<CadFace['cylinder']>, near: Vector3) {
+  const axis = new Vector3(...surface.axis),
+    center = new Vector3(...surface.origin);
+  const delta = ray.origin.clone().sub(center);
+  const u = ray.direction.clone().addScaledVector(axis, -ray.direction.dot(axis));
+  const v = delta.clone().addScaledVector(axis, -delta.dot(axis));
+  const a = u.lengthSq(),
+    b = 2 * u.dot(v),
+    c = v.lengthSq() - surface.radius * surface.radius;
+  const d = b * b - 4 * a * c;
+  if (a < 1e-12 || d < 0) return;
+  const points = [(-b - Math.sqrt(d)) / (2 * a), (-b + Math.sqrt(d)) / (2 * a)]
+    .filter((t) => t >= 0)
+    .map((t) => ray.at(t, new Vector3()));
+  const point = points.sort((p, q) => p.distanceToSquared(near) - q.distanceToSquared(near))[0];
+  if (!point) return;
+  const normal = point.clone().sub(center);
+  normal.addScaledVector(axis, -normal.dot(axis)).normalize().multiplyScalar(surface.sign);
+  return { point: point.toArray() as Vec3, normal: normal.toArray() as Vec3 };
+}
+
+/** A screen interpolation parameter is not a world parameter in perspective.
+ * Clip at the near/far planes first, then undo the perspective divide. */
+export function projectedSegmentPoint(
+  a: Vec3,
+  b: Vec3,
+  camera: Camera,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  matrix = new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
+) {
+  const p = new Vector4(...a, 1).applyMatrix4(matrix),
+    q = new Vector4(...b, 1).applyMatrix4(matrix);
+  let lo = 0,
+    hi = 1;
+  for (const [start, end] of [
+    [p.w + p.z, q.w + q.z],
+    [p.w - p.z, q.w - q.z],
+  ]) {
+    if (start < 0 && end < 0) return;
+    if (start < 0) lo = Math.max(lo, start / (start - end));
+    if (end < 0) hi = Math.min(hi, start / (start - end));
+  }
+  if (lo > hi) return;
+  const u = p.clone().lerp(q, lo),
+    v = p.clone().lerp(q, hi);
+  if (u.w <= 0 || v.w <= 0) return;
+  const px = ((u.x / u.w + 1) * width) / 2,
+    py = ((1 - u.y / u.w) * height) / 2;
+  const dx = ((v.x / v.w - u.x / u.w) * width) / 2,
+    dy = (-(v.y / v.w - u.y / u.w) * height) / 2;
+  const screenT = Math.max(
+    0,
+    Math.min(1, ((x - px) * dx + (y - py) * dy) / (dx * dx + dy * dy || 1)),
+  );
+  const t = lo + ((hi - lo) * screenT * u.w) / ((1 - screenT) * v.w + screenT * u.w);
+  const point = new Vector3(...a).lerp(new Vector3(...b), t);
+  return {
+    point: point.toArray() as Vec3,
+    distance: Math.hypot(x - px - screenT * dx, y - py - screenT * dy),
+    depth: point.clone().project(camera).z,
+  };
+}
+
+/** At most two screen pixels of preference: precise aiming still wins. */
+export function cameraSnapPenalty(points: { point: Vec3 }[], camera: Camera) {
+  const position = camera.getWorldPosition(new Vector3());
+  const distances = points.map((p) => position.distanceTo(new Vector3(...p.point)));
+  const min = Math.min(...distances),
+    span = Math.max(...distances) - min;
+  return (point: Vec3) =>
+    span > 1e-5 ? (2 * (position.distanceTo(new Vector3(...point)) - min)) / span : 0;
+}
 
 /** Only faces that actually contain the anchor participate, including inner cabinet faces. */
 export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3, through?: Vec3) {

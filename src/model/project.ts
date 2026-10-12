@@ -1,3 +1,4 @@
+import { quantityBasis } from './quantityBasis';
 import { surfaceLevelsSchema } from './surfaceLevels';
 import { renderViewSchema } from './renderViews';
 import { drawingSheetSchema } from './drawingSheets';
@@ -545,6 +546,11 @@ export const freshProject = (): Project => ({
   settings: { guideXray: false, axisStyle: 'subtle', axisLabels: false, dimensionDisplay: 'all' },
   updatedAt: new Date().toISOString(),
 });
+function sizedBody(input: unknown): Body {
+  const body = bodySchema.parse(input);
+  const basis = quantityBasis(body);
+  return basis ? { ...body, quantityBasis: basis } : body;
+}
 export function makeBody(
   width = 600,
   depth = 400,
@@ -552,7 +558,7 @@ export function makeBody(
   origin: Vec3 = [0, 0, 0],
   name = 'Levy',
 ): Body {
-  return bodySchema.parse({
+  return sizedBody({
     id: uid(),
     name,
     kind: 'cad',
@@ -704,7 +710,7 @@ export function makePolygonBody(points: Vec3[], name = 'Kynämuoto'): Body {
     validatePlanarPolygon(points);
     const origin = [0, 1, 2].map((i) => Math.min(...points.map((p) => p[i]))) as Vec3;
     const sizes = [0, 1, 2].map((i) => Math.max(...points.map((p) => p[i])) - origin[i]);
-    return bodySchema.parse({
+    return sizedBody({
       id: uid(),
       name,
       kind: 'cad',
@@ -724,7 +730,7 @@ export function makePolygonBody(points: Vec3[], name = 'Kynämuoto'): Body {
   const local = points.map((p) => [p[0] - minX, p[1] - minY] as [number, number]);
   const error = polygonError(local);
   if (error) throw new Error(error);
-  return bodySchema.parse({
+  return sizedBody({
     id: uid(),
     name,
     kind: 'cad',
@@ -756,7 +762,7 @@ export function makeProfileBody(
   purpose: Body['purpose'] = 'model',
 ): Body {
   const { min, max } = profileBounds(profile, frame, distance);
-  return bodySchema.parse({
+  return sizedBody({
     id: uid(),
     name,
     kind: 'cad',

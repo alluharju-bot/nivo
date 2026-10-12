@@ -3,6 +3,33 @@ import type { Vec3 } from '../model/project';
 import { sub, dot, unit } from '../model/geometry';
 import { cross } from '../model/transforms';
 
+export function cylindricalSurface(face: Face, sample: Vec3, normal: Vec3) {
+  if (face.geomType !== 'CYLINDRE') return;
+  const adaptor = new (getOC().BRepAdaptor_Surface)(face.wrapped, true);
+  const cylinder = adaptor.Cylinder(),
+    axis = cylinder.Axis(),
+    position = cylinder.Location(),
+    direction = axis.Direction();
+  try {
+    const origin: Vec3 = [position.X(), position.Y(), position.Z()],
+      vector: Vec3 = [direction.X(), direction.Y(), direction.Z()];
+    const delta = sub(sample, origin),
+      radial = sub(delta, vector.map((n) => n * dot(delta, vector)) as Vec3);
+    return {
+      origin,
+      axis: vector,
+      radius: cylinder.Radius(),
+      sign: dot(radial, normal) >= 0 ? 1 : -1,
+    };
+  } finally {
+    direction.delete();
+    position.delete();
+    axis.delete();
+    cylinder.delete();
+    adaptor.delete();
+  }
+}
+
 /** Affine OCCT transforms represent even planes as rational B-splines. Test
  * their control net, not a few tessellated samples which could miss curvature. */
 export function isPlanarFace(face: Face): boolean {

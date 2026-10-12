@@ -8,11 +8,13 @@ import {
   removePartType,
   savePartType,
   setQuantityDimensions,
+  setCuttingSettings,
 } from './quantities';
 import { History } from './history';
 import { groupBodies, translateSelection } from './groups';
 import { asComponent, uniqueComponents } from './components';
 import { cutGeometryKey } from './cutting';
+import { cutDefaults } from './cutSettings';
 
 const types = [
   { id: 'board', name: 'Laudelauta', unit: 'length' as const },
@@ -74,15 +76,15 @@ describe('part types and quantities', () => {
       4.4,
     );
   });
-  it('keeps unknown shapes explicitly incomplete and invalidates edited manual blanks', () => {
+  it('measures curved stock automatically and invalidates edited manual allowances', () => {
     const circle = {
       ...makeProfileBody({ kind: 'circle', radius: 100 }, sketchFrame([0, 0, 0]), 20),
       partTypeId: 'panel',
     };
     const project = { ...freshProject(), partTypes: types, bodies: [circle] };
     expect(quantityRows(project, project.bodies, [])[0]).toMatchObject({
-      total: 0,
-      missing: 1,
+      total: 0.04,
+      missing: 0,
       count: 1,
     });
     const measured = setQuantityDimensions(project, circle.id, [220, 220, 20]);
@@ -176,4 +178,54 @@ describe('part types and quantities', () => {
     };
     expect(quantitiesCSV(quantityRows(p, p.bodies, []))).toContain('"\'=HYPERLINK(""x"")"');
   });
+});
+
+it('shares confirmed stock dimensions and automatic reset across linked copies, respecting Hold', () => {
+  const a = asComponent(makeBody(2200, 90, 28));
+  const b = { ...a, id: 'copy' },
+    unique = { ...a, id: 'unique', component: undefined };
+  const project = { ...freshProject(), bodies: [a, b, unique] };
+  const changed = setQuantityDimensions(project, a.id, [95, 2300, 30]);
+  expect(changed.bodies[0].quantityBasis?.dimensions).toEqual([2300, 95, 30]);
+  expect(changed.bodies[1].quantityBasis?.dimensions).toEqual([2300, 95, 30]);
+  expect(changed.bodies[2]).toEqual(unique);
+  const reset = setQuantityDimensions(changed, b.id);
+  expect(reset.bodies.slice(0, 2).every((body) => !body.quantityBasis)).toBe(true);
+  expect(() =>
+    setQuantityDimensions(
+      { ...project, bodies: [a, { ...b, locked: true }] },
+      a.id,
+      [2300, 95, 30],
+    ),
+  ).toThrow();
+});
+
+it('keeps linked blanks consistent between quantity and cutting panels, including reset', () => {
+  const a = { ...asComponent(makeBody(2200, 90, 28)), partTypeId: 'board' };
+  const b = { ...a, id: 'copy' };
+  const initial = { ...freshProject(), bodies: [a, b], partTypes: types };
+  const cutting = {
+    ...cutDefaults,
+    parts: {
+      [a.id]: {
+        blank: {
+          dimensions: [2300, 95, 30] as [number, number, number],
+          geometryKey: cutGeometryKey(a),
+        },
+      },
+      [b.id]: { stock: 'Erillinen materiaalinimi', included: false },
+    },
+  };
+  const measured = setCuttingSettings(initial, cutting);
+  expect(measured.bodies.every((body) => body.quantityBasis?.dimensions[0] === 2300)).toBe(true);
+  expect(quantityRows(measured, measured.bodies, [])[0].total).toBeCloseTo(4.6);
+  const updated = setQuantityDimensions(measured, b.id, [2400, 95, 30]);
+  expect(quantityRows(updated, updated.bodies, [])[0].total).toBeCloseTo(4.8);
+  expect(updated.settings.cutting?.parts?.[a.id]?.blank?.dimensions[0]).toBe(2400);
+  const reset = setCuttingSettings(updated, {
+    ...updated.settings.cutting!,
+    parts: { ...updated.settings.cutting?.parts, [a.id]: {} },
+  });
+  expect(quantityRows(reset, reset.bodies, [])[0].total).toBeCloseTo(4.4);
+  expect(reset.settings.cutting?.parts?.[b.id]).toEqual(cutting.parts[b.id]);
 });

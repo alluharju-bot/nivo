@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { corners, type Body, type FaceRef, type Vec3 } from '../model/project';
 import type { BodyMesh, CadEdge } from './protocol';
 import { cadVertex } from './vertexReferences';
+import { cutGeometryKey } from '../model/cutting';
 
 /** A rigid rotation preserves tessellation error and topology traversal order.
  * Rebuild ownership/face references when a primitive becomes a BRep. */
@@ -50,6 +51,11 @@ export function rotateMesh(
   return {
     ...mesh,
     id: body.id,
+    stock: mesh.stock && {
+      ...mesh.stock,
+      geometryKey: cutGeometryKey(body),
+      axes: mesh.stock.axes?.map(normal) as [Vec3, Vec3, Vec3],
+    },
     vertices: triples(mesh.vertices, point),
     normals: triples(mesh.normals, normal),
     edges: triples(mesh.edges, point),
@@ -58,6 +64,11 @@ export function rotateMesh(
       ref: refs.get(f.ref)!,
       center: point(f.center),
       normal: normal(f.normal),
+      cylinder: f.cylinder && {
+        ...f.cylinder,
+        origin: point(f.cylinder.origin),
+        axis: normal(f.cylinder.axis),
+      },
     })),
     verticesCAD: mesh.verticesCAD.map((v) => vertex(point(v.point))),
     midpointsCAD: mesh.midpointsCAD.map(point),

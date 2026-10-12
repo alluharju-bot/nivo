@@ -3,6 +3,15 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.1** tallentaa myös profiloitujen osien aihiomitat automaattisesti.
+Pituus on pisin mitta; linkitetyt kopiot jakavat mitat. Pyöristys ja viiste
+säilyttävät aihion ilman uutta tarkistuspyyntöä. **F** valitsee nykyisiä reunoja,
+myös useasta osasta, ja lisää uuden käsittelyn. Edellistä käsittelyä voi muokata
+erikseen. Läheltä poiminta toimii perspektiivissä, ja kaarevalle kyljelle
+piirtäminen aloittaa muodon kosketuspisteen tangenttitasoon.
+Tarkentuva renderi ja kuvarenderi rajoittavat epäsuorien valonäytteiden
+poikkeuksellisia kirkkauspiikkejä valkoisten firefly-pisteiden vähentämiseksi.
+
 Versio **0.36.0** lisää **Muodot → Pinnan korkeudet**: piirrä esimerkiksi lattian,
 suihkualueen ja pyöreän kaivon rajat, anna korkeudet **0 / −10 / −20 mm** ja
 muodosta yhtenäinen pinta tai paksu lattia. Korkeuksia voi muuttaa myöhemmin

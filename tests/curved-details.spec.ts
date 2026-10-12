@@ -18,10 +18,12 @@ for (const operation of ['fillet', 'chamfer']) {
     await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
     const rounded = (await save(page)).bodies[0];
     await page.keyboard.press('f');
-    const fresh = page.getByRole('button', { name: 'Uusi reunakäsittely', exact: true });
-    await expect(fresh).toBeVisible();
-    await fresh.click();
-    await expect(fresh).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Muokkaa edellistä käsittelyä', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Viisteet ja pyöristykset' })).toContainText(
+      '0 reunaa valittu',
+    );
     await page.getByLabel('Reunakäsittely', { exact: true }).selectOption(operation);
     await page.getByTestId('detail-size').fill('1');
     const p = point(10, 60, 8);
@@ -39,7 +41,6 @@ for (const operation of ['fillet', 'chamfer']) {
     expect(finished.feature).not.toEqual(rounded.feature);
     await page.getByRole('button', { name: 'Peru', exact: true }).click();
     expect((await save(page)).bodies[0].feature).toEqual(rounded.feature);
-    await page.getByRole('button', { name: 'Peru', exact: true }).click();
     expect((await save(page)).bodies[0]).toEqual(rounded);
   });
 }

@@ -115,3 +115,34 @@ it('does not offer the tangent joins between a capsule’s flat and semicircular
     shape.delete();
   }
 });
+
+it('combines edges selected on differently rotated linked copies into one atomic definition edit', async () => {
+  const { edgeDetailRequests } = await import('../model/edgeSelections');
+  const { asComponent } = await import('../model/components');
+  const { rotateBodies } = await import('./transforms');
+  const source = asComponent(makeBody(200, 80, 20));
+  const copy = rotateBodies(
+    [{ ...source, id: 'copy', origin: [400, 0, 0] }],
+    [400, 0, 0],
+    [1, 2, 3],
+    37,
+  )[0];
+  const bodies = [source, copy];
+  const meshes = bodies.map((body) => {
+    const shape = createShape(body);
+    try {
+      return meshBody(body, shape);
+    } finally {
+      shape.delete();
+    }
+  });
+  const requests = edgeDetailRequests(bodies, meshes, [
+    { bodyId: source.id, indices: [meshes[0].detailEdges![0].index] },
+    { bodyId: copy.id, indices: [meshes[1].detailEdges![1].index] },
+  ]);
+  expect(requests.error).toBeUndefined();
+  expect(requests.requests).toHaveLength(1);
+  expect(requests.requests[0].indices).toHaveLength(2);
+  const result = detailEdges(source, requests.requests[0].indices, 'fillet', 2);
+  expect(result.mesh.volume).toBeGreaterThan(0);
+});

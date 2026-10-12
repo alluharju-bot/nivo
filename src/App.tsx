@@ -1,3 +1,5 @@
+import { edgeDetailRequests } from './model/edgeSelections';
+import { setCuttingSettings } from './model/quantities';
 import {
   scaleFactor,
   scaleSize,
@@ -1045,23 +1047,41 @@ export default function App() {
   );
   const detailSource = project.bodies.find((b) => b.id === detailTarget?.bodyId);
   const detailCorners = profileCorners(
-    detailSource,
-    editor.meshes.find((m) => m.id === detailSource?.id),
+    detailSource && !detailTarget?.editing
+      ? { ...detailSource, edgeTreatment: undefined }
+      : detailSource,
+    (() => {
+      const mesh = editor.meshes.find((m) => m.id === detailSource?.id);
+      return mesh && !detailTarget?.editing ? { ...mesh, sourceDetailEdges: undefined } : mesh;
+    })(),
   );
   const selectProfileCorners = (full = false) => {
     if (!detailSource || !detailCorners) return;
-    setDetailTarget({ bodyId: detailSource.id, indices: detailCorners.indices });
+    setDetailTarget((old) => ({ ...old, bodyId: detailSource.id, indices: detailCorners.indices }));
     if (full && detailCorners.halfWidth) {
       setDetailOperation('fillet');
       writeFields({ offset: String(detailCorners.halfWidth) });
     }
   };
+  const detailSelections = useMemo(
+    () => (detailTarget ? [detailTarget, ...(detailTarget.others ?? [])] : []),
+    [detailTarget],
+  );
+  const detailBatch = useMemo(
+    () =>
+      tool === 'detail' && !busy
+        ? edgeDetailRequests(
+            project.bodies.filter((b) => !bodyLocked(b, project.groups)),
+            editor.meshes,
+            detailSelections,
+          )
+        : { requests: [], error: undefined },
+    [tool, busy, detailSelections, project.bodies, project.groups, editor.meshes],
+  );
+  const detailRequests = detailBatch.requests;
   const detailPreview = useEdgeDetailPreview(
     editor.cad,
-    tool === 'detail' && detailSource && !bodyLocked(detailSource, project.groups) && !busy
-      ? detailSource
-      : undefined,
-    detailTarget?.indices ?? [],
+    detailRequests,
     detailOperation,
     offsetDistance,
   );
@@ -1675,7 +1695,7 @@ export default function App() {
       if (body && !bodyLocked(body, project.groups))
         setDetailTarget({
           bodyId: body.id,
-          indices: body.edgeTreatment?.indices ?? [],
+          indices: [],
         });
       return;
     }
@@ -2217,26 +2237,41 @@ export default function App() {
         return;
       }
       if (tool === 'detail') {
-        if (!detailSource || !detailTarget?.indices.length) {
+        if (detailBatch.error) {
+          editor.setError(detailBatch.error);
+          return;
+        }
+        if (!detailSource || !detailRequests.length) {
           editor.setMessage('Valitse ensin käsiteltävät reunat.');
           return;
         }
-        requireMovable([detailSource], project.groups);
+        requireMovable(
+          detailRequests.map((r) => r.body),
+          project.groups,
+        );
         committing.current = true;
         if (
           await editor.transact(
             async () => {
-              const result = await editor.cad.edgeDetail(
-                detailSource,
-                detailTarget.indices,
-                detailOperation,
-                parseLength(fieldsRef.current.offset),
-                !!detailSource.edgeTreatment,
-              );
-              return {
-                ...project,
-                bodies: project.bodies.map((b) => (b.id === result.body.id ? result.body : b)),
-              };
+              const replacements = new Map<string, Body>();
+              for (const request of detailRequests) {
+                const size = parseLength(fieldsRef.current.offset);
+                const preview =
+                  !detailPreview.loading && !detailPreview.error && detailPreview.size === size
+                    ? detailPreview.results?.find((r) => r.body.id === request.body.id)
+                    : undefined;
+                const result =
+                  preview ??
+                  (await editor.cad.edgeDetail(
+                    request.body,
+                    request.indices,
+                    detailOperation,
+                    size,
+                    !!request.editing,
+                  ));
+                replacements.set(result.body.id, result.body);
+              }
+              return { ...project, bodies: project.bodies.map((b) => replacements.get(b.id) ?? b) };
             },
             detailOperation === 'fillet' ? 'Reunat pyöristetty.' : 'Reunat viistetty.',
           )
@@ -2664,7 +2699,7 @@ export default function App() {
       !!measureStart ||
       !!penRef.current.length ||
       (tool === 'offset' && !!faceTarget) ||
-      (tool === 'detail' && !!detailTarget?.indices.length) ||
+      (tool === 'detail' && !!detailRequests.length) ||
       (tool === 'boolean' && booleanTools.length > 0) ||
       busy;
     if (!finish && hadGesture) {
@@ -2999,7 +3034,7 @@ export default function App() {
     const mesh = editor.meshes.find((m) => m.id === body.id);
     setDetailTarget({
       bodyId: body.id,
-      indices: (mesh?.sourceDetailEdges ?? mesh?.detailEdges ?? []).map((e) => e.index),
+      indices: (mesh?.detailEdges ?? []).map((e) => e.index),
     });
     setAwaitingStart(false);
     gestureActive.current = true;
@@ -5396,7 +5431,7 @@ export default function App() {
         showActions={tool !== 'detail'}
         canAccept={
           tool !== 'detail' ||
-          (!!detailTarget?.indices.length && !detailPreview.loading && !detailPreview.error)
+          (!!detailRequests.length && !detailPreview.loading && !detailPreview.error)
         }
         position={popup}
         onPositionChange={setPopup}
@@ -6341,7 +6376,8 @@ export default function App() {
               calibration={workspace.calibration}
               onCalibrationPoint={workspace.onCalibrationPoint}
               detailTarget={detailTarget}
-              detailPreview={tool === 'detail' ? detailPreview.result : undefined}
+              detailPreview={tool === 'detail' ? detailPreview.results?.[0] : undefined}
+              detailPreviews={tool === 'detail' ? detailPreview.results : undefined}
               surfacePreview={loftOpen ? loftPreview : undefined}
               surfacePreviewSources={loftOpen && surfaceLevelsOpen ? loftIds : undefined}
               detailSize={offsetDistance}
@@ -6381,25 +6417,34 @@ export default function App() {
                   setLocked(new Set(lockRef.current));
                 }
                 editor.setError('');
-                if (detailTarget?.bodyId !== id && source.edgeTreatment) {
-                  writeFields({ offset: String(source.edgeTreatment.size) });
-                  setDetailOperation(source.edgeTreatment.operation);
-                }
-                setDetailTarget((old) => ({
-                  bodyId: id,
-                  indices:
-                    index < 0
-                      ? (source.edgeTreatment?.indices ?? [])
-                      : old?.bodyId === id
-                        ? old.indices.includes(index)
-                          ? dragging
-                            ? old.indices
-                            : old.indices.filter((i) => i !== index)
-                          : [...old.indices, index]
-                        : [...new Set([...(source.edgeTreatment?.indices ?? []), index])],
-                }));
+                if (index < 0) return; // An empty face click must not replace a prepared edge selection.
+                setDetailTarget((old) => {
+                  const targets = old
+                    ? [old, ...(old.others ?? [])].map(({ others: _others, ...t }) => t)
+                    : [];
+                  const previous = targets.find((t) => t.bodyId === id);
+                  const indices = previous?.indices ?? [];
+                  const next = {
+                    bodyId: id,
+                    editing: previous?.editing,
+                    indices: indices.includes(index)
+                      ? dragging
+                        ? indices
+                        : indices.filter((i) => i !== index)
+                      : [...indices, index],
+                  };
+                  return {
+                    ...next,
+                    others: targets.filter((t) => t.bodyId !== id && t.indices.length),
+                  };
+                });
                 setSelected(id);
-                setSelectedIds([id]);
+                setSelectedIds([
+                  ...new Set([
+                    ...detailSelections.filter((t) => t.indices.length).map((t) => t.bodyId),
+                    id,
+                  ]),
+                ]);
                 setSelectedGroupId(undefined);
                 setAwaitingStart(false);
                 gestureActive.current = true;
@@ -7405,9 +7450,25 @@ export default function App() {
                   }
                   operation={detailOperation}
                   onOperation={setDetailOperation}
-                  count={detailTarget?.indices.length ?? 0}
-                  bodyName={detailSource?.name}
+                  count={detailSelections.reduce((n, t) => n + t.indices.length, 0)}
+                  bodyName={
+                    detailSelections.filter((t) => t.indices.length).length > 1
+                      ? `${detailSelections.filter((t) => t.indices.length).length} osaa`
+                      : detailSource?.name
+                  }
                   retained={!!detailSource?.edgeTreatment}
+                  editing={!!detailTarget?.editing}
+                  onEditPrevious={() => {
+                    if (!detailSource?.edgeTreatment) return;
+                    setDetailTarget((old) => ({
+                      ...old,
+                      bodyId: detailSource.id,
+                      indices: detailSource.edgeTreatment!.indices,
+                      editing: true,
+                    }));
+                    writeFields({ offset: String(detailSource.edgeTreatment.size) });
+                    setDetailOperation(detailSource.edgeTreatment.operation);
+                  }}
                   onRemove={() => {
                     if (detailSource)
                       void editor
@@ -7428,38 +7489,30 @@ export default function App() {
                   }}
                   onFinalize={() => {
                     if (detailSource)
-                      void editor
-                        .transact(async () => {
-                          requireMovable([detailSource], project.groups);
-                          return {
-                            ...project,
-                            bodies: project.bodies.map((b) =>
-                              b.id === detailSource.id ? { ...b, edgeTreatment: undefined } : b,
-                            ),
-                          };
-                        }, 'Käsittely liitetty geometriaan. Voit aloittaa uuden käsittelyn.')
-                        .then((ok) => {
-                          if (ok)
-                            setDetailTarget({
-                              bodyId: detailSource.id,
-                              indices: [],
-                            });
-                        });
+                      setDetailTarget((old) => ({
+                        ...old,
+                        bodyId: detailSource.id,
+                        indices: [],
+                        editing: false,
+                      }));
                   }}
                   busy={busy || (!!detailSource && bodyLocked(detailSource, project.groups))}
                   loading={detailPreview.loading}
-                  error={detailPreview.error}
+                  error={detailBatch.error ?? detailPreview.error}
                   onAccept={() => void apply()}
                   onCancel={() => cancel()}
                   all={() => {
                     if (detailSource) {
                       setDetailTarget({
+                        ...detailTarget,
                         bodyId: detailSource.id,
                         indices: (() => {
                           const mesh = editor.meshes.find((m) => m.id === detailSource.id);
-                          return (mesh?.sourceDetailEdges ?? mesh?.detailEdges ?? []).map(
-                            (e) => e.index,
-                          );
+                          return (
+                            (detailTarget?.editing ? mesh?.sourceDetailEdges : undefined) ??
+                            mesh?.detailEdges ??
+                            []
+                          ).map((e) => e.index);
                         })(),
                       });
                       setAwaitingStart(false);
@@ -7467,7 +7520,9 @@ export default function App() {
                     }
                   }}
                   clear={() =>
-                    setDetailTarget((old) => (old ? { ...old, indices: [] } : undefined))
+                    setDetailTarget((old) =>
+                      old ? { ...old, indices: [], others: [] } : undefined,
+                    )
                   }
                 />
               ) : tool === 'scale' ? (
@@ -8708,10 +8763,7 @@ export default function App() {
           onChange={editor.transact}
           onSelect={selectQuantityParts}
           onCutSettings={(cutting) =>
-            editor.transact(
-              { ...project, settings: { ...project.settings, cutting } },
-              'Leikkauslista päivitetty.',
-            )
+            editor.transact(setCuttingSettings(project, cutting), 'Leikkauslista päivitetty.')
           }
         />
       )}

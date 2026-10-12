@@ -101,9 +101,7 @@ test('grain constraints, manual blanks, invalid inputs and exclusions remain exp
   await ready(page, [panel, circle]);
   await page.getByRole('button', { name: 'Osat', exact: true }).click();
   await page.getByRole('button', { name: 'Leikkauslista', exact: true }).click();
-  await expect(page.locator('.cut-warning[role="status"]')).toContainText(
-    '1 osaa odottaa tarkistusta',
-  );
+  await expect(page.locator('.cut-warning[role="status"]')).toHaveCount(0);
   await page.getByLabel('Levyn pituus', { exact: true }).fill('600');
   await page.getByLabel('Levyn leveys', { exact: true }).fill('900');
   await page.getByLabel('Reunavara', { exact: true }).fill('450');
@@ -115,13 +113,14 @@ test('grain constraints, manual blanks, invalid inputs and exclusions remain exp
   await page.getByRole('button', { name: 'Leikkausosa: Ovi' }).click();
   await page.getByLabel('Osan syysuunta').selectOption('length');
   await expect(page.locator('.cut-warning[role="status"]')).toContainText(
-    '2 osaa odottaa tarkistusta',
+    '1 osaa odottaa tarkistusta',
   );
-  await expect(page.getByTestId('cut-sheet')).toHaveCount(0);
-  await page.getByLabel('Osan syysuunta').selectOption('width');
   await expect(page.getByTestId('cut-sheet')).toHaveCount(1);
+  await page.getByLabel('Osan syysuunta').selectOption('width');
+  await expect(page.getByTestId('cut-sheet')).toHaveCount(2);
   await page.getByRole('button', { name: 'Leikkausosa: Pyöreä kansi' }).click();
-  await expect(page.getByLabel('Aihion pituus', { exact: true })).toHaveValue('');
+  await page.getByText('Aihio ja levymateriaali', { exact: true }).click();
+  await expect(page.getByLabel('Aihion pituus', { exact: true })).toHaveValue('200');
   await page.getByLabel('Aihion pituus', { exact: true }).fill('210');
   await page.getByLabel('Aihion leveys', { exact: true }).fill('210');
   await page.getByLabel('Aihion paksuus', { exact: true }).fill('18');
@@ -136,7 +135,8 @@ test('grain constraints, manual blanks, invalid inputs and exclusions remain exp
   await expect(page.locator('.cut-table tr[data-selected="true"]')).toContainText('Ei mukana');
   await page.screenshot({ path: info.outputPath('cutting-part-editor.png') });
   const saved = await save(page);
-  expect(saved.bodies).toEqual([panel, circle]);
+  expect(saved.bodies.map((b) => b.feature)).toEqual([panel.feature, circle.feature]);
+  expect(saved.bodies[1].quantityBasis).toMatchObject({ dimensions: [210, 210, 18], manual: true });
   expect(saved.settings.cutting?.parts?.[panel.id]?.grain).toBe('width');
   expect(saved.settings.cutting?.parts?.[circle.id]).toMatchObject({
     included: false,

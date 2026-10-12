@@ -12,7 +12,11 @@ export function translateMesh(mesh: BodyMesh, id: string, delta: Vec3): BodyMesh
     id,
     vertices: positions(mesh.vertices),
     edges: positions(mesh.edges),
-    faces: mesh.faces.map((face) => ({ ...face, center: point(face.center) })),
+    faces: mesh.faces.map((face) => ({
+      ...face,
+      center: point(face.center),
+      cylinder: face.cylinder && { ...face.cylinder, origin: point(face.cylinder.origin) },
+    })),
     verticesCAD: mesh.verticesCAD.map((v) => ({ point: point(v.point), anchor: anchor(v.anchor) })),
     midpointsCAD: mesh.midpointsCAD.map(point),
     edgesCAD: mesh.edgesCAD.map((edge) => ({
