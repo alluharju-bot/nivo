@@ -31,6 +31,20 @@ Käyttäjän tarkennus 12.10.2026. Suunniteltu jatkokehitys; ei vielä toteutett
   muokkaustila; viitteen vaihto ja peruminen. Aloituspiste, aktiivinen pinta
   ja viitekappale säilyvät oikeina koko eleen ja numerosyötön ajan.
 
+## V0.36.10 — kumitus käsittelee korostettua rajausta
+
+- Jakoviivan päätepisteen lähellä kohdistin voi olla osan siluetin ulkopuolella,
+  vaikka viiva on kumittimen tartuntasäteen sisällä. Tämä ei enää aloita tyhjän
+  tilan valintaa vaan kumittaa korostetun rajauksen.
+- Muokkaustilan tarkistus käyttää korostetun rajauksen osaa, vaikka hiiren
+  alla oleva pinta tai erillinen piirrosviiva kuuluisi viiteosaan.
+- Napsautuksen järjestys vastaa korostusta: apuviiva, pinnan jakoviiva, erillinen
+  piirrosviiva. Muut osat, aidot ulkoreunat ja lukituksen suojaukset säilyvät.
+- Erillisen piirrosviivan päätepisteestä aloitettava kynäviiva löytää sen alla
+  olevan pinnan myös siluetin rajalla, missä hiiren säde voi ohittaa pinnan.
+  Pinnan tulee todella sisältää tartuntapiste; eri tasossa olevaa viitettä ei
+  siirretä väkisin pinnalle.
+
 ## V0.36.9 — kynän tartunta pinnan jakamista varten
 
 - Jaetulta reunalta alkavan viivan pinta ratkaistaan osan oman geometrian

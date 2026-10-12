@@ -1036,12 +1036,29 @@ export function installInteractions({
     if (anchor && bodyId) {
       setRay(event);
       const mesh = current().meshes.find((m) => m.id === bodyId)!;
-      const face = contextualFace(
+      // A standalone wire can own the exact anchor while the cursor ray falls
+      // just outside the supporting face. Recover that face from the anchor;
+      // the wire must not turn an on-surface stroke into an unrelated drawing.
+      const candidates = [
         mesh,
-        anchor,
-        raycaster.ray.direction.clone().negate().toArray() as Vec3,
-      );
-      if (face) return { bodyId, face: face.ref, normal: face.normal, point: anchor };
+        ...(!mesh.faces.length
+          ? nearby(event)
+              .filter((m) => m.id !== bodyId)
+              .sort(
+                (a, b) =>
+                  Number(b.id === current().editingBodyId) -
+                  Number(a.id === current().editingBodyId),
+              )
+          : []),
+      ];
+      for (const source of candidates) {
+        const face = contextualFace(
+          source,
+          anchor,
+          raycaster.ray.direction.clone().negate().toArray() as Vec3,
+        );
+        if (face) return { bodyId: source.id, face: face.ref, normal: face.normal, point: anchor };
+      }
     }
     return hit?.target;
   };
@@ -3482,6 +3499,7 @@ export function installInteractions({
         !(props.tool === 'scale' && scaleHandleAt(event)) &&
         !(props.tool === 'rotate' && (rotationHandleAt(event) || rotationSourceAt(event))) &&
         !(props.tool === 'detail' && detailEdgeAt(event)) &&
+        !(props.tool === 'erase' && boundaryAt(event)) &&
         !(props.tool === 'measure' && (vertexAt(event) || edgeAt(event) || guideAt(event)));
       if (
         (empty || event.shiftKey) &&
@@ -3549,15 +3567,13 @@ export function installInteractions({
     }
     if (props.tool === 'erase') {
       const guide = selectableGuideAt(event);
+      const target = !guide ? boundaryAt(event) : undefined;
       const wire = wireAt(event),
         face = faceAt(event);
-      if (
-        !guide &&
-        (wire || face) &&
-        editBlocked(event, wire?.object.userData.id ?? face!.target.bodyId)
-      )
-        return;
-      const target = !guide ? boundaryAt(event) : undefined;
+      // Near a boundary endpoint the cursor can lie outside the part or over a
+      // reference part. Scope follows the highlighted boundary, not that face.
+      const bodyId = target?.bodyId ?? wire?.object.userData.id ?? face?.target.bodyId;
+      if (!guide && bodyId && editBlocked(event, bodyId)) return;
       highlightBoundary(target);
       highlightGuide(guide?.object.userData.guideId);
       drag = {
@@ -4587,10 +4603,15 @@ export function installInteractions({
       } else if (props.tool === 'erase' && !moved) {
         const guide = selectableGuideAt(event);
         if (guide) props.onRemoveGuide(guide.object.userData.guideId);
-        else if (wireAt(event)) props.onRemoveWire(wireAt(event)!.object.userData.id);
         else {
+          // Match the hover priority: erase what is highlighted even when a
+          // separate drawing wire overlaps the same surface boundary.
           const target = boundaryAt(event);
           if (target) props.onRemoveBoundary(target);
+          else {
+            const wire = wireAt(event);
+            if (wire) props.onRemoveWire(wire.object.userData.id);
+          }
         }
       } else if (props.tool === 'scale' && scaleDrag) {
         if (moved) {

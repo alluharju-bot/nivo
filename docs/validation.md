@@ -4,6 +4,26 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.10 — kumittimen kohde ja päällekkäiset piirrosviivat
+
+489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).
+166 selaintapausta hyväksytty: 83 työpöydällä ja 83 tablettiprofiilissa.
+Tuotantobuild ja muuttuneiden tiedostojen muotoilu tarkistettu.
+
+- Virhe toistettiin ennen korjausta: kumitin korosti rajauksen, kun kohdistin
+  oli 6 px viivan päätepisteen ulkopuolella. Napsautus aloittikin tyhjän tilan
+  valinnan eikä poistanut viivaa. Sama korostus poistaa korjauksella rajauksen.
+- Kynällä jaetun komponentin kumitus testataan ylhäältä ja perspektiivissä:
+  heti jaon jälkeen, uudelleenlatauksen jälkeen, päätepisteen vierestä,
+  viereisen viiteosan päältä ja päällekkäisen erillisen piirrosviivan kohdalta.
+  Vain rajattu pinta muuttuu; viiteosa/piirrosviiva säilyy ja Undo palauttaa jaon.
+- Päällekkäisen viivan testissä löytyi myös kynän aloitusvirhe: viivan
+  päätepiste voitti tartunnan, mutta sen alla olevaa pintaa ei löytynyt hiiren
+  säteen mennessä juuri siluetin ulkopuolelta. Pinta löytyy nyt täsmällisestä
+  tartuntapisteestä, joten myös tässä tapauksessa viiva jakaa pinnan heti.
+- Aiemmat pinnan sisäisten rajausten, ulkoreunojen suojauksen, apuviivojen ja
+  erillisten piirrosviivojen kumitustestit sekä muokkaustilan suojaukset säilyvät.
+
 ## V0.36.9 — kynän pinnanjako ja reunatartunta
 
 489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).

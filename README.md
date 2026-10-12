@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.10** yhtenäistää kumittimen korostuksen ja napsautuksen.
+Jakoviivan päässä oleva tartunta ei vaihdu tyhjän tilan valinnaksi.
+Korostetun rajauksen voi kumittaa myös viereisen osan tai päällekkäisen
+piirrosviivan läheltä; muokkauskohde seuraa korostettua rajausta.
+Kynä tunnistaa jakopinnan myös olemassa olevan piirrosviivan päätepisteestä.
+
 Versio **0.36.9** parantaa kynän pinnanjakoa: piirtopinta tunnistetaan osan
 omista reunoista ennen ulkopuolisia viitteitä. Saman pinnan reunat, kulmat ja
 keskipisteet saavat etusijan lähellä oleviin tason ulkopuolisiin pisteisiin.
