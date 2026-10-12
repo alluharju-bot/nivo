@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { freshProject, makeBody, bounds, type Body, type Project } from '../src/model/project';
 
 async function ready(page: Page, body: Body, front = false) {
-  await page.goto('/');
+  await page.goto(process.env.NIVO_BASE_PATH ?? '/');
   await expect(page.getByRole('button', { name: 'Piirrä suorakulmio', exact: true })).toBeEnabled();
   await page.getByTestId('project-file').setInputFiles({
     name: 'offset.nivo',

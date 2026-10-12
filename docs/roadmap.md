@@ -31,6 +31,23 @@ Käyttäjän tarkennus 12.10.2026. Suunniteltu jatkokehitys; ei vielä toteutett
   muokkaustila; viitteen vaihto ja peruminen. Aloituspiste, aktiivinen pinta
   ja viitekappale säilyvät oikeina koko eleen ja numerosyötön ajan.
 
+## V0.36.12 — sylinterin päätypinnan Offset
+
+- Leikatun sylinterin kehän reunakäyrän sisäinen kiertosuunta ei enää käännä
+  sisennystä ulospäin. Ulkoreuna pienenee ja reiän reuna kasvaa annetun mitan.
+- Skaalattu tasopinta tunnistetaan laskennassa tasoksi myös silloin, kun
+  geometriaydin tallentaa sen B-spline-pintana. Toimii molemmilta päädyiltä,
+  kierretyllä kappaleella sekä ympyrästä positiiviseen tai negatiiviseen
+  suuntaan pursotetulla sylinterillä.
+- Liian suuri ympyrän sisennys hylätään myös silloin, kun se taittuisi
+  keskipisteen yli takaisin näennäisesti kelvolliseksi ympyräksi.
+- Akseliskaalaus poistaa erillisen geometriaytimen kopiosta vanhat
+  piirtoverkkotiedot ennen muunnosta. Tarkka geometria, materiaalien pintaviitteet
+  ja pääasiallisen näkymän välimuisti säilyvät.
+- Offsetin esikatselu, Push/Pull, läpireikä, Peru/Palauta ja uudelleenavaus
+  testattu. Kaarevan sylinterikyljen offset on edelleen eri, tukematon toiminto;
+  tämä korjaus koskee tasomaisia päätyjä ja muita tasopintoja.
+
 ## V0.36.11 — lukittu osa löytyy monivalinnasta
 
 - Valitun lukitun osan kohdalla näkyy lukkokuvake ja lämpimän sävyinen

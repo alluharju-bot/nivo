@@ -4,6 +4,36 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.12 — sylinterien offset ja piirtoverkon vaikutus skaalaukseen
+
+511 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).
+46 eri selaintapausta hyväksytty korjausten ja uusinta-ajon jälkeen:
+23 työpöydällä ja 23 tablettiprofiilissa.
+Tuotantobuild `/nivo/`-polulle, TypeScript ja muutettujen tiedostojen muotoilu hyväksytty.
+
+- Virhe toistettiin leikatun sylinterin 20 mm leveällä rengaspinnalla:
+  kelvollinen 5 mm offset kasvatti virheellisesti ulkokehää ja palautti
+  käyttäjän raportoiman virheen. Korjattu esikatselu ja lopputulos tarkistettu
+  molemmilta päädyiltä; 10 mm taskun poistama tilavuus vastaa tavoitetta.
+- Tavallisen sylinterin molemmat päädyt testattu viidessä suunnassa.
+  Positiivinen ja negatiivinen pursotus testattu myös Push/Pullilla.
+  8 mm seinämällä tehty läpireikä säilyttää odotetun tilavuuden.
+- Tasainen, XY- ja epätasainen XY-skaalaus sekä 22,5° kierto säilyttävät
+  päätypintojen offsetin. R10-ympyrään sopii 9,9 mm sisennys, mutta
+  10 / 10,1 / 15 / 25 mm hylätään muuttamatta lähdettä.
+- Käyttöliittymätesti löysi myös skaalausvirheen: jo verkotettu sylinteri
+  ei läpäissyt geometriatarkistusta XY-skaalauksen jälkeen. Johdetun
+  polygonidatan puhdistus erillisessä ytimessä korjaa tämän. Selaimessa
+  R200 × 300 mm skaalataan kertoimella 0,8 XY-suunnissa, offsetataan 8 mm
+  ja puhkaistaan läpi; 300 mm korkeus ja tavoiteltu seinämä säilyvät.
+- Skaalatun B-spline-sylinterin testimittaus käyttää adaptiivista
+  tilavuusintegrointia. Oletusintegroinnin numeerinen epätarkkuus ei ole
+  geometriavirhe, eikä hyväksymisrajoja ole väljennetty sen vuoksi.
+- Aiemmat kaapin offset/tasku/läpireikä, monimuotoisen tasopinnan ulko-offset,
+  ympyräkehän pursotus ja keskialueen poisto sekä skaalaus/historiatyönkulut
+  hyväksytty. Testisylinterit ovat synteettisiä; käyttäjän tämänkertaisen
+  sylinterin omaa tiedostoa ei ole saatu eikä testattu.
+
 ## V0.36.11 — Hold näkyy valinnassa
 
 489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).

@@ -1,12 +1,11 @@
 import {
   cast,
   getOC,
-  makeFace,
   makeCompound,
   measureArea,
   type AnyShape,
   type Shape3D,
-  Wire,
+  type Wire,
 } from 'replicad';
 import { featureIsSolid, uid, type Body, type FaceRef, type Vec3 } from '../model/project';
 import { dot, sub } from '../model/geometry';
@@ -22,6 +21,7 @@ import type { SplitResult } from './protocol';
 import { cutShapes, cutResultState } from './cut';
 import type { TransformCache } from './buildCache';
 import { shapeFaces } from './topology';
+import { offsetPlanarLoop, planarOffsetRegion } from './planarOffset';
 
 /** Positive offsets inset a face; negative offsets extend a surface's outer boundary. */
 function withOffset<T>(
@@ -54,25 +54,11 @@ function withOffset<T>(
         wires.push(wire.clone());
         continue;
       }
-      const oc = getOC();
-      const builder = new oc.BRepOffsetAPI_MakeOffset(
-        wire.wrapped,
-        oc.GeomAbs_JoinType.GeomAbs_Intersection,
-        false,
+      wires.push(
+        offsetPlanarLoop(wire, i === 0 ? -distance : distance, target.center, target.normal),
       );
-      try {
-        builder.Perform(i === 0 ? -distance : distance, 0);
-        const result = cast(builder.Shape());
-        if (!(result instanceof Wire)) {
-          result.delete();
-          throw new Error('Sisennys hajoaa erillisiksi alueiksi. Kokeile pienempää mittaa.');
-        }
-        wires.push(result);
-      } finally {
-        builder.delete();
-      }
     }
-    inset = makeFace(wires[0], wires.slice(1));
+    inset = planarOffsetRegion(wires[0], wires.slice(1));
     const area = measureArea(inset);
     const originalArea = measureArea(face);
     if (

@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.12** korjaa sylinterin päätypinnan Offsetin myös ontossa,
+skaalatussa ja kierretyssä kappaleessa. Kehän sisennys suuntautuu oikein sekä
+ulko- että sisäreunasta. Skaalaus poistaa laskennan kopiosta vanhan piirtoverkon,
+joka saattoi estää muuten ehjän sylinterin muokkaamisen.
+
 Versio **0.36.11** näyttää valittujen Hold-lukittujen osien kohdalla lukkokuvakkeen
 ja lämpimän reunakorostuksen. Valinnan tiedoista näkee lukittujen osien määrän,
 nimet ja mahdollisen lukitsevan ryhmän. Osaan voi keskittää kameran menettämättä

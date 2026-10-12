@@ -25,6 +25,10 @@ async function transformBrep(data: string, pivot: Vec3, factors: Vec3, history: 
   const shape = oc.BRepToolsWrapper.Read(data),
     transform = new oc.gp_GTrsf_1();
   try {
+    // Serialized viewport meshes can carry polygon/UV data that GTransform
+    // leaves inconsistent after scaling. Drop only that derived data in this
+    // isolated kernel; exact curves/surfaces and the main viewport cache stay intact.
+    oc.BRepTools.Clean(shape, true);
     for (let i = 0; i < 3; i++) {
       transform.SetValue(i + 1, i + 1, factors[i]);
       transform.SetValue(i + 1, 4, pivot[i] * (1 - factors[i]));
