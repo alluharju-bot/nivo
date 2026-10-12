@@ -131,6 +131,14 @@ export function moveAxisFromScreen(
   delta: [number, number],
   axes: [number, number][],
 ): Axis | undefined {
+  const index = directionFromScreen(delta, axes);
+  return index === undefined ? undefined : (['x', 'y', 'z'] as const)[index];
+}
+
+export function directionFromScreen(
+  delta: [number, number],
+  axes: [number, number][],
+): number | undefined {
   if (Math.hypot(...delta) < 5) return;
   let best = -1,
     index = -1;
@@ -143,5 +151,5 @@ export function moveAxisFromScreen(
       index = i;
     }
   });
-  return index < 0 ? undefined : (['x', 'y', 'z'] as const)[index];
+  return index < 0 ? undefined : index;
 }

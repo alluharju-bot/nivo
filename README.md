@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.8** siirtää vinoa osaa sen omien reunojen suuntaisesti.
+Magentan suuntalinjan näkee osan läpi. Kirjoitettu mitta ja ruudukon askel
+lasketaan tätä suuntaa pitkin; positiivinen mitta seuraa vetoa.
+X/Y/Z vaihtaa maailman akselille. Viitepisteet, Ctrl-kopiointi ja toisto
+säilyttävät vinon suunnan.
+
 Versio **0.36.7** korjaa automaattisen kiinnityspisteen 180° suunnanvaihdon.
 Ankkurin läpi kulkevan linjan kauempi pää toimii oletuksena myös pinnalta poimitulla
 ankkurilla. Shift vapauttaa kierron kulma-askelmat ja säilyttää viitetartunnan

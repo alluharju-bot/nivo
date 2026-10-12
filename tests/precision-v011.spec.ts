@@ -157,12 +157,14 @@ test('a rectangle on the inside back of a hollow cabinet stays on that exact sur
     return { x: rect.x + ((v.x + 1) * rect.width) / 2, y: rect.y + ((1 - v.y) * rect.height) / 2 };
   };
   await page.keyboard.press('s');
-  await click(page, screen(18, 180, 400));
+  // Keep this plane-placement test away from the valid face-center snap at
+  // [18, 191, 400]. That magnetic target intentionally wins over a nearby grid point.
+  await click(page, screen(18, 120, 300));
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-sketch-plane', '[1,0,0]');
-  await click(page, screen(18, 300, 600));
+  await click(page, screen(18, 240, 500));
   await expect(page.locator('.object-list .object-select')).toHaveCount(3);
   const side = (await save(page)).bodies[2];
-  expect(side.origin).toEqual([18, 180, 400]);
+  expect(side.origin).toEqual([18, 120, 300]);
   expect(side.feature).toMatchObject({ width: 0, depth: 120, height: 200 });
 });
 

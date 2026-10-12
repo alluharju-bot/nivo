@@ -575,6 +575,8 @@ export default function App() {
   const [pickDepth, setPickDepth] = useState(false);
   const [copyMove, setCopyMove] = useState(false);
   const [moveInputAxis, setMoveInputAxis] = useState<Axis>();
+  const [moveDirection, setMoveDirection] = useState<Vec3>();
+  const moveTravelRef = useRef<Vec3 | undefined>(undefined);
   const [repeatStep, setRepeatStep] = useState<{
     revision: number;
     ids: string[];
@@ -1233,6 +1235,8 @@ export default function App() {
     if (awaitingStart && ['rectangle', 'circle'].includes(tool) && ['width', 'depth'].includes(key))
       setAwaitingStart(false);
     if (tool === 'detail' && key === 'offset') editor.setError('');
+    if (tool === 'move' && key === 'length')
+      for (const axis of ['x', 'y', 'z']) lockRef.current.delete(axis);
     if (tool === 'extrude' && (key === 'height' || key === 'remaining')) {
       if (key === 'height' && /^[+-]/.test(value.trim())) {
         try {
@@ -1319,6 +1323,8 @@ export default function App() {
     detailDragBefore.current = undefined;
     copyMoveRef.current = false;
     setMoveInputAxis(undefined);
+    setMoveDirection(undefined);
+    moveTravelRef.current = undefined;
     setCopyMove(false);
     scalingRef.current = undefined;
     setScalingDraft(undefined);
@@ -1860,9 +1866,15 @@ export default function App() {
       throw new Error('Kappale on kiinnitetty paikalleen. Vapauta se G-näppäimellä.');
     return {
       ...body,
-      origin: body.origin.map(
-        (n, i) => n + parseLength(fields[(['x', 'y', 'z'] as const)[i]], true, true),
-      ) as Vec3,
+      origin:
+        tool === 'move' && moveDirection && !axis && moveTravelRef.current
+          ? add(
+              body.origin,
+              scaleVector(moveTravelRef.current, parseLength(fields.length, true, true)),
+            )
+          : (body.origin.map(
+              (n, i) => n + parseLength(fields[(['x', 'y', 'z'] as const)[i]], true, true),
+            ) as Vec3),
     };
   };
   const preview = useMemo(() => {
@@ -1875,6 +1887,8 @@ export default function App() {
     tool,
     awaitingStart,
     fields,
+    moveDirection,
+    axis,
     body,
     draftId,
     project.bodies.length,
@@ -2929,8 +2943,20 @@ export default function App() {
       if (!lockRef.current.has('offset')) writeFields({ offset: inputNumber(event.distance) });
     } else if (event.type === 'move') {
       setMoveInputAxis(event.axis);
+      const local = !event.axis && event.direction;
+      setMoveDirection(local || undefined);
       const source = project.bodies.find((b) => b.id === event.bodyId) ?? body;
       if (!source) return;
+      if (local) {
+        if (lockRef.current.has('length')) return;
+        const delta = sub(event.origin, source.origin),
+          length = Math.hypot(...delta);
+        if (length > 1e-8) moveTravelRef.current = scaleVector(delta, 1 / length);
+        else moveTravelRef.current ??= local;
+        patch.length = inputNumber(length);
+      } else if (lockRef.current.delete('length')) {
+        setLocked(new Set(lockRef.current));
+      }
       for (const [i, key] of ['x', 'y', 'z'].entries())
         if (!lockRef.current.has(key))
           patch[key as 'x' | 'y' | 'z'] = String(
@@ -3487,14 +3513,25 @@ export default function App() {
                               }))
                             : []),
                         ]
-                      : ['x', 'y', 'z'].map((key) => ({
-                          key,
-                          label: `Siirtymä · ${key.toUpperCase()}`,
-                          value: fields[key as 'x' | 'y' | 'z'],
-                          unit: 'mm',
-                          testId: `move-${key}`,
-                          signed: true,
-                        }));
+                      : tool === 'move' && moveDirection && !axis
+                        ? [
+                            {
+                              key: 'length',
+                              label: 'Siirtymä reunan suuntaan',
+                              value: fields.length,
+                              unit: 'mm',
+                              testId: 'move-distance',
+                              signed: true,
+                            },
+                          ]
+                        : ['x', 'y', 'z'].map((key) => ({
+                            key,
+                            label: `Siirtymä · ${key.toUpperCase()}`,
+                            value: fields[key as 'x' | 'y' | 'z'],
+                            unit: 'mm',
+                            testId: `move-${key}`,
+                            signed: true,
+                          }));
   const removeBody = async () => {
     const ids = selectedIds.length ? selectedIds : body ? [body.id] : [];
     if (busy) return;
@@ -4121,7 +4158,10 @@ export default function App() {
         event.preventDefault();
         flushSync(() => {
           setAwaitingStart(false);
-          const key = tool === 'move' ? (axis ?? moveInputAxis ?? 'x') : numericFields[0].key;
+          const key =
+            tool === 'move'
+              ? (axis ?? (moveDirection ? 'length' : moveInputAxis) ?? 'x')
+              : numericFields[0].key;
           field(
             key,
             tool === 'move' &&
@@ -5455,7 +5495,7 @@ export default function App() {
             : tool === 'extrude'
               ? extrusionMode
               : tool === 'move'
-                ? (axis ?? moveInputAxis)
+                ? (axis ?? (moveDirection ? 'length' : moveInputAxis))
                 : tool === 'pen'
                   ? penRotation?.choosing
                     ? 'angle'

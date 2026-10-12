@@ -4,6 +4,27 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.8 — vino siirto ja magenta suuntapalaute
+
+489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).
+66 selaintapausta hyväksytty: 33 työpöydällä ja 33 tablettiprofiilissa.
+Tuotantobuild `/nivo/`-polulle ja muutettujen tiedostojen muotoilu tarkistettu.
+
+- Käyttöliittymässä kierretään osa −30° Y-akselilla. 20 mm syöttö liikuttaa
+  täsmälleen 20 mm kumpaankin vetosuuntaan; −20 mm kääntää suunnan.
+  62 mm veto pyöristyy 60 mm:iin kaltevaa reunaa pitkin, ei koordinaateittain.
+- Mittateksti, tartuntamerkki ja esikatselun sijainti päivittyvät jo kirjoitettaessa.
+  X vaihtaa maailman akseliin myös kirjoitetun vinon matkan jälkeen.
+- Shift poimii eri tasossa olevan mittaviivan pisteen ja projisoi sen vinolle
+  siirtolinjalle. Ctrl-kopio ja kaksi lisätoistoa säilyttävät saman tarkan vektorin.
+  Undo palauttaa sekä sarjan että alkuperäisen osan; Esc peruu esikatselun.
+- Tavalliset akselisiirrot, monivalinta, kokoonpanokopiot, 32 reiän osan kevyt
+  siirto sekä kaikki kierron ankkuri-/kiinnityspistekokeet hyväksytty.
+- Vanhan kaappitestin klikkaus [18, 180, 400] tarttui lähellä olevaan oikeaan
+  pintakeskipisteeseen [18, 191, 400]. Sama toistettiin puhtaalla 0.36.7-buildilla.
+  Tasolle piirtämisen testi siirrettiin pois keskipistetartunnan säteeltä;
+  sovelluksen suorakulmio- tai tartuntalogiikkaa ei muutettu tämän takia.
+
 ## V0.36.7 — 180° virheen toisto ja Shift-tartunta
 
 485 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu),

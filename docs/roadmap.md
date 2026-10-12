@@ -2,6 +2,22 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.8 — siirto osan omien suuntien mukaan
+
+- Siirtosuunnat poimitaan tartuttavan osan todellisista CAD-reunoista.
+  Pitkä suora reuna ja kohtisuora suunta muodostavat vakaan paikallisen akseliston.
+  Ensimmäinen veto valitsee yhden suunnan; X/Y/Z ohittaa sen maailman akselilla.
+- Vino suunta näkyy magentana myös osan läpi. Viitepisteen projektioviiva käyttää
+  samaa väriä. Mittakenttä on **Siirtymä reunan suuntaan**.
+- 20 mm on todellinen siirtomatka. Plus seuraa vetosuuntaa, miinus kääntää sen.
+  Ruudukko pyöristää matkan, ei X/Y/Z-koordinaatteja erikseen; ankkuri säilyy.
+- Shiftin aikana viitteen etäisyys projisoidaan nykyiselle siirtosuunnalle.
+  Kopio ja toisto käyttävät samaa kolmiulotteista siirtymävektoria. Suunnat
+  lasketaan lähdegeometriasta välimuistiin, ei jokaisella hiiren liikkeellä.
+- Jatko käsitellään käyttäjän esimerkeillä erikseen: suunnan poiminta toisen
+  kappaleen reunasta sekä yhteinen kontekstuaalinen Shift-viitekehys muille työkaluille.
+  Tämä vaihe ei muuta kynän tai mittaviivan Shift-käytäntöjä.
+
 ## V0.36.7 — kierron suunta ja Shift-viite
 
 - Automaattinen kiinnityspiste käyttää ankkurista kauempaa päätä myös pintapisteellä.

@@ -12,6 +12,7 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { rotationAngle, rotationDirection, rotationReferenceAngle } from '../model/rotationSnap';
 import { createRotationGripResolver } from '../model/rotationGrip';
+import { moveDirections, moveGridPoint, worldAxis } from '../model/moveDirections';
 import { rotatePoint } from '../model/transforms';
 import { sectionDistance } from '../model/sections';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
@@ -19,7 +20,7 @@ import {
   cameraSnapPenalty,
   cylinderHit,
   contextualFace,
-  moveAxisFromScreen,
+  directionFromScreen,
   projectedSegmentPoint,
 } from './picking';
 import {
@@ -242,13 +243,13 @@ export function installInteractions({
   moveAxisLabel.className = 'move-axis-label';
   moveAxisLabel.hidden = true;
   container.appendChild(moveAxisLabel);
-  const showMoveAxis = (axis?: Axis, start?: Vec3, end?: Vec3) => {
-    moveAxisLine.visible = !!axis && !!start && !!end;
+  const showMoveAxis = (direction?: Vec3, start?: Vec3, end?: Vec3) => {
+    const axis = direction && worldAxis(direction);
+    moveAxisLine.visible = !!direction && !!start && !!end;
     moveAxisLabel.hidden = !moveAxisLine.visible;
-    canvas.dataset.visibleMoveAxis = axis ?? '';
-    if (!axis || !start || !end) return;
-    const color = { x: '#b7534e', y: '#388960', z: '#427dba' }[axis],
-      direction = axisVector(axis),
+    canvas.dataset.visibleMoveAxis = axis ?? (direction ? 'local' : '');
+    if (!direction || !start || !end) return;
+    const color = axis ? { x: '#b7534e', y: '#388960', z: '#427dba' }[axis] : '#ba409e',
       pixel = worldPerPixel(start);
     moveAxisLine.position.set(...start);
     moveAxisLine.quaternion.setFromUnitVectors(
@@ -263,7 +264,7 @@ export function installInteractions({
     (moveAxisLine.material as THREE.MeshBasicMaterial).color.set(color);
     const distance = dot(sub(end, start), direction);
     moveAxisLabel.style.color = color;
-    moveAxisLabel.textContent = `${axis.toUpperCase()} lukittu · ${distance > 0 ? '+' : ''}${formatLength(distance)} mm`;
+    moveAxisLabel.textContent = `${axis ? `${axis.toUpperCase()} lukittu` : 'Reunan suunta'} · ${formatLength(Math.abs(distance))} mm`;
   };
   overlay.name = 'interaction-overlays';
   scene.add(overlay);
@@ -389,7 +390,8 @@ export function installInteractions({
     selection?: boolean;
     selectionBodyId?: string;
     movingIds?: string[];
-    moveAxis?: Axis;
+    moveDirections?: Vec3[];
+    moveDirection?: Vec3;
   };
   let detailSession:
     | (SizeDrag & {
@@ -2292,6 +2294,14 @@ export function installInteractions({
       }
     }
     if (snap?.line) segments.push(...snap.line.flat());
+    line.material.color.set(
+      current().tool === 'move' &&
+        !current().axis &&
+        drag?.moveDirection &&
+        !worldAxis(drag.moveDirection)
+        ? '#ba409e'
+        : '#4d9c88',
+    );
     line.geometry.dispose();
     line.geometry = new THREE.BufferGeometry();
     line.geometry.setAttribute('position', new THREE.Float32BufferAttribute(segments, 3));
@@ -2439,6 +2449,22 @@ export function installInteractions({
   };
   let displayState = current().modelDisplay;
   let previousFaceTarget: FaceTarget | undefined;
+  const movePreview = () => {
+    if (current().tool !== 'move' || !drag) return;
+    if (!current().axis && current().dimensionLocks?.has('length') && current().preview) {
+      const end = add(drag.start, sub(current().preview!.origin, drag.origin));
+      if (canvas.dataset.moveEnd !== JSON.stringify(end)) {
+        canvas.dataset.moveEnd = JSON.stringify(end);
+        show({
+          point: end,
+          key: 'move-distance',
+          label: 'Reunan suunta · Annettu mitta',
+          line: [drag.start, end],
+        });
+        showMoveAxis(drag.moveDirection ?? shiftDirection, drag.start, end);
+      }
+    }
+  };
   const sync = () => {
     markups.sync();
     const command = current().markupCommand;
@@ -2459,6 +2485,7 @@ export function installInteractions({
       current().onSelectionHover?.(undefined);
     }
     if (current().tool !== 'move' || !drag) showMoveAxis();
+    else movePreview();
     if (current().tool !== 'detail') {
       detailHover.visible = false;
       detailSelected.visible = false;
@@ -2495,6 +2522,7 @@ export function installInteractions({
       canvas.dataset.moveSnap = '';
       canvas.dataset.moveEnd = '';
       canvas.dataset.moveAxis = '';
+      canvas.dataset.moveDirection = '';
       penPressPoint = undefined;
       lastSnap = undefined;
       heldReference = undefined;
@@ -3781,6 +3809,10 @@ export function installInteractions({
       plane,
       second,
       bodyId: props.tool === 'move' ? selected?.id : undefined,
+      moveDirections:
+        props.tool === 'move'
+          ? moveDirections(props.meshes.find((mesh) => mesh.id === selected?.id))
+          : undefined,
       movingIds:
         props.tool === 'move' && selected
           ? props.selectedIds.includes(selected.id)
@@ -4215,22 +4247,29 @@ export function installInteractions({
     if (!drag || pointers.size > 1) return;
     if (props.tool === 'move') {
       const start = drag.start;
-      if (!props.axis && props.moveMode !== 'free' && !drag.moveAxis) {
+      if (!props.axis && props.moveMode !== 'free' && !drag.moveDirection) {
         const p = screen(start),
           length = worldPerPixel(start) * 100;
-        const axes = (['x', 'y', 'z'] as const).map((axis) => {
-          const q = screen(add(start, scale(axisVector(axis), length)));
+        const directions = drag.moveDirections ?? moveDirections();
+        const axes = directions.map((direction) => {
+          const q = screen(add(start, scale(direction, length)));
           return [q.x - p.x, q.y - p.y] as [number, number];
         });
-        drag.moveAxis = moveAxisFromScreen(
+        const index = directionFromScreen(
           [event.clientX - drag.screenX, event.clientY - drag.screenY],
           axes,
         );
+        if (index !== undefined) drag.moveDirection = directions[index];
       }
-      const activeAxis = props.axis ?? (props.moveMode !== 'free' ? drag.moveAxis : undefined);
-      const direction = activeAxis ? axisVector(activeAxis) : shiftDirection;
+      const direction = props.axis
+        ? axisVector(props.axis)
+        : props.moveMode !== 'free'
+          ? drag.moveDirection
+          : shiftDirection;
+      const activeAxis = direction && worldAxis(direction);
       if (!direction && props.moveMode !== 'free') return;
-      canvas.dataset.moveAxis = activeAxis ?? 'free';
+      canvas.dataset.moveAxis = activeAxis ?? (direction ? 'local' : 'free');
+      canvas.dataset.moveDirection = direction ? JSON.stringify(direction) : '';
       const raw = direction
         ? linePoint(event, start, direction)
         : planePoint(event, drag.plane, start);
@@ -4244,30 +4283,37 @@ export function installInteractions({
           ...target,
           point: end,
           label: direction
-            ? `${activeAxis?.toUpperCase() ?? 'Shift'} · Akselin mitta · ${target.label}`
+            ? `${activeAxis?.toUpperCase() ?? 'Reunan suunta'} · Suunnan mitta · ${target.label}`
             : `Tartunta · ${target.label}`,
           line: direction ? [target.point, end] : undefined,
         };
       } else {
-        const delta = sub(raw, start);
-        end = props.gridSnap
-          ? add(start, delta.map((n) => Math.round(n / props.gridStep) * props.gridStep) as Vec3)
-          : raw;
+        end = props.gridSnap ? moveGridPoint(start, raw, props.gridStep, direction) : raw;
         indication = {
           point: end,
           key: props.gridSnap ? 'move-grid' : 'move-free',
-          label: `${activeAxis?.toUpperCase() ?? 'Vapaa'} · ${props.gridSnap ? `Siirtymä · ${props.gridStep} mm ruudukko` : 'Siirtymä'}`,
+          label: `${activeAxis?.toUpperCase() ?? (direction ? 'Reunan suunta' : 'Vapaa')} · ${props.gridSnap ? `Siirtymä · ${props.gridStep} mm ruudukko` : 'Siirtymä'}`,
           line: direction ? [start, end] : undefined,
+        };
+      }
+      if (direction && !activeAxis && props.dimensionLocks?.has('length') && props.preview) {
+        end = add(start, sub(props.preview.origin, drag.origin));
+        indication = {
+          point: end,
+          key: 'move-distance',
+          label: 'Reunan suunta · Annettu mitta',
+          line: [start, end],
         };
       }
       hoveredReference = undefined;
       show(indication, drag.plane);
       canvas.dataset.moveSnap = indication.key;
       canvas.dataset.moveEnd = JSON.stringify(end);
-      showMoveAxis(activeAxis, start, end);
+      showMoveAxis(direction, start, end);
       props.onGesture({
         type: 'move',
         axis: activeAxis,
+        direction,
         bodyId: drag.bodyId,
         origin: add(drag.origin, sub(end, start)),
       });
@@ -4661,8 +4707,7 @@ export function installInteractions({
           const p = planePoint(lastEvent, drag.plane, drag.start);
           if (p) {
             const d = sub(p, drag.start);
-            const i = d.map(Math.abs).indexOf(Math.max(...d.map(Math.abs)));
-            shiftDirection = axisVector((['x', 'y', 'z'] as const)[i]);
+            shiftDirection = drag.moveDirection ?? (Math.hypot(...d) > 1e-6 ? unit(d) : undefined);
           }
         }
         return;
@@ -4893,6 +4938,7 @@ export function installInteractions({
   window.addEventListener('blur', blur);
   return {
     sync,
+    movePreview,
     dispose() {
       markups.dispose();
       canvas.removeEventListener('contextmenu', contextEvent);

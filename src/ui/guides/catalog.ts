@@ -192,7 +192,7 @@ export const toolGuides = [
       ),
       step(
         'Osoita siirtosuunta',
-        'Siirto pysyy oletuksena yhdellä akselilla. X/Y/Z valitsee akselin.',
+        'Siirto seuraa osan omia suuntia. Vino suunta näkyy magentana. X/Y/Z valitsee maailman akselin.',
         'X',
       ),
       step(
@@ -201,7 +201,7 @@ export const toolGuides = [
         '150 → Enter',
       ),
     ],
-    tip: 'Positiivinen mitta seuraa vedon suuntaa. Shift-napsautus muuttaa valintaa. Vapaa siirto löytyy Siirtotapa-valinnoista.',
+    tip: 'Positiivinen mitta seuraa vedon suuntaa. Vedon aikana viitepiste antaa mitan lukittua suuntaa pitkin. Shift-napsautus muuttaa valintaa. Vapaa siirto löytyy Siirtotapa-valinnoista.',
   },
   {
     id: 'copy',

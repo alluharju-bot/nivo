@@ -66,7 +66,7 @@ export type Gesture =
   | { type: 'extrude'; distance: number }
   | { type: 'offset'; distance: number }
   | { type: 'detail'; size: number }
-  | { type: 'move'; origin: Vec3; bodyId?: string; axis?: Axis }
+  | { type: 'move'; origin: Vec3; bodyId?: string; axis?: Axis; direction?: Vec3 }
   | {
       type: 'measure';
       anchor: Anchor;

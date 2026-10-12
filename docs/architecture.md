@@ -126,6 +126,17 @@ transaktioon; peruminen ennen hyväksyntää ei muuta projektia. Tavallinen
 valintaklikkaus valitsee objektin, kun taas E/O ja juuri jaettu alue käyttävät
 pintaviitettä. Yläpalkin fullscreen-tila seuraa selaimen fullscreenchange-tapahtumaa.
 
+Siirron paikallinen akselisto tulee lähdeosan CAD-reunoista (`moveDirections`).
+Pitkä reuna, kohtisuora reuna ja ristitulo muodostavat kolme suuntaa; jos
+kohtisuoraa reunaa ei ole, käytetään pintanormaalia tai kohtisuoraa maailman
+suuntaa. `BodyMesh`-kohtainen WeakMap välttää raskaan osan toistuvat skannaukset.
+Ensimmäinen osoitinliike valitsee näytöllä lähimmän suunnan. X/Y/Z on aina
+eksplisiittinen maailman akseli. Vino siirtymä syötetään skalaarisena matkana
+jäädytettyä vetosuuntaa pitkin; tartunta projisoi pisteen ja ruudukko pyöristää
+matkan tällä samalla suoralla. Magenta suuntalinja ohittaa syvyystestin.
+Numeerisen esikatselun merkki ja mittateksti päivitetään kevyellä
+`movePreview`-kutsulla ilman koko näkymän geometria- tai vuorovaikutuspäivitystä.
+
 V5 lisää kappaleen `locked`, `hidden` ja `groupId`-tiedot sekä nimetyt `groups`.
 V1–V4 muunnetaan avatessa; vanhat osat ovat vapaita ja näkyviä. Näkymälle ja
 sen tartunnoille annetaan vain näkyvät osat. Ryhmäpiilotus säilyttää osan oman

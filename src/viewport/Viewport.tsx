@@ -1687,6 +1687,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     markupDisplay: updateMarkups,
     preview: () => {
       preview();
+      interactions.movePreview();
       workspaceViews?.sync();
     },
     command: (next) => {
