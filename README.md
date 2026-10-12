@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.6** erottaa kierron ankkurin ja kiinnityspisteen. Kulma-ankkurin
+vastapiste seuraa oletuksena samaa pitkää reunaa; keskiankkuri käyttää keskilinjaa.
+**Valitse kiinnityspiste** poimii liikkuvan pisteen erikseen. Oranssi ankkuri,
+sininen kiinnityspiste ja niiden välinen linja näyttävät kohdistuksen.
+Tartunta käyttää tätä pistettä myös kiertorenkaasta tai muualta osasta vedettäessä.
+
 Versio **0.36.5** tuo Rotaten **Valitse ankkuri** -painikkeen heti näkyviin.
 Napsauta kulmaa, reunaa tai mittaviivaa ja vedä osan toisesta pisteestä tai renkaasta.
 Kierto tarttuu mittaviivoihin ja muiden osien pisteisiin täsmällisellä kulmalla;

@@ -145,6 +145,7 @@ export interface ViewportProps {
   onRemoveGuide: (id: string) => void;
   rotation?: Rotation;
   onRotationPick: (pivot: Vec3, axis?: Vec3, bodyId?: string) => void;
+  onRotationGrip: (point: Vec3) => void;
   onRotationAngle: (angle: number) => void;
   onRotationAxis: (axis: Vec3) => void;
   assets?: Record<string, TextureAsset>;

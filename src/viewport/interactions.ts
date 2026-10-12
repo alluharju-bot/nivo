@@ -11,6 +11,8 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { rotationAngle, rotationDirection, rotationReferenceAngle } from '../model/rotationSnap';
+import { createRotationGripResolver } from '../model/rotationGrip';
+import { rotatePoint } from '../model/transforms';
 import { sectionDistance } from '../model/sections';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import {
@@ -457,6 +459,7 @@ export function installInteractions({
         pivot: Vec3;
         axis: Vec3;
         reference: Vec3;
+        gripDirection: Vec3;
         initial: number;
         total: number;
         last: number;
@@ -3045,7 +3048,7 @@ export function installInteractions({
   };
   const rotationHandleAt = (event: PointerEvent) => {
     const rotation = current().rotation;
-    if (!rotation || rotation.picking) return;
+    if (!rotation || rotation.picking || rotationGripAt(event)) return;
     const rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
@@ -3070,23 +3073,46 @@ export function installInteractions({
       .filter((h) => h.distance < 11)
       .sort((a, b) => a.distance - b.distance)[0];
   };
+  const resolveRotationGrip = createRotationGripResolver();
   const rotationPivotAt = (event: PointerEvent): Snap | undefined => {
-    const snapped = referenceAt(event);
+    const rotation = current().rotation;
+    const accepts = (point: Vec3) =>
+      rotation?.picking !== 'grip' || !!rotationDirection(point, rotation.pivot, rotation.axis);
+    const snapped = referenceAt(event, accepts);
     if (snapped) return snapped;
     highlightEdge();
     const hit = faceAt(event, true);
-    const rotation = current().rotation;
     const point =
       hit?.target.point ??
       (rotation
         ? framePoint(event, sketchFrame(rotation.pivot, rotation.axis))
         : planePoint(event, workPlane(), [0, 0, 0]));
-    return point ? { point, key: 'free', label: hit ? 'Pinta' : 'Kiertotaso' } : undefined;
+    return point && accepts(point)
+      ? { point, key: 'free', label: hit ? 'Pinta' : 'Kiertotaso' }
+      : undefined;
   };
   const rotationPoint = (event: PointerEvent) => rotationPivotAt(event)?.point;
+  const rotationGripAt = (event: PointerEvent) => {
+    const props = current(),
+      rotation = props.rotation;
+    if (!rotation || rotation.picking) return;
+    const grip = resolveRotationGrip(rotation, props.bodies, props.meshes),
+      point = rotatePoint(grip, rotation.pivot, rotation.axis, rotation.angle),
+      p = screen(point),
+      rect = canvas.getBoundingClientRect();
+    if (
+      Math.abs(p.z) <= 1 &&
+      Math.hypot(p.x - event.clientX + rect.left, p.y - event.clientY + rect.top) <=
+        snapRadius(event, 'point')
+    )
+      return { point, key: 'rotation-grip', label: 'Kiinnityspiste', bodyId: undefined };
+  };
   const rotationSourceAt = (event: PointerEvent) => {
     const rotation = current().rotation;
-    if (!rotation || rotation.picking || Math.abs(rotation.angle) > 1e-8) return;
+    if (!rotation || rotation.picking) return;
+    const grip = rotationGripAt(event);
+    if (grip) return grip;
+    if (Math.abs(rotation.angle) > 1e-8) return;
     return moveSnapAt(event, true, {
       accepts: (point) => !!rotationDirection(point, rotation.pivot, rotation.axis),
     });
@@ -3097,6 +3123,8 @@ export function installInteractions({
     const pivot = rotation.pivot,
       reference = rotationDirection(point, pivot, axis);
     if (!reference) return;
+    const grip = resolveRotationGrip({ ...rotation, axis }, props.bodies, props.meshes),
+      gripDirection = rotationDirection(grip, pivot, axis)!;
     const tangent = cross(axis, reference),
       a = screen(point),
       b = screen(add(point, scale(tangent, radius)));
@@ -3106,6 +3134,7 @@ export function installInteractions({
       pivot,
       axis,
       reference,
+      gripDirection,
       initial: rotation.angle,
       total: 0,
       last: 0,
@@ -3144,7 +3173,7 @@ export function installInteractions({
         })
       : undefined;
     let angle: number;
-    if (!snapped && active.edgeOn)
+    if (active.edgeOn)
       angle =
         active.initial +
         ((((event.clientX - active.x) * active.tangentX +
@@ -3153,7 +3182,7 @@ export function installInteractions({
           180) /
           Math.PI;
     else {
-      const point = snapped?.point ?? framePoint(event, sketchFrame(active.pivot, active.axis));
+      const point = framePoint(event, sketchFrame(active.pivot, active.axis));
       const direction = point && rotationDirection(point, active.pivot, active.axis);
       if (!direction) return;
       const raw = rotationReferenceAngle(active.reference, direction, active.axis);
@@ -3161,12 +3190,22 @@ export function installInteractions({
       active.last = raw;
       angle = active.initial + active.total;
     }
+    if (snapped) {
+      // The ring/click location only controls the drag delta. Exact alignment always
+      // follows the independently chosen point on the part, in original coordinates.
+      const target = rotationReferenceAngle(
+        active.gripDirection,
+        rotationDirection(snapped.point, active.pivot, active.axis)!,
+        active.axis,
+      );
+      angle = target + Math.round((angle - target) / 360) * 360;
+    }
     canvas.dataset.rotationTarget = snapped?.key ?? '';
     show(
       snapped
         ? {
             ...snapped,
-            label: `${snapped.label} · kierron suuntaviite`,
+            label: `${snapped.label} · kiinnityspisteen suunta`,
             line: [active.pivot, snapped.point],
           }
         : undefined,
@@ -3466,7 +3505,11 @@ export function installInteractions({
           } else props.onSnap('Valitse suora reuna kiertoakseliksi.');
         } else {
           const point = rotationPoint(event);
-          if (point) props.onRotationPick(point);
+          if (point) {
+            if (rotation.picking === 'grip') props.onRotationGrip(point);
+            else props.onRotationPick(point);
+          } else if (rotation.picking === 'grip')
+            props.onSnap('Valitse kiinnityspiste kiertoakselin ulkopuolelta.');
         }
         canvas.focus({ preventScroll: true });
         return;
@@ -3939,7 +3982,14 @@ export function installInteractions({
           );
         } else {
           const snapped = rotationPivotAt(event);
-          show(snapped ? { ...snapped, label: `${snapped.label} · aseta ankkuri` } : undefined);
+          show(
+            snapped
+              ? {
+                  ...snapped,
+                  label: `${snapped.label} · ${rotation.picking === 'grip' ? 'aseta kiinnityspiste' : 'aseta ankkuri'}`,
+                }
+              : undefined,
+          );
         }
       } else {
         const handle = rotationHandleAt(event),

@@ -1581,12 +1581,16 @@ export default function App() {
   };
   const changeRotation = (patch: Partial<Rotation>) => {
     if (!rotationRef.current) return;
-    if (patch.pivot || patch.picking) {
+    if (patch.pivot || patch.picking || 'grip' in patch) {
       lockRef.current.delete('angle');
       setLocked(new Set(lockRef.current));
       writeFields({ angle: '0' });
     }
-    rotationRef.current = { ...rotationRef.current, ...patch };
+    rotationRef.current = {
+      ...rotationRef.current,
+      ...(patch.pivot ? { grip: undefined } : {}),
+      ...patch,
+    };
     setRotationDraft(rotationRef.current);
   };
   const startRotation = (ids: string[]) => {
@@ -5306,7 +5310,9 @@ export default function App() {
                           ? 'Osoita suoraa reunaa kiertoakseliksi.'
                           : rotation.picking === 'point'
                             ? 'Napsauta ankkuri kulmasta, reunasta tai mittaviivasta.'
-                            : 'Vedä osan pisteestä tai kiertorenkaasta. Valitse ankkuri vaihtaa kiertopisteen.'
+                            : rotation.picking === 'grip'
+                              ? 'Napsauta liikkuva kiinnityspiste. Sininen piste tarttuu kohteen suuntaan.'
+                              : 'Oranssi ankkuri pysyy paikallaan; sininen piste tarttuu kohteen suuntaan. Vedä osasta tai renkaasta.'
                         : 'Valitse kierrettävä osa näkymästä tai listasta.'
                       : tool === 'detail'
                         ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
@@ -6778,6 +6784,7 @@ export default function App() {
               onScaleChange={changeScaling}
               onScalePick={(point) => changeScaling({ pivot: point, picking: false })}
               rotation={rotation}
+              onRotationGrip={(grip) => changeRotation({ grip, picking: undefined })}
               onRotationPick={(pivot, axis, bodyId) => {
                 if (bodyId) {
                   setSelected(bodyId);

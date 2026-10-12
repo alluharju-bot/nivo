@@ -35,6 +35,8 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { rotationHandles } from '../model/rotationHandles';
+import { createRotationGripResolver } from '../model/rotationGrip';
+import { rotatePoint } from '../model/transforms';
 import { dot, unit } from '../model/geometry';
 import { createWorkspaceGrid } from './workspaceGrid';
 import { createBodyBatches, type ModelMaterial } from './bodyBatches';
@@ -755,6 +757,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   let movePreviewKey = '';
   const scalePreview = scalingPreview(scene);
+  const resolveRotationGrip = createRotationGripResolver();
   const preview = () => {
     const scaling = current().scaling;
     scalePreview.update(scaling, current().bodies, bodyNodes);
@@ -803,6 +806,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     renderer.domElement.dataset.copyRotation = String(!!rotation?.copy);
     renderer.domElement.dataset.rotationPivot = rotation ? JSON.stringify(rotation.pivot) : '';
     renderer.domElement.dataset.rotationAxis = rotation ? JSON.stringify(rotation.axis) : '';
+    renderer.domElement.dataset.rotationGrip = '';
+    renderer.domElement.dataset.rotationGripPreview = '';
     renderer.domElement.dataset.detailPreview = current().detailPreview?.body.id ?? '';
     renderer.domElement.dataset.detailPreviewSize = current().detailPreviewSize?.toString() ?? '';
     renderer.domElement.dataset.offsetPreview = current().offsetOutline
@@ -932,17 +937,29 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         ring.renderOrder = 96;
         ghost.add(ring);
       }
-      const pivot = new THREE.Mesh(
-        new THREE.SphereGeometry(
-          Math.max(2, rotationHandles(rotation, current().bodies)[0].radius / 55),
-          12,
-          8,
-        ),
-        new THREE.MeshBasicMaterial({ color: '#e39145', depthTest: false }),
+      const grip = resolveRotationGrip(rotation, current().bodies, current().meshes),
+        movingGrip = rotatePoint(grip, rotation.pivot, rotation.axis, rotation.angle);
+      renderer.domElement.dataset.rotationGrip = JSON.stringify(grip);
+      renderer.domElement.dataset.rotationGripPreview = JSON.stringify(movingGrip);
+      const line = new Line2(
+        new LineGeometry().setPositions([...rotation.pivot, ...movingGrip]),
+        new LineMaterial({
+          color: 0x398ac6,
+          linewidth: 2,
+          depthTest: false,
+          depthWrite: false,
+          transparent: true,
+          opacity: 0.8,
+          toneMapped: false,
+          resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
+        }),
       );
-      pivot.position.set(...rotation.pivot);
-      pivot.renderOrder = 97;
-      ghost.add(pivot);
+      line.renderOrder = 98;
+      ghost.add(
+        line,
+        pointMarker(rotation.pivot, '#e39145', 14),
+        pointMarker(movingGrip, '#398ac6', 14),
+      );
     }
     extrusionLabels.forEach((label) => label.element.remove());
     extrusionLabels.length = 0;

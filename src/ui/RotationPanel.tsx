@@ -33,6 +33,24 @@ export function RotationPanel({
           Keskipiste
         </button>
       </div>
+      <div className="rotation-picks" aria-label="Kierron kiinnityspiste">
+        <button
+          disabled={busy}
+          aria-pressed={rotation.picking === 'grip'}
+          onClick={() => onChange({ picking: rotation.picking === 'grip' ? undefined : 'grip' })}
+          title="Valitse liikkuva piste, jonka suunta tarttuu mittaviivaan tai kohdepisteeseen."
+        >
+          <MousePointer2 size={14} /> Valitse kiinnityspiste
+        </button>
+        <button
+          disabled={busy}
+          aria-pressed={!rotation.grip}
+          onClick={() => onChange({ grip: undefined, picking: undefined })}
+          title="Saman reunan toinen pää tai ankkurin kautta kulkeva keskilinja."
+        >
+          Automaattinen
+        </button>
+      </div>
       <label className="checkbox-label">
         <input
           type="checkbox"

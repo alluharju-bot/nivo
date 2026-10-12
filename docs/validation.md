@@ -4,6 +4,26 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.6 — kierron erillinen kiinnityspiste
+
+483 yksikkö-/CAD-testiä hyväksytty, kolme yksityisen mallin testiä ohitettu.
+20 selaintapausta hyväksytty (10 työpöytä-, 10 tablettiprofiilissa).
+
+- Kaikki kahdeksan laatikon kulmaa valitsevat saman pitkän reunan toisen pään.
+  Kiertoakselin suuntaista reunaa ei käytetä. Keskilinja, reunan välipiste,
+  pinnan keskipiste, vinon kappaleen todelliset reunat ja välimuisti tarkistetaan.
+- 200 × 40 × 80 mm porras kierretään kulma-ankkurista −36,86989765°: toinen
+  alakulma osuu mittaviivan pisteeseen [160, 0, 120], vaikka veto alkaa eri
+  suunnasta kiertorenkaasta. Tallennettu CAD-tulos ja Undo tarkistetaan.
+- Erikseen poimittu yläkulma [200, 0, 80] suunnataan pisteeseen [112, 0, 184]
+  aloittamalla veto osan pinnalta. Ankkuri pysyy paikallaan. Automaattisen
+  kiinnityspisteen palautus ja keskipisteeseen palaaminen tarkistetaan.
+- Keskilinja kohdistuu oikein myös 30° numerosyötön jälkeen; aiempaa kulmaa
+  ei lisätä kohdistukseen. Esc palauttaa alkuperäisen geometrian.
+- Aiemmat mittaviiva-, kulma-, reuna- ja keskipistetartunnat, perspektiivin
+  ankkuripoiminta, eri syvyydellä olevat viitteet, monivalinta, Ctrl-kopiot,
+  5°/90° rengaskierron askellus, Shift ja reunasta poimittu akseli säilyvät.
+
 ## V0.36.5 — kierron ankkuri ja tartunnat
 
 479 yksikkö-/CAD-testiä hyväksytty; kolme yksityisen tiedoston vaativaa testiä

@@ -249,11 +249,11 @@ export const toolGuides = [
     steps: [
       step(
         'Valitse osa ja kiertopiste',
-        'Keskipiste on oletus. Valitse ankkuri ja napsauta kulmaa, reunaa tai mittaviivaa.',
+        'Keskipiste on oletus. Valitse ankkuri poimii oranssin kiertopisteen. Sininen kiinnityspiste seuraa samaa reunaa tai keskilinjaa; Valitse kiinnityspiste vaihtaa sen erikseen.',
       ),
       step(
         'Vedä osan pisteestä tai renkaasta',
-        'Osoita mittaviivaa tai toisen osan pistettä tarkaksi suuntaviitteeksi. Muuten kierto tarttuu 5° välein.',
+        'Osoita mittaviivaa tai toisen osan pistettä: sininen kiinnityspiste suunnataan siihen riippumatta vedon aloituskohdasta. Muuten kierto tarttuu 5° välein.',
         '45°',
       ),
       step('Hyväksy', 'Vapauta veto tai kirjoita kulma ja paina Enter.', 'Enter'),

@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { Camera, Vector3 } from 'three';
 import { makeBody, type Guide, type Vec3 } from '../src/model/project';
 import { ready, view, click, save } from './helpers';
+import { rotationRadius } from '../src/model/transforms';
 
 async function at(page: Page, point: Vec3) {
   const canvas = page.getByTestId('viewport'),
@@ -174,4 +175,126 @@ test('rotation references acquire other-part vertices, midpoints, edges and face
   await page.keyboard.press('Escape');
   await page.mouse.up();
   expect((await save(page)).bodies).toEqual([source, target]);
+});
+
+test('corner and center use their own attachment line even when dragging another point on the ring', async ({
+  page,
+}, info) => {
+  const body = makeBody(200, 40, 80),
+    target: Vec3 = [160, 0, 120];
+  await ready(page, [body], [free('rise', target, [160, 0, 160])]);
+  await page.getByTestId(`body-${body.id}`).click();
+  await page.keyboard.press('r');
+  await view(page, [body], 'front');
+  await page.getByRole('button', { name: 'Kierrä Y-akselin ympäri' }).click();
+  const canvas = page.getByTestId('viewport');
+  await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,20,40]');
+  await pivot(page, [0, 0, 0]);
+  await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,0,0]');
+  const radius = rotationRadius([body]),
+    start = await at(page, [radius * 0.6, 0, radius * 0.8]);
+  await page.mouse.move(start.x, start.y);
+  await expect(canvas).toHaveAttribute('data-rotation-handle', 'Y');
+  await page.mouse.down();
+  const end = await at(page, target);
+  await page.mouse.move(end.x, end.y, { steps: 8 });
+  await expect(canvas).toHaveAttribute('data-rotation-target', 'rise:start');
+  await expect
+    .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
+    .toBeCloseTo(-36.86989765, 3);
+  const moved = JSON.parse((await canvas.getAttribute('data-rotation-grip-preview'))!);
+  expect(moved[0]).toBeCloseTo(160, 4);
+  expect(moved[2]).toBeCloseTo(120, 4);
+  await page.screenshot({ path: info.outputPath('corner-attachment.png') });
+  await page.mouse.up();
+  const result = (await save(page)).bodies[0];
+  expect(result.origin[0]).toBeCloseTo(-48, 3);
+  expect(result.origin[2]).toBeCloseTo(0, 3);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies[0]).toEqual(body);
+});
+
+test('explicit attachment point is independent of the drag origin and can return to automatic', async ({
+  page,
+}) => {
+  const body = makeBody(200, 40, 80),
+    target: Vec3 = [112, 0, 184];
+  await ready(page, [body], [free('custom-target', target, [112, 0, 224])]);
+  await page.getByTestId(`body-${body.id}`).click();
+  await page.keyboard.press('r');
+  await view(page, [body], 'front');
+  await page.getByRole('button', { name: 'Kierrä Y-akselin ympäri' }).click();
+  await pivot(page, [0, 0, 0]);
+  const canvas = page.getByTestId('viewport');
+  await page.getByRole('button', { name: 'Valitse kiinnityspiste', exact: true }).click();
+  await click(page, await at(page, [200, 0, 80]));
+  await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,0,80]');
+  await expect(canvas).toHaveAttribute('data-rotation-pivot', '[0,0,0]');
+  // Start away from the chosen point: it must stay the upper far corner.
+  const start = await at(page, [60, 0, 20]),
+    end = await at(page, target);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 8 });
+  await expect(canvas).toHaveAttribute('data-rotation-target', 'custom-target:start');
+  const expected = ((-Math.atan2(184, 112) + Math.atan2(80, 200)) * 180) / Math.PI;
+  await expect
+    .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
+    .toBeCloseTo(expected, 4);
+  const moved = JSON.parse((await canvas.getAttribute('data-rotation-grip-preview'))!);
+  expect(moved[0]).toBeCloseTo(112, 4);
+  expect(moved[2]).toBeCloseTo(184, 4);
+  await page.mouse.up();
+  await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies[0]).toEqual(body);
+  // Undo clears the tool; start afresh and verify explicit/automatic/pivot resets.
+  await page.keyboard.press('r');
+  await page.getByRole('button', { name: 'Kierrä Y-akselin ympäri' }).click();
+  await pivot(page, [0, 0, 0]);
+  await page.getByRole('button', { name: 'Valitse kiinnityspiste', exact: true }).click();
+  await click(page, await at(page, [200, 0, 80]));
+  await page.getByRole('button', { name: 'Automaattinen', exact: true }).click();
+  await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,0,0]');
+  await page.getByRole('button', { name: 'Valitse kiinnityspiste', exact: true }).click();
+  await click(page, await at(page, [200, 0, 80]));
+  await page.getByRole('button', { name: 'Keskipiste', exact: true }).click();
+  await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,20,40]');
+  await page.keyboard.press('Escape');
+  expect((await save(page)).bodies[0]).toEqual(body);
+});
+
+test('center attachment snaps correctly after a numeric preview without adding its angle twice', async ({
+  page,
+}) => {
+  const body = makeBody(200, 40, 80),
+    target: Vec3 = [180, 20, 100];
+  await ready(page, [body], [free('center-target', target, [180, 20, 140])]);
+  await page.getByTestId(`body-${body.id}`).click();
+  await page.keyboard.press('r');
+  await view(page, [body], 'front');
+  await page.getByRole('button', { name: 'Kierrä Y-akselin ympäri' }).click();
+  const canvas = page.getByTestId('viewport');
+  await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,20,40]');
+  await page.getByTestId('rotation-angle').fill('30');
+  await expect
+    .poll(async () => JSON.parse((await canvas.getAttribute('data-rotation-grip-preview'))!)[2])
+    .toBeCloseTo(-10, 4);
+  const start = await at(page, [100 + 100 * Math.cos(Math.PI / 6), 20, -10]),
+    end = await at(page, target);
+  await page.mouse.move(start.x, start.y);
+  await expect(page.getByTestId('snap-hint')).toContainText('Kiinnityspiste');
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 8 });
+  await expect(canvas).toHaveAttribute('data-rotation-target', 'center-target:start');
+  await expect
+    .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
+    .toBeCloseTo(-36.86989765, 4);
+  const moved = JSON.parse((await canvas.getAttribute('data-rotation-grip-preview'))!);
+  expect(moved[0]).toBeCloseTo(180, 4);
+  expect(moved[1]).toBeCloseTo(20, 4);
+  expect(moved[2]).toBeCloseTo(100, 4);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  expect((await save(page)).bodies[0]).toEqual(body);
 });

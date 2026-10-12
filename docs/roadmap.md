@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.6 — kiinnityspiste seuraa ankkurin linjaa
+
+- Oranssi ankkuri pysyy paikallaan. Sininen kiinnityspiste liikkuu mukana,
+  ja niiden välinen viiva näyttää kohdistettavan suunnan.
+- Kulmassa oletus on saman pitkän suoran reunan toinen pää. Keskeltä tai
+  pinnasta käytetään ankkurin kautta kulkevaa, pitkän reunan suuntaista linjaa.
+  Kiertoakselin suuntaiset reunat ohitetaan; aiemmin kierretyissä osissa käytetään
+  todellisia CAD-reunoja. Monimutkaisissa muodoissa käyttäjä voi poimia pisteen itse.
+- **Valitse kiinnityspiste** käyttää samaa pisteiden ja viivojen poimintaa kuin
+  ankkuri. **Automaattinen** palauttaa oletuslinjan. Uusi ankkuri palauttaa
+  kiinnityspisteen automaattiseksi; pelkkä renkaan tai osan vetäminen ei vaihda sitä.
+- Tarkka tartuntakulma lasketaan kiinnityspisteestä, riippumatta siitä mistä
+  renkaan tai osan kohdasta veto alkaa. Numeerisen esikatselun kulmaa ei lisätä
+  tarkkaan kohdistukseen toistamiseen. Shift, Ctrl-kopiointi ja Undo säilyvät.
+- Oletuslinjan geometriatarkastelu on välimuistissa; kulman muuttaminen ei
+  skannaa raskaan osan reunoja uudelleen jokaisella osoitinpäivityksellä.
+
 ## V0.36.5 — kierron ankkuri ja suuntaviitteet
 
 - **R → Valitse ankkuri**: sama kulmien, keskipisteiden, reunojen, mittaviivojen

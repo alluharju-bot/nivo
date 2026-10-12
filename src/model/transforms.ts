@@ -10,8 +10,10 @@ export interface Rotation {
   pivot: Vec3;
   axis: Vec3;
   angle: number;
+  /** Original (unrotated) point whose direction snaps to the target. */
+  grip?: Vec3;
   copy?: boolean;
-  picking?: 'point' | 'edge';
+  picking?: 'point' | 'edge' | 'grip';
 }
 export const cross = (a: Vec3, b: Vec3): Vec3 => [
   a[1] * b[2] - a[2] * b[1],
