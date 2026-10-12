@@ -3690,15 +3690,105 @@ p {
   background: #edf2eb;
   font-size: 12px;
 }
-.hold-notice {
+.hold-selection {
+  margin: 10px 0;
+  padding: 9px 10px;
+  border: 1px solid #b68a4d66;
+  border-radius: 8px;
+  background: #f6eedee0;
+  color: #684514;
+  font-size: 12px;
+}
+.hold-selection-heading {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--muted);
+  gap: 7px;
 }
-.hold-notice svg {
-  flex-shrink: 0;
+.hold-selection ul {
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 156px;
+  overflow-y: auto;
+}
+.hold-selection li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+}
+.hold-selection li > div {
+  min-width: 0;
+}
+.hold-selection li strong,
+.hold-selection li small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.hold-selection li small {
+  margin-top: 2px;
+  color: #776244;
+}
+.hold-selection li button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #b68a4d66;
+  border-radius: 6px;
+  background: #fff9;
+  color: inherit;
+}
+.hold-selection li button:hover {
+  background: #fff;
+}
+.hold-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+.hold-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid #946017;
+  background: #fff4dceb;
+  color: #784b0c;
+  box-shadow: 0 1px 4px #0003;
+}
+.hold-marker[hidden] {
+  display: none;
+}
+.hold-marker svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.object-select .object-hold-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: #f8e6b9cc;
+  color: #765016;
+  font-size: 10px;
+  font-weight: 650;
 }
 .component-link-notice > div {
   display: flex;
@@ -5003,7 +5093,7 @@ p {
   font-weight: 500;
   text-shadow: 0 1px 2px #ffffffc0;
 }
-.model-browser .object-select > span:not(.tree-drag-grip),
+.model-browser .object-select > span:not(.tree-drag-grip):not(.object-hold-badge),
 .model-browser .group-select {
   font-size: 12px;
   font-weight: 600;

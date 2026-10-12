@@ -190,6 +190,15 @@ export function ObjectTree({
               <GripVertical size={15} />
             </span>
             <span>{body.name}</span>
+            {held && (
+              <span
+                className="object-hold-badge"
+                title={inheritedHold ? 'Ryhmän Hold-lukitus' : 'Osan Hold-lukitus'}
+              >
+                <LockKeyhole size={12} aria-hidden="true" />
+                Hold
+              </span>
+            )}
             {body.component && <Link2 size={12} aria-label="Linkitetty komponentti" />}
           </button>
         )}

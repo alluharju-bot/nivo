@@ -31,6 +31,22 @@ Käyttäjän tarkennus 12.10.2026. Suunniteltu jatkokehitys; ei vielä toteutett
   muokkaustila; viitteen vaihto ja peruminen. Aloituspiste, aktiivinen pinta
   ja viitekappale säilyvät oikeina koko eleen ja numerosyötön ajan.
 
+## V0.36.11 — lukittu osa löytyy monivalinnasta
+
+- Valitun lukitun osan kohdalla näkyy lukkokuvake ja lämpimän sävyinen
+  reunakorostus. Osan materiaalia ei vaihdeta lukituksen vuoksi.
+- Valinnan tiedoissa näkyvät lukittujen määrä suhteessa koko valintaan,
+  osien nimet ja lukituksen lähde: osan oma Hold tai nimetty yläryhmä.
+- Jokaisen lukitun osan vierestä voi keskittää kameran kyseiseen osaan
+  menettämättä huolellisesti koottua monivalintaa. Piilotetun osan kohdalla
+  kerrotaan piilotuksesta ja keskittäminen odottaa näkyviin palauttamista.
+- Mallilistassa Hold-merkki näkyy ilman osoittamista. Ryhmästä periytyvä
+  lukitus tunnistetaan; muokkauskontekstin ulkopuolisuus ei luo Hold-merkkiä.
+- Merkinnät seuraavat lukituksen vapautusta, ryhmälukitusta ja Peru/Palauta-
+  historiaa ilman uutta CAD-laskentaa. Nykyiset muokkaussuojaukset säilyvät.
+- Valintatesteissä löytynyt sivukorjaus: maalaustyökalun vasen veto ei enää
+  käynnistä samalla kameran kiertoa, kun tyhjästä tilasta vedetään valintaruutu.
+
 ## V0.36.10 — kumitus käsittelee korostettua rajausta
 
 - Jakoviivan päätepisteen lähellä kohdistin voi olla osan siluetin ulkopuolella,

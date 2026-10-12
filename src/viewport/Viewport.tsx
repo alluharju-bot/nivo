@@ -1,4 +1,5 @@
 import { scalingPreview } from './scalingPreview';
+import { createHoldLabels } from './holdLabels';
 import { markupSvg, updateMarkupSvg } from './markupSvg';
 import { createOpeningPreview } from './openingPreview';
 import { installKnife } from './knife';
@@ -107,6 +108,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   container.append(renderer.domElement);
   const pointDimensions = createPointDimensions(container);
   const modelDimensions = createModelDimensions(container);
+  const holdLabels = createHoldLabels(container);
   const perspective = new THREE.PerspectiveCamera(40, 1, 0.1, 1_000_000);
   const orthographic = new THREE.OrthographicCamera(-900, 900, 700, -700, 0.1, 1_000_000);
   perspective.up.set(0, 0, 1);
@@ -229,6 +231,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       zoom: camera.zoom,
     });
     updateMarkups();
+    holdLabels.update(camera, container.clientWidth, container.clientHeight);
     pointDimensions.update(
       current().bodies,
       current().dimensions,
@@ -367,6 +370,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   const sync = () => {
     const props = current();
+    holdLabels.sync(props.bodies, props.heldSelectionIds ?? []);
     openingPreview.sync(props.opening?.cutters);
     renderer.domElement.dataset.openingTargets = JSON.stringify(props.opening?.targets ?? []);
     renderer.domElement.dataset.openingCutters = String(props.opening?.cutters.length ?? 0);
@@ -393,6 +397,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const bodyById = new Map(props.bodies.map((body) => [body.id, body]));
     const surfaceOrder = new Map(props.bodies.map((body, i) => [body.id, i + 1]));
     const selectedIds = new Set(props.selectedIds);
+    const heldIds = new Set(props.heldSelectionIds);
     const previewIds = new Set(props.colorPreview?.ids);
     const moveHoveredIds = new Set([
       ...(props.moveHoveredIds ?? []),
@@ -406,6 +411,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const body = bodyById.get(data.id);
       if (!body) continue;
       const selected = selectedIds.has(data.id);
+      const held = heldIds.has(data.id);
       const display = bodyDisplayMode(props.modelDisplay, data.id);
       const moveHovered = moveHoveredIds.has(data.id);
       const context = data.id === props.editingBodyId;
@@ -430,6 +436,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         body.appearance,
         body.faceMaterials,
         body.locked,
+        held,
         body.purpose,
         display,
         selected,
@@ -585,29 +592,32 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const outline = new THREE.LineSegments(
         edges,
         new THREE.LineBasicMaterial({
-          color: context
-            ? '#267e65'
-            : moveHovered
-              ? '#116c53'
-              : reference
-                ? '#819087'
-                : target
-                  ? '#0066bf'
-                  : cutter
-                    ? '#cc3d28'
-                    : selected && !data.faces.length
-                      ? '#237b65'
-                      : auxiliary
-                        ? body.purpose === 'construction'
-                          ? '#1289c6'
-                          : '#9865b4'
-                        : selected
-                          ? props.selectedGroupId
-                            ? '#356eab'
-                            : '#237b65'
-                          : body.locked
-                            ? '#637168'
-                            : '#766851',
+          color:
+            selected && held
+              ? '#a96f24'
+              : context
+                ? '#267e65'
+                : moveHovered
+                  ? '#116c53'
+                  : reference
+                    ? '#819087'
+                    : target
+                      ? '#0066bf'
+                      : cutter
+                        ? '#cc3d28'
+                        : selected && !data.faces.length
+                          ? '#237b65'
+                          : auxiliary
+                            ? body.purpose === 'construction'
+                              ? '#1289c6'
+                              : '#9865b4'
+                            : selected
+                              ? props.selectedGroupId
+                                ? '#356eab'
+                                : '#237b65'
+                              : body.locked
+                                ? '#637168'
+                                : '#766851',
           transparent: true,
           opacity:
             display === 'wireframe'
@@ -747,6 +757,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       'offset',
       'measure',
       'pen',
+      'paint',
     ].includes(props.tool);
     controls.mouseButtons.LEFT = editing || props.tool === 'select' ? null! : THREE.MOUSE.ROTATE;
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
@@ -1717,6 +1728,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       bodyBatches.dispose();
       workspaceGrid?.dispose();
       modelDimensions.dispose();
+      holdLabels.dispose();
       markupOverlay.remove();
       pointDimensions.dispose();
       scene.traverse((obj) => {
@@ -1791,6 +1803,7 @@ export function Viewport(props: Props) {
     props.modelDisplay,
     props.meshes,
     props.selectedIds,
+    props.heldSelectionIds,
     props.moveHoveredIds,
     props.selectionHoveredIds,
     props.pickHoveredIds,

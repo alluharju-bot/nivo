@@ -4,6 +4,30 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.11 — Hold näkyy valinnassa
+
+489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).
+113 eri selaintapausta hyväksytty korjausten ja uusinta-ajojen jälkeen:
+56 työpöydällä ja 57 tablettiprofiilissa. Kosketustesti ohitetaan työpöydällä.
+Tuotantobuild, TypeScript-tarkistus ja muutettujen tiedostojen muotoilu hyväksytty.
+
+- 20 paneelin vapaassa ruutuvalinnassa tunnistetaan täsmälleen kaksi lukittua
+  osaa: oma Hold ja ryhmästä periytyvä Hold. Osien kohdalla näkyvät lukot,
+  mallilistassa Hold-merkit ja oikealla nimet sekä lukitsevan ryhmän nimi.
+- Lukituslista säilyy siirtotyökalussa. Yksittäiseen lukittuun osaan
+  keskittäminen säilyttää 20 osan valinnan. Vapautukset, Peru ja tallennuksen
+  jälkeinen uudelleenavaus päivittävät tiedot oikein.
+- Piilotettu lukittu osa nimetään, mutta sille ei piirretä näkyvän osan
+  merkkiä eikä sallita keskitystä ennen näkyviin palauttamista.
+- Valinnan ja lukitusten päivittäminen ei lisää näkymän geometriarakennuksia.
+  Aiempi pintavärin säilymisen ja Hold-muokkaussuojausten testi hyväksytty.
+- Valinta-, ryhmä-, kokoonpano-, skaalaus-, kynän jako- ja kumitustestit ajettu.
+  Kaksi aiempaa testiä päivitettiin vastaamaan jo muuttunutta tekstiä ja
+  paneelin painikkeen sijaintia; kyseisiä sovellustoimintoja ei muutettu.
+- Testit toistivat vanhan maalaustyökalun virheen: valintaruudun veto käynnisti
+  samalla orbitin. Korjauksen jälkeen P/U/R/O/F/T-työkalujen tyhjästä tilasta
+  vedetty ruutu valitsee osat säilyttäen kameran ja geometrian.
+
 ## V0.36.10 — kumittimen kohde ja päällekkäiset piirrosviivat
 
 489 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).

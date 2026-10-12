@@ -194,7 +194,9 @@ test('Hold preserves the surface color and blocks drawing edits and double-click
   await page.getByRole('button', { name: 'Valitse', exact: true }).click();
   await revealBrowser(page);
   await page.getByTestId(`body-${floor.id}`).click();
-  await expect(page.locator('.hold-notice')).toContainText('muokkauslukittu');
+  await expect(page.getByRole('region', { name: 'Valinnan lukitut osat' })).toContainText(
+    'Lukittu 1 / 1',
+  );
   await page.screenshot({ path: info.outputPath('hold-keeps-material.png') });
   await page.getByRole('button', { name: 'Vapauta: Lattia', exact: true }).click();
   await view(page, [floor]);

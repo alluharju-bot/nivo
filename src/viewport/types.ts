@@ -80,6 +80,8 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  /** Actual Hold locks; body.locked also includes temporary edit-context guards. */
+  heldSelectionIds?: string[];
   scaling?: Scaling;
   onScaleChange: (patch: Partial<Scaling>) => void;
   onScalePick: (point: Vec3) => void;

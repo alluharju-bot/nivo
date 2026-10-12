@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.11** näyttää valittujen Hold-lukittujen osien kohdalla lukkokuvakkeen
+ja lämpimän reunakorostuksen. Valinnan tiedoista näkee lukittujen osien määrän,
+nimet ja mahdollisen lukitsevan ryhmän. Osaan voi keskittää kameran menettämättä
+monivalintaa. Mallilistassa lukitus näkyy myös pysyvänä Hold-merkkinä.
+
 Versio **0.36.10** yhtenäistää kumittimen korostuksen ja napsautuksen.
 Jakoviivan päässä oleva tartunta ei vaihdu tyhjän tilan valinnaksi.
 Korostetun rajauksen voi kumittaa myös viereisen osan tai päällekkäisen

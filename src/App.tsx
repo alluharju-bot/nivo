@@ -64,6 +64,7 @@ import { ContextActions, type QuickAction } from './ui/ContextActions';
 import { CommandSearch } from './ui/CommandSearch';
 import type { Command } from './ui/commands';
 import { ToolContext } from './ui/ToolContext';
+import { HoldSelection } from './ui/HoldSelection';
 import { RepeatAction } from './ui/RepeatAction';
 import { repeatTranslation } from './model/repeat';
 import { OverlapPicker, type PickCandidate } from './ui/OverlapPicker';
@@ -811,6 +812,11 @@ export default function App() {
   );
   const selectionSize = selectionBox.max.map((n, i) => n - selectionBox.min[i]);
   const selectedGuide = project.guides.find((g) => g.id === selectedGuideId);
+  const heldSelection = useMemo(
+    () => project.bodies.filter((b) => selectedIdSet.has(b.id) && bodyLocked(b, project.groups)),
+    [project.bodies, project.groups, selectedIdSet],
+  );
+  const heldSelectionIds = useMemo(() => heldSelection.map((b) => b.id), [heldSelection]);
   const [awaitingStart, setAwaitingStart] = useState(false);
   const visibleBodies = useMemo(
     () =>
@@ -4462,11 +4468,19 @@ export default function App() {
       sampledBrush,
     );
   };
-  const movementBlocked = project.bodies.some(
-    (b) => selectedIdSet.has(b.id) && bodyLocked(b, project.groups),
-  )
-    ? 'Vapauta valinnan Hold ennen muokkaamista.'
+  const movementBlocked = heldSelection.length
+    ? heldSelection.length === 1
+      ? `”${heldSelection[0].name}” on Hold-lukittu. Vapauta lukitus ennen muokkaamista.`
+      : `${heldSelection.length} valittua osaa on Hold-lukittu. Katso lukitut osat valinnan tiedoista.`
     : undefined;
+  const holdNotice = (
+    <HoldSelection
+      parts={heldSelection}
+      groups={project.groups}
+      count={selectedIds.length}
+      onFocus={(id) => setCameraCommand({ id: performance.now(), type: 'fit', ids: [id] })}
+    />
+  );
   const planarSelection =
     selectedIds.length > 1 &&
     project.bodies.filter((b) => selectedIdSet.has(b.id)).every((b) => !featureIsSolid(b.feature));
@@ -6404,6 +6418,7 @@ export default function App() {
               </div>
             )}
             <Viewport
+              heldSelectionIds={heldSelectionIds}
               onCaptureReady={(capture) => {
                 captureModel.current = capture;
               }}
@@ -7236,6 +7251,7 @@ export default function App() {
                 />
               )}
               {activeTool && linkNotice}
+              {activeTool && holdNotice}
               {tool === 'paint' && (
                 <>
                   <div className="material-tool-tabs" role="group" aria-label="Maalauksen työkalut">
@@ -8078,12 +8094,7 @@ export default function App() {
                     </p>
                   )}
                   {linkNotice}
-                  {movementBlocked && (
-                    <p className="hold-notice" role="status">
-                      <LockKeyhole size={15} /> Hold · muokkauslukittu. Vapauta osan tai ryhmän
-                      lukitus ennen muokkaamista.
-                    </p>
-                  )}
+                  {holdNotice}
                   {canDivideSurface && surfaceActions}
                   {body?.feature.type === 'brep' &&
                     body.feature.surfaceLevels &&

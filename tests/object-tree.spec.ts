@@ -202,7 +202,9 @@ test('opening a tool brings its measurements into view after scrolling propertie
       .locator('summary')
       .filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) })
       .click();
-  await page.getByRole('button', { name: 'Yhdistä valitut', exact: true }).scrollIntoViewIfNeeded();
+  await page
+    .getByRole('button', { name: 'Lisää kokonaismitat', exact: true })
+    .scrollIntoViewIfNeeded();
   expect(await page.locator('.inspector-details').evaluate((el) => el.scrollTop)).toBeGreaterThan(
     0,
   );

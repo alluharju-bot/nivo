@@ -88,7 +88,7 @@ test('linked editing shows its impact and an explicit unique action preserves ot
   await page.getByTestId(`body-${a.id}`).click();
   const notice = page.getByTestId('component-link-notice');
   await expect(notice).toContainText('2 linkitettyä osaa');
-  await expect(notice).toContainText('Muodon muokkaus päivittyy kaikkiin');
+  await expect(notice).toContainText('Muodon muutos päivittyy kaikkiin kopioihin.');
   const unique = page.getByRole('button', { name: 'Muokkaa vain tätä · tee uniikki', exact: true });
   if (info.project.use.hasTouch) await unique.tap();
   else await unique.click();

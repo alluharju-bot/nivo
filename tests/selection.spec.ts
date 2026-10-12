@@ -239,6 +239,7 @@ for (const key of ['p', 'u', 'r', 'o', 'f', 't'])
     await ready(page, parts);
     const p = await view(page, parts);
     await page.keyboard.press(key);
+    const camera = JSON.parse((await page.getByTestId('viewport').getAttribute('data-camera'))!);
     const a = p(-20, 120, 100),
       b = p(320, -20, 100);
     await page.mouse.move(a.x, a.y);
@@ -246,6 +247,10 @@ for (const key of ['p', 'u', 'r', 'o', 'f', 't'])
     await page.mouse.move(b.x, b.y, { steps: 8 });
     await expect(page.getByTestId('selection-box')).toBeVisible();
     await page.mouse.up();
+    const after = JSON.parse((await page.getByTestId('viewport').getAttribute('data-camera'))!);
+    for (const key of ['position', 'quaternion', 'projection', 'target'])
+      after[key].forEach((n: number, i: number) => expect(n).toBeCloseTo(camera[key][i], 8));
+    expect(after.zoom).toBe(camera.zoom);
     await expect(page.locator('.object-select[aria-pressed="true"]')).toHaveCount(2);
     expect((await save(page)).bodies).toEqual(parts);
   });
