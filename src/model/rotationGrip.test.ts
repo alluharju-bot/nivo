@@ -57,6 +57,26 @@ it('uses the center line at center and preserves a face/edge anchor line', () =>
   expect(defaultRotationGrip(rotation([100, 0, 40]), [body], meshes)).toEqual([200, 0, 40]);
   expect(defaultRotationGrip(rotation([50, 0, 80]), [body], meshes)).toEqual([200, 0, 80]);
 });
+it('chooses the far end from a picked face anchor on either side of center', () => {
+  const meshes = [boxMesh()];
+  expect(defaultRotationGrip(rotation([180, 0, 40]), [body], meshes)).toEqual([0, 0, 40]);
+  expect(defaultRotationGrip(rotation([20, 0, 40]), [body], meshes)).toEqual([200, 0, 40]);
+});
+it('keeps the automatic far end on rotated parts, independent of world-axis sign', () => {
+  for (const angle of [31, 120, 211, 300]) {
+    const transform = (p: Vec3) => rotatePoint(p, [0, 0, 0], [0, 0, 1], angle),
+      mesh = boxMesh(transform);
+    for (const x of [20, 180]) {
+      const actual = defaultRotationGrip(
+          rotation(transform([x, 0, 40]), [0, 0, 1]),
+          [body],
+          [mesh],
+        ),
+        expected = transform([x < 100 ? 200 : 0, 0, 40]);
+      actual.forEach((n, i) => expect(n).toBeCloseTo(expected[i], 7));
+    }
+  }
+});
 it('uses real rotated edges, not world bounding box corners', () => {
   const transform = (p: Vec3) => rotatePoint(p, [0, 0, 0], [0, 0, 1], 31);
   const mesh = boxMesh(transform),

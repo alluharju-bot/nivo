@@ -258,7 +258,7 @@ export const toolGuides = [
       ),
       step('Hyväksy', 'Vapauta veto tai kirjoita kulma ja paina Enter.', 'Enter'),
     ],
-    tip: 'Ctrl-napautus kytkee kopioinnin päälle tai pois; alkuperäinen jää paikalleen. Shift vapauttaa kulma- ja viitetartunnan. X/Y/Z valitsee kiertoakselin; valitse se ennen vetoa. Tason ulkopuolinen viite antaa suunnan kiertotasossa, mutta ei muuta osan kokoa tai ankkuria.',
+    tip: 'Ctrl-napautus kytkee kopioinnin päälle tai pois; alkuperäinen jää paikalleen. Shift vapauttaa kulma-askelmat, mutta säilyttää tartunnan osoitettuun viitteeseen. X/Y/Z valitsee kiertoakselin; valitse se ennen vetoa. Tason ulkopuolinen viite antaa suunnan kiertotasossa, mutta ei muuta osan kokoa tai ankkuria.',
   },
   {
     id: 'fillet',

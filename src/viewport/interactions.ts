@@ -3164,14 +3164,12 @@ export function installInteractions({
   const updateRotation = (event: PointerEvent) => {
     const active = rotationDrag;
     if (!active) return;
-    // Reuse Move's exact screen-space targets, excluding the rotating selection.
-    // Shift remains a free-rotation override, including reference snapping.
-    const snapped = !shift
-      ? moveSnapAt(event, false, {
-          accepts: (p) => !!rotationDirection(p, active.pivot, active.axis),
-          surfaceCenters: true,
-        })
-      : undefined;
+    // Shift frees the angle detents, not exact reference picking. The selected
+    // attachment must still align to a pointed guide/corner in either mode.
+    const snapped = moveSnapAt(event, false, {
+      accepts: (p) => !!rotationDirection(p, active.pivot, active.axis),
+      surfaceCenters: true,
+    });
     let angle: number;
     if (active.edgeOn)
       angle =
@@ -3336,7 +3334,7 @@ export function installInteractions({
       if (
         (empty || event.shiftKey) &&
         !(props.tool === 'scale' && scaleHandleAt(event)) &&
-        !(props.tool === 'rotate' && rotationHandleAt(event))
+        !(props.tool === 'rotate' && (rotationHandleAt(event) || rotationGripAt(event)))
       ) {
         drag = {
           start: [0, 0, 0],

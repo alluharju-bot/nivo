@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.7** korjaa automaattisen kiinnityspisteen 180° suunnanvaihdon.
+Ankkurin läpi kulkevan linjan kauempi pää toimii oletuksena myös pinnalta poimitulla
+ankkurilla. Shift vapauttaa kierron kulma-askelmat ja säilyttää viitetartunnan
+myös käsin valitulla kiinnityspisteellä.
+
 Versio **0.36.6** erottaa kierron ankkurin ja kiinnityspisteen. Kulma-ankkurin
 vastapiste seuraa oletuksena samaa pitkää reunaa; keskiankkuri käyttää keskilinjaa.
 **Valitse kiinnityspiste** poimii liikkuvan pisteen erikseen. Oranssi ankkuri,

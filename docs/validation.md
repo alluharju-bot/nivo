@@ -4,6 +4,20 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.7 — 180° virheen toisto ja Shift-tartunta
+
+485 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu),
+24 selaintestiä hyväksytty: 12 työpöydällä ja 12 tablettiprofiilissa.
+
+- Virhe toistettiin ennen korjausta: pinta-ankkuri [180, 0, 40] valitsi
+  vastapisteen [200, 0, 40] eikä [0, 0, 40], jolloin kohdistus oli
+  216,86989765° eikä 36,86989765°. Korjaus varmistaa myös lopullisen CAD-mallin ja Undon.
+- Pintapisteet keskipisteen molemmin puolin sekä neljä valmiiksi kierrettyä
+  suuntaa käyttävät oikeaa päätyä. Käsin poimittu piste säilyy.
+- Shift painetaan sekä kesken vedon että ennen vedon aloitusta kiinnityspisteestä.
+  Mittaviiva ja tason ulkopuolinen viite tarttuvat, tyhjässä tilassa kulma on vapaa.
+- Aiemmat kulma-/keskilinja-, rengas-, monivalinta-, Ctrl-kopio- ja Undo-testit hyväksytty.
+
 ## V0.36.6 — kierron erillinen kiinnityspiste
 
 483 yksikkö-/CAD-testiä hyväksytty, kolme yksityisen mallin testiä ohitettu.

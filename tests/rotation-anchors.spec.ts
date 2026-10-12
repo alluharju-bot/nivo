@@ -41,7 +41,7 @@ async function pivot(page: Page, point: Vec3) {
   );
 }
 
-test('stair rotates from a fixed corner to an exact measurement endpoint, with free Shift and undo', async ({
+test('stair rotates from a fixed corner to an exact measurement endpoint, retaining the reference with Shift and undo', async ({
   page,
 }, info) => {
   const body = makeBody(200, 40, 80),
@@ -69,7 +69,10 @@ test('stair rotates from a fixed corner to an exact measurement endpoint, with f
     .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
     .toBeCloseTo(-36.86989765, 3);
   await page.keyboard.down('Shift');
-  await expect(page.getByTestId('viewport')).toHaveAttribute('data-rotation-target', '');
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-rotation-target', 'rise:start');
+  await expect
+    .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
+    .toBeCloseTo(-36.86989765, 3);
   await page.keyboard.up('Shift');
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-rotation-target', 'rise:start');
   await page.screenshot({ path: info.outputPath('stair-anchor-reference.png') });
@@ -230,11 +233,13 @@ test('explicit attachment point is independent of the drag origin and can return
   await click(page, await at(page, [200, 0, 80]));
   await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,0,80]');
   await expect(canvas).toHaveAttribute('data-rotation-pivot', '[0,0,0]');
+  // Shift during a drag must keep the manually chosen point and exact reference.
   // Start away from the chosen point: it must stay the upper far corner.
   const start = await at(page, [60, 0, 20]),
     end = await at(page, target);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
+  await page.keyboard.down('Shift');
   await page.mouse.move(end.x, end.y, { steps: 8 });
   await expect(canvas).toHaveAttribute('data-rotation-target', 'custom-target:start');
   const expected = ((-Math.atan2(184, 112) + Math.atan2(80, 200)) * 180) / Math.PI;
@@ -245,6 +250,7 @@ test('explicit attachment point is independent of the drag origin and can return
   expect(moved[0]).toBeCloseTo(112, 4);
   expect(moved[2]).toBeCloseTo(184, 4);
   await page.mouse.up();
+  await page.keyboard.up('Shift');
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies[0]).toEqual(body);
@@ -294,6 +300,86 @@ test('center attachment snaps correctly after a numeric preview without adding i
   expect(moved[0]).toBeCloseTo(180, 4);
   expect(moved[1]).toBeCloseTo(20, 4);
   expect(moved[2]).toBeCloseTo(100, 4);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  expect((await save(page)).bodies[0]).toEqual(body);
+});
+
+test('automatic attachment from a picked face anchor does not flip 180 degrees at a guide', async ({
+  page,
+}) => {
+  const body = makeBody(200, 40, 80),
+    anchor: Vec3 = [180, 0, 40],
+    target: Vec3 = [36, 0, 148];
+  await ready(
+    page,
+    [body],
+    [free('anchor', anchor, [180, 0, 60]), free('target', target, [36, 0, 188])],
+  );
+  await page.getByTestId(`body-${body.id}`).click();
+  await page.keyboard.press('r');
+  await view(page, [body], 'front');
+  await page.getByRole('button', { name: 'Kierrä Y-akselin ympäri' }).click();
+  await pivot(page, anchor);
+  const canvas = page.getByTestId('viewport'),
+    start = await at(page, [0, 0, 40]),
+    end = await at(page, target);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 8 });
+  await expect(canvas).toHaveAttribute('data-rotation-target', 'target:start');
+  await expect
+    .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
+    .toBeCloseTo(36.86989765, 3);
+  await expect(canvas).toHaveAttribute('data-rotation-grip', '[0,0,40]');
+  const moved = JSON.parse((await canvas.getAttribute('data-rotation-grip-preview'))!);
+  moved.forEach((n: number, i: number) => expect(n).toBeCloseTo(target[i], 3));
+  await page.mouse.up();
+  await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
+  const result = (await save(page)).bodies[0];
+  expect(result.origin[0]).toBeCloseTo(12, 3);
+  expect(result.origin[2]).toBeCloseTo(-4, 3);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies[0]).toEqual(body);
+});
+
+test('Shift before dragging an explicit grip picks off-plane references and frees empty-space angles', async ({
+  page,
+}) => {
+  const body = makeBody(200, 40, 80),
+    target: Vec3 = [112, -100, 184];
+  await ready(page, [body], [free('shift-target', target, [112, -100, 224])]);
+  await page.getByTestId(`body-${body.id}`).click();
+  await page.keyboard.press('r');
+  await view(page, [body], 'front');
+  await page.getByRole('button', { name: 'Kierrä Y-akselin ympäri' }).click();
+  await pivot(page, [0, 0, 0]);
+  await page.getByRole('button', { name: 'Valitse kiinnityspiste', exact: true }).click();
+  const source = await at(page, [200, 0, 80]);
+  await click(page, source);
+  const canvas = page.getByTestId('viewport');
+  await page.mouse.move(source.x, source.y);
+  await page.keyboard.down('Shift');
+  await page.mouse.down();
+  const empty = await at(page, [190, 0, 130]);
+  await page.mouse.move(empty.x, empty.y, { steps: 5 });
+  await expect(canvas).toHaveAttribute('data-rotation-target', '');
+  const expectedFree = ((Math.atan2(80, 200) - Math.atan2(130, 190)) * 180) / Math.PI;
+  await expect
+    .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
+    .toBeCloseTo(expectedFree, 2);
+  const end = await at(page, target);
+  await page.mouse.move(end.x, end.y, { steps: 5 });
+  await expect(canvas).toHaveAttribute('data-rotation-target', 'shift-target:start');
+  await expect
+    .poll(async () => Number(await page.getByTestId('rotation-angle').inputValue()))
+    .toBeCloseTo(-36.86989765, 3);
+  const moved = JSON.parse((await canvas.getAttribute('data-rotation-grip-preview'))!);
+  expect(moved[0]).toBeCloseTo(112, 4);
+  expect(moved[1]).toBeCloseTo(0, 4);
+  expect(moved[2]).toBeCloseTo(184, 4);
+  await page.keyboard.up('Shift');
+  await expect(canvas).toHaveAttribute('data-rotation-target', 'shift-target:start');
   await page.keyboard.press('Escape');
   await page.mouse.up();
   expect((await save(page)).bodies[0]).toEqual(body);

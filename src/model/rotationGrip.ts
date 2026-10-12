@@ -76,7 +76,11 @@ export function defaultRotationGrip(rotation: Rotation, bodies: Body[], meshes: 
     for (let i = 0; i < mesh.vertices.length; i += 3)
       extend([mesh.vertices[i], mesh.vertices[i + 1], mesh.vertices[i + 2]]);
   if (!Number.isFinite(high)) corners.forEach(extend);
-  const reach = high > 1e-6 ? high : low < -1e-6 ? low : 40;
+  // Follow the longer span from the anchor, just as for an actual edge above.
+  // Preferring positive coordinates picks the short/wrong end on the far half
+  // of a face and reverses every target direction by 180 degrees.
+  const farthest = Math.abs(low) > Math.abs(high) + 1e-6 ? low : high;
+  const reach = Math.abs(farthest) > 1e-6 ? farthest : 40;
   return add(pivot, scale(longest, reach));
 }
 

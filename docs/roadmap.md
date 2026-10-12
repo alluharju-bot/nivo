@@ -2,6 +2,15 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.36.7 — kierron suunta ja Shift-viite
+
+- Automaattinen kiinnityspiste käyttää ankkurista kauempaa päätä myös pintapisteellä.
+  Positiivisen koordinaattisuunnan suosiminen aiheutti täsmälleen 180° virheen.
+- Shift vapauttaa 5°/90° kulma-askeleet, mutta säilyttää kulma-, reuna- ja
+  mittaviivatartunnan. Sama käytös sekä automaattiselle että poimitulle pisteelle.
+- Kiinnityspisteestä voi aloittaa vedon Shift valmiiksi pohjassa. Vapaassa
+  tilassa kulma on vapaa; osoitettu tason ulkopuolinen viite projisoidaan kiertotasoon.
+
 ## V0.36.6 — kiinnityspiste seuraa ankkurin linjaa
 
 - Oranssi ankkuri pysyy paikallaan. Sininen kiinnityspiste liikkuu mukana,
