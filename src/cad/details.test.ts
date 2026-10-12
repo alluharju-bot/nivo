@@ -298,7 +298,7 @@ describe('retained edge treatments', () => {
   });
 });
 
-it('preserves editable source indices through movement, rotation and copying, and finalizes before a face edit', () => {
+it('preserves editable source indices through movement, rotation, copying and end resizing', () => {
   const body = makeBody(600, 560, 18, [30, 40, 50]);
   const first = detailEdges(body, [0, 1, 2], 'fillet', 2);
   const moved = { ...first.body, id: 'copy', origin: [130, 240, 350] as [number, number, number] };
@@ -313,7 +313,7 @@ it('preserves editable source indices through movement, rotation and copying, an
   shape.delete();
   const top = first.mesh.faces.find((f) => f.planar && f.normal[2] > 0.99)!;
   const pushed = pushPullFace(first.body, top.ref, 5);
-  expect(pushed.edgeTreatment).toBeUndefined();
+  expect(pushed.edgeTreatment?.id).toBe(first.body.edgeTreatment?.id);
   expect(pushed.feature.height).toBeCloseTo(23, 4);
 });
 it('joins three outer corner rounds on an already hollow cabinet', () => {

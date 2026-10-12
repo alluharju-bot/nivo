@@ -4,6 +4,48 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.36.13 — renderin materiaaliviitteet ja reunakäsitellyn päädyn siirto
+
+522 yksikkö-/CAD-tapausta tarkistettu laajassa ajossa ja kohdistetussa
+uusinta-ajossa. Yksityisen mallin peitelevyjen testi ajetaan erikseen paikallisesti;
+mallitiedosto ei kuulu repositorioon. 14 selaintapausta hyväksytty: 7 työpöydällä
+ja 7 tablettiprofiilissa. Tuotantobuild `/nivo/`-polulle, TypeScript,
+lisenssitarkistus ja muutettujen tiedostojen muotoilu hyväksytty.
+
+- Renderivirhe toistettiin näkyvässä selaimessa käyttäjän asettamasta saunan
+  sisäkuvakulmasta: 589 osan projektissa oli 488 näkyvää osaa. Pintakohtainen
+  LED-maalaus vaihtoi muiden osien materiaaleja. Korjattu kuva tarkistettiin
+  samasta sisätilasta, ja käyttäjä vahvisti materiaalien näyttävän oikeilta.
+- Pinned `three-gpu-pathtracer 0.0.26` yhdistää geometrian materiaaliryhmät
+  meshien mukaan mutta materiaalilistan kaikkien pintamateriaalien mukaan.
+  Sovelluksen adapteri jakaa vain renderikopion materiaalikohtaisiin verkkoihin.
+  302 materiaalin testissä jokaisen kolmion kaikki materiaaliviitteet tarkistetaan
+  kirjaston todellisesta SceneGenerator-tuloksesta. Alkuperäinen toteutus epäonnistui.
+- 150 → 300 materiaaliryhmän muutos samalla verteksimäärällä kasvattaa
+  materiaaliviitteiden tallennustarkkuuden. Indeksoidut ja indeksoimattomat
+  verkot, yhteiset verteksit, UV:t, normalisoidut attribuutit, sisäkkäiset
+  muunnokset, reaaliaikainen väripäivitys ja omistettujen resurssien vapautus
+  on tarkistettu. Myös taustalla laskettava kuvatallennus käyttää korjausta.
+- Pyöristetyn levyn alkuperäinen Push/Pull jätti reunuksen paikalleen ja
+  tuotti väärän tilavuuden. Korjausta verrataan oikean kokoiseen uudelleen
+  pyöristettyyn/viistettyyn levyyn kuudelta sivulta sekä kasvattaessa että
+  pienentäessä. Tilavuus ja pintojen lukumäärä vastaavat vertailukappaletta.
+- Kierretty BRep-lähde, toistuvat mitanmuutokset, aihiomitat, maalattu pääty
+  ja kaareva reuna, pyöristyksen myöhempi muokkaus, linkitetty kierretty kopio,
+  Hold ja liian suuri työstö tarkistettu. Kiertotestin 1,4 × 10⁻¹⁴ mm:n
+  liukulukupoikkeama arvioidaan numeerisella toleranssilla, ei tarkalla yhtäsuuruudella.
+- Sylinteri ja läpireiällinen levy säilyttävät kaarevat rajansa. Vanhan
+  päätysauman poisto hyväksytään vain, jos lähteen reunat voidaan kohdistaa.
+  Vaihtoehtoinen prismarakennus todistaa ensin alkuperäisen tilavuuden ja
+  yhteisen tilavuuden vastaavuuden; reiällistä kappaletta ei korvata aihiolla.
+- Selaimessa varmistettu Push/Pullin Peru/Palauta ja uudelleenavaus,
+  pintamaalaus ja pipetti, taustalla laskettavan PNG-kuvan valmistuminen,
+  renderin peruminen ja uudelleenkäynnistys sekä naapuriosien punaisen,
+  vihreän ja sinisen värin säilyminen yhden osan LED-pintamaalauksen rinnalla.
+- Rajaus: lähdetiedon menettäneiden tai topologialtaan muuttuvien yleisten
+  BRep-pyöristysten automaattinen tunnistus ei sisälly korjaukseen.
+  Erilliset offset-taskut säilyttävät oman Push/Pull-toimintansa.
+
 ## V0.36.12 — sylinterien offset ja piirtoverkon vaikutus skaalaukseen
 
 511 yksikkö-/CAD-testiä hyväksytty (3 yksityisen mallin testiä ohitettu).

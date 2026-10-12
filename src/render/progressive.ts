@@ -10,6 +10,7 @@ import { traceImage } from './traceImage';
 import { refinementSamples } from './traceRefinement';
 import { gpuQueue } from './gpuQueue';
 import { isTraceEnvironment } from './environment';
+import { prepareTraceMaterials } from './traceMaterials';
 
 export type TraceStatus = {
   state: 'off' | 'loading' | 'rendering' | 'paused' | 'complete' | 'error';
@@ -55,6 +56,7 @@ export function progressiveRenderer(
   let batchTiles = 1;
   let samplingConfigured = false;
   let snapshot: THREE.Scene | undefined;
+  let disposeSnapshotGeometry: (() => void) | undefined;
   let lightingDirty = false;
   let sceneBuilds = 0;
 
@@ -92,6 +94,7 @@ export function progressiveRenderer(
     needsSize = false;
   };
   const rebuild = () => {
+    disposeSnapshotGeometry?.();
     snapshot = scene.clone();
     omitPreviewLights(snapshot);
     configureTraceEnvironment(environment!, scene);
@@ -100,7 +103,9 @@ export function progressiveRenderer(
     snapshot.traverse((object) => {
       if ((object as THREE.Sprite).isSprite) object.visible = false;
     });
+    disposeSnapshotGeometry = prepareTraceMaterials(snapshot);
     configureTraceTextures(snapshot, renderer, tracer!);
+    resources!.prepareScene();
     tracer!.setScene(snapshot, camera);
     if (!samplingConfigured) {
       configureEmitterSampling(tracer!);
@@ -367,6 +372,8 @@ export function progressiveRenderer(
       environment?.dispose();
       environment = undefined;
       snapshot = undefined;
+      disposeSnapshotGeometry?.();
+      disposeSnapshotGeometry = undefined;
       image.clear();
       samplingConfigured = false;
       dirty = true;
@@ -429,6 +436,7 @@ export function progressiveRenderer(
       resources?.dispose();
       image.dispose();
       environment?.dispose();
+      disposeSnapshotGeometry?.();
     },
   };
 }

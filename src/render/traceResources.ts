@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { WebGLPathTracer } from 'three-gpu-pathtracer';
+import { resetTraceMaterialIndices } from './traceMaterials';
 
 type TraceRenderer = {
   _primaryTarget: THREE.WebGLRenderTarget;
@@ -48,6 +49,9 @@ export function traceResources(tracer: WebGLPathTracer) {
   tracer.synchronizeRenderSize = false;
   let disposed = false;
   return {
+    prepareScene() {
+      resetTraceMaterialIndices(internal._generator.geometry);
+    },
     resize(width: number, height: number) {
       internal._pathTracer.setSize(width, height);
       // Leave the unused low-resolution buffers at 1 × 1.

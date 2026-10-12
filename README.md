@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.36.13** korjaa tarkentuvan renderin väärille osille päätyvät
+pintamateriaalit ja LED-pinnat. Sama korjaus koskee tallennettavaa renderikuvaa.
+Push/Pull muuttaa reunakäsitellyn levyn koko päätyä säilyttäen pyöristykset
+ja viisteet. Offsetilla erikseen rajatut pinnat toimivat edelleen taskuina.
+
 Versio **0.36.12** korjaa sylinterin päätypinnan Offsetin myös ontossa,
 skaalatussa ja kierretyssä kappaleessa. Kehän sisennys suuntautuu oikein sekä
 ulko- että sisäreunasta. Skaalaus poistaa laskennan kopiosta vanhan piirtoverkon,

@@ -41,6 +41,7 @@ import { detailEdgeIndices } from './detailEdges';
 import { cadVertex, shapeVertexReferences } from './vertexReferences';
 import type { TransformCache } from './buildCache';
 import { transferFaceMaterials } from './faceMaterials';
+import { pushPullDetailedFace } from './detailedPushPull';
 
 export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
   const oc = getOC(),
@@ -568,6 +569,8 @@ export function pushPullFace(
       (f) => f.ref === ref,
     );
     if (!target || !target.planar) throw new Error('Valitse tasomainen pinta.');
+    const detailed = pushPullDetailedFace(body, shape, target, distance, cache);
+    if (detailed) return detailed;
     if (
       body.feature.type === 'polygon-extrusion' &&
       (!body.faceMaterials || body.feature.height > 0) &&

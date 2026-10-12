@@ -31,6 +31,28 @@ Käyttäjän tarkennus 12.10.2026. Suunniteltu jatkokehitys; ei vielä toteutett
   muokkaustila; viitteen vaihto ja peruminen. Aloituspiste, aktiivinen pinta
   ja viitekappale säilyvät oikeina koko eleen ja numerosyötön ajan.
 
+## V0.36.13 — renderin pintamateriaalit ja pyöristetyn päädyn Push/Pull
+
+- Tarkentuvan renderin ja kuvatallennuksen materiaalit säilyvät omilla
+  pinnoillaan. Yhden pinnan maalaus tai LED-materiaali ei siirrä seuraavien
+  osien materiaaliviittauksia. Korjaus tehdään renderin geometriakopioon;
+  projektin osia ei tarvitse jakaa uusiksi komponenteiksi.
+- Materiaaliviittausten tallennustarkkuus päivittyy myös silloin, kun
+  pintamaalaus kasvattaa materiaaliryhmien määrän yli 255:n muuttamatta
+  kolmioverkon kokoa. UV-koordinaatit ja materiaalien reaaliaikaiset
+  päivitykset säilyvät.
+- Reunakäsitellyn osan yksiselitteinen ulkopääty muutetaan säilytetystä
+  lähdemuodosta, minkä jälkeen samat pyöristykset/viisteet rakennetaan
+  uudelleen. Reunojen kohdistus tarkistetaan geometriasta; muuttunutta
+  reunaindeksiä ei arvata. Pyöristysten mittoja voi muuttaa edelleen.
+- Kasvatus, lyhennys, kierretyt osat, pintavärit ja aihiomitat on huomioitu.
+  Offsetilla erotettu sisäpinta säilyy paikallisena tasku-/pursotuspintana.
+- Rajaus: tämä ei ole yleinen kaikkien aiemmin muokattujen BRep-kappaleiden
+  pyöristysten tunnistus. Korjaus hyödyntää tallessa olevaa reunakäsittelyn
+  lähdettä. Jos kokonaisen päädyn muutos vaihtaisi lähteen topologiaa niin,
+  ettei reunoja voi kohdistaa varmasti, muutos hylätään selitteellä ja
+  alkuperäinen osa säilyy.
+
 ## V0.36.12 — sylinterin päätypinnan Offset
 
 - Leikatun sylinterin kehän reunakäyrän sisäinen kiertosuunta ei enää käännä

@@ -5,6 +5,7 @@ import type { RenderSnapshot } from './snapshot';
 import { configureEmitterSampling } from './emitterSampling';
 import { traceDenoise } from './traceDenoise';
 import { traceResources } from './traceResources';
+import { prepareTraceMaterials } from './traceMaterials';
 
 export type RenderJobOptions = { width: number; samples: number; denoise?: boolean };
 export type RenderJobProgress = {
@@ -52,6 +53,7 @@ export async function renderSnapshot(
     environment: GradientEquirectTexture | undefined;
   const pendingGPU: WebGLSync[] = [];
   let resources: ReturnType<typeof traceResources> | undefined;
+  let disposeSnapshotGeometry: (() => void) | undefined;
   const { width, samples: target } = options,
     height = Math.max(1, Math.round(width / snapshot.aspect));
   const started = performance.now();
@@ -132,7 +134,9 @@ export async function renderSnapshot(
       ),
     );
     check();
+    disposeSnapshotGeometry = prepareTraceMaterials(snapshot.scene);
     configureTraceTextures(snapshot.scene, renderer, tracer);
+    resources.prepareScene();
     tracer.setScene(snapshot.scene, snapshot.camera);
     configureEmitterSampling(tracer);
     checkTraceUpload(renderer);
@@ -198,6 +202,7 @@ export async function renderSnapshot(
     }
     if (resources) resources.dispose();
     else tracer?.dispose();
+    disposeSnapshotGeometry?.();
     denoise.dispose();
     environment?.dispose();
     snapshot.dispose();
