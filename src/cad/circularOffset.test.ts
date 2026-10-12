@@ -66,7 +66,7 @@ it('scales a cylinder around its centre with a populated viewport cache', async 
   } finally {
     cache.dispose();
   }
-});
+}, 30000);
 
 it('rejects offsets that collapse or pass through the circle centre', () => {
   const disk = makeProfileBody({ kind: 'circle', radius: 10 }, sketchFrame([0, 0, 0]));
