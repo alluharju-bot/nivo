@@ -1,3 +1,5 @@
+import { projectEdges } from './projection';
+import { drawingFrame, projectDrawingPoint } from '../model/drawingViews';
 import { cylindricalSurface, isPlanarFace, isLinearEdge } from './planarity';
 import { shapeEdges, shapeFaces } from './topology';
 import { detailSourceShape } from './detailSource';
@@ -9,7 +11,6 @@ import {
   Plane,
   draw,
   deserializeShape,
-  drawProjection,
   ProjectionCamera,
   getOC,
   makeBox,
@@ -655,20 +656,43 @@ export function pushPullFace(
 }
 export function projectShapes(shapes: AnyShape[], view: DrawingView): Projection {
   if (!shapes.length) return { visible: [], hidden: [], viewBox: [0, 0, 1, 1] };
+  // Edge-on planar shapes have no projected face area. HLR's empty 2D builder
+  // cannot compute a view box; retain their exact collapsed bounds as linework.
+  const projectedBounds = shapes.map((shape) => {
+    const { min, max } = exactBounds(shape);
+    const points = Array.from({ length: 8 }, (_, i) =>
+      projectDrawingPoint(
+        [i & 1 ? max[0] : min[0], i & 2 ? max[1] : min[1], i & 4 ? max[2] : min[2]],
+        view,
+      ),
+    );
+    return [
+      Math.min(...points.map((p) => p[0])),
+      Math.min(...points.map((p) => p[1])),
+      Math.max(...points.map((p) => p[0])),
+      Math.max(...points.map((p) => p[1])),
+    ];
+  });
+  if (projectedBounds.every(([x, y, r, b]) => r - x < 1e-6 || b - y < 1e-6)) {
+    const x = Math.min(...projectedBounds.map((b) => b[0])),
+      y = Math.min(...projectedBounds.map((b) => b[1]));
+    return {
+      visible: projectedBounds.map(([x, y, r, b]) => `M${x} ${y}L${r} ${b}`),
+      hidden: [],
+      viewBox: [
+        x,
+        y,
+        Math.max(...projectedBounds.map((b) => b[2])) - x,
+        Math.max(...projectedBounds.map((b) => b[3])) - y,
+      ],
+    };
+  }
   // Replicad's compound builder takes ownership of its input wrappers.
   const compound = makeCompound(shapes.map((shape) => shape.clone()));
-  const camera =
-    view === 'front'
-      ? new ProjectionCamera([0, 0, 0], [0, -1, 0], [1, 0, 0])
-      : view === 'right'
-        ? new ProjectionCamera([0, 0, 0], [1, 0, 0], [0, 1, 0])
-        : new ProjectionCamera([0, 0, 0], [0, 0, 1], [1, 0, 0]);
+  const frame = drawingFrame(view);
+  const camera = new ProjectionCamera([0, 0, 0], frame.normal, frame.u);
   try {
-    const { visible, hidden } = drawProjection(compound, camera);
-    const viewBox = visible.toSVGViewBox(0).split(/\s+/).map(Number) as Projection['viewBox'];
-    if (viewBox.length !== 4 || !viewBox.every(Number.isFinite))
-      throw new Error('Mittakuvan projektio epäonnistui.');
-    return { visible: visible.toSVGPaths().flat(), hidden: hidden.toSVGPaths().flat(), viewBox };
+    return projectEdges(compound, camera);
   } finally {
     compound.delete();
     camera.delete();

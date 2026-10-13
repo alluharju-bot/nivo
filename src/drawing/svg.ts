@@ -14,24 +14,16 @@ import {
 import type { DrawingView, Projection } from '../cad/protocol';
 import { formatLength } from '../model/units';
 
-export const viewLabels: Record<DrawingView, string> = {
-  front: 'Etukuva',
-  right: 'Sivukuva',
-  top: 'Yläkuva',
-};
+import { drawingFrame, viewLabels, projectDrawingPoint } from '../model/drawingViews';
+export { viewLabels };
 export const escapeXml = (value: string) =>
   value.replace(
     /[<>&"']/g,
     (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!,
   );
 const n = (value: number) => Number(value.toFixed(5));
-export function projectPoint(point: Vec3, view: DrawingView): [number, number] {
-  return view === 'front'
-    ? [point[0], -point[2]]
-    : view === 'right'
-      ? [point[1], -point[2]]
-      : [point[0], -point[1]];
-}
+export const projectPoint = projectDrawingPoint;
+
 interface DimensionPlacement {
   id: string;
   bodyId: string;
@@ -63,8 +55,8 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
     }
     if (body.purpose === 'construction') continue;
     const value = dimensionValue(project, dimension)!;
-    const horizontal = dimension.axis === (view === 'right' ? 'y' : 'x');
-    const vertical = dimension.axis === (view === 'top' ? 'y' : 'z');
+    const horizontal = dimension.axis === drawingFrame(view).horizontal;
+    const vertical = dimension.axis === drawingFrame(view).vertical;
     if ((!horizontal && !vertical) || value <= 0) continue;
     const pts = corners(body).map((p) => projectPoint(p, view).map((n) => n / scale));
     const x1 = Math.min(...pts.map((p) => p[0])),
@@ -139,7 +131,7 @@ function annotationBounds(
     if (m.hidden) continue;
     if (
       m.kind === 'area' &&
-      Math.abs(m.frame.normal[view === 'top' ? 2 : view === 'front' ? 1 : 0]) < 1e-6
+      Math.abs(m.frame.normal.reduce((s, n, i) => s + n * drawingFrame(view).normal[i], 0)) < 1e-6
     )
       continue;
     for (const point of markupPoints(m, project.bodies)) {

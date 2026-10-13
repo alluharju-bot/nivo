@@ -89,7 +89,8 @@ export interface SectionResult {
   anchors: SectionAnchor[];
   projection?: Projection;
 }
-export type DrawingView = 'front' | 'right' | 'top';
+import type { DrawingView } from '../model/drawingViews';
+export type { DrawingView } from '../model/drawingViews';
 export type CadRequest =
   | { type: 'release-history' }
   | { type: 'import-step'; data: ArrayBuffer; name: string }

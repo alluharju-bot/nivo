@@ -27,3 +27,22 @@ describe('drawing annotation placement', () => {
     expect(dimension.offset).toEqual([150, 0, -50]);
   });
 });
+
+it('opposite orthographic views retain signed screen placement and true measurements', () => {
+  for (const view of ['back', 'left', 'bottom'] as const) {
+    const points = (
+      [
+        view === 'left' ? [0, 0, 0] : [0, 0, 0],
+        view === 'left' ? [0, 300, 400] : view === 'bottom' ? [300, 400, 0] : [300, 0, 400],
+      ] as Vec3[]
+    ).map((point) => ({ point, anchor: { point }, label: 'Piste' }));
+    const d = drawingDimension(points, [-100, 90], view, 'horizontal')!;
+    expect(pointDimensionGeometry([], d).value).toBe(300);
+    const moved = shiftDrawingDimension(d, [20, 30], view);
+    expect(pointDimensionGeometry([], moved).value).toBe(300);
+    expect(moved.start).toEqual(d.start);
+    if (view === 'back') expect(moved.offset).toEqual([80, 0, -120]);
+    if (view === 'left') expect(moved.offset).toEqual([0, 80, -120]);
+    if (view === 'bottom') expect(moved.offset).toEqual([-80, 120, 0]);
+  }
+});

@@ -1,3 +1,5 @@
+import { useDrawingAnnotations } from './useDrawingAnnotations';
+import { drawingViews } from '../model/drawingViews';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Download, Plus, Save, Trash2 } from 'lucide-react';
 import type { CadClient } from '../cad/client';
@@ -33,6 +35,7 @@ export function SheetWorkspace({
   selectedGroupId,
   onCommit,
   onBack,
+  onEditView,
 }: {
   project: Project;
   cad: CadClient;
@@ -41,6 +44,7 @@ export function SheetWorkspace({
   selectedGroupId?: string;
   onCommit: (project: Project, message: string) => Promise<boolean>;
   onBack: () => void;
+  onEditView?: (view: SheetView, scope: DrawingSheet['scope']) => void;
 }) {
   const fresh = (): DrawingSheet => ({
     id: uid(),
@@ -124,12 +128,33 @@ export function SheetWorkspace({
     () => (projections ? createMultiSheet(project, draft, projections, scale) : undefined),
     [project, draft, projections, scale],
   );
+  const notes = useDrawingAnnotations({
+    project,
+    page: { kind: 'sheet', sheetId: draft.id },
+    busy,
+    onCommit: (next, message) =>
+      onCommit(
+        {
+          ...next,
+          drawingSheets: next.drawingSheets?.some((s) => s.id === draft.id)
+            ? next.drawingSheets.map((s) => (s.id === draft.id ? draft : s))
+            : [...(next.drawingSheets ?? []), draft],
+        },
+        message,
+      ),
+  });
   const valid = drawingSheetSchema.safeParse(draft).success;
   const dirty = JSON.stringify(saved) !== JSON.stringify(draft);
   const canExport =
-    !!sheet?.fits && !sheet.orphanCount && !scope.missing && valid && !busy && !exporting;
+    !!sheet?.fits &&
+    !sheet.orphanCount &&
+    !scope.missing &&
+    valid &&
+    !busy &&
+    !exporting &&
+    notes.exportable;
   const viewOptions: SheetView[] = [
-    ...defaultViews,
+    ...drawingViews.map((view) => ({ kind: 'standard' as const, view })),
     ...(project.sections ?? []).map((s) => ({ kind: 'section' as const, sectionId: s.id })),
   ];
   const scopeValue =
@@ -161,8 +186,9 @@ export function SheetWorkspace({
     setError('');
     try {
       const name = `${project.name}-${draft.name}`;
-      if (pdf) await exportDrawingPDF(sheet, name);
-      else downloadFile(sheet.svg, `${safeFilename(name)}.svg`, 'image/svg+xml');
+      if (pdf) await exportDrawingPDF(notes.decorate(sheet, true), name);
+      else
+        downloadFile(notes.decorate(sheet, true).svg, `${safeFilename(name)}.svg`, 'image/svg+xml');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -178,8 +204,10 @@ export function SheetWorkspace({
           </button>
           <span>A4 · Yhteinen mittakaava 1:{scale}</span>
         </div>
+        {notes.toolbar}
         <p className="drawing-step" role="status">
-          Kokoa näkymät samalle arkille. Lisää yksityiskohtaiset mitat yksittäisessä mittakuvassa.
+          Tuplaklikkaa projektiota mitoittaaksesi sen. Tekstit ja korostukset voit lisätä suoraan
+          arkille.
         </p>
         <div className="drawing-area" data-testid="multi-sheet-area">
           {error && (
@@ -208,11 +236,23 @@ export function SheetWorkspace({
             </p>
           )}
           {sheet && (
-            <div className="drawing-paper" dangerouslySetInnerHTML={{ __html: sheet.svg }} />
+            <div
+              {...notes.events}
+              className="drawing-paper"
+              onDoubleClick={(e) => {
+                const key = (e.target as Element)
+                  .closest('[data-sheet-view]')
+                  ?.getAttribute('data-sheet-view');
+                const view = draft.views.find((v) => sheetViewKey(v) === key);
+                if (view) onEditView?.(view, draft.scope);
+              }}
+              dangerouslySetInnerHTML={{ __html: notes.decorate(sheet).svg }}
+            />
           )}
         </div>
       </div>
       <aside className="drawing-controls" aria-label="Mitta-arkin toiminnot">
+        {notes.controls}
         <label>
           Arkki
           <select
@@ -381,6 +421,9 @@ export function SheetWorkspace({
                     {
                       ...project,
                       drawingSheets: project.drawingSheets?.filter((s) => s.id !== draft.id),
+                      drawingAnnotations: project.drawingAnnotations?.filter(
+                        (m) => m.page.kind !== 'sheet' || m.page.sheetId !== draft.id,
+                      ),
                     },
                     'Mitta-arkki poistettu. Malli ja mitat säilyivät.',
                   )

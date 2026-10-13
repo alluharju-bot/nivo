@@ -1,3 +1,5 @@
+import { useDrawingAnnotations } from './useDrawingAnnotations';
+import { drawingScope } from '../model/drawingAnnotations';
 import { Eye, EyeOff } from 'lucide-react';
 import { AnnotationProperties } from '../ui/AnnotationProperties';
 import { annotationText } from '../model/annotationStyle';
@@ -21,6 +23,7 @@ import { formatLength } from '../model/units';
 
 export function SectionDrawing({
   project,
+  initialTarget,
   section,
   cad,
   busy,
@@ -31,6 +34,7 @@ export function SectionDrawing({
   selectedIds,
 }: {
   project: Project;
+  initialTarget?: string;
   selectedIds: string[];
   section: Section;
   cad: CadClient;
@@ -73,7 +77,7 @@ export function SectionDrawing({
         'Leikkausmitta poistettu.',
       );
   };
-  const [scope, setScope] = useState(selectedIds.length ? 'selection' : 'all');
+  const [scope, setScope] = useState(initialTarget ?? (selectedIds.length ? 'selection' : 'all'));
   const [result, setResult] = useState<SectionResult>();
   const [error, setError] = useState(''),
     [exporting, setExporting] = useState(false);
@@ -219,7 +223,7 @@ export function SectionDrawing({
   };
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input,select,textarea')) return;
+      if ((e.target as HTMLElement).closest('input,select,textarea,[role=dialog]')) return;
       if (e.key === 'Escape') {
         setPicks([]);
         setCursor(undefined);
@@ -233,14 +237,27 @@ export function SectionDrawing({
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [draft, busy, project]);
+  const notes = useDrawingAnnotations({
+    project,
+    page: { kind: 'section', sectionId: section.id, scope: drawingScope(scope, selectedIds) },
+    busy,
+    onCommit,
+    measuring,
+    onActivate: () => {
+      setMeasuring(false);
+      setPicks([]);
+      setSelectedDimension(undefined);
+    },
+  });
   const doExport = async (pdf: boolean) => {
-    if (!sheet || !sheet.fits || sheet.orphanCount) return;
+    if (!sheet || !sheet.fits || sheet.orphanCount || !notes.exportable) return;
     setExporting(true);
     setError('');
     try {
       const name = `${project.name}-leikkaus-${section.name}`;
-      if (pdf) await exportDrawingPDF(sheet, name);
-      else downloadFile(sheet.svg, `${safeFilename(name)}.svg`, 'image/svg+xml');
+      if (pdf) await exportDrawingPDF(notes.decorate(sheet, true), name);
+      else
+        downloadFile(notes.decorate(sheet, true).svg, `${safeFilename(name)}.svg`, 'image/svg+xml');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -259,6 +276,7 @@ export function SectionDrawing({
             </button>
           ))}
         </div>
+        {notes.toolbar}
         <p className="drawing-step" role="status">
           {measuring
             ? picks.length < 2
@@ -286,6 +304,7 @@ export function SectionDrawing({
           )}
           {shown && (
             <div
+              {...notes.events}
               ref={paper}
               className={`drawing-paper ${measuring ? 'is-measuring' : ''}`}
               onPointerMove={(e) => {
@@ -330,7 +349,7 @@ export function SectionDrawing({
                   setPicks([...picks, p.pick]);
               }}
             >
-              <div dangerouslySetInnerHTML={{ __html: shown.svg }} />
+              <div dangerouslySetInnerHTML={{ __html: notes.decorate(shown).svg }} />
               {measuring && sheet && (
                 <svg className="drawing-pick-overlay" viewBox="0 0 297 210" aria-hidden="true">
                   {[...picks, ...(hover ? [hover] : [])].map((p, i) => {
@@ -354,6 +373,7 @@ export function SectionDrawing({
         </div>
       </div>
       <aside className="drawing-controls" aria-label="Leikkauskuvan toiminnot">
+        {notes.controls}
         <h2>Leikkaus {section.name}</h2>
         <label>
           Sisältö
@@ -492,14 +512,14 @@ export function SectionDrawing({
         <div className="drawing-export">
           <button
             className="button dark full"
-            disabled={!sheet?.fits || !!sheet?.orphanCount || exporting}
+            disabled={!sheet?.fits || !!sheet?.orphanCount || exporting || !notes.exportable}
             onClick={() => void doExport(true)}
           >
             Lataa PDF
           </button>
           <button
             className="button subtle full"
-            disabled={!sheet?.fits || !!sheet?.orphanCount || exporting}
+            disabled={!sheet?.fits || !!sheet?.orphanCount || exporting || !notes.exportable}
             onClick={() => void doExport(false)}
           >
             Lataa SVG

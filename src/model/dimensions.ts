@@ -1,3 +1,4 @@
+import { drawingFrame, type DrawingView } from './drawingViews';
 import { resolveAnchor } from './guides';
 import { add, sub, unit, scale, dot, axisVector } from './geometry';
 import {
@@ -119,13 +120,9 @@ export function pointDimensionGeometry(bodies: Body[], d: PointDimension) {
     orphan: !start || !end,
   };
 }
-export function pointDimensionInView(
-  bodies: Body[],
-  d: PointDimension,
-  view: 'front' | 'right' | 'top',
-) {
+export function pointDimensionInView(bodies: Body[], d: PointDimension, view: DrawingView) {
   const g = pointDimensionGeometry(bodies, d),
-    hidden = view === 'front' ? 1 : view === 'right' ? 0 : 2;
+    hidden = drawingFrame(view).normal.findIndex((n) => Math.abs(n) > 0.5);
   return (
     !g.orphan &&
     g.value > 1e-6 &&

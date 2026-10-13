@@ -253,7 +253,11 @@ export function markupInteractions({
         press = undefined;
         return true;
       }
-      const target = pick(e);
+      let target = pick(e);
+      if (!target && defaults().note.leader === false) {
+        const p = start(e)?.point;
+        if (p) target = { point: p, anchor: { point: p } };
+      }
       if (!target) return true;
       note = {
         id: uid(),
@@ -263,6 +267,13 @@ export function markupInteractions({
         fallback: target.point,
         offset: [0, 0, 0],
       };
+      if (note.leader === false) {
+        current().onMarkupCommit?.(note, true);
+        note = undefined;
+        publish();
+        press = undefined;
+        return true;
+      }
       publish(note);
       press = { x: e.clientX, y: e.clientY, stage: 'note' };
     }

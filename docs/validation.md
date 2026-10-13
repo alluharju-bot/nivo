@@ -4,6 +4,40 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.39.0 — projektiot, arkkimerkinnät ja muutosvertailu
+
+540 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.
+33 erillistä selaintapausta hyväksytty: 12 työpöydällä, 12 tablettiprofiililla
+ja 9 mobiili-/kosketustapausta tuotantobuildista. TypeScript ja tuotantobuild
+`/nivo/`-polulle, lisenssit sekä muutettujen tiedostojen muotoilu tarkistettu.
+
+- Tekstilaatikon lisäys, automaattinen tekstifokus, tekstimuokkaus, siirto,
+  piilotus/palautus, aluekorostus, Peru ja sivun latauksen yli tallentuminen.
+  Merkinnät eivät muuta osia. Suunnan vaihto näyttää kyseisen projektion omat
+  huomiot. Näkyvät merkinnät päätyvät SVG:hen ilman valintakahvoja.
+- Uuden mitta-arkin huomautus tallentaa myös arkin; projektion tuplaklikkaus avaa
+  oikean mitoitussuunnan. Leikkauskuvan huomautus on mukana SVG- ja PDF-viennissä.
+- Aiemmat mitat: kolmas napsautus/kosketus sijoittaa mitan, veto muuttaa vain
+  sen etäisyyttä, Escape peruu vedon. Neljän näkymän arkin yhteinen mittakaava,
+  todellinen A4 PDF, tallennus/poisto/Peru, ryhmän muutokset ja puuttuvat osat.
+- Mallin yhden napsautuksen huomautus ilman johtoviivaa, automaattinen tekstifokus
+  ja siirtyminen ortografiseen mittakuvaan. Tablettiprofiilin uudet tekstilaatikot
+  ja 3D-huomautukset asetettiin kosketustapahtumalla. Alueiden ja huomautusten
+  aikaisempi johtoviiva-, muokkaus-, piilotus- ja poistokäytös säilyi.
+- Vertailu: lisäys, poisto ja siirto tunnistuvat erikseen; vanha geometria näkyy,
+  rivin valinta kohdistaa osaan, CSV sisältää numeroidut muutokset. Nimetty
+  paikallinen versio palautuu vertailun uudelleenavaamisessa. Aktiivinen malli
+  säilyy koskemattomana. Tunnisteet ratkaisevat, eivät samat nimet.
+- CAD-reunatapaus: 0 mm paksu taso jokaisesta kuudesta pääsuunnasta. Tyhjä
+  piiloviivajoukko ei kaada projektioita; ympyrä pysyy tarkkana SVG-kaarena.
+  Vastakkaisten katselusuuntien mitan sijoitus säilyttää oikean etumerkin.
+- Mobiilityötilan 9 regressiota: yläpalkki, fullscreen, muodot kosketuksella,
+  numeroiden tarkistus, hiiren välitön piirto, jaettava projektiversio ja renderpaneeli.
+- Rajat: arkkitekstit ja aluekorostukset ovat paperiin sidottuja merkintöjä,
+  eivät geometriamuutoksia seuraavia revisiopilviä. Versiot tallentuvat tähän
+  selaimeen, eivät pilveen. Materiaaliviivoitukset ja vapaat nimetyt projektiot
+  ovat backlogissa. Tabletti testattiin Chromium-emuloinnilla, ei Safari-laitteella.
+
 ## V0.38.0 — mobiilityötila ja siirrettävät projektiversiot
 
 532 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.

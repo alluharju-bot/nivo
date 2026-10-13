@@ -3,6 +3,22 @@
 UTF-8 JSON, tunniste `format: "nivo"` ja `version: 8`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
+V0.39.0 lisää valinnaisen `drawingAnnotations`-taulukon (enintään 2 000 merkintää).
+Merkinnän `page` viittaa yksittäiseen pääsuunnan projektioon + kohteeseen,
+leikkaukseen + kohteeseen tai tallennetun arkin `sheetId`:hen. `kind` on `note`
+tai `highlight`; sijainti ja koko ovat A4-vaaka-arkin paperimillimetrejä, eivät
+mallimittoja. Teksti, väri, lihavointi, tekstikoko ja piilotus kulkevat tiedostossa.
+Tuonnissa tunnisteet vaihtuvat yhdessä osien/ryhmien/arkkien kanssa. Tuodun mallin
+kaikki näkyvät osat -merkinnät rajautuvat tuonnin juuriryhmään.
+`drawingSheets.views` hyväksyy myös `back`, `left` ja `bottom`-pääsuunnat.
+Vanhat lukijat eivät tue uusia suuntia ja voivat jättää arkkimerkinnät pois.
+
+Nimetyt vertailuversiot ovat erillisessä paikallisessa IndexedDB-kannassa
+`nivo-revisions` (metatiedot ja projektisnapshotit erikseen). Ne eivät kasvata
+projektin tavallista automaattitallennetta tai Peru-historiaa. Vertailuversio
+voidaan ladata tavalliseksi .nivo-tiedostoksi. Osat yhdistetään `body.id`:n
+perusteella; nimet tai identtinen ulkomuoto eivät yksin todista samaa osaa.
+
 V0.36.1 täydentää olemassa olevan valinnaisen `body.quantityBasis`-kentän
 myös profiloiduille ja BRep-osille luotaessa sekä vanhaa tiedostoa avattaessa.
 `dimensions` on pisimmästä lyhimpään; `axes` seuraa samaa järjestystä.

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import initOpenCascade from 'replicad-opencascadejs';
-import { setOC } from 'replicad';
+import { setOC, drawCircle, type Sketch } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
 import { makeBody, makePolygonBody, mergeBodies } from '../model/project';
 
@@ -252,5 +252,41 @@ it('chooses the camera-facing adjacent drawing face without accepting a remote c
     ).toBe('y');
   } finally {
     shape.delete();
+  }
+});
+
+it('projects zero-thickness sheets edge-on and supports all six orthographic directions', () => {
+  const flat = createShape(makeBody(600, 400, 0, [10, 20, 30]));
+  const solid = createShape(makeBody(600, 400, 18, [10, 20, 30]));
+  try {
+    for (const view of ['front', 'back', 'right', 'left', 'top', 'bottom'] as const) {
+      for (const shape of [flat, solid]) {
+        const projection = projectShapes([shape], view);
+        expect(projection.visible.length).toBeGreaterThan(0);
+        expect(projection.viewBox.every(Number.isFinite)).toBe(true);
+      }
+    }
+    expect(projectShapes([flat], 'front').viewBox).toEqual([10, -30, 600, 0]);
+    expect(projectShapes([flat], 'back').viewBox).toEqual([-610, -30, 600, 0]);
+  } finally {
+    flat.delete();
+    solid.delete();
+  }
+});
+
+it('keeps exact circular projection arcs even when the hidden edge collection is empty', () => {
+  const disc = (drawCircle(50).sketchOnPlane() as Sketch).face();
+  try {
+    for (const view of ['top', 'bottom'] as const) {
+      const result = projectShapes([disc], view);
+      expect(result.hidden).toEqual([]);
+      expect(result.visible.join(' ')).toContain('A 50 50');
+      expect(result.viewBox[0]).toBeCloseTo(-50, 5);
+      expect(result.viewBox[1]).toBeCloseTo(-50, 5);
+      expect(result.viewBox[2]).toBeCloseTo(100, 5);
+      expect(result.viewBox[3]).toBeCloseTo(100, 5);
+    }
+  } finally {
+    disc.delete();
   }
 });

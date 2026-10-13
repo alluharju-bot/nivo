@@ -1,3 +1,4 @@
+import { drawingAnnotationSchema } from './drawingAnnotations';
 import { quantityBasis } from './quantityBasis';
 import { surfaceLevelsSchema } from './surfaceLevels';
 import { renderViewSchema } from './renderViews';
@@ -423,6 +424,7 @@ export const projectSchema = z
     assets: z.record(z.string().max(100), assetSchema).optional(),
     sections: z.array(sectionSchema).max(100).optional(),
     drawingSheets: z.array(drawingSheetSchema).max(50).optional(),
+    drawingAnnotations: z.array(drawingAnnotationSchema).max(2000).optional(),
     referenceImages: z.array(referenceImageSchema).max(50).optional(),
     materials: z.array(customMaterialSchema).max(200).optional(),
     renderViews: z.array(renderViewSchema).max(50).optional(),
@@ -487,6 +489,7 @@ export const projectSchema = z
       p.groups,
       p.sections ?? [],
       p.drawingSheets ?? [],
+      p.drawingAnnotations ?? [],
       p.referenceImages ?? [],
       p.partTypes ?? [],
       p.renderViews ?? [],

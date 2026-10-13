@@ -1,3 +1,4 @@
+import { projectEdges } from './projection';
 import {
   getOC,
   Curve2D,
@@ -5,7 +6,6 @@ import {
   drawRectangle,
   Plane,
   ProjectionCamera,
-  drawProjection,
   makeCompound,
   type Sketch,
   type AnyShape,
@@ -22,9 +22,7 @@ function projection(shapes: AnyShape[], frame: SketchFrame): Projection {
   const compound = makeCompound(shapes.map((s) => s.clone()));
   const camera = new ProjectionCamera(frame.origin, frame.normal, frame.u);
   try {
-    const { visible, hidden } = drawProjection(compound, camera);
-    const viewBox = visible.toSVGViewBox(0).split(/\s+/).map(Number) as Projection['viewBox'];
-    return { visible: visible.toSVGPaths().flat(), hidden: hidden.toSVGPaths().flat(), viewBox };
+    return projectEdges(compound, camera);
   } finally {
     compound.delete();
     camera.delete();

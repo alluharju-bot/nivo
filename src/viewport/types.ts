@@ -203,7 +203,10 @@ export interface ViewportProps {
   selectedMarkupIds?: string[];
   markupStyle?: {
     area: Pick<AreaMarkup, 'name' | 'color'>;
-    note: Pick<NoteMarkup, 'text' | 'color' | 'textColor' | 'shape' | 'fontSize' | 'bold'>;
+    note: Pick<
+      NoteMarkup,
+      'text' | 'color' | 'textColor' | 'shape' | 'fontSize' | 'bold' | 'leader'
+    >;
   };
   markupCommand?: { id: number; action: 'finish' | 'back' };
   onMarkupPreview?: (markup?: Markup) => void;

@@ -2,6 +2,42 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.39.0 — mittakuvien merkinnät ja projektiversioiden vertailu
+
+- Projektikirjastolla on oma kirjastokuvake; tiedoston avaaminen säilyttää kansiokuvakkeen.
+- Projektin muutokset: nimettyjä vertailuversioita selaimeen tai aiempi .nivo-tiedosto.
+  Pysyvät osatunnisteet yhdistävät versiot. Lisätyt osat vihreitä, poistetut punaisia
+  haamuja ja muokatut meripihkan värisiä. Muokattujen aiemman geometrian voi näyttää
+  haamuna. Värit eivät muuta mallin materiaaleja. Numeroitu, suodatettava luettelo,
+  osaan kohdistaminen ja CSV-vienti. Pelkkä tiedoston aikaleima ei muodosta muutosta.
+- Mittakuvat ovat tarkkoja ortografisia CAD-projektioita: etu-, taka-, oikea, vasen,
+  ylä- ja alakuva. Sama suuntakehys ohjaa projektioita, pistepoimintaa ja mitoitusta.
+- Yhteiset arkkimerkinnät tavallisiin mittakuviin, leikkauksiin ja mitta-arkkeihin:
+  itsenäinen tekstilaatikko ja aluekorostus, siirto/koon säätö, tekstin ja värin
+  muokkaus, piilottaminen ja poisto. Merkinnät ovat paperimillimetreissä; ne eivät
+  deformoi tai muuta mallin geometriaa. PDF/SVG sisältää näkyvät merkinnät.
+- Mallin sopivassa suunnassa olevat dimensiot näkyvät projektiossa. Mitta-arkin
+  projektioon pääsee tuplaklikkaamalla mitoittamaan; samat dimensiot palaavat arkille.
+  Arkkimerkinnän lisääminen tallentaa myös uuden arkin määrittelyn.
+- Huomautustyökalulla voi mallinäkymässä asettaa tekstilaatikon yhdellä napsautuksella
+  poistamalla Kohdistusviiva-valinnan. Aiempi kohdistuspiste + laatikko -tapa säilyy.
+- Projektion tyhjä piiloviivajoukko ei kaada 2D-muodon mittakuvaa. CAD-kaaret
+  säilyvät vektorikäyrinä. Reunaltaan katsottu taso näkyy viivana.
+
+### Jatko — piirustuspaketit ja muutosten dokumentointi
+
+- Vapaasti suunnatut nimetyt ortografiset projektiot ja detaljinäkymät, useat
+  paperikoot sekä arkin vapaa sommittelu. Kuusi pääsuuntaa ja vapaasti asetettavat
+  mallin leikkaustasot ovat tämän version lähtökohta.
+- Malliin sidotut muutosalueet/revisiopilvet ja arkin revisiotaulukko. Nyt arkin
+  korostus on itsenäinen paperimerkintä, osamuutosvertailu erillisessä 3D-näkymässä.
+- Materiaalikohtaiset leikkausmerkinnät: betoni, puu, eristeet, levyt ym. Valitaan
+  käytettävät suomalaiset/ISO-piirustusohjeet ja tarkistetaan niiden käyttöehdot
+  ennen merkkikirjaston toteutusta. Nykyinen yleinen viivoitus ei väitä materiaalin
+  tyyppiä eikä insinööritoimiston hyväksyntää.
+- Käyttäjäkohtainen synkronointi ja etäversiohistoria; paikallinen versiovertailu
+  antaa pohjan ristiriitojen näyttämiseen. Automaattista yhdistämistä ei tehdä.
+
 ## V0.38.0 — mobiilityötila ja projektin siirto laitteiden välillä
 
 - Puhelimen työtilavalikko, aina näkyvä koko näytön painike, 54 px työkalupalkki,

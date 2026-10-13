@@ -1,3 +1,5 @@
+import type { DrawingScope } from './model/drawingAnnotations';
+import type { DrawingView } from './model/drawingViews';
 import { ProjectShare } from './ui/ProjectShare';
 import { readProjectTransfer, compareTransferredProject } from './storage/projectTransfer';
 import { ProjectLibrary } from './ui/ProjectLibrary';
@@ -122,6 +124,8 @@ import {
   Download,
   FilePlus2,
   FolderOpen,
+  LibraryBig,
+  GitCompareArrows,
   Grid2X2,
   Hand,
   Layers2,
@@ -279,6 +283,7 @@ const faceNames: Record<FaceRef, string> = {
   'z:min': 'Alapinta',
   'z:max': 'Yläpinta',
 };
+const RevisionReview = lazy(() => import('./ui/RevisionReview'));
 const ToolGuide = lazy(() => import('./ui/guides/ToolGuide'));
 
 const tools: { id: Tool; label: string; icon: ReactNode; shortcut: string }[] = [
@@ -414,6 +419,8 @@ export default function App() {
   const [isolated, setIsolated] = useState<{ projectId: string; excluded: Set<string> }>();
   const [drawingSheetOpen, setDrawingSheetOpen] = useState(false);
   const [drawingSectionId, setDrawingSectionId] = useState<string>();
+  const [drawingView, setDrawingView] = useState<DrawingView>('front');
+  const [drawingScopeOverride, setDrawingScopeOverride] = useState<DrawingScope>();
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>();
   const [measureMode, setMeasureMode] = useState<MeasureMode>('guide');
@@ -429,12 +436,14 @@ export default function App() {
   const [areaName, setAreaName] = useState('Pinta-alue 1');
   const [areaColor, setAreaColor] = useState('#428a83');
   const [noteText, setNoteText] = useState('Huomautus');
+  const [noteLeader, setNoteLeader] = useState(true);
   const [markupCommand, setMarkupCommand] = useState<{ id: number; action: 'finish' | 'back' }>();
   const markupStyle = useMemo(
     () => ({
       area: { name: areaName.trim() || 'Pinta-alue', color: areaColor },
       note: {
         text: noteText.trim() || 'Huomautus',
+        leader: noteLeader,
         color: '#fff2ce',
         textColor: '#263c36',
         shape: 'rounded' as const,
@@ -442,7 +451,7 @@ export default function App() {
         bold: false,
       },
     }),
-    [areaName, areaColor, noteText],
+    [areaName, areaColor, noteText, noteLeader],
   );
   const visibleMarkups = useMemo(
     () =>
@@ -798,6 +807,7 @@ export default function App() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const { fullscreen, escapeCaptured, toggleFullscreen } = useFullscreen(editor.setError);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [revisionsOpen, setRevisionsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [libraryRevision, setLibraryRevision] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
@@ -4084,6 +4094,7 @@ export default function App() {
     setTool('select');
   };
   const openDrawing = () => {
+    setDrawingScopeOverride(undefined);
     setLoftOpen(false);
     setLoftPreview(undefined);
     setPartsOpen(false);
@@ -4178,6 +4189,7 @@ export default function App() {
         event.defaultPrevented ||
         cabinetOpen ||
         actionMenu ||
+        revisionsOpen ||
         libraryOpen ||
         importFiles ||
         exportOpen ||
@@ -5585,7 +5597,9 @@ export default function App() {
                                 ? measureMode === 'area'
                                   ? 'Piirrä suorakulmioita. Enter yhdistää pinta-alueen.'
                                   : measureMode === 'note'
-                                    ? 'Poimi kohdepiste ja sijoita tekstilaatikko.'
+                                    ? noteLeader
+                                      ? 'Poimi kohdepiste ja sijoita tekstilaatikko.'
+                                      : 'Napsauta tekstilaatikon paikka.'
                                     : guidePointEdit
                                       ? 'Aseta viivan pää. Muut viivat jäävät paikalleen.'
                                       : measureMode === 'dimension'
@@ -5840,7 +5854,7 @@ export default function App() {
           disabled={!ready || busy}
           onClick={() => void openLibrary()}
         >
-          <FolderOpen size={19} />
+          <LibraryBig size={19} />
         </button>
         <div className="project-heading">
           <input
@@ -5900,6 +5914,16 @@ export default function App() {
         </button>
         <div id="header-controls" className={`header-controls ${headerMenuOpen ? 'is-open' : ''}`}>
           <div className="header-actions">
+            <IconButton
+              label="Projektin muutokset"
+              disabled={!ready || busy}
+              onClick={() => {
+                setHeaderMenuOpen(false);
+                setRevisionsOpen(true);
+              }}
+            >
+              <GitCompareArrows />
+            </IconButton>
             <IconButton label="Uusi projekti" disabled={busy} onClick={() => void newProject()}>
               <FilePlus2 />
             </IconButton>
@@ -6823,6 +6847,7 @@ export default function App() {
               modalOpen={
                 touchReview ||
                 (compact && mobileStart) ||
+                revisionsOpen ||
                 libraryOpen ||
                 shareOpen ||
                 help ||
@@ -7405,12 +7430,32 @@ export default function App() {
                 selectedGroupId={selectedGroupId}
                 onCommit={editor.transact}
                 onBack={() => setDrawingSheetOpen(false)}
+                onEditView={(view, scope) => {
+                  setDrawingScopeOverride(scope);
+                  if (view.kind === 'section') setDrawingSectionId(view.sectionId);
+                  else {
+                    setDrawingSectionId(undefined);
+                    setDrawingView(view.view);
+                  }
+                  setDrawingSheetOpen(false);
+                }}
               />
             ) : project.sections?.some((s) => s.id === drawingSectionId) ? (
               <SectionDrawing
+                initialTarget={
+                  drawingScopeOverride?.kind === 'group'
+                    ? `group:${drawingScopeOverride.groupId}`
+                    : drawingScopeOverride?.kind === 'parts'
+                      ? 'selection'
+                      : drawingScopeOverride
+                        ? 'all'
+                        : undefined
+                }
                 onSheets={() => setDrawingSheetOpen(true)}
                 project={project}
-                selectedIds={selectedIds}
+                selectedIds={
+                  drawingScopeOverride?.kind === 'parts' ? drawingScopeOverride.ids : selectedIds
+                }
                 section={project.sections.find((s) => s.id === drawingSectionId)!}
                 cad={editor.cad}
                 busy={busy}
@@ -7420,12 +7465,24 @@ export default function App() {
               />
             ) : (
               <DrawingWorkspace
+                initialView={drawingView}
+                initialTarget={
+                  drawingScopeOverride?.kind === 'group'
+                    ? `group:${drawingScopeOverride.groupId}`
+                    : drawingScopeOverride?.kind === 'parts'
+                      ? 'selection'
+                      : drawingScopeOverride
+                        ? 'all'
+                        : undefined
+                }
                 onSheets={() => setDrawingSheetOpen(true)}
                 onSection={setDrawingSectionId}
                 project={project}
                 cad={editor.cad}
                 meshes={editor.meshes}
-                selectedIds={selectedIds}
+                selectedIds={
+                  drawingScopeOverride?.kind === 'parts' ? drawingScopeOverride.ids : selectedIds
+                }
                 selectedGroupId={selectedGroupId}
                 busy={busy}
                 onCommit={(next, message) => editor.transact(next, message)}
@@ -7686,6 +7743,16 @@ export default function App() {
                           }
                         />
                       </label>
+                      {measureMode === 'note' && (
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={noteLeader}
+                            onChange={(e) => setNoteLeader(e.target.checked)}
+                          />
+                          Kohdistusviiva
+                        </label>
+                      )}
                       {measureMode === 'area' && (
                         <>
                           <label>
@@ -9088,6 +9155,22 @@ export default function App() {
         </SelectionDialog>
       )}
       {compact && touchReview && numericInput}
+      {revisionsOpen && (
+        <Suspense
+          fallback={
+            <div className="busy-badge" role="status">
+              Avataan vertailua…
+            </div>
+          }
+        >
+          <RevisionReview
+            key={project.id}
+            project={project}
+            meshes={editor.meshes}
+            onClose={() => setRevisionsOpen(false)}
+          />
+        </Suspense>
+      )}
       {shareOpen && <ProjectShare project={project} onClose={() => setShareOpen(false)} />}
       {compact && mobileStart && (
         <MobileStart
@@ -9389,7 +9472,9 @@ export default function App() {
                 : markupMode
                   ? measureMode === 'area'
                     ? 'Napsauta suorakulmioiden kulmat · Enter yhdistää · Esc peruu.'
-                    : 'Napsauta kohdepiste ja tekstilaatikon paikka · Valitse-työkalulla voit siirtää laatikkoa.'
+                    : noteLeader
+                      ? 'Napsauta kohdepiste ja tekstilaatikon paikka · Valitse-työkalulla voit siirtää laatikkoa.'
+                      : 'Napsauta tekstilaatikon paikka ja kirjoita huomautus.'
                   : editing || tool === 'navigate' || tool === 'boolean'
                     ? toolStep
                     : editor.message}

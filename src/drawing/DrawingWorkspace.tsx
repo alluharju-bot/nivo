@@ -1,3 +1,6 @@
+import { useDrawingAnnotations } from './useDrawingAnnotations';
+import { drawingScope } from '../model/drawingAnnotations';
+import { drawingFrame } from '../model/drawingViews';
 import { AnnotationProperties } from '../ui/AnnotationProperties';
 import { annotationText } from '../model/annotationStyle';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
@@ -28,6 +31,8 @@ import { drawingDimension, shiftDrawingDimension, type DimensionDirection } from
 
 export function DrawingWorkspace({
   project,
+  initialView = 'front',
+  initialTarget,
   onSection,
   onSheets,
   cad,
@@ -38,6 +43,8 @@ export function DrawingWorkspace({
   onCommit,
 }: {
   project: Project;
+  initialView?: DrawingView;
+  initialTarget?: string;
   onSection?: (id: string) => void;
   onSheets?: () => void;
   cad: CadClient;
@@ -48,9 +55,10 @@ export function DrawingWorkspace({
   onCommit: (project: Project, message: string) => Promise<boolean>;
 }) {
   const [target, setTarget] = useState(
-    selectedGroupId ? `group:${selectedGroupId}` : selectedIds.length ? 'selection' : 'all',
+    initialTarget ??
+      (selectedGroupId ? `group:${selectedGroupId}` : selectedIds.length ? 'selection' : 'all'),
   );
-  const [view, setView] = useState<DrawingView>('front');
+  const [view, setView] = useState<DrawingView>(initialView);
   const [manualScale, setManualScale] = useState<number>();
   const [hidden, setHidden] = useState(false);
   const [projection, setProjection] = useState<Projection>();
@@ -109,7 +117,10 @@ export function DrawingWorkspace({
       setTarget('all');
   }, [project, target]);
   // Dimensions and sheet options must not rebuild the CAD projection.
-  const projectionKey = JSON.stringify(scoped.bodies);
+  const projectionKey = useMemo(
+    () => JSON.stringify(scoped.bodies.map((b) => [b.id, b.feature, b.origin])),
+    [scoped.bodies],
+  );
   useEffect(() => {
     let active = true;
     setProjection(undefined);
@@ -134,13 +145,50 @@ export function DrawingWorkspace({
     () => (projection ? createSheet(scoped, projection, view, scale, hidden) : undefined),
     [projection, scoped, view, scale, hidden],
   );
-  const horizontal: Axis = view === 'right' ? 'y' : 'x',
-    vertical: Axis = view === 'top' ? 'y' : 'z';
+  const notes = useDrawingAnnotations({
+    project,
+    page: { kind: 'view', view, scope: drawingScope(target, selectedIds) },
+    busy,
+    onCommit,
+    measuring,
+    dimensionTool: (
+      <button
+        className={`button ${measuring ? 'dark' : 'subtle'}`}
+        disabled={busy || !sheet}
+        aria-pressed={measuring}
+        onClick={() => {
+          setMeasuring(!measuring);
+          reset();
+        }}
+      >
+        <Ruler size={16} />
+        {measuring ? 'Lopeta mitoitus' : 'Lisää mitta'}
+      </button>
+    ),
+    onActivate: () => {
+      setMeasuring(false);
+      setPicks([]);
+      setSelectedDimension(undefined);
+    },
+  });
+  const horizontal: Axis = drawingFrame(view).horizontal,
+    vertical: Axis = drawingFrame(view).vertical;
+  const viewDimensions = scoped.dimensions.filter((d) => {
+    const value = dimensionValue(project, d);
+    if (value === null) return true;
+    return (
+      value > 1e-6 &&
+      (isPointDimension(d)
+        ? pointDimensionInView(project.bodies, d, view)
+        : d.axis === horizontal || d.axis === vertical)
+    );
+  });
   const draft = useMemo(
     () => (cursor ? drawingDimension(picks, cursor, view, direction) : undefined),
     [picks, cursor, view, direction],
   );
   const reset = () => {
+    setSelectedDimension(undefined);
     setPicks([]);
     setHover(undefined);
     setCursor(undefined);
@@ -148,7 +196,7 @@ export function DrawingWorkspace({
   };
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input,select,textarea')) return;
+      if ((e.target as HTMLElement).closest('input,select,textarea,[role=dialog]')) return;
       if (e.key === 'Escape' && dragRef.current) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -246,7 +294,7 @@ export function DrawingWorkspace({
               Leikkaus {s.name}
             </button>
           ))}
-          {(Object.entries(viewLabels) as [DrawingView, string][]).map(([id, name]) => (
+          {(Object.entries(viewLabels).slice(0, 3) as [DrawingView, string][]).map(([id, name]) => (
             <button
               key={id}
               aria-pressed={view === id}
@@ -258,11 +306,29 @@ export function DrawingWorkspace({
               {name}
             </button>
           ))}
+          <label className="drawing-direction">
+            Suunta
+            <select
+              aria-label="Projektion suunta"
+              value={view}
+              onChange={(e) => {
+                setView(e.target.value as DrawingView);
+                reset();
+              }}
+            >
+              {Object.entries(viewLabels).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button onClick={onSheets}>Luo mitta-arkki</button>
           <span>
             A4 · {manualScale ? '' : 'Sovitettu · '}1:{scale}
           </span>
         </div>
+        {notes.toolbar}
         <p className="drawing-step" role="status">
           {measuring
             ? picks.length === 0
@@ -270,7 +336,7 @@ export function DrawingWorkspace({
               : picks.length === 1
                 ? '2. Poimi toinen piste.'
                 : '3. Vie mittaviiva sivulle ja napsauta. Enter hyväksyy, Esc peruu.'
-            : 'Lisää mitat ja vie valmis mittakuva. Itse lisättyä mittaviivaa voi siirtää vetämällä.'}
+            : 'Suora projektio · mallin tähän suuntaan näkyvät mitat ja huomiot ovat mukana. Vedä mittaviivaa siirtääksesi sitä.'}
         </p>
         <div className="drawing-area" data-testid="drawing-area">
           {error && <p role="alert">{error}</p>}
@@ -292,6 +358,7 @@ export function DrawingWorkspace({
                 </p>
               )}
               <div
+                {...notes.events}
                 ref={paper}
                 className={`drawing-paper ${measuring ? 'is-measuring' : ''}`}
                 onPointerMove={(e) => {
@@ -395,7 +462,7 @@ export function DrawingWorkspace({
                 onPointerCancel={endDrag}
                 onLostPointerCapture={endDrag}
               >
-                <div dangerouslySetInnerHTML={{ __html: sheet.svg }} />
+                <div dangerouslySetInnerHTML={{ __html: notes.decorate(sheet).svg }} />
                 {(measuring || dragPreview) && (
                   <svg className="drawing-pick-overlay" viewBox="0 0 297 210" aria-hidden="true">
                     {preview && (
@@ -444,6 +511,7 @@ export function DrawingWorkspace({
         </div>
       </div>
       <aside className="drawing-controls" aria-label="Mittakuvan toiminnot">
+        {notes.controls}
         <label>
           Kohde
           <select
@@ -478,18 +546,6 @@ export function DrawingWorkspace({
             </optgroup>
           </select>
         </label>
-        <button
-          className={`button ${measuring ? 'dark' : 'outlined'} full`}
-          disabled={busy || !sheet}
-          aria-pressed={measuring}
-          onClick={() => {
-            setMeasuring(!measuring);
-            reset();
-          }}
-        >
-          <Ruler size={16} />
-          {measuring ? 'Lopeta mitoitus' : 'Lisää mitta'}
-        </button>
         {measuring && (
           <label>
             Mitan suunta
@@ -530,14 +586,14 @@ export function DrawingWorkspace({
               disabled={busy || !sheet}
               onClick={() => void addOverall([horizontal])}
             >
-              {view === 'right' ? 'Syvyys' : 'Leveys'}
+              {horizontal === 'y' ? 'Syvyys' : 'Leveys'}
             </button>
             <button
               className="button outlined"
               disabled={busy || !sheet}
               onClick={() => void addOverall([vertical])}
             >
-              {view === 'top' ? 'Syvyys' : 'Korkeus'}
+              {vertical === 'y' ? 'Syvyys' : 'Korkeus'}
             </button>
           </div>
         </details>
@@ -556,7 +612,7 @@ export function DrawingWorkspace({
           </button>
         )}
         <div className="dimension-list">
-          {scoped.dimensions.map((d) => (
+          {viewDimensions.map((d) => (
             <div
               key={d.id}
               className={`${dimensionValue(project, d) === null ? 'broken' : ''} ${selectedDimension === d.id ? 'selected' : ''} ${d.hidden ? 'is-hidden' : ''}`}
@@ -600,7 +656,7 @@ export function DrawingWorkspace({
               </button>
             </div>
           ))}
-          {!scoped.dimensions.length && (
+          {!viewDimensions.length && (
             <p className="muted">
               Ei vielä mittoja. Aloita kokonaismitoista tai poimi kaksi pistettä.
             </p>
@@ -634,12 +690,14 @@ export function DrawingWorkspace({
         <div className="drawing-export">
           <button
             className="button dark full"
-            disabled={busy || exporting || !sheet?.fits || !!sheet?.orphanCount}
+            disabled={
+              busy || exporting || !sheet?.fits || !!sheet?.orphanCount || !notes.exportable
+            }
             onClick={() => {
               if (!sheet) return;
               setExporting(true);
               setError('');
-              void exportDrawingPDF(sheet, `${project.name}-${view}`)
+              void exportDrawingPDF(notes.decorate(sheet, true), `${project.name}-${view}`)
                 .catch((e) => setError(e.message))
                 .finally(() => setExporting(false));
             }}
@@ -649,10 +707,14 @@ export function DrawingWorkspace({
           </button>
           <button
             className="button subtle full"
-            disabled={busy || !sheet?.fits || !!sheet?.orphanCount}
+            disabled={busy || !sheet?.fits || !!sheet?.orphanCount || !notes.exportable}
             onClick={() =>
               sheet &&
-              downloadFile(sheet.svg, `${safeFilename(project.name)}-${view}.svg`, 'image/svg+xml')
+              downloadFile(
+                notes.decorate(sheet, true).svg,
+                `${safeFilename(project.name)}-${view}.svg`,
+                'image/svg+xml',
+              )
             }
           >
             Vie SVG-mittakuva

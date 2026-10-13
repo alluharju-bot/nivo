@@ -3,6 +3,20 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.39.0** kokoaa mittakuvan työkalut: suorat projektiot kuudesta suunnasta,
+**Lisää mitta**, **Tekstilaatikko** ja **Korosta alue**. Tekstilaatikon voi sijoittaa
+ilman kohdistusviivaa, muokata tuplaklikkaamalla ja siirtää vetämällä. Merkinnät
+säilyvät projektissa ja tulevat PDF/SVG-vientiin. Samat merkinnät toimivat
+leikkauskuvissa ja usean projektion arkeilla. Arkin projektioon pääsee mitoittamaan
+tuplaklikkaamalla. Mallin sopivaan suuntaan piirretyt dimensiot näkyvät automaattisesti.
+
+Yläpalkin **Projektin muutokset** vertaa mallia nimettyyn paikalliseen versioon
+tai aiempaan .nivo-tiedostoon. **Lisätty** on vihreä, **Poistettu** punainen haamu ja
+**Muokattu** meripihkan värinen. Numeroitu luettelo kertoo muuttuneet tiedot,
+kohdistaa osan näkymään ja tallentuu CSV:ksi. Nykyinen geometria ja materiaalit
+säilyvät. Nimetyt versiot tallentuvat tähän selaimeen; vertailutiedoston voi ladata
+mukaan toiselle laitteelle. Versiot eivät vielä synkronoidu käyttäjätilille.
+
 Versio **0.38.0** antaa puhelimella enemmän tilaa mallintaa: kapeampi
 54 px työkalupalkki, avattavat mallilista ja ominaisuudet sekä yksi työtilavalikko.
 Koko näytön painike pysyy näkyvissä. Selaimessa aloitus vaatii yhden napautuksen;

@@ -1,8 +1,9 @@
+import { drawingViews } from './drawingViews';
 import { z } from 'zod';
 
 const id = z.string().min(1).max(100);
 export const sheetViewSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('standard'), view: z.enum(['front', 'right', 'top']) }),
+  z.object({ kind: z.literal('standard'), view: z.enum(drawingViews) }),
   z.object({ kind: z.literal('section'), sectionId: id }),
 ]);
 export const drawingSheetSchema = z.object({

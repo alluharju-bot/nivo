@@ -106,6 +106,16 @@ export function mergeProject(target: Project, source: Project) {
     annotations: [...(target.annotations ?? []), ...(incoming.annotations ?? [])],
     sections: [...(target.sections ?? []), ...(incoming.sections ?? [])],
     drawingSheets: [...(target.drawingSheets ?? []), ...(incoming.drawingSheets ?? [])],
+    drawingAnnotations: [
+      ...(target.drawingAnnotations ?? []),
+      ...(incoming.drawingAnnotations ?? []).map((m) => ({
+        ...m,
+        page:
+          m.page.kind !== 'sheet' && m.page.scope.kind === 'visible'
+            ? { ...m.page, scope: { kind: 'group' as const, groupId: group.id } }
+            : m.page,
+      })),
+    ],
     referenceImages: [...(target.referenceImages ?? []), ...(incoming.referenceImages ?? [])],
     materials: [...(target.materials ?? []), ...(incoming.materials ?? [])],
     // Imported presentation cameras and lighting must not move the current workspace.

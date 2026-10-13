@@ -7828,3 +7828,381 @@ p {
     font-size: 32px;
   }
 }
+
+/* Drawing tools share the same calm hierarchy on projections, sections and sheets. */
+.drawing-annotation-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 14px;
+  border-bottom: 1px solid #dbe2da;
+  background: #f8faf6;
+}
+.drawing-annotation-tools .button {
+  min-height: 32px;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.drawing-annotation-tools button[aria-pressed='true'] {
+  background: #e1eae1;
+  color: #294d3f;
+}
+.drawing-annotation-tools span {
+  font-size: 12px;
+  color: #59685d;
+  margin-left: 6px;
+}
+.drawing-direction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.drawing-direction select {
+  padding: 5px 8px;
+  border: 1px solid #dbe2da;
+  border-radius: 5px;
+  background: #fff;
+  color: #30493c;
+}
+.drawing-paper [data-paper-annotation] {
+  cursor: grab;
+  touch-action: none;
+}
+.drawing-paper [data-annotation-resize] {
+  cursor: nwse-resize;
+}
+.drawing-note-controls:empty {
+  display: none;
+}
+.paper-note-properties {
+  border: 1px solid #d8e0d6;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.paper-note-properties legend {
+  color: #3c5545;
+  padding: 0 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.paper-note-properties textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 84px;
+  border: 1px solid #ccd7cc;
+  border-radius: 5px;
+  background: #fff;
+  color: #243630;
+  padding: 8px;
+  font: inherit;
+}
+.paper-note-style {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.paper-note-style > label {
+  flex: 1;
+  min-width: 0;
+}
+.paper-note-style input[type='color'] {
+  height: 34px;
+  padding: 3px;
+}
+.paper-note-list {
+  margin: 4px 0 14px;
+  font-size: 12px;
+}
+.paper-note-list summary {
+  cursor: pointer;
+  color: #586758;
+  padding: 7px 0;
+}
+.paper-note-list > div {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+}
+.paper-note-list .is-selected {
+  background: #fff0d8;
+}
+.paper-note-list button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 5px;
+  color: #405340;
+}
+.paper-note-list button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.paper-note-list button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paper-note-list button svg {
+  flex-shrink: 0;
+}
+
+/* Revision colors describe change type, never the saved material of an object. */
+.selection-dialog:has(.revision-review) {
+  width: min(1180px, 96vw);
+  max-width: none;
+  max-height: 92vh;
+  padding: 20px;
+}
+.selection-dialog:has(.revision-review) > h2 {
+  margin-bottom: 8px;
+}
+.revision-review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.revision-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #506252;
+}
+.revision-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.revision-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+.revision-source label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  color: #566759;
+}
+.revision-source > label {
+  flex: 1;
+  min-width: 180px;
+}
+.revision-source select,
+.revision-source input {
+  border: 1px solid #cad6ca;
+  border-radius: 6px;
+  background: #fff;
+  padding: 9px;
+  font: inherit;
+  font-size: 13px;
+  color: #243c30;
+}
+.revision-source .button {
+  min-height: 37px;
+  font-size: 12px;
+}
+.revision-save {
+  position: relative;
+}
+.revision-save summary {
+  padding: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  border: 1px solid #cad6ca;
+  border-radius: 6px;
+}
+.revision-save > div {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  top: 42px;
+  width: 290px;
+  background: #fff;
+  border: 1px solid #cbd6cb;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px #263c2926;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.revision-legend {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.revision-legend button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #425847;
+}
+.revision-legend button[aria-pressed='true'] {
+  background: #e1e8dd;
+}
+.revision-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+.revision-legend button:last-child {
+  margin-left: auto;
+}
+.revision-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 12px;
+}
+.revision-visual {
+  position: relative;
+  min-width: 0;
+}
+.revision-scene {
+  height: min(42vh, 440px);
+  min-height: 240px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background: #edf1ee;
+}
+.revision-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.revision-visual > label {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.revision-loading {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #ffffffe6;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.revision-list {
+  max-height: min(52vh, 530px);
+  overflow: auto;
+  border: 1px solid #dae2d6;
+  border-radius: 8px;
+}
+.revision-list-heading {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f1f4ec;
+  font-size: 12px;
+}
+.revision-list-heading small {
+  color: #677769;
+  font-size: 10px;
+}
+.revision-list > button {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  gap: 10px;
+  padding: 12px 10px;
+  border-bottom: 1px solid #e6ebe2;
+}
+.revision-list > button:hover {
+  background: #f3f5f0;
+}
+.revision-list > button.is-selected {
+  background: #fff2dc;
+  box-shadow: inset 3px 0 #d99b3c;
+}
+.revision-number {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.revision-list > button > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.revision-list strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.revision-list small {
+  font-size: 10px;
+  color: #657265;
+}
+.revision-list > p {
+  padding: 12px;
+}
+.revision-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid #dbe2d6;
+  padding-top: 12px;
+  font-size: 12px;
+}
+.revision-footer .button {
+  font-size: 12px;
+}
+.revision-empty {
+  max-width: 490px;
+  margin: 25px auto 30px;
+  text-align: center;
+  color: #576e5b;
+}
+.revision-empty h3 {
+  color: #304738;
+  font-size: 18px;
+}
+@media (max-width: 760px) {
+  .drawing-annotation-tools {
+    padding: 5px 8px;
+  }
+  .drawing-annotation-tools span {
+    flex-basis: 100%;
+  }
+  .revision-content {
+    grid-template-columns: 1fr;
+  }
+  .revision-list {
+    max-height: 240px;
+  }
+  .revision-scene {
+    height: 35vh;
+  }
+  .revision-save > div {
+    left: 0;
+    right: auto;
+  }
+  .revision-source .button {
+    padding: 8px;
+  }
+}
+.drawing-view-tabs {
+  flex-wrap: wrap;
+}
+.drawing-paper:has([data-paper-annotation]) {
+  touch-action: none;
+}
