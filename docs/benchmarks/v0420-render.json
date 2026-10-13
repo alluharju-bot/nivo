@@ -1,0 +1,196 @@
+{
+  "baseline": "928845760f91f5bd72c6c45f0cece864b1c63f62",
+  "version": "0.42.0",
+  "environment": "Apple M1 Pro 16 GB, macOS 26.2, Chromium 153, ANGLE Metal, headed, DPR 1",
+  "renderPixels": [810, 663],
+  "sceneParts": 625,
+  "privacy": "Only aggregate measurements. Private models, cameras and images are not published.",
+  "caveats": [
+    "One complete run per view and version; no parallel GPU benchmarks.",
+    "64-sample checkpoint follows the 60-second checkpoint and may overshoot; actual samples are reported.",
+    "Navigation is four automated input steps, not sustained orbit FPS.",
+    "Flat-patch residual standard deviation is not a ground-truth RMSE."
+  ],
+  "runs": {
+    "beforeBathroom": {
+      "checkpoints": [
+        {
+          "target": {
+            "seconds": 60
+          },
+          "elapsedMs": 60179,
+          "samples": 89,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 64
+          },
+          "elapsedMs": 60353,
+          "samples": 89,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 256
+          },
+          "elapsedMs": 171935,
+          "samples": 256,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 500
+          },
+          "elapsedMs": 334174,
+          "samples": 500,
+          "size": "810x663"
+        }
+      ],
+      "fourStepNavigationMs": 80,
+      "errors": 0
+    },
+    "afterBathroom": {
+      "checkpoints": [
+        {
+          "target": {
+            "seconds": 60
+          },
+          "elapsedMs": 60215,
+          "samples": 68,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 64
+          },
+          "elapsedMs": 60472,
+          "samples": 69,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 256
+          },
+          "elapsedMs": 221629,
+          "samples": 256,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 500
+          },
+          "elapsedMs": 433142,
+          "samples": 500,
+          "size": "810x663"
+        }
+      ],
+      "fourStepNavigationMs": 91,
+      "errors": 0
+    },
+    "beforeSauna": {
+      "checkpoints": [
+        {
+          "target": {
+            "seconds": 60
+          },
+          "elapsedMs": 60222,
+          "samples": 104,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 64
+          },
+          "elapsedMs": 60400,
+          "samples": 105,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 256
+          },
+          "elapsedMs": 145288,
+          "samples": 256,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 500
+          },
+          "elapsedMs": 280908,
+          "samples": 500,
+          "size": "810x663"
+        }
+      ],
+      "fourStepNavigationMs": 96,
+      "errors": 0
+    },
+    "afterSauna": {
+      "checkpoints": [
+        {
+          "target": {
+            "seconds": 60
+          },
+          "elapsedMs": 60305,
+          "samples": 83,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 64
+          },
+          "elapsedMs": 60524,
+          "samples": 83,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 256
+          },
+          "elapsedMs": 185713,
+          "samples": 256,
+          "size": "810x663"
+        },
+        {
+          "target": {
+            "samples": 500
+          },
+          "elapsedMs": 362835,
+          "samples": 500,
+          "size": "810x663"
+        }
+      ],
+      "fourStepNavigationMs": 76,
+      "telemetry": {
+        "firstImageMs": 254.40000009536743,
+        "resets": []
+      },
+      "errors": 0
+    }
+  },
+  "bathroomFlatWhiteDoor": {
+    "measurement": "Stddev of mean RGB minus four-neighbor mean, 8-bit display; same interior flat patch.",
+    "before60s": 37.1163,
+    "after60s": 11.8166,
+    "before500": 17.7934,
+    "after500": 2.74125,
+    "before500Mean": 151.549,
+    "after500Mean": 151.2745
+  },
+  "syntheticGPU": {
+    "highVariance256": {
+      "rawRmse": 0.5986647,
+      "priorRmse": 0.2730451,
+      "filteredRmse": 0.0835731
+    },
+    "lightSelection64Against1024": {
+      "uniformRmse": 0.08457,
+      "weightedRmse": 0.01764,
+      "uniformMean": 0.16155,
+      "weightedMean": 0.16832,
+      "referenceMean": 0.16515
+    }
+  },
+  "previewTextureCountAfterRelease": [14, 14, 14]
+}

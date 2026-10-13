@@ -10,12 +10,16 @@ export function traceGuides() {
   let dirty = true;
   const materials = new Map<
     THREE.Material,
-    { color: THREE.MeshBasicMaterial; normal: THREE.MeshNormalMaterial }
+    { key: string; color: THREE.MeshBasicMaterial; normal: THREE.MeshNormalMaterial }
   >();
-  const release = () => {
+  const releaseTargets = () => {
     albedo?.dispose();
     normal?.dispose();
     albedo = normal = undefined;
+    dirty = true;
+  };
+  const release = () => {
+    releaseTargets();
     materials.forEach((m) => {
       m.color.dispose();
       m.normal.dispose();
@@ -36,7 +40,9 @@ export function traceGuides() {
     ): DenoiseGuides {
       if (albedo?.width !== width || albedo?.height !== height) dirty = true;
       if (!dirty && albedo && normal) return { albedo: albedo.texture, normal: normal.texture };
-      release();
+      releaseTargets();
+      const retired: { color: THREE.Material; normal: THREE.Material }[] = [];
+      const active = new Set<THREE.Material>();
       albedo = new THREE.WebGLRenderTarget(width, height, {
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
@@ -49,9 +55,27 @@ export function traceGuides() {
       const saved: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[] }[] = [];
       const omitted: THREE.Object3D[] = [];
       const pair = (source: THREE.Material) => {
+        active.add(source);
         const existing = materials.get(source);
-        if (existing) return existing;
         const m = source as THREE.MeshPhysicalMaterial;
+        const key = JSON.stringify([
+          m.color?.getHex(),
+          m.map?.uuid,
+          m.alphaMap?.uuid,
+          m.alphaTest,
+          m.side,
+          m.vertexColors,
+          m.roughness,
+          m.transmission,
+          m.flatShading,
+          m.normalMap?.uuid,
+          m.normalScale?.toArray(),
+          m.normalMapType,
+          m.bumpMap?.uuid,
+          m.bumpScale,
+        ]);
+        if (existing?.key === key) return existing;
+        if (existing) retired.push(existing);
         const color = new THREE.MeshBasicMaterial({
           color: m.color ?? '#ffffff',
           map: m.map ?? null,
@@ -92,7 +116,7 @@ export function traceGuides() {
           );
         };
         n.customProgramCacheKey = () => 'guide-depth';
-        const result = { color, normal: n };
+        const result = { key, color, normal: n };
         materials.set(source, result);
         return result;
       };
@@ -146,9 +170,19 @@ export function traceGuides() {
         renderer.shadowMap.needsUpdate = shadowUpdate;
         renderer.setClearColor(clear, alpha);
         renderer.setRenderTarget(target);
+        for (const [source, pair] of materials)
+          if (!active.has(source)) {
+            retired.push(pair);
+            materials.delete(source);
+          }
+        retired.forEach((pair) => {
+          pair.color.dispose();
+          pair.normal.dispose();
+        });
       }
       return { albedo: albedo.texture, normal: normal.texture };
     },
+    reset: releaseTargets,
     clear: release,
     dispose: release,
   };

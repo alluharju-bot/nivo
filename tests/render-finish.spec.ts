@@ -32,7 +32,11 @@ test('GPU denoising reduces bright and dark relative noise equally, preserves fi
     const fixture = (
       window as unknown as { NivoFinishTest: typeof import('./fixtures/render-finish-harness') }
     ).NivoFinishTest;
-    return { noise: fixture.exerciseDenoise(), look: fixture.exerciseGuidesAndLooks() };
+    return {
+      noise: fixture.exerciseDenoise(),
+      look: fixture.exerciseGuidesAndLooks(),
+      variance: fixture.exerciseVariance(),
+    };
   });
   console.log(JSON.stringify(stats));
   for (const trial of stats.noise.trials) {
@@ -45,12 +49,21 @@ test('GPU denoising reduces bright and dark relative noise equally, preserves fi
   expect(stats.noise.grain.contrast).toBeCloseTo(1.2, 1);
   expect(stats.noise.error).toBe(0);
   expect(stats.look.error).toBe(0);
-  expect(stats.look.retained && stats.look.reused).toBe(true);
+  expect(
+    stats.look.retained &&
+      stats.look.reused &&
+      stats.look.reusedPrograms &&
+      stats.look.changedGuide,
+  ).toBe(true);
   expect(stats.look.guideTextures).toBeGreaterThan(stats.look.baseTextures);
   expect(stats.look.released).toBe(stats.look.baseTextures);
   expect(stats.look.dream).toBeGreaterThan(1);
   expect(stats.look.mist).toBeGreaterThan(stats.look.dream);
   expect(stats.look.zero).toBe(0);
   expect(stats.look.reset).toBe(0);
+  expect(stats.variance.filtered).toBeLessThan(stats.variance.prior * 0.85);
+  expect(stats.variance.grainFiltered).toBeLessThan(stats.variance.grainRaw * 0.85);
+  expect(stats.variance.error).toBe(0);
+  expect(stats.variance.released).toBe(3);
   expect(errors).toEqual([]);
 });

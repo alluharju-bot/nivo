@@ -7,7 +7,9 @@ it('allocates a shared 512 px PBR material once rather than once per part', () =
 });
 it('keeps atlases within 128 MiB and the device array layer limit', () => {
   expect(traceTexturePlan(200, 2048, 256).bytes).toBeLessThanOrEqual(128 * 1024 * 1024);
-  expect(traceTexturePlan(3, 2048, 256).size).toBe(1024);
+  expect(traceTexturePlan(3, 2048, 256).size).toBe(2048);
+  expect(traceTexturePlan(9, 2048, 256).size).toBe(1024);
+  expect(traceTexturePlan(3, 2048, 256, 512).size).toBe(512);
   expect(traceTexturePlan(0, 0, 256).size).toBe(1);
   expect(() => traceTexturePlan(257, 512, 256)).toThrow('257 eri materiaalikuvaa');
 });

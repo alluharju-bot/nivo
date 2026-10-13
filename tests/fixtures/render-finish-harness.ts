@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DenoiseMaterial } from 'three-gpu-pathtracer';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { traceVariance } from '../../src/render/traceVariance';
 import { traceDenoise } from '../../src/render/traceDenoise';
 import { traceGuides } from '../../src/render/traceGuides';
 import { imageLook } from '../../src/render/imageLook';
@@ -145,6 +146,20 @@ export function exerciseGuidesAndLooks() {
     const guideTextures = renderer.info.memory.textures;
     const same = guides.ensure(renderer, scene, camera, 128, 128);
     const retained = mesh.material === material && scene.background instanceof THREE.Color;
+    const programs = renderer.info.programs!.map((p) => p.id);
+    guides.reset();
+    guides.ensure(renderer, scene, camera, 128, 128);
+    const reusedPrograms = programs.every((id) => renderer.info.programs!.some((p) => p.id === id));
+    material.color.set('#334488');
+    guides.invalidate();
+    const painted = guides.ensure(renderer, scene, camera, 128, 128);
+    const guideCopy = new THREE.MeshBasicMaterial({ map: painted.albedo, toneMapped: false });
+    const guideQuad = new FullScreenQuad(guideCopy);
+    guideQuad.render(renderer);
+    const guidePixel = read().slice((64 * 128 + 64) * 4, (64 * 128 + 64) * 4 + 3);
+    const changedGuide = [51, 68, 136].every((v, i) => Math.abs(v - guidePixel[i]) <= 2);
+    guideQuad.dispose();
+    guideCopy.dispose();
     look.draw(renderer, raw.texture);
     const base = read();
     look.configure({ look: 'dream', lookStrength: 1 });
@@ -165,6 +180,8 @@ export function exerciseGuidesAndLooks() {
     const released = renderer.info.memory.textures;
     return {
       baseTextures,
+      reusedPrograms,
+      changedGuide,
       guideTextures,
       released,
       retained,
@@ -181,6 +198,119 @@ export function exerciseGuidesAndLooks() {
     look.dispose();
     mesh.geometry.dispose();
     material.dispose();
+    renderer.dispose();
+    renderer.forceContextLoss();
+  }
+}
+
+export function exerciseVariance() {
+  const size = 64,
+    samples = 256;
+  const renderer = new THREE.WebGLRenderer();
+  renderer.setSize(size, size);
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
+  const source = new THREE.WebGLRenderTarget(size, size, {
+    type: THREE.FloatType,
+    depthBuffer: false,
+  });
+  const output = source.clone();
+  const variance = traceVariance(),
+    denoise = traceDenoise();
+  const means = new Float32Array(size * size * 4),
+    albedo = means.slice(),
+    normals = means.slice(),
+    truth = means.slice();
+  const textures: THREE.DataTexture[] = [];
+  const tex = (data: Float32Array) => {
+    const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.FloatType);
+    t.needsUpdate = true;
+    textures.push(t);
+    return t;
+  };
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const a = x < 32 ? 0.5 : x % 2 ? 0.6 : 0.4;
+      albedo.set([a, a, a, 1], i);
+      normals.set([0.5, 0.5, 1, 8], i);
+      truth.set([a * 8, a * 6, a * 4, 1], i);
+    }
+  const guides = { albedo: tex(albedo), normal: tex(normals) },
+    map = tex(means);
+  const copy = new THREE.MeshBasicMaterial({
+    map,
+    toneMapped: false,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const quad = new FullScreenQuad(copy);
+  let seed = 952;
+  const read = () => {
+    const v = means.slice();
+    renderer.readRenderTargetPixels(output, 0, 0, size, size, v);
+    return v;
+  };
+  const error = (v: Float32Array, left: boolean) => {
+    let sum = 0,
+      n = 0;
+    for (let y = 4; y < size - 4; y++)
+      for (let x = 4; x < size - 4; x++)
+        if (x < 28 === left && (left || x > 36)) {
+          const i = (y * size + x) * 4;
+          sum += (v[i] - truth[i]) ** 2;
+          n++;
+        }
+    return Math.sqrt(sum / n);
+  };
+  try {
+    for (let n = 1; n <= samples; n++) {
+      for (let i = 0; i < means.length; i += 4) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        // High-variance but nonnegative indirect illumination.
+        const noise = seed / 4294967296 < 0.15 ? 1 / 0.15 : 0;
+        for (let c = 0; c < 3; c++) means[i + c] += (truth[i + c] * noise - means[i + c]) / n;
+        means[i + 3] = 1;
+      }
+      map.needsUpdate = true;
+      renderer.setRenderTarget(source);
+      quad.render(renderer);
+      renderer.setRenderTarget(null);
+      variance.update(renderer, source, n);
+    }
+    denoise.draw(renderer, source.texture, samples, guides, output);
+    const prior = read();
+    denoise.draw(renderer, source.texture, samples, guides, output, variance.texture);
+    const filtered = read();
+    copy.map = variance.texture!;
+    renderer.setRenderTarget(output);
+    quad.render(renderer);
+    renderer.setRenderTarget(null);
+    const moments = read();
+    const varianceMean =
+      moments.reduce((sum, v, i) => sum + (i % 4 === 1 ? v : 0), 0) / (size * size);
+    const memory = renderer.info.memory.textures;
+    const result = {
+      varianceMean,
+      raw: error(means, true),
+      prior: error(prior, true),
+      filtered: error(filtered, true),
+      grainRaw: error(means, false),
+      grainFiltered: error(filtered, false),
+      error: renderer.getContext().getError(),
+      memory,
+    };
+    variance.clear();
+    denoise.clear();
+    return { ...result, released: memory - renderer.info.memory.textures };
+  } finally {
+    variance.dispose();
+    denoise.dispose();
+    quad.dispose();
+    copy.dispose();
+    textures.forEach((t) => t.dispose());
+    source.dispose();
+    output.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
   }

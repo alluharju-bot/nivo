@@ -155,10 +155,31 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     },
     look,
   );
+  // Upgrade only small palettes: the uniform texture atlas can preserve 2K
+  // only with <=8 layers. Large projects keep their lighter 1K source images.
+  const surfaceIds = new Set(
+    current().bodies.flatMap((body) => {
+      const appearances = [
+        body.appearance ?? defaultAppearance(body.material),
+        ...Object.values(body.faceMaterials ?? {}).map((m) => m.appearance),
+      ];
+      return appearances.map((a) => a.preset);
+    }),
+  );
+  const detailed = new Set(
+    surfaceIds.size <= 2
+      ? [...surfaceIds].flatMap((id) => {
+          const source = id?.replace('pbr-', '');
+          return ['coated_pine', 'oak_veneer_01', 'american_walnut_veneer'].includes(source)
+            ? [source]
+            : [];
+        })
+      : [],
+  );
   const library = createMaterialLibrary(() => {
     progressive.invalidate(false, true);
     draw();
-  });
+  }, detailed);
   let studioEnvironment: THREE.Texture | undefined;
   const environmentReady = loadStudioEnvironment()
     .then((texture) => {

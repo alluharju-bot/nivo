@@ -4,6 +4,39 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.42.0 — kohinanpoisto, valonhaku ja renderin kuormitus
+
+575 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.
+TypeScript, `/nivo/`-tuotantobuild ja lisenssitarkistus hyväksytty.
+
+- 12 renderöinnin tuotantoselaintestiä: kohinanpoisto ja kuvan ilmeet,
+  käynnistys levossa, tarkkuuden kasvu, kameran liike, materiaalin/valaistuksen
+  päivitys, LED-pinnan viereiset materiaalit, PNG-vienti, peruutus ja muistien vapautus.
+- GPU:n korkean varianssin kokeessa raakakuvan RMSE 0,599 → 0,084; vanha
+  suodatin 0,273. HDR-suhteet ja yhden pikselin puunsyyn kontrasti säilyvät.
+  Suodatus ei muuta tracerin raakakertymää.
+- Valonvalinnan erillinen GPU-koe: 12 valoa, 64 näytettä, vertailuna 1024
+  näytteen kuva. Painotetun haun RMSE 0,0176, tasaisen haun 0,0846;
+  kirkkauskeskiarvo tarkistettu. Ei WebGL-virheitä kummassakaan GPU-kokeessa.
+- Kameran päivitys käyttää opastemateriaalien ohjelmat uudelleen.
+  Materiaalin vaihtunut väri päivittyy oikeasti GPU-opastekuvaan.
+  Kolmen esikatselu/vienti-kierroksen vapautettu tekstuurimäärä 14 / 14 / 14.
+- 2K-puukarttojen alkuperä, lisenssi ja tiedostojen tarkistussummat sekä
+  atlasmuistin 128 MiB raja tarkistettu. Mallinnusnäkymän kuvat säilyvät ennallaan.
+- Yksityisen mallin sama allaskaluste-/peilikamera: 60 sekunnin ja 500 näytteen
+  kuvat verrattu v0.41.1:een. Maalatun oven paikallinen rakeisuusmittari pieneni
+  noin 85 % 500 näytteellä; näytteiden laskentaan kului noin 30 % enemmän aikaa.
+  Minuutin uuden kuvan sama alue oli vanhaa 500 näytteen kuvaa puhtaampi.
+  Tarkat mittarit ja rajat: [suorituskyky](performance.md).
+- Saunan sisänäkymä 500 näytettä / 362,8 sekuntia, ei nollauksia tai sivuvirheitä.
+  Puunsyyt, LED-uran reunat ja heijastava kiuas tarkastettu vertailukuvista.
+  Kameran muutos palautti kevyen esikatselun. Yksityisiä malleja ja kuvia ei julkaista.
+- Ensimmäisessä regressioajossa peruutuksen jälkeen tuli kerran WebGL 1281
+  (`glGetProgramiv`, poistettu ohjelma). Yksittäinen uusinta, viisi peräkkäistä
+  uusintaa ja hallitusti hidastettu varjostinkäännös läpäisivät kokeen; viimeinen
+  koko 12 testin ajo hyväksytty. Satunnaisen virheen tarkka syy jäi avoimeksi:
+  sitä ei väitetä korjatuksi. Peruutuskoe valvoo nyt myös WebGL-konsolivirheitä.
+
 ## V0.41.1 — pilvisynkronoinnin ja kynän viiveet
 
 574 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.

@@ -2,6 +2,34 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.42.0 — renderin kohina, valonäytteet ja GPU-kuorma
+
+- Raakojen, peräkkäisten valonäytteiden keskiarvoista arvioidaan varianssi GPU:lla.
+  Kohinanpoisto käyttää sekä tätä että saman pinnan paikallista vaihtelua, jotta
+  harvat kirkkaat pisteet eivät jää suodattumatta. Kaksi suodatusvaihetta;
+  albedo, normaalit ja syvyys suojaavat muotoa ja syykuviota. Peilit/lasi käsitellään
+  varovaisesti. Suodatettua kuvaa ei syötetä valon kertymään.
+- Analyyttisten valojen valinta huomioi kirkkauden, etäisyyden, valopinnan suunnan
+  ja vastaanottavan pinnan suunnan. Valinta ja BSDF-osumien MIS käyttävät samaa
+  todennäköisyyttä. 10 % tasainen sekoitus säilyttää kaikki valot mukana;
+  yli 64 valon kohtaus käyttää kevyttä tasaista valintaa.
+- GPU-aikamittaus ohjaa 1–8 laatan laskentaeriä. Vain yksi erä jonossa;
+  aikaleiman puuttuessa käytetään valmistumisrajaa. Sama jono myös PNG-laskennassa.
+  Kuvan suodatus esitetään enintään noin 12 kertaa sekunnissa, mutta ensimmäinen,
+  tarkkuusvaiheen aloitus ja lopputulos näytetään aina. Kameran liike ei luo
+  muuttumattomien opastemateriaalien shader-ohjelmia uudelleen.
+- Alkuperäiset CC0 2K-kartat männylle, tammiviilulle ja amerikkalaiselle pähkinälle.
+  Niitä käytetään pienessä renderin materiaalivalikoimassa; mallinnus säilyttää
+  kevyemmät kuvat. Atlas käyttää korkeintaan 128 MiB ja laitteiston rajoja.
+- Toistettava yksityisen mallin vertailu samalla kameralla: minuutin kuva ja
+  500 näytettä, saunan sisäpuoli sekä allaskaluste/peili. Kuvia ja asiakasmallia
+  ei julkaista. Palautuspiste: `render-before-quality-pass-v0.41.1`.
+- Jatkotyö: näkyvyystietoa hyödyntävä valonhaku peitettyihin LED-uriin sekä
+  heijastuksen takaisen pinnan opasteet. Nämä eivät sisälly nykyiseen suodattimeen.
+- Seurattava satunnainen virhe: kuvatyön peruutuksessa kerran havaittu poistuneen
+  shader-ohjelman valmistumistarkistus (WebGL 1281). Uusinnat ja viivästetty
+  käännös läpäisivät; juurisyytä ei ole vielä toistettu hallitusti.
+
 ## V0.41.1 — mallinnuksen toistuvat pysähdykset
 
 - Pilven automaattinen lähetys kahdeksan sekunnin työskentelytauon jälkeen.

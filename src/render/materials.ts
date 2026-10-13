@@ -244,7 +244,10 @@ function luminanceCanvas(image: HTMLImageElement | HTMLCanvasElement): HTMLCanva
   context.putImageData(pixels, 0, 0);
   return canvas;
 }
-export function createMaterialLibrary(draw: () => void) {
+export function createMaterialLibrary(
+  draw: () => void,
+  detailSurfaces: ReadonlySet<string> = new Set(),
+) {
   const patterns = new Map<string, HTMLCanvasElement>(),
     images = new Map<string, HTMLImageElement>();
   const patinas = new Map<string, ReturnType<typeof patinaCanvases>>();
@@ -378,7 +381,14 @@ export function createMaterialLibrary(draw: () => void) {
         legacy = false,
       ) => {
         if (!id) return null;
-        const builtIn = id.startsWith('builtin:') ? id.slice(8) : undefined;
+        let builtIn = id.startsWith('builtin:') ? id.slice(8) : undefined;
+        if (builtIn) {
+          const match = builtIn.match(
+            /\/materials\/([^/]+)\/(color|normal|roughness|height)\.jpg$/,
+          );
+          if (match && detailSurfaces.has(match[1]))
+            builtIn = builtIn.replace(/([^/]+\.jpg)$/, '2k/$1');
+        }
         if (!builtIn && !assets[id]) return null;
         const image = load(
           id,

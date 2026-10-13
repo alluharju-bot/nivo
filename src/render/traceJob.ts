@@ -3,6 +3,8 @@ import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
 import { configureEmitterSampling } from './emitterSampling';
+import { traceVariance } from './traceVariance';
+import { gpuQueue } from './gpuQueue';
 import { traceDenoise } from './traceDenoise';
 import { traceGuides } from './traceGuides';
 import { imageLook } from './imageLook';
@@ -53,13 +55,14 @@ export async function renderSnapshot(
   let renderer: THREE.WebGLRenderer | undefined,
     tracer: WebGLPathTracer | undefined,
     environment: GradientEquirectTexture | undefined;
-  const pendingGPU: WebGLSync[] = [];
+  let queue: ReturnType<typeof gpuQueue> | undefined;
   let resources: ReturnType<typeof traceResources> | undefined;
   let disposeSnapshotGeometry: (() => void) | undefined;
   const { width, samples: target } = options,
     height = Math.max(1, Math.round(width / snapshot.aspect));
   const started = performance.now();
   const denoise = traceDenoise();
+  const variance = traceVariance();
   const guides = traceGuides();
   const look = imageLook(snapshot.look);
   let filtered: THREE.WebGLRenderTarget | undefined;
@@ -147,7 +150,7 @@ export async function renderSnapshot(
     checkTraceUpload(renderer);
     let lastReport = 0;
     let checkedFirstSample = false;
-    const gl = renderer.getContext() as WebGL2RenderingContext;
+    queue = gpuQueue(renderer.getContext() as WebGL2RenderingContext);
     while (tracer.samples < target) {
       await animationFrame(signal);
       check();
@@ -157,25 +160,20 @@ export async function renderSnapshot(
       // Do not let the refresh rate impose one animation frame per tiny tile.
       // Keep batches short and wait without blocking for the previous GPU batch
       // so a background export cannot build an unbounded command queue.
-      while (pendingGPU.length) {
-        const state = gl.clientWaitSync(pendingGPU[0], 0, 0);
-        if (state === gl.TIMEOUT_EXPIRED) break;
-        gl.deleteSync(pendingGPU.shift()!);
-        if (state === gl.WAIT_FAILED)
-          throw new Error('Kuvan laskennan synkronointi epäonnistui. Aloita laskenta uudelleen.');
-      }
-      // Allow one batch of overlap. Draining the entire GPU pipeline after
-      // every batch loses throughput even when the device has spare capacity.
-      if (pendingGPU.length >= 2) continue;
+      if (!queue.ready()) continue;
       const batchStart = performance.now();
-      for (let tile = 0; tile < 4 && tracer.samples < target; tile++) {
+      queue.begin();
+      let submitted = 0;
+      for (let tile = 0; tile < queue.tiles && tracer.samples < target; tile++) {
+        const before = Math.floor(tracer.samples);
         tracer.renderSample();
+        submitted++;
+        const samples = Math.floor(tracer.samples);
+        if (options.denoise !== false && samples > before)
+          variance.update(renderer, tracer.target, samples);
         if (performance.now() - batchStart >= 6) break;
       }
-      const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
-      if (!fence) throw new Error('Kuvan laskenta katkesi. Kokeile pienempää kuvakokoa.');
-      pendingGPU.push(fence);
-      gl.flush();
+      queue.submit(submitted);
       if (!checkedFirstSample && tracer.samples >= 1) {
         checkTraceUpload(renderer);
         checkedFirstSample = true;
@@ -193,9 +191,9 @@ export async function renderSnapshot(
           type: THREE.HalfFloatType,
           depthBuffer: false,
         });
-        denoise.draw(renderer, tracer.target.texture, target, guide, filtered);
+        denoise.draw(renderer, tracer.target.texture, target, guide, filtered, variance.texture);
         look.draw(renderer, filtered.texture);
-      } else denoise.draw(renderer, tracer.target.texture, target, guide);
+      } else denoise.draw(renderer, tracer.target.texture, target, guide, null, variance.texture);
     } else look.draw(renderer, tracer.target.texture);
     check();
     const blob = await new Promise<Blob>((resolve, reject) =>
@@ -207,14 +205,12 @@ export async function renderSnapshot(
     check();
     return blob;
   } finally {
-    if (renderer) {
-      const gl = renderer.getContext() as WebGL2RenderingContext;
-      pendingGPU.forEach((fence) => gl.deleteSync(fence));
-    }
+    queue?.dispose();
     if (resources) resources.dispose();
     else tracer?.dispose();
     disposeSnapshotGeometry?.();
     denoise.dispose();
+    variance.dispose();
     guides.dispose();
     look.dispose();
     filtered?.dispose();

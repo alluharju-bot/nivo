@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import type { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { stableTraceNumerics } from './traceNumerics';
 import { stableTraceSamples } from './traceFireflies';
+import { importanceSampleLights } from './lightImportance';
 
 /** Adapter for the pinned three-gpu-pathtracer 0.0.26 shader. The library samples
  * area lights with MIS, but adds mesh emission again when the same ray reaches
  * the physical LED immediately behind its sampled light. Preserve visible emitters
  * on camera/transmission rays; count secondary-ray emission only once.
  * Keep the guard: a library upgrade must explicitly review this integration. */
-export function configureEmitterSampling(tracer: WebGLPathTracer) {
+export function configureEmitterSampling(tracer: WebGLPathTracer, importance = true) {
   const material = (tracer as unknown as { _pathTracer: { material: THREE.ShaderMaterial } })
     ._pathTracer.material;
   const trace = 'int hitType = traceScene( ray, state.fogMaterial, surfaceHit );';
@@ -23,6 +24,7 @@ export function configureEmitterSampling(tracer: WebGLPathTracer) {
     .replace(mis, `nivoSampledEmitter = true;\n ${mis}`)
     .replace(emit, `if ( ! nivoSampledEmitter ) { ${emit} }`);
   material.fragmentShader = stableTraceNumerics(material.fragmentShader);
+  if (importance) material.fragmentShader = importanceSampleLights(material.fragmentShader);
   material.fragmentShader = stableTraceSamples(material.fragmentShader);
   // Call after setScene: initialize the three scene-dependent feature switches
   // together. Each setDefine in the library's onBeforeRender otherwise launches

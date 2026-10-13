@@ -18,6 +18,16 @@ it('bundles all four channels at the source scale with verifiable CC0 provenance
     expect(preset.category).toBe(surfaceCollectionName);
     expect(surfaceGroups).toContain(preset.collectionGroup);
     expect(defaultAppearance(preset.id).texture.width).toBe(surface.size);
+    if (source.detailMaps)
+      for (const channel of ['color', 'normal', 'roughness', 'height']) {
+        const map = source.detailMaps[channel];
+        expect(map.file).toContain('/2k/');
+        expect(
+          createHash('md5')
+            .update(readFileSync(`public/materials/${map.file}`))
+            .digest('hex'),
+        ).toBe(map.md5);
+      }
     for (const channel of ['color', 'normal', 'roughness', 'height']) {
       const map = source.maps[channel];
       const bytes = readFileSync(`public/materials/${map.file}`);

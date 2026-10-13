@@ -59,6 +59,25 @@ test('render cancellation releases the job and preview reaches a sample target a
   page,
 }) => {
   test.setTimeout(180_000);
+  // Keep asynchronous shader compilation pending while the user cancels.
+  // Catch deleted-program polling that could poison the next preview upload.
+  await page.addInitScript(() => {
+    const proto = WebGL2RenderingContext.prototype;
+    const get = proto.getProgramParameter;
+    const first = new WeakMap<WebGLProgram, number>();
+    proto.getProgramParameter = function (program, parameter) {
+      if (parameter === 0x91b1 && this.isProgram(program)) {
+        if (!first.has(program)) first.set(program, performance.now());
+        if (performance.now() - first.get(program)! < 350) return false;
+      }
+      return get.call(this, program, parameter);
+    };
+  });
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (/GL_INVALID|WebGL.*error|WebGL.*warning/i.test(message.text())) errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
   await ready(page, [makeBody(200, 100, 40)]);
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
@@ -97,4 +116,5 @@ test('render cancellation releases the job and preview reaches a sample target a
     environmentPower: 0.5,
     ground: false,
   });
+  expect(errors).toEqual([]);
 });

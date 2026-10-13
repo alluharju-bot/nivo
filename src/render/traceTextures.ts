@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 
 /** Array layers are image sources, not parts. Keep GPU allocation bounded on large projects. */
-export function traceTexturePlan(count: number, largest: number, layerLimit: number) {
+export function traceTexturePlan(
+  count: number,
+  largest: number,
+  layerLimit: number,
+  textureLimit = 2048,
+) {
   if (count > layerLimit)
     throw new Error(
       `Mallissa on ${count} eri materiaalikuvaa. Näytönohjain tukee tarkentuvassa kuvassa ${layerLimit} kuvaa. Nopea esikatselu säilyy käytettävissä.`,
@@ -9,7 +14,7 @@ export function traceTexturePlan(count: number, largest: number, layerLimit: num
   const budget = 128 * 1024 * 1024;
   const byMemory = 2 ** Math.floor(Math.log2(Math.sqrt(budget / (Math.max(count, 1) * 4))));
   const native = 2 ** Math.ceil(Math.log2(Math.max(largest, 1)));
-  const size = Math.max(1, Math.min(1024, native, byMemory));
+  const size = Math.max(1, Math.min(2048, textureLimit, native, byMemory));
   return { count, size, bytes: Math.max(count, 1) * size * size * 4 };
 }
 
@@ -40,8 +45,10 @@ export function configureTraceTextures(
     sources.size,
     largest,
     gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS),
+    renderer.capabilities.maxTextureSize,
   );
   tracer.textureSize.set(plan.size, plan.size);
+  renderer.domElement.dataset.traceTextureSize = String(plan.size);
   renderer.domElement.dataset.traceTextureLayers = String(plan.count);
   renderer.domElement.dataset.traceTextureBytes = String(plan.bytes);
   return plan;

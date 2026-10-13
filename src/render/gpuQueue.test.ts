@@ -39,3 +39,43 @@ it('stops if the driver cannot allocate a fence instead of silently losing the q
   expect(() => queue.submit()).toThrow('synkronointi epäonnistui');
   expect(gl.flush).not.toHaveBeenCalled();
 });
+
+it('sizes batches from completed GPU time and releases timestamp queries', () => {
+  const extension = { TIME_ELAPSED_EXT: 5, GPU_DISJOINT_EXT: 6 };
+  const gl = {
+    getExtension: () => extension,
+    isContextLost: () => false,
+    createQuery: () => ({}),
+    beginQuery: vi.fn(),
+    endQuery: vi.fn(),
+    deleteQuery: vi.fn(),
+    getParameter: () => false,
+    getQueryParameter: vi.fn((_: unknown, p: number): boolean | number => (p === 7 ? true : 1e6)),
+    fenceSync: () => ({}),
+    flush: vi.fn(),
+    deleteSync: vi.fn(),
+    clientWaitSync: () => 4,
+    TIMEOUT_EXPIRED: 1,
+    WAIT_FAILED: 2,
+    SYNC_GPU_COMMANDS_COMPLETE: 3,
+    QUERY_RESULT_AVAILABLE: 7,
+    QUERY_RESULT: 8,
+  };
+  const queue = gpuQueue(gl as unknown as WebGL2RenderingContext);
+  for (let i = 0; i < 5; i++) {
+    queue.begin();
+    queue.submit(queue.tiles);
+    expect(queue.ready()).toBe(true);
+  }
+  expect(queue.tiles).toBeGreaterThan(1);
+  expect(queue.milliseconds).toBe(1);
+  gl.getQueryParameter.mockImplementation((_, p) => (p === 7 ? true : 180e6));
+  queue.begin();
+  queue.submit(1);
+  queue.ready();
+  expect(queue.tiles).toBe(1);
+  queue.begin();
+  queue.dispose();
+  expect(gl.endQuery).toHaveBeenCalledTimes(7);
+  expect(gl.deleteQuery).toHaveBeenCalledTimes(7);
+});

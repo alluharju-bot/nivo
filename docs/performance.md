@@ -1,5 +1,82 @@
 # Suorituskyky
 
+## V0.42.0 — valaistujen pintojen kohina, 14.10.2026
+
+Vertailu v0.41.1:een samalla yksityisen 625 osan projektin paikallisella kopiolla,
+kameralla, materiaaleilla ja valaistuksella. Apple M1 Pro / 16 Gt, näkyvä
+Chromium 153 / ANGLE Metal; tuotantobuild, 810 × 663 pikselin kuva, DPR 1.
+Muita GPU-testejä ei ajettu samanaikaisesti. Projektia tai sen kuvia ei julkaista.
+
+| Allaskaluste, peili ja valkoinen ovi | V0.41.1 | V0.42.0 |
+| ---------------------------------- | ------: | ------: |
+| Näytteitä 60 sekunnissa | 89 | 69 |
+| Aika 500 näytteeseen | 334,2 s | 433,3 s |
+| Valkoisen oven rakeisuusmittari, 60 s | 37,12 | 11,82 |
+| Valkoisen oven rakeisuusmittari, 500 näytettä | 17,79 | 2,74 |
+| Saman oven keskimääräinen kirkkaus, 500 näytettä | 151,55 | 151,27 |
+| Valkoisen kalustepinnan rakeisuusmittari, 500 näytettä | 4,90 | 1,26 |
+| Kameran neljän syöteaskeleen käsittely testissä | 80 ms | 91 ms |
+
+Rakeisuusmittari on tasaiselta, tekstuurittomalta maalipinnalta mitattu
+8-bittisen RGB-keskiarvon ja sen neljän naapuripikselin keskiarvon erotuksen
+keskihajonta. Se kuvaa tämän alueen korkeataajuista vaihtelua, **ei vertailukuvaan
+perustuvaa RMSE:tä** eikä yleistä kuvanlaatuprosenttia. Valkoisessa ovessa noin
+85 % pienempi arvo samalla näytemäärällä; keskimääräinen kirkkaus säilyy.
+Puunsyyt tarkastettiin myös kuvasta, mutta niiden oikeaa vaihtelua ei lasketa
+puhtaaksi kohinaksi. Peilien ja lasin kohinanpoisto on tarkoituksella varovaisempi.
+
+500 näytettä kestää tässä näkymässä noin 30 % pidempään. Minuutissa syntyneen
+uuden kuvan maalipinta on silti tällä mittarilla puhtaampi kuin vanha 500 näytteen
+kuva. Tämä on laadun parannus kulutettua aikaa kohti, **ei näytteiden laskennan
+nopeuslupaus**. Kamerakoe varmistaa siirtymisen kevyeen kuvaan ja kameran muutoksen;
+sen ajasta ei voi päätellä jatkuvan orbitin FPS:ää.
+
+Saunan sisänäkymässä 500 näytettä valmistui aiemmin 280,9 sekunnissa ja uudella
+versiolla 362,8 sekunnissa. Minuutin kohdalla näytteitä oli 104 / 83. Paneelien
+syykuviot ja LED-uran reunat tarkastettiin ennen/jälkeen-kuvista; puhdistuminen
+näkyy myös tässä näkymässä. Kamera vaihtui kevyeen kuvaan (neljä syöteaskelta
+96 / 76 ms). Uuden ajon aikana ei ollut nollauksia tai sivuvirheitä; ensimmäinen
+tarkentuva kuva tuli valmiiksi ladatulla mallilla 254 ms:ssa. Tämä ei sisällä
+mallin avaamista eikä ole kylmäkäynnistyksen vertailu.
+
+Kohinanpoisto arvioi varianssia peräkkäisistä raaoista näytteistä sekä pinnan
+paikallisesta vaihtelusta. Suodattimen aiempi HDR-suhteutus jätti suuren vaihtelun
+kirkkaat poikkeamat liian helposti koskematta. Uusi kaksivaiheinen suodatus käyttää
+albedoa, normaalia ja syvyyttä suojaamaan yksityiskohtia. Raakakertymää ei suodateta.
+Synteettisessä korkean varianssin GPU-kokeessa 256 näytteellä RMSE oli raakakuvassa
+0,599, aiemmalla suodatuksella 0,273 ja uudella 0,084. Yhden pikselin syykuvio
+ja HDR-pintojen kirkkaussuhteet tarkistetaan erillisillä kokeilla.
+
+12 valon GPU-kokeessa sama 64 näytettä: tasaisen valonvalinnan RMSE 0,0846,
+painotetun 0,0176, vertailuna painotettu 1024 näytteen kuva. Keskiarvot
+0,1616 / 0,1683 / 0,1652. Painotus huomioi valon tehon, etäisyyden, pinta-alan
+ja suunnat; sama todennäköisyys käytetään molemmissa MIS-haaroissa. 10 % tasainen
+sekoitus säilyttää kaikkien valojen mahdollisuuden. Yli 64 valoa käyttää aiempaa
+tasaista hakua. Näkyvyyttä ei ennakoida: koteloitujen LED-urien epäsuora valo
+sekä moninkertaiset heijastukset voivat edelleen tarvita paljon näytteitä.
+
+GPU-jonossa on korkeintaan yksi 1–8 laatan erä. Eräkoko perustuu GPU-aikamittaukseen
+tai sen puuttuessa valmistumisen ylärajaan. Yksittäisen 256 px:n laatan laskentaa
+ei voi katkaista; raskaassa sisäkuvassa yksi erä voi kestää yli tavoitellun 12 ms:n.
+Näyttökuvan suodatus tehdään korkeintaan noin 12 kertaa sekunnissa, poikkeuksina
+ensimmäinen kuva, tarkkuusvaiheen alku ja valmis tavoite. Raakanäytteitä kertyy
+edelleen jokaisella valmistuneella kierroksella.
+
+Varianssin kaksi RG32F-puskuria vievät yhteensä noin 4 tavua lopullista pikseliä
+kohti; kaksivaiheisen suodatuksen välipuskuri 8 tavua. Esikatselun 3 MP rajalla
+lisäys on korkeintaan noin 36 MB. Materiaalikartaston raja säilyy 128 MiB:ssä;
+2K-kartat otetaan käyttöön vain pienessä materiaalivalikoimassa. Kolmen
+esikatselu/vienti-kierroksen jälkeen GPU-tekstuurimäärä palautui arvoihin
+14 / 14 / 14. Tämä on vuotoregressio, ei koko selaimen muistimittaus.
+
+Toistettava koe: `tests/render-quality-benchmark.spec.ts`, opt-in-malli ja
+kameratiedosto ympäristömuuttujilla. [Anonymisoidut mittausluvut](benchmarks/v0420-render.json).
+Palautustagi:
+`render-before-quality-pass-v0.41.1`. Taustaa:
+[PBRT:n valonvalinta](https://www.pbr-book.org/4ed/Light_Sources/Light_Sampling) ja
+[varianssin ohjaama suodatus](https://research.nvidia.com/labs/rtr/publication/schied2017spatiotemporal/).
+Toteutus ei ole kokonainen SVGF-putki eikä PBRT:n valohierarkia.
+
 ## V0.41.1 — synkronoinnin ja kynäesikatselun pysähdykset, 14.10.2026
 
 Yksityisen projektin paikallinen kopio: 625 osaa, 6,83 Mt JSON. Apple M1 Pro,

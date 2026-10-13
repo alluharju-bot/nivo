@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { traceDenoise } from './traceDenoise';
+import { traceVariance } from './traceVariance';
 import type { DenoiseGuides } from './traceGuides';
 import type { ImageLook } from './imageLook';
 import { coarseImageWeight } from './traceRefinement';
@@ -35,6 +36,7 @@ export function traceImage() {
   const display = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
   const quad = new FullScreenQuad(copy);
   const denoise = traceDenoise();
+  const variance = traceVariance();
   return {
     get size() {
       return target ? ([target.width, target.height] as const) : undefined;
@@ -44,6 +46,9 @@ export function traceImage() {
     },
     get historyWeight() {
       return coarse ? coarseImageWeight(samples) : 0;
+    },
+    observe(renderer: THREE.WebGLRenderer, source: THREE.WebGLRenderTarget, count: number) {
+      variance.update(renderer, source, count);
     },
     capture(renderer: THREE.WebGLRenderer, source: THREE.WebGLRenderTarget, count: number) {
       if (target && (target.width !== source.width || target.height !== source.height)) {
@@ -82,7 +87,7 @@ export function traceImage() {
             depthBuffer: false,
           });
           filtered.setSize(target.width, target.height);
-          denoise.draw(renderer, target.texture, samples, guides, filtered);
+          denoise.draw(renderer, target.texture, samples, guides, filtered, variance.texture);
           look.draw(renderer, filtered.texture);
         } else {
           filtered?.dispose();
@@ -92,7 +97,7 @@ export function traceImage() {
       } else {
         filtered?.dispose();
         filtered = undefined;
-        if (smooth) denoise.draw(renderer, target.texture, samples, guides);
+        if (smooth) denoise.draw(renderer, target.texture, samples, guides, null, variance.texture);
         else {
           display.map = target.texture;
           quad.material = display;
@@ -104,6 +109,8 @@ export function traceImage() {
       }
     },
     clear() {
+      variance.clear();
+      denoise.clear();
       target?.dispose();
       coarse?.dispose();
       filtered?.dispose();
@@ -125,6 +132,7 @@ export function traceImage() {
       copy.dispose();
       display.dispose();
       denoise.dispose();
+      variance.dispose();
     },
   };
 }

@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.42.0** parantaa tarkentuvan renderin kirkkaita pintoja. Kohinanpoisto
+seuraa valonäytteiden vaihtelua ja suojaa puunsyitä, pintojen rajoja ja heijastuksia.
+Valonäytteet painottavat lähellä olevia, pintaa kohti suuntautuvia valoja. GPU:n
+laskentaerän koko mukautuu mitattuun valmistumisaikaan. Pienen materiaalivalikoiman
+lähikuvissa mänty, tammi ja amerikkalainen pähkinä käyttävät 2K-karttoja.
+Materiaalikuvien tarkentuvan renderin muistiraja säilyy 128 MiB:ssä.
+
 Versio **0.41.1** vähentää mallintamisen aikaisia pysähdyksiä. Pilvisynkronointi
 odottaa kahdeksan sekunnin työskentelytaukoa ja tarkistaa mallin taustasäikeessä.
 Muuttumattoman mallin sisältötunnistetta ei lasketa uudelleen joka tarkistuksella.

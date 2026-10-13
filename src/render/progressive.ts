@@ -59,7 +59,7 @@ export function progressiveRenderer(
   const raster = () =>
     look ? look.renderScene(renderer, scene, camera) : renderer.render(scene, camera);
   const queue = gpuQueue(renderer.getContext() as WebGL2RenderingContext);
-  let batchTiles = 1;
+  let lastPresented = 0;
   let samplingConfigured = false;
   let snapshot: THREE.Scene | undefined;
   let disposeSnapshotGeometry: (() => void) | undefined;
@@ -76,6 +76,7 @@ export function progressiveRenderer(
     });
   const fail = (error: unknown) => {
     enabled = false;
+    queue.dispose();
     cancelAnimationFrame(frame);
     renderer.setRenderTarget(null);
     if (!renderer.getContext().isContextLost()) raster();
@@ -186,10 +187,7 @@ export function progressiveRenderer(
         throw new Error(
           'Näytönohjaimen yhteys katkesi. Palauta 3D-näkymä tai käynnistä selain uudelleen.',
         );
-      if (!queue.ready()) {
-        batchTiles = Math.max(1, Math.floor(batchTiles / 2));
-        return;
-      }
+      if (!queue.ready()) return;
       if (dirty) {
         if (!preparing) {
           preparing = true;
@@ -234,23 +232,38 @@ export function progressiveRenderer(
       }
       if (needsSize) quality();
       // Use spare GPU capacity without tying every small tile to a screen
-      // refresh. One bounded batch stays in flight, with at most 4 tiles. Stop
+      // refresh. One bounded batch stays in flight, with at most 8 tiles. Stop
       // starting more tiles once CPU submission takes 4 ms; a single driver
       // call cannot be interrupted. Yield to camera and UI events between batches.
       const batchStarted = performance.now();
+      queue.begin();
       let submitted = 0;
-      for (let tile = 0; tile < batchTiles; tile++) {
+      for (let tile = 0; tile < queue.tiles; tile++) {
         const before = tracer.samples;
         tracer.renderSample();
         submitted++;
         const samples = Math.floor(tracer.samples);
         if (samples > Math.floor(before)) {
-          image.capture(renderer, tracer.target, samples);
-          present();
+          image.observe(renderer, tracer.target, samples);
+          // Denoising is a display cost, not a cost per path-tracing sample.
+          // Keep the first, each refinement boundary and the final image exact.
+          const boundary = samples === (resolution === 0 ? 4 : refinementSamples);
+          if (
+            !image.ready ||
+            samples === 1 ||
+            boundary ||
+            samples === options.maxSamples ||
+            performance.now() - lastPresented >= 80
+          ) {
+            image.capture(renderer, tracer.target, samples);
+            present();
+            lastPresented = performance.now();
+            renderer.domElement.dataset.tracePresentedSamples = String(samples);
+            renderer.domElement.dataset.traceOpacity = '1';
+            renderer.domElement.dataset.traceHistoryWeight = String(image.historyWeight);
+            renderer.domElement.dataset.tracePresentedSize = renderer.domElement.dataset.traceSize;
+          }
           renderer.domElement.dataset.traceSamples = String(samples);
-          renderer.domElement.dataset.traceOpacity = '1';
-          renderer.domElement.dataset.traceHistoryWeight = String(image.historyWeight);
-          renderer.domElement.dataset.tracePresentedSize = renderer.domElement.dataset.traceSize;
           if (samples === 1) checkTraceUpload(renderer);
           // The coarse image is only a display estimate. Never put its colors
           // into the new tracer's radiance sum or inflate its sample count.
@@ -275,8 +288,9 @@ export function progressiveRenderer(
         if (tracer.samples === before || performance.now() - batchStarted >= 4) break;
       }
       renderer.domElement.dataset.traceBatchTiles = String(submitted);
-      batchTiles = Math.min(4, batchTiles + 1);
-      queue.submit();
+      queue.submit(submitted);
+      renderer.domElement.dataset.traceGpuMs = queue.milliseconds.toFixed(2);
+      renderer.domElement.dataset.traceGpuTimer = String(queue.timerAvailable);
       if (!complete && performance.now() - lastStatus > 400) {
         status(image.ready ? 'rendering' : 'loading');
         lastStatus = performance.now();
@@ -292,9 +306,9 @@ export function progressiveRenderer(
     complete = false;
     resolution = 0;
     needsSize = true;
-    batchTiles = 1;
+    lastPresented = 0;
     image.clear();
-    guides.clear();
+    guides.reset();
     if (tracer) tracer.pausePathTracing = false;
     tracer?.reset();
     renderer.domElement.dataset.traceSamples = '0';

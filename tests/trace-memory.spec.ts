@@ -36,6 +36,14 @@ test('export releases preview GPU textures and repeated refinement does not leak
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
   const counts: number[] = [];
+  await expect(page.getByTestId('render-canvas')).toHaveAttribute(
+    'data-trace-texture-size',
+    '2048',
+    { timeout: 120000 },
+  );
+  expect(
+    Number(await page.getByTestId('render-canvas').getAttribute('data-trace-texture-bytes')),
+  ).toBeLessThanOrEqual(128 * 1024 * 1024);
   for (let i = 0; i < 3; i++) {
     if (i) await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
     await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {

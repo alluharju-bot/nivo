@@ -35,6 +35,32 @@
         "md5": "15c3269cb38cd3780893be023a315a52",
         "bytes": 347837
       }
+    },
+    "detailMaps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/coated_pine/coated_pine_diff_2k.jpg",
+        "file": "coated_pine/2k/color.jpg",
+        "md5": "2589f6ecab859532fb654ac73834a974",
+        "bytes": 2993766
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/coated_pine/coated_pine_nor_gl_2k.jpg",
+        "file": "coated_pine/2k/normal.jpg",
+        "md5": "d5052ba25f8c58f36d97db6562a80524",
+        "bytes": 2446492
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/coated_pine/coated_pine_rough_2k.jpg",
+        "file": "coated_pine/2k/roughness.jpg",
+        "md5": "33e14f2a6d459eb2ac1614c37f19c13d",
+        "bytes": 2011984
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/coated_pine/coated_pine_disp_2k.jpg",
+        "file": "coated_pine/2k/height.jpg",
+        "md5": "692af1eee046af1f9bc434c372748ca9",
+        "bytes": 1617428
+      }
     }
   },
   {
@@ -72,6 +98,32 @@
         "md5": "4f7dff5974628568e056edd33c0df9b3",
         "bytes": 23526
       }
+    },
+    "detailMaps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/oak_veneer_01_diff_2k.jpg",
+        "file": "oak_veneer_01/2k/color.jpg",
+        "md5": "0ad13b8daf8dc00318a437f56e54c484",
+        "bytes": 2831117
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/oak_veneer_01_nor_gl_2k.jpg",
+        "file": "oak_veneer_01/2k/normal.jpg",
+        "md5": "a6b8dd99a4407aa5dd24d5eee25492d3",
+        "bytes": 2429019
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/oak_veneer_01_rough_2k.jpg",
+        "file": "oak_veneer_01/2k/roughness.jpg",
+        "md5": "cacab0148320161ceced18ae909e3ada",
+        "bytes": 3968436
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/oak_veneer_01/oak_veneer_01_disp_2k.jpg",
+        "file": "oak_veneer_01/2k/height.jpg",
+        "md5": "6982aa32d3b152f0edd1fb5f56eab221",
+        "bytes": 72499
+      }
     }
   },
   {
@@ -108,6 +160,32 @@
         "file": "american_walnut_veneer/height.jpg",
         "md5": "7081945eaff4a6cff32a09e8fcd16eae",
         "bytes": 160293
+      }
+    },
+    "detailMaps": {
+      "color": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/american_walnut_veneer/american_walnut_veneer_diff_2k.jpg",
+        "file": "american_walnut_veneer/2k/color.jpg",
+        "md5": "c3db17b94fbd90a079a8bdc915cd5960",
+        "bytes": 2418767
+      },
+      "normal": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/american_walnut_veneer/american_walnut_veneer_nor_gl_2k.jpg",
+        "file": "american_walnut_veneer/2k/normal.jpg",
+        "md5": "a123f7e5b035243d77d453cd402fe78c",
+        "bytes": 1959270
+      },
+      "roughness": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/american_walnut_veneer/american_walnut_veneer_rough_2k.jpg",
+        "file": "american_walnut_veneer/2k/roughness.jpg",
+        "md5": "e9319bd840c79e64a043e299f2550ece",
+        "bytes": 2865130
+      },
+      "height": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/american_walnut_veneer/american_walnut_veneer_disp_2k.jpg",
+        "file": "american_walnut_veneer/2k/height.jpg",
+        "md5": "49a0364055b29a4a8e9c0fe4d978c4f0",
+        "bytes": 536954
       }
     }
   },
