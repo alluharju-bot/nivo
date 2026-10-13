@@ -6,7 +6,11 @@ Toisella laitteella kirjaudutaan samalla sähköpostilla ja avataan projekti pil
 
 ## Käyttöönotto
 
-Tietokantarakenne ja selainasiakas ovat repositoriossa. Tuotantopalvelua ei ole vielä yhdistetty: siihen tarvitaan pääsy Nivolle perustettavaan Supabase-projektiin sekä sen julkiset selainasetukset.
+Nivon oma Supabase-projekti on otettu käyttöön 13.10.2026 Tukholmassa. Tietokantamigraatio, yksityinen tiedostosäiliö, käyttäjäeristys ja kirjautumisen paluuosoitteet on asennettu ja tarkistettu. Julkiset selainasetukset ovat paikallisessa kehitysympäristössä ja Pages-julkaisun GitHub Actions Variables -asetuksissa.
+
+Kirjaudu projektikirjaston pilviosiossa samalla sähköpostilla kummallakin laitteella. Valitse ensimmäisellä laitteella **Synkronoi tämä projekti** ja avaa projekti toisella laitteella pilviprojektien listasta. Synkronointi otetaan käyttöön erikseen jokaiselle projektille.
+
+Käytössä on Supabasen oletusposti: kirjautumislinkki toimii vain Supabase-tiimin sähköpostiosoitteille. Avaa linkki samassa selaimessa, josta pyysit kirjautumista. Mukautettu suomenkielinen linkki-/koodiviesti on valmis repositoriossa, mutta sen käyttöönotto ja muiden käyttäjien kirjautuminen vaativat oman SMTP-palvelun. Sähköpostin toimitusta käyttäjän osoitteeseen ja kahden fyysisen laitteen kirjautumista ei ole vielä varmistettu.
 
 ### Valmisteltu käyttöönottokomento
 
@@ -26,7 +30,7 @@ Tietokantarakenne ja selainasiakas ovat repositoriossa. Tuotantopalvelua ei ole 
    node --experimental-strip-types --env-file=.env.supabase-setup.local scripts/setup-supabase.ts --apply --github
    ```
 
-Komento ajaa puuttuvat migraatiot, asettaa kirjautumisen paluuosoitteet ja suomenkieliset sähköpostipohjat (linkki ja vahvistuskoodi). Se tarkistaa kirjautumisasetukset uudelleen ja kirjoittaa vain julkisen URL:n ja publishable-avaimen `.env.local`-tiedostoon ja valinnaisesti GitHub Actions Variables -asetuksiin. Hallinta-avainta tai palvelimen salaisia vastauksia ei tulosteta. Migraatiohistoria estää saman migraation uusinnan seuraavalla ajolla. Komento säilyttää olemassa olevan SMTP-palvelun ja muut sallitut paluuosoitteet.
+Komento ajaa puuttuvat migraatiot ja asettaa kirjautumisen paluuosoitteet. Jos oma SMTP on määritetty, se asentaa myös suomenkieliset sähköpostipohjat (linkki ja vahvistuskoodi); oletuspostilla säilyy Supabasen oma viesti. Se tarkistaa kirjautumisasetukset uudelleen ja kirjoittaa vain julkisen URL:n ja publishable-avaimen `.env.local`-tiedostoon ja valinnaisesti GitHub Actions Variables -asetuksiin. Hallinta-avainta tai palvelimen salaisia vastauksia ei tulosteta. Migraatiohistoria estää saman migraation uusinnan seuraavalla ajolla. Komento säilyttää olemassa olevan SMTP-palvelun ja muut sallitut paluuosoitteet.
 
 Ilman omaa SMTP-palvelua Supabasen oletuslähetys on rajattu projektin tiimin osoitteisiin ja sillä on tiukat lähetysrajat. Yleiselle käyttäjäjoukolle tarvitaan oma lähetyspalvelu. Katso [Supabasen SMTP-ohje](https://supabase.com/docs/guides/auth/auth-smtp). Käyttöönotto ei hanki maksullista palvelua tai muuta olemassa olevia sähköpostitunnuksia.
 
@@ -63,5 +67,7 @@ Synkronointi siirtää kokonaisen projektin (sisältäen projektin omat tekstuur
 `npx playwright test --config=playwright.cloud.config.ts --headed` käynnistää erillisen paikallisen sovelluksen porttiin 5183 ja jäljittelee Supabase HTTP -palvelun testiselaimissa. Se testaa koodikirjautumisen, virheellisen koodin, uloskirjautumisen, kahden laitteen, offline-muutosten, rinnakkaisten versioiden, listan päivittymisen, uudelleenlatauksen ja toisen käyttäjän eristyksen käyttöliittymän läpi. Asiakasprojekteja ei lähetetä verkkoon.
 
 `npx vitest run src/cloud` sisältää lisäksi julkisten asetusten tarkistuksen sekä käyttöönottokomennon kuiva-ajon, migraatioiden uusinnan eston, muiden sovellusten suojaamisen ja virhetilanteiden testit. Hallinta-API jäljitellään näissä testeissä; ne eivät todista tuotantotilin käyttöoikeuksia tai sähköpostin toimitusta.
+
+13.10.2026 käyttöönotossa testattiin lisäksi oikea Supabase-palvelu kahdella erillisellä testikäyttäjällä sekä kahdella Chromium-kontekstilla. Käyttäjäeristys, projektin siirto, atominen versiotarkistus, offline-paluu ja molempien ristiriitaversioiden säilyttäminen läpäisivät kokeet. Testitilit ja testitiedostot poistettiin kokeiden jälkeen. Tämä ei vielä varmista sähköpostin toimitusta käyttäjän osoitteeseen tai fyysisten laitteiden selaimia.
 
 Viralliset lähteet: [sähköpostikirjautuminen](https://supabase.com/docs/guides/auth/auth-email-passwordless), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [tallennuksen käyttöoikeudet](https://supabase.com/docs/guides/storage/security/access-control), [tietokantafunktiot](https://supabase.com/docs/guides/database/functions).

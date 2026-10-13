@@ -2,11 +2,11 @@ import { expect, it, vi } from 'vitest';
 import { setupSupabase, managementApi, siteUrl } from '../../scripts/setup-supabase';
 
 const ref = 'abcdefghijklmnopqrst';
-function backend(name = 'Nivo') {
+function backend(name = 'Nivo', smtpHost = 'smtp.example.test') {
   const history: { name: string; version: string }[] = [];
   let auth: Record<string, unknown> = {
     uri_allow_list: 'http://localhost:5173/',
-    smtp_host: 'smtp.example.test',
+    smtp_host: smtpHost,
   };
   const keys = [{ type: 'secret', api_key: 'sb_secret_do_not_publish', name: 'server' }];
   const api = vi.fn(async (path: string, method = 'GET', body?: any): Promise<any> => {
@@ -66,6 +66,20 @@ it('applies migrations once, keeps SMTP and redirect settings and returns only a
   expect(
     b.api.mock.calls.filter(([path, method]) => path.endsWith('/api-keys') && method === 'POST'),
   ).toHaveLength(1);
+});
+it('configures default SMTP without attempting unsupported template customization', async () => {
+  const b = backend('Nivo', '');
+  const report = await setupSupabase(ref, b.api, true);
+  expect(report.applied).toBe(true);
+  expect(report.smtpConfigured).toBe(false);
+  expect(report.configuration?.kind).toBe('ready');
+  const patch = b.api.mock.calls.find(
+    ([path, method]) => path.endsWith('/config/auth') && method === 'PATCH',
+  )?.[2];
+  expect(patch).toMatchObject({ site_url: siteUrl, mailer_autoconfirm: false });
+  expect(Object.keys(patch).some((key) => key.startsWith('mailer_templates_'))).toBe(false);
+  expect(Object.keys(patch).some((key) => key.startsWith('mailer_subjects_'))).toBe(false);
+  expect(b.auth().smtp_host).toBe('');
 });
 it('a failed migration prevents publishing auth or browser settings', async () => {
   const b = backend();

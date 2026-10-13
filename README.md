@@ -7,7 +7,10 @@ Versio **0.40.3** valmistelee Supabasen käyttöönoton yhdellä komennolla:
 migraatiot, kirjautumisen paluuosoitteet, sähköpostin linkki ja koodi sekä
 julkiset selainasetukset. Pilviprojektin nimi ja versio päivittyvät listaan
 heti synkronoinnissa, ja koodikirjautumisen voi hyväksyä Enterillä.
-Tuotantopalvelun aktivointi odottaa Supabase-tiliyhteyttä.
+Nivon oma Supabase-palvelu on otettu käyttöön 13.10.2026. Projektikirjaston
+pilviosiossa voi kirjautua ja ottaa projektin synkronoinnin käyttöön.
+Aluksi sähköpostilinkit toimivat vain Supabase-tiimin osoitteilla; laajempi
+käyttö ja omat viestipohjat vaativat erillisen SMTP-palvelun.
 [Käyttöönotto](docs/cloud-sync.md).
 
 Versio **0.40.2** selkeyttää siirron tartuntaa. **Shift** päivittää viitehaun heti

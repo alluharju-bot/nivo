@@ -21,8 +21,21 @@ palvelujäljitelmällä. TypeScript ja `/nivo/`-tuotantobuild hyväksytty.
 - Kahden selainympäristön siirto, offline-muokkaus, rinnakkaisten versioiden
   säilytys, uudelleenlataus ja toisen tilin eristys. Pilviprojektilista päivittyy
   heti ensimmäisen tallennuksen ja nimen muutoksen yhteydessä. Kuvakaappaus tarkastettu.
-- Tuotantoa ei ole aktivoitu: Supabase-tiliyhteys ja tuotantoprojekti puuttuvat.
-  Oikeaa sähköpostitoimitusta tai todellista pilvitallennusta ei ole vielä testattu.
+- Käyttöönotto 13.10.2026: oma Supabase-projekti Tukholmassa, migraatiohistoria,
+  yksityinen säiliö ja käyttäjäkohtaiset oikeudet asennettu oikeaan palveluun.
+- Todellisen palvelun kokeet: kahden käyttäjän eristys, anonyymin estot,
+  tiedoston tallennus/lataus, rinnakkaisten tallennusten atominen versiotarkistus.
+- Kahden erillisen Chromium-kontekstin käyttöliittymäkoe oikealla Supabase-palvelulla:
+  projektin ensimmäinen synkronointi, avaaminen toisella laitteella, offline-muutos,
+  kilpaileva online-muutos, yhteyden paluu, ristiriita ja molempien versioiden
+  säilyttäminen myös uudelleenlatauksen jälkeen. Käytettiin vain testimallia.
+  Testitilit ja tiedostot poistettiin; palvelu tarkistettiin tyhjäksi kokeiden jälkeen.
+- Paluuosoitteet varmennettu hallinta-API:n lukupyynnöllä. Julkaisu käyttää vain
+  projektin julkista selainavainta. Omia viestipohjia ei yritetä asentaa ilman SMTP:tä;
+  käyttöönoton regressiotesti kattaa myös tämän Supabasen rajoituksen.
+- Sähköpostin toimitusta käyttäjän osoitteeseen ja kahta fyysistä laitetta ei ole
+  vielä testattu. Oletusposti sallii tiimin osoitteet ja käyttää Supabasen omaa
+  linkkiviestiä; suomenkielinen linkki-/koodipohja tarvitsee oman SMTP-palvelun.
 
 ## V0.40.2 — siirron Shift-viite
 

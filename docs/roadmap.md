@@ -12,8 +12,12 @@
 - Pilvilista päivittyy synkronoinnin yhteydessä. Käyttöönoton toistaminen ei korvaa
   saman projektin jo luotua pilvitunnistetta.
 - Build estää puutteellisen asetuksen ja salaisen ylläpitoavaimen päätymisen selaimeen.
-- Avoinna: Supabase-tiliyhteys, varsinainen tuotantoprojekti ja sähköpostitoimituksen
-  sekä kahden fyysisen laitteen käyttöönoton varmistus. Palvelua ei ole vielä aktivoitu.
+- Nivon oma Supabase-projekti, tietokanta ja yksityinen tiedostosäiliö otettu käyttöön
+  13.10.2026. Oikealla palvelulla testattu käyttäjäeristys, kahden selainympäristön
+  synkronointi, offline-paluu ja rinnakkaisten muutosten säilytys.
+- Avoinna: oman sähköpostin toimituksen ja kahden fyysisen laitteen kirjautumisen
+  varmistus. Oletusposti sallii vain Supabase-tiimin osoitteet; oma SMTP tarvitaan
+  laajemmalle käyttäjäjoukolle sekä suomenkieliseen linkki-/koodiviestiin.
 
 ## V0.40.2 — siirron Shift-viite
 
@@ -69,8 +73,9 @@
   ja pilviprojektin poistaminen. Nykyiset tiedostoversiot säilyvät muuttumattomina.
 - Suljettujen paikallisten projektien jonon synkronointi, nimettyjen vertailuversioiden
   siirto ja ristiriitojen vertailun suora avaaminen.
-- Oikean Supabase-projektin ja sähköpostitoimituksen käyttöönottotesti kahdella
-  fyysisellä laitteella. Paikalliset testit käyttävät eristettyä palvelujäljitelmää.
+- Oman SMTP-palvelun käyttöönotto, sähköpostitoimitus ja kirjautuminen kahdella
+  fyysisellä laitteella. Oikean Supabasen synkronointi on varmennettu kahdessa
+  erillisessä testiselaimen ympäristössä; palvelujäljitelmä säilyy regressiotesteissä.
 
 ## V0.39.0 — mittakuvien merkinnät ja projektiversioiden vertailu
 

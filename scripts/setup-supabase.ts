@@ -82,10 +82,15 @@ export async function setupSupabase(ref: string, api: Request, apply = false) {
     external_email_enabled: true,
     mailer_autoconfirm: false,
     disable_signup: false,
-    mailer_subjects_magic_link: 'Kirjaudu Nivoon',
-    mailer_subjects_confirmation: 'Tervetuloa Nivoon',
-    mailer_templates_magic_link_content: template,
-    mailer_templates_confirmation_content: template,
+    // Hosted Supabase only permits custom email templates with custom SMTP.
+    ...(report.smtpConfigured
+      ? {
+          mailer_subjects_magic_link: 'Kirjaudu Nivoon',
+          mailer_subjects_confirmation: 'Tervetuloa Nivoon',
+          mailer_templates_magic_link_content: template,
+          mailer_templates_confirmation_content: template,
+        }
+      : {}),
   });
   const keys = await api(`${base}/api-keys`);
   if (!Array.isArray(keys)) throw new Error('Julkisten avainten vastaus ei ollut kelvollinen.');
@@ -105,8 +110,9 @@ export async function setupSupabase(ref: string, api: Request, apply = false) {
     !verified.external_email_enabled ||
     verified.mailer_autoconfirm ||
     !redirectUrls.every((url) => String(verified.uri_allow_list).split(',').includes(url)) ||
-    !verified.mailer_templates_magic_link_content?.includes('{{ .Token }}') ||
-    !verified.mailer_templates_confirmation_content?.includes('{{ .Token }}')
+    (report.smtpConfigured &&
+      (!verified.mailer_templates_magic_link_content?.includes('{{ .Token }}') ||
+        !verified.mailer_templates_confirmation_content?.includes('{{ .Token }}')))
   )
     throw new Error('Kirjautumisasetusten tarkistus epäonnistui. Selainasetuksia ei julkaistu.');
   return { ...report, applied: true, configuration };
@@ -134,7 +140,7 @@ async function main() {
   console.log(JSON.stringify(summary, null, 2));
   if (!report.smtpConfigured)
     console.log(
-      'SMTP puuttuu: oletuspalvelu lähettää kirjautumisviestejä vain Supabase-tiimin osoitteisiin.',
+      'SMTP puuttuu: käytössä Supabasen oletusviesti ja kirjautumislinkki, vain tiimin osoitteisiin. Oma linkki-/koodipohja vaatii SMTP-palvelun.',
     );
   if (!configuration) return;
   const variables = {
