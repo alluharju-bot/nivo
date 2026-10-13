@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.41.0** parantaa tarkentuvan renderin kohinan pehmennystä myös kirkkailla
+pinnoilla. Pinta-, normaalikartta- ja syvyystieto suojaavat materiaalien yksityiskohtia.
+**Renderöi → Kuva → Kuvan ilme** tarjoaa realistisen peruskuvan lisäksi pehmeän
+hehkun, unenomaisen ja utuisen viimeistelyn. Niitä voi säätää valmiiseen kuvaan
+laskentaa aloittamatta alusta; sama ilme tallentuu myös PNG-kuviin.
+
 Versio **0.40.5** täydentää saman toiminnon osan muokkaustilaan: Bézier-käyrän
 ja kynäviivan sulkema rajaus voi luoda uuden pinnan myös osan avoimeen kohtaan,
 esimerkiksi altaan sisään. Pinta kuuluu muokattavaan osaan, ja sitä voi pursottaa

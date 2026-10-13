@@ -12,6 +12,7 @@ import {
 import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, createTraceLights, previewLightLimit } from './lights';
 import { progressiveRenderer, type TraceStatus } from './progressive';
+import { imageLook } from './imageLook';
 import { mirrorBacking } from './mirror';
 import { faceMaterialGroups, renderFaceMaterials } from './faceMaterials';
 import { faceMaterialBody } from '../model/faceMaterials';
@@ -126,9 +127,10 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   let disposed = false;
   let extent = 100,
     initialized = false;
+  const look = imageLook(current().settings);
   const draw = (materials = false, invalidate = true) => {
     if (disposed || renderer.getContext().isContextLost()) return;
-    renderer.render(scene, camera);
+    look.renderScene(renderer, scene, camera);
     if (invalidate) progressive.invalidate(false, materials);
     else progressive.display();
     canvas.dataset.camera = JSON.stringify({
@@ -151,6 +153,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       await environmentReady;
       await library.ready();
     },
+    look,
   );
   const library = createMaterialLibrary(() => {
     progressive.invalidate(false, true);
@@ -518,6 +521,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     previousEnvironment = settings.environment;
     renderer.toneMappingExposure = settings.exposure;
     renderer.toneMapping = imageToneMapping(settings.look);
+    look.configure(settings);
     if (renderer.shadowMap.enabled !== settings.shadows) renderer.shadowMap.needsUpdate = true;
     renderer.shadowMap.enabled = settings.shadows;
     if (setTraceShadows(scene, settings.shadows)) progressive.invalidate(false, true);
@@ -534,6 +538,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       sun: settings.sun ?? null,
       sunDirection: sunLighting.preview.position.clone().sub(center).normalize().toArray(),
       look: settings.look ?? 'standard',
+      lookStrength: settings.lookStrength ?? 0.5,
     });
     draw(false, false);
   };
@@ -643,6 +648,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         camera.aspect,
         renderer.toneMappingExposure,
         renderer.toneMapping,
+        current().settings,
       );
     },
     appearance(ids: string[], appearance: Appearance) {
@@ -695,7 +701,9 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       try {
         renderer.setPixelRatio(1);
         renderer.setSize(width, height, false);
-        draw();
+        // Still exports keep their requested resolution; only the interactive
+        // styled preview is capped to protect navigation on dense displays.
+        look.renderScene(renderer, scene, camera, Infinity);
         return await new Promise<Blob>((resolve, reject) =>
           canvas.toBlob(
             (blob) => (blob ? resolve(blob) : reject(new Error('Kuvan vienti epäonnistui.'))),
@@ -711,6 +719,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     dispose() {
       disposed = true;
       progressive.dispose();
+      look.dispose();
       observer.disconnect();
       cancelAnimationFrame(cameraFrame);
       controls.removeEventListener('change', cameraDraw);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { omitPreviewLights } from './lights';
 import { isTraceEnvironment } from './environment';
 import type { TraceMaterial } from './lighting';
+import type { ImageLookSettings } from './imageLook';
 
 export type RenderSnapshot = {
   scene: THREE.Scene;
@@ -9,6 +10,7 @@ export type RenderSnapshot = {
   aspect: number;
   exposure: number;
   toneMapping: THREE.ToneMapping;
+  look?: ImageLookSettings;
   dispose: () => void;
 };
 /** Own the copied resources so a model edit or leaving Render cannot alter an in-flight image. */
@@ -18,6 +20,7 @@ export function captureRenderScene(
   aspect: number,
   exposure: number,
   toneMapping: THREE.ToneMapping = THREE.ACESFilmicToneMapping,
+  look?: ImageLookSettings,
 ): RenderSnapshot {
   scene.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
@@ -77,6 +80,7 @@ export function captureRenderScene(
     aspect,
     exposure,
     toneMapping,
+    look: look ? { look: look.look, lookStrength: look.lookStrength } : undefined,
     dispose: () => {
       if (disposed) return;
       disposed = true;

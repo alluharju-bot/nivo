@@ -2,6 +2,25 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.41.0 — kirkkaiden pintojen kohina ja kuvan viimeistely
+
+- Kohinan pehmennys vertailee HDR-värien suhteellista eroa. Sama suhteellinen
+  kohina ei enää jää kirkkaalla pinnalla suodattamatta vain kirkkauden takia,
+  eikä pehmennys heikkene automaattisesti näytemäärän kasvaessa.
+- Kerran näkymän muuttuessa piirrettävät pinta-, normaali- ja syvyyskartat
+  suojaavat värejä, puunsyitä, pinnan reliefiä ja geometrian rajoja. Lasi- ja
+  peilipinnoissa suodatus on varovaisempi. Alkuperäisiä valonäytteitä ei muokata.
+- Kuvan ilme: Realistinen, Filminen, Pehmeä hehku, Unenomainen ja Utuinen.
+  Valinnaiset tehosteet säilyttävät terävän peruskuvan ja lisäävät hehkua/utua
+  sen päälle. Voimakkuuden säätö toimii myös valmiissa renderissä ilman uusia
+  valonäytteitä, ja nolla poistaa tehosteen kokonaan.
+- Ilme säilyy projektissa, nopeassa ja tarkentuvassa näkymässä sekä PNG-viennissä.
+  Taustalla laskettava kuva säilyttää käynnistyshetken ilmeen. Esikatselun
+  lisäpuskurit on rajattu; realistinen/filminen ilme ohittaa tehostepuskurit.
+- Jatkotyö: oikea tilallinen sumu, savu ja valokeilat tarvitsevat volumetrisen
+  valonkuljetuksen. Nykyinen utu on kuvan viimeistelyä. Kohinanpoiston seuraavia
+  vaiheita ovat varianssin arviointi sekä heijastusten ja läpinäkyvyyden lisäopasteet.
+
 ## V0.40.5 — suljetun rajauksen pinta osan muokkaustilassa
 
 - Muokkaustila erottaa olemassa olevan pinnan jakamisen ja uuden pinnan lisäämisen
@@ -1140,7 +1159,8 @@ vähentäminen, mitatut valotehot sekä suurten sisätilojen renderin suoritusky
 - Epäsuoran valon kohinan vähentäminen, peilausten laatutesti ja vaativan sisätilan
   suorituskykykoe. Suorakulmaisen LED:n kohdennettu näytteistys auttaa, mutta pieni
   valoaukko voi edelleen vaatia paljon näytteitä. V0.22:n kevyt reunat huomioiva
-  suodatus on ensimmäinen vaihe; normal-/albedo-ohjattu kohinanpoisto on jatkotyö.
+  suodatus sai V0.41:ssä suhteellisen HDR-vertailun ja normaali-/albedo-/syvyysopasteet.
+  Seuraavaksi valon varianssin ja heijastusten huomiointi vaativissa sisätiloissa.
 - V0.22 toi yhdeksän aitoa PBR-pintaa ja yhteisen HDRI-studion. Seuraavaksi
   lisää puu- ja kalustelevypintoja, valokuvavertailu ja suurempien materiaalien
   tarkkuuden valinta hallitulla muistibudjetilla sekä sisätilan valaistusopastus.

@@ -7,6 +7,8 @@ import { configureEmitterSampling } from './emitterSampling';
 import { traceResources } from './traceResources';
 import { traceResolutions } from './traceResolution';
 import { traceImage } from './traceImage';
+import { traceGuides } from './traceGuides';
+import type { ImageLook } from './imageLook';
 import { refinementSamples } from './traceRefinement';
 import { gpuQueue } from './gpuQueue';
 import { isTraceEnvironment } from './environment';
@@ -32,6 +34,7 @@ export function progressiveRenderer(
   camera: THREE.Camera,
   onStatus: (status: TraceStatus) => void,
   ready: () => Promise<void> = async () => {},
+  look?: ImageLook,
 ) {
   let tracer: WebGLPathTracer | undefined, environment: GradientEquirectTexture | undefined;
   let enabled = false,
@@ -52,6 +55,9 @@ export function progressiveRenderer(
   let resolution = 0,
     needsSize = true;
   const image = traceImage();
+  const guides = traceGuides();
+  const raster = () =>
+    look ? look.renderScene(renderer, scene, camera) : renderer.render(scene, camera);
   const queue = gpuQueue(renderer.getContext() as WebGL2RenderingContext);
   let batchTiles = 1;
   let samplingConfigured = false;
@@ -72,7 +78,7 @@ export function progressiveRenderer(
     enabled = false;
     cancelAnimationFrame(frame);
     renderer.setRenderTarget(null);
-    if (!renderer.getContext().isContextLost()) renderer.render(scene, camera);
+    if (!renderer.getContext().isContextLost()) raster();
     status('error', error instanceof Error ? error.message : String(error));
   };
   const resolutions = () => {
@@ -91,6 +97,7 @@ export function progressiveRenderer(
     renderer.domElement.dataset.traceSize = `${size.width}x${size.height}`;
     renderer.domElement.dataset.traceResolutionStep = String(resolution);
     renderer.domElement.dataset.traceResolutionSteps = String(sizes.length);
+    guides.invalidate();
     needsSize = false;
   };
   const rebuild = () => {
@@ -145,7 +152,14 @@ export function progressiveRenderer(
     tracer.updateLights();
     lightingDirty = false;
   };
-  const present = () => image.draw(renderer, options.denoise !== false);
+  const present = () => {
+    const size = image.size;
+    const guide =
+      size && options.denoise !== false && snapshot
+        ? guides.ensure(renderer, snapshot, camera, size[0], size[1])
+        : undefined;
+    image.draw(renderer, options.denoise !== false, look, guide);
+  };
   const initialize = () => {
     if (tracer) return;
     environment = new GradientEquirectTexture(128);
@@ -280,6 +294,7 @@ export function progressiveRenderer(
     needsSize = true;
     batchTiles = 1;
     image.clear();
+    guides.clear();
     if (tracer) tracer.pausePathTracing = false;
     tracer?.reset();
     renderer.domElement.dataset.traceSamples = '0';
@@ -358,7 +373,7 @@ export function progressiveRenderer(
       paused = false;
       cancelAnimationFrame(frame);
       status('off');
-      if (!renderer.getContext().isContextLost()) renderer.render(scene, camera);
+      if (!renderer.getContext().isContextLost()) raster();
     },
     release() {
       request++;
@@ -375,13 +390,14 @@ export function progressiveRenderer(
       disposeSnapshotGeometry?.();
       disposeSnapshotGeometry = undefined;
       image.clear();
+      guides.clear();
       samplingConfigured = false;
       dirty = true;
       needsSize = true;
       resolution = 0;
       delete renderer.domElement.dataset.tracePrepared;
       status('off');
-      if (!renderer.getContext().isContextLost()) renderer.render(scene, camera);
+      if (!renderer.getContext().isContextLost()) raster();
     },
     pause(value: boolean) {
       paused = value;
@@ -406,7 +422,7 @@ export function progressiveRenderer(
       if (enabled && tracer) {
         tracer.updateCamera();
         settleAt = performance.now() + 100;
-        if (paused) renderer.render(scene, camera);
+        if (paused) raster();
         reset(rebuildScene ? 'geometry' : updateMaterials ? 'material' : 'camera');
       }
     },
@@ -435,6 +451,7 @@ export function progressiveRenderer(
       queue.dispose();
       resources?.dispose();
       image.dispose();
+      guides.dispose();
       environment?.dispose();
       disposeSnapshotGeometry?.();
     },

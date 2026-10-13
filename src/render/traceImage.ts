@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { traceDenoise } from './traceDenoise';
+import type { DenoiseGuides } from './traceGuides';
+import type { ImageLook } from './imageLook';
 import { coarseImageWeight } from './traceRefinement';
 
 /** Keep the last complete sample visible while the next one is computed in
@@ -9,6 +11,7 @@ export function traceImage() {
   let target: THREE.WebGLRenderTarget | undefined;
   let coarse: THREE.WebGLRenderTarget | undefined;
   let samples = 0;
+  let filtered: THREE.WebGLRenderTarget | undefined;
   const copy = new THREE.ShaderMaterial({
     depthTest: false,
     depthWrite: false,
@@ -33,6 +36,9 @@ export function traceImage() {
   const quad = new FullScreenQuad(copy);
   const denoise = traceDenoise();
   return {
+    get size() {
+      return target ? ([target.width, target.height] as const) : undefined;
+    },
     get ready() {
       return !!target;
     },
@@ -67,23 +73,41 @@ export function traceImage() {
         copy.uniforms.coarse.value = null;
       }
     },
-    draw(renderer: THREE.WebGLRenderer, smooth: boolean) {
+    draw(renderer: THREE.WebGLRenderer, smooth: boolean, look?: ImageLook, guides?: DenoiseGuides) {
       if (!target) return;
-      // Keep filtering consistent across resolution changes; toggling it at
-      // eight samples caused a second visible jump after every upgrade.
-      if (smooth) denoise.draw(renderer, target.texture, samples);
-      else {
-        display.map = target.texture;
-        quad.material = display;
-        const previous = renderer.getRenderTarget();
-        renderer.setRenderTarget(null);
-        quad.render(renderer);
-        renderer.setRenderTarget(previous);
+      if (look?.active) {
+        if (smooth) {
+          filtered ??= new THREE.WebGLRenderTarget(target.width, target.height, {
+            type: THREE.HalfFloatType,
+            depthBuffer: false,
+          });
+          filtered.setSize(target.width, target.height);
+          denoise.draw(renderer, target.texture, samples, guides, filtered);
+          look.draw(renderer, filtered.texture);
+        } else {
+          filtered?.dispose();
+          filtered = undefined;
+          look.draw(renderer, target.texture);
+        }
+      } else {
+        filtered?.dispose();
+        filtered = undefined;
+        if (smooth) denoise.draw(renderer, target.texture, samples, guides);
+        else {
+          display.map = target.texture;
+          quad.material = display;
+          const previous = renderer.getRenderTarget();
+          renderer.setRenderTarget(null);
+          quad.render(renderer);
+          renderer.setRenderTarget(previous);
+        }
       }
     },
     clear() {
       target?.dispose();
       coarse?.dispose();
+      filtered?.dispose();
+      filtered = undefined;
       target = undefined;
       coarse = undefined;
       copy.uniforms.map.value = copy.uniforms.coarse.value = null;
@@ -93,6 +117,8 @@ export function traceImage() {
     dispose() {
       target?.dispose();
       coarse?.dispose();
+      filtered?.dispose();
+      filtered = undefined;
       target = undefined;
       coarse = undefined;
       quad.dispose();

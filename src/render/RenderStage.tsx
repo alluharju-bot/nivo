@@ -45,6 +45,7 @@ import type { ColorPreview } from '../model/colorPreview';
 import { downloadFile, safeFilename } from '../storage/projects';
 import { createRenderScene, materialNames, type RenderSettings } from './scene';
 import { LightingPanel } from './LightingPanel';
+import { ImageLookControls } from './ImageLookControls';
 import { SavedRenderViews } from './SavedRenderViews';
 import type { RenderView } from '../model/renderViews';
 
@@ -1126,24 +1127,12 @@ export function RenderStage(props: Props) {
               </div>
               <small>35 mm kennokoon vastaavuus. Pieni arvo näyttää laajemman kuvakulman.</small>
             </section>
-            <label className="image-look">
-              Kuvan ilme
-              <select
-                aria-label="Kuvan ilme"
-                value={effectiveSettings.look ?? 'standard'}
-                disabled={busy}
-                onChange={(e) =>
-                  void commitLighting({
-                    ...effectiveSettings,
-                    look: e.target.value as RenderSettings['look'],
-                  })
-                }
-              >
-                <option value="standard">Tasapainoinen</option>
-                <option value="filmic">Filminen</option>
-              </select>
-              <small>Filminen ilme pehmentää kirkkaita sävyjä ja säilyttää värien vivahteet.</small>
-            </label>
+            <ImageLookControls
+              settings={effectiveSettings}
+              busy={busy}
+              onPreview={previewLighting}
+              onCommit={(next) => void commitLighting(next)}
+            />
             <section className="trace-controls" aria-label="Tarkentuva renderöinti">
               <div className="trace-buttons">
                 <button

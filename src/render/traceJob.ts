@@ -4,6 +4,8 @@ import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
 import { configureEmitterSampling } from './emitterSampling';
 import { traceDenoise } from './traceDenoise';
+import { traceGuides } from './traceGuides';
+import { imageLook } from './imageLook';
 import { traceResources } from './traceResources';
 import { prepareTraceMaterials } from './traceMaterials';
 
@@ -58,6 +60,9 @@ export async function renderSnapshot(
     height = Math.max(1, Math.round(width / snapshot.aspect));
   const started = performance.now();
   const denoise = traceDenoise();
+  const guides = traceGuides();
+  const look = imageLook(snapshot.look);
+  let filtered: THREE.WebGLRenderTarget | undefined;
   const check = () => {
     if (signal.aborted) throw new DOMException('Renderöinti keskeytettiin.', 'AbortError');
   };
@@ -181,11 +186,17 @@ export async function renderSnapshot(
       }
     }
     report('saving');
-    tracer.renderToCanvas = true;
-    tracer.pausePathTracing = true;
-    tracer.renderSample();
-    if (options.denoise !== false && target >= 8)
-      denoise.draw(renderer, tracer.target.texture, target);
+    if (options.denoise !== false) {
+      const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
+      if (look.active) {
+        filtered = new THREE.WebGLRenderTarget(width, height, {
+          type: THREE.HalfFloatType,
+          depthBuffer: false,
+        });
+        denoise.draw(renderer, tracer.target.texture, target, guide, filtered);
+        look.draw(renderer, filtered.texture);
+      } else denoise.draw(renderer, tracer.target.texture, target, guide);
+    } else look.draw(renderer, tracer.target.texture);
     check();
     const blob = await new Promise<Blob>((resolve, reject) =>
       renderer!.domElement.toBlob(
@@ -204,6 +215,9 @@ export async function renderSnapshot(
     else tracer?.dispose();
     disposeSnapshotGeometry?.();
     denoise.dispose();
+    guides.dispose();
+    look.dispose();
+    filtered?.dispose();
     environment?.dispose();
     snapshot.dispose();
     renderer?.dispose();

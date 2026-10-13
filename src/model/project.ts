@@ -472,7 +472,8 @@ export const projectSchema = z
             environmentPower: z.number().finite().min(0).max(4).optional(),
             ground: z.boolean().optional(),
             studioSoftness: z.number().finite().min(0.1).max(3).optional(),
-            look: z.enum(['standard', 'filmic']).optional(),
+            look: z.enum(['standard', 'filmic', 'soft', 'dream', 'mist']).optional(),
+            lookStrength: z.number().finite().min(0).max(1).optional(),
             sun: z
               .object({
                 enabled: z.boolean(),

@@ -1,8 +1,38 @@
-# Validointi — 13.10.2026
+# Validointi — 14.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.41.0 — kohinanpoisto ja kuvan ilmeet
+
+568 yksikkö-/CAD-testiä hyväksytty; 4 yksityisen mallin testiä ohitettu.
+TypeScript ja `/nivo/`-tuotantobuild hyväksytty.
+
+- Deterministinen GPU-koe, 64/450/4096 näytteen näyttöasetukset: suhteellinen
+  RMSE 0,0870 → 0,0285 sekä tummalla (0,04) että kirkkaalla (8) HDR-pinnalla.
+  Aiemman suodattimen virhe 450 näytteellä oli vastaavasti 0,0469 ja 0,0870.
+  Tämä on synteettinen vertailu, ei lupaus kaikkien sisätilojen samasta parannuksesta.
+- Yhden pikselin syykuviokokeen kontrasti säilyi 1,202:ssa (tavoite 1,2),
+  samalla kohinan RMSE pieneni 0,1017 → 0,0407. Nolla WebGL-virhettä.
+- GPU-opasteiden välimuisti, materiaalien palautus ja puskurien vapautus tarkistettu.
+  Tehosteen nolla ja paluu realistiseen ilmeeseen tuottavat alkuperäisen kuvan.
+- Tuotannon käyttöliittymässä kaikki kolme uutta ilmettä, jatkuva voimakkuus,
+  samojen valonäytteiden ja geometrian säilyminen, projektin tallennus/avaus,
+  nopean kuvan PNG sekä taustarenderin käynnistyshetken ilme tarkistettu.
+- Materiaalin, valotuksen ja kameran olemassa olevat regressiot hyväksytty.
+  Laitteistokiihdytetty muistitesti: kolme esikatselu/vienti-kierrosta,
+  14 tekstuuria vapautuksen jälkeen joka kierroksella. Headless-ohjelmistopiirron
+  ensimmäinen muistiajo ylitti testin aikarajan; laitteistokiihdytetty ajo 11,9 s.
+- Materiaalikuva tarkastettu visuaalisesti 548 näytteellä: vaalea posliini,
+  puuviilun syyt ja messingin heijastus. 1 024 näytteen tarkistus saavutti tässä
+  erillisessä kokeessa 548 näytettä 120 sekunnin kohdalla; siitä ei tehdä
+  yleistä nopeuslupausta eikä väitetä 1 024 näytteen kuvaa valmistuneeksi.
+- Kynän paksuudettoman ympyrän tutkimus: keskipiste, neljännespisteet ja kaareva
+  reuna tarttuvat erillisen ympyrän muokkaustilassa sekä toisen pinnan päällä
+  perspektiivissä vaaka-, pysty- ja vinotasolla. Reunasta reunaan piirto jakaa
+  ympyrän pinnan. Käyttäjän ilmoittama tartunnan katoaminen ei toistunut näissä
+  neljässä tapauksessa; tämän ilmoituksen juurisyy on vielä avoin.
 
 ## V0.40.5 — käyrärajauksen täyttö osan muokkaustilassa
 
