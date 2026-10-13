@@ -8,28 +8,27 @@ test.skip(
 );
 const alice = '11111111-1111-4111-8111-111111111111',
   bob = '22222222-2222-4222-8222-222222222222';
-async function account(context: BrowserContext, owner: string) {
+function session(owner: string) {
   const encode = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
   const token = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: owner, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 7200 })}.fixture`;
+  return {
+    access_token: token,
+    refresh_token: 'fixture',
+    token_type: 'bearer',
+    expires_in: 7200,
+    expires_at: Math.floor(Date.now() / 1000) + 7200,
+    user: {
+      id: owner,
+      email: owner.slice(0, 4) + '@example.test',
+      aud: 'authenticated',
+      role: 'authenticated',
+    },
+  };
+}
+async function account(context: BrowserContext, owner: string) {
   await context.addInitScript(
-    ({ owner, token }) =>
-      localStorage.setItem(
-        'nivo-cloud-auth',
-        JSON.stringify({
-          access_token: token,
-          refresh_token: 'fixture',
-          token_type: 'bearer',
-          expires_in: 7200,
-          expires_at: Math.floor(Date.now() / 1000) + 7200,
-          user: {
-            id: owner,
-            email: owner.slice(0, 4) + '@example.test',
-            aud: 'authenticated',
-            role: 'authenticated',
-          },
-        }),
-      ),
-    { owner, token },
+    (value) => localStorage.setItem('nivo-cloud-auth', JSON.stringify(value)),
+    session(owner),
   );
 }
 async function library(page: Page) {
@@ -123,6 +122,8 @@ test('two devices, offline edits, conflict preservation, restart and account iso
   await a.getByRole('button', { name: 'Synkronoi tämä projekti', exact: true }).click();
   await expect(a.getByText('Tallessa pilvessä', { exact: true })).toBeVisible();
   expect(heads.size).toBe(1);
+  await expect(a.locator('.cloud-project-row')).toHaveCount(1);
+  await expect(a.locator('.cloud-project-row')).toContainText('Pilvitesti');
   await a.getByRole('button', { name: 'Sulje kirjasto' }).click();
   const bContext = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   await account(bContext, alice);
@@ -147,6 +148,7 @@ test('two devices, offline edits, conflict preservation, restart and account iso
   await library(page);
   await page.getByRole('button', { name: 'Synkronoi nyt', exact: true }).click();
   await expect(page.getByText('Tallessa pilvessä', { exact: true })).toBeVisible();
+  await expect(a.locator('.cloud-project-row')).toContainText('Desktop uudempi');
   await bContext.setOffline(false);
   await library(b);
   await b.getByRole('button', { name: 'Synkronoi nyt', exact: true }).click();
@@ -175,4 +177,62 @@ test('two devices, offline edits, conflict preservation, restart and account iso
     c.getByRole('button', { name: 'Synkronoi tämä projekti', exact: true }),
   ).toBeVisible();
   await other.close();
+});
+
+test('email code signs in with Enter, rejects a wrong code and signs out without losing the model', async ({
+  page,
+  context,
+}) => {
+  const sent: unknown[] = [],
+    checked: unknown[] = [];
+  await context.route('https://nivo-cloud.test/**', async (route) => {
+    const req = route.request(),
+      url = new URL(req.url());
+    const reply = (value: unknown, status = 200) =>
+      route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(value),
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-headers': '*',
+          'access-control-allow-methods': '*',
+        },
+      });
+    if (req.method() === 'OPTIONS') return reply({});
+    if (url.pathname === '/auth/v1/otp') {
+      sent.push(req.postDataJSON());
+      return reply({});
+    }
+    if (url.pathname === '/auth/v1/verify') {
+      const body = req.postDataJSON();
+      checked.push(body);
+      return body.token === '123456'
+        ? reply(session(alice))
+        : reply({ code: 'otp_expired', msg: 'Code expired' }, 403);
+    }
+    if (url.pathname === '/rest/v1/nivo_projects') return reply([]);
+    if (url.pathname === '/auth/v1/logout') return reply({});
+    return reply({ message: 'Unexpected ' + url.pathname }, 404);
+  });
+  await ready(page, [makeBody(200, 18, 600)]);
+  const dialog = await library(page);
+  await dialog.getByLabel('Sähköposti', { exact: true }).fill('1111@example.test');
+  await dialog.getByRole('button', { name: 'Lähetä kirjautumislinkki' }).click();
+  await expect(dialog.getByText('Kirjautumisviesti lähetetty.', { exact: false })).toBeVisible();
+  expect(sent).toHaveLength(1);
+  expect(sent[0]).toMatchObject({ email: '1111@example.test', code_challenge_method: 's256' });
+  await dialog.getByText('Kirjaudu sähköpostin koodilla', { exact: true }).click();
+  const code = dialog.getByLabel('Vahvistuskoodi', { exact: true });
+  await code.fill('000000');
+  await code.press('Enter');
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await code.fill('123456');
+  await code.press('Enter');
+  await expect(dialog.getByRole('button', { name: 'Kirjaudu ulos' })).toBeVisible();
+  expect(sent).toHaveLength(1);
+  expect(checked).toHaveLength(2);
+  await dialog.getByRole('button', { name: 'Kirjaudu ulos' }).click();
+  await expect(dialog.getByLabel('Sähköposti', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '1');
 });

@@ -4,6 +4,26 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.40.3 — Supabasen käyttöönoton valmistelu
+
+558 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.
+Kaksi pilven selaintestiä hyväksytty näkyvässä Chromiumissa erillisellä
+palvelujäljitelmällä. TypeScript ja `/nivo/`-tuotantobuild hyväksytty.
+
+- Käyttöönottokomennon kuiva-ajo ei muuta palvelua. Toisen sovelluksen projekti
+  hylätään. Migraatio suoritetaan vain kerran; epäonnistuminen estää seuraavat
+  käyttöönoton vaiheet. SMTP ja aiemmat paluuosoitteet säilyvät.
+- Julkisen asetuksen tarkistus hyväksyy publishable- ja anon-avaimen, estää
+  ylläpitoavaimet ja puutteellisen asetuksen. Salainen palvelinvastaus ei päädy
+  käyttöönoton virheilmoitukseen.
+- Koodikirjautuminen: PKCE-pyyntö, väärä koodi, oikea koodi Enterillä ilman uutta
+  sähköpostipyyntöä sekä uloskirjautuminen paikallisen mallin säilyessä.
+- Kahden selainympäristön siirto, offline-muokkaus, rinnakkaisten versioiden
+  säilytys, uudelleenlataus ja toisen tilin eristys. Pilviprojektilista päivittyy
+  heti ensimmäisen tallennuksen ja nimen muutoksen yhteydessä. Kuvakaappaus tarkastettu.
+- Tuotantoa ei ole aktivoitu: Supabase-tiliyhteys ja tuotantoprojekti puuttuvat.
+  Oikeaa sähköpostitoimitusta tai todellista pilvitallennusta ei ole vielä testattu.
+
 ## V0.40.2 — siirron Shift-viite
 
 40 selaintapausta hyväksytty (20 työpöytä, 20 tablettiprofiili).

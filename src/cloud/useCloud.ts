@@ -80,6 +80,13 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
     queue.current = next;
     return next;
   }, []);
+  const rememberHead = useCallback((head: CloudHead) => {
+    setEntries((old) =>
+      [head, ...old.filter((entry) => entry.id !== head.id)].sort((a, b) =>
+        b.updated_at.localeCompare(a.updated_at),
+      ),
+    );
+  }, []);
   const sync = useCallback(
     () =>
       run(async () => {
@@ -111,9 +118,10 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
           await writeBinding(b);
         });
         guard(owner);
+        if ('head' in next) rememberHead(next.head);
         if (current.current.project === state.project) setResult(next);
       }),
-    [run],
+    [run, rememberHead],
   );
   useEffect(() => {
     let stop = false;
@@ -164,7 +172,9 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
       if (!user) return;
       await flushSave();
       guard(user.id);
-      await writeBinding({ scope, localId: project.id, remoteId: uid() });
+      if (current.current.project.id !== project.id) return;
+      if (!(await readBinding(scope, project.id)))
+        await writeBinding({ scope, localId: project.id, remoteId: uid() });
       setPulse((n) => n + 1);
     });
   const pause = () =>
@@ -197,6 +207,7 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
         if (acknowledged) await writeBinding(acknowledged);
         setPulse((n) => n + 1);
         setResult(next);
+        if ('head' in next) rememberHead(next.head);
         setNotice('Molemmat versiot säilyivät pilvessä. Tämä malli jatkaa omana projektinaan.');
       }
     });
@@ -250,7 +261,9 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
           options: { emailRedirectTo: location.origin + import.meta.env.BASE_URL },
         });
         if (error) throw error;
-        setNotice('Kirjautumislinkki lähetetty sähköpostiin. Avaa se tässä selaimessa.');
+        setNotice(
+          'Kirjautumisviesti lähetetty. Avaa linkki tässä selaimessa tai syötä sähköpostin vahvistuskoodi.',
+        );
       }),
     verify: (email: string, token: string) =>
       run(async () => {

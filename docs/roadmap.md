@@ -2,6 +2,19 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.40.3 — Supabasen käyttöönoton valmistelu
+
+- Hallinta-API:n käyttöönottokomento: ensin kuiva-ajo, sitten puuttuvat migraatiot,
+  kirjautumisosoitteet ja sähköpostipohjat. Vain Nivon oma projekti hyväksytään.
+  SMTP-asetukset säilyvät; komento voi asettaa julkiset arvot GitHubiin.
+- Suomenkielinen kirjautumisviesti sisältää linkin sekä koodin toisella laitteella
+  luettavaa sähköpostia varten. Koodi hyväksytään Enterillä lähettämättä uutta viestiä.
+- Pilvilista päivittyy synkronoinnin yhteydessä. Käyttöönoton toistaminen ei korvaa
+  saman projektin jo luotua pilvitunnistetta.
+- Build estää puutteellisen asetuksen ja salaisen ylläpitoavaimen päätymisen selaimeen.
+- Avoinna: Supabase-tiliyhteys, varsinainen tuotantoprojekti ja sähköpostitoimituksen
+  sekä kahden fyysisen laitteen käyttöönoton varmistus. Palvelua ei ole vielä aktivoitu.
+
 ## V0.40.2 — siirron Shift-viite
 
 - Shift päivittää aktiivisen siirron viitteen heti myös ilman uutta hiiren liikettä.

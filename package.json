@@ -1,6 +1,6 @@
 {
   "name": "nivo-cad",
-  "version": "0.40.2",
+  "version": "0.40.3",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -8,6 +8,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "cloud:setup": "node --experimental-strip-types scripts/setup-supabase.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "format": "prettier --write .",

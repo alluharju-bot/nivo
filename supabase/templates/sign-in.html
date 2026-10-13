@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Kirjaudu Nivoon</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 32px;
+      background: #f5f6f2;
+      color: #233b32;
+      font-family: Arial, sans-serif;
+    "
+  >
+    <main
+      style="max-width: 480px; margin: auto; padding: 32px; background: white; border-radius: 16px"
+    >
+      <h1 style="margin-top: 0">nivo.</h1>
+      <h2>Omat projektisi, kaikilla laitteillasi.</h2>
+      <p>Avaa kirjautumislinkki siinä selaimessa, jossa aloitit kirjautumisen.</p>
+      <p style="margin: 28px 0">
+        <a
+          href="{{ .ConfirmationURL }}"
+          style="
+            padding: 14px 22px;
+            border-radius: 8px;
+            background: #287960;
+            color: white;
+            text-decoration: none;
+          "
+          >Kirjaudu Nivoon</a
+        >
+      </p>
+      <p>Jos luet sähköpostia toisella laitteella, syötä tämä koodi Nivon kirjautumisikkunaan:</p>
+      <p style="font-size: 28px; letter-spacing: 5px; font-weight: bold">{{ .Token }}</p>
+      <p style="color: #68786f; font-size: 14px">
+        Jos et pyytänyt kirjautumista, voit jättää viestin huomiotta. Älä jaa kirjautumislinkkiä tai
+        koodia muille.
+      </p>
+    </main>
+  </body>
+</html>

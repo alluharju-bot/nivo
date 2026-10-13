@@ -55,6 +55,13 @@ export function CloudProjects({
                 autoComplete="one-time-code"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!cloud.working && token.trim() && email.trim())
+                      void cloud.verify(email, token);
+                  }
+                }}
               />
             </label>
             <button

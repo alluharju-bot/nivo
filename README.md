@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.40.3** valmistelee Supabasen käyttöönoton yhdellä komennolla:
+migraatiot, kirjautumisen paluuosoitteet, sähköpostin linkki ja koodi sekä
+julkiset selainasetukset. Pilviprojektin nimi ja versio päivittyvät listaan
+heti synkronoinnissa, ja koodikirjautumisen voi hyväksyä Enterillä.
+Tuotantopalvelun aktivointi odottaa Supabase-tiliyhteyttä.
+[Käyttöönotto](docs/cloud-sync.md).
+
 Versio **0.40.2** selkeyttää siirron tartuntaa. **Shift** päivittää viitehaun heti
 myös paikallaan olevan kohdistimen alla. Poimittu piste ja sen nimi näkyvät
 viitekohteessa, ja katkoviiva yhdistää sen siirron päätepisteeseen. Valittu
