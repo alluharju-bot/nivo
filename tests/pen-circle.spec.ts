@@ -25,6 +25,7 @@ test('pen snaps to and splits a zero-thickness circle in part edit mode', async 
         return point ? Math.hypot(point[0] - x, point[1] - y, point[2]) : Infinity;
       })
       .toBeLessThan(0.0001);
+    await expect(canvas).toHaveAttribute('data-snap-key', new RegExp(circle.id));
   }
   await click(page, p(-200, 0));
   await click(page, p(200, 0));
@@ -77,5 +78,9 @@ for (const normal of [
           return point ? Math.hypot(...target.map((n, i) => n - point[i])) : Infinity;
         })
         .toBeLessThan(uv[0] === 120 ? 1 : 0.0001);
+      await expect(canvas).toHaveAttribute(
+        'data-snap-key',
+        new RegExp(`${circle.id}|${support.id}`),
+      );
     }
   });
