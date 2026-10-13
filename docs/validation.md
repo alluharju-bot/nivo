@@ -4,6 +4,30 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.40.2 — siirron Shift-viite
+
+40 selaintapausta hyväksytty (20 työpöytä, 20 tablettiprofiili).
+TypeScript ja `/nivo/`-tuotantobuild hyväksytty. Lisäksi perspektiivin
+viitekorostus ja sen poistuminen siirron jälkeen tarkistettu tuotantobuildissa
+molemmissa profiileissa (2 tapausta); työpöydän kuvakaappaus tarkastettu.
+
+- Toistettu aiempi ero: siirto tarjosi umpinaisen kappaleen keskipistettä
+  näkyvän pinnan keskipisteen sijaan, eikä Shift päivittänyt hakua paikallaan.
+  Viitemerkki puuttui kohdistimen alta, kun päätepiste oli eri kohdassa.
+- 45 mm pyöristetyn oven reuna poimitaan sekä ylhäältä että perspektiivissä.
+  Viite on eri korkeudessa ja eri sivulla kuin siirrettävän osan tartuntapiste;
+  vain valitun Y-akselin koordinaatti siirtyy. Kaaren mittaa ei pyöristetä
+  10 mm ruudukkoon, oven geometria säilyy ja Peru palauttaa siirretyn osan.
+- Pinnasta poimittu 148,625 mm korkeus säilyy täsmällisenä Z-siirrossa.
+  Shift toimii myös valmiiksi viitteen päällä; sen vapautus ennen hiiren
+  painiketta säilyttää mitan.
+- Regressiot: vino reunan suuntainen siirto, mittaviivan viite toisesta
+  tasosta, Ctrl-kopio ja toisto, kirjoitetut plus- ja miinusmitat, akselin
+  vaihto, Escape, ikkunavalinta ja Shift-monivalinta sekä pyöristettyyn
+  reunaan viittaavat suorakulmio- ja ympyrätyökalut.
+- Rei'itetyn kappaleen viitehaku ja siirto eivät kasvata geometrian
+  rakennuslaskuria tai luo ylimääräistä täyttä esikatselumeshia.
+
 ## V0.40.1 — mallilista, paikannus ja kaarevien reunojen Shift-viite
 
 24 työpöydän selaintapausta sekä 19 tablettiprofiilin tapausta hyväksytty.

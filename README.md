@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.40.2** selkeyttää siirron tartuntaa. **Shift** päivittää viitehaun heti
+myös paikallaan olevan kohdistimen alla. Poimittu piste ja sen nimi näkyvät
+viitekohteessa, ja katkoviiva yhdistää sen siirron päätepisteeseen. Valittu
+akseli tai vino siirtosuunta säilyy. Kohdepinnan keskipiste poimitaan pinnalta
+eikä kappaleen sisältä, ja kaarevan reunan tarkka osoitus ohittaa saman reunan
+viereisen segmentin kameran läheisyyden.
+
 Versio **0.40.1** muistaa mallilistan avatut ja suljetut ryhmät projektikohtaisesti
 samassa selaimessa myös välilehtien vaihdon ja sivun päivityksen yli. Mallista
 valittu osa tulee näkyviin listassa, sen oma ryhmäpolku avautuu ja korostuu.

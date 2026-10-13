@@ -2,6 +2,16 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.40.2 — siirron Shift-viite
+
+- Shift päivittää aktiivisen siirron viitteen heti myös ilman uutta hiiren liikettä.
+- Näkyvä viitepiste ja selite kohdistimen luona, erillinen siirron päätepiste
+  sekä niitä yhdistävä katkoviiva. Valittu akseli tai paikallinen vino suunta säilyy.
+- Kohteen keskipiste poimitaan näkyvältä pinnalta eikä umpinaisen kappaleen sisältä.
+  Tarkkoja viitteitä ei pyöristetä ruudukkoon.
+- Saman kappaleen kaarevan reunan segmenttien pisteytys seuraa osoitinta;
+  kameran etäisyysetu ei siirrä viitettä viereiseen segmenttiin.
+
 ## V0.40.1 — mallilistassa suunnistaminen ja pyöristetyn reunan viite
 
 - Projektikohtainen ryhmien sulkemismuisti selaimessa. Listan piilotus,

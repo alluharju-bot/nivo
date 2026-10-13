@@ -2073,6 +2073,11 @@ export function installInteractions({
     const found = candidates
       .sort(
         (a, b) =>
+          // Camera preference may choose between bodies, but must not walk
+          // along neighbouring segments of the same rounded boundary.
+          (a.edge && b.edge && a.bodyId === b.bodyId && Math.abs(a.distance - b.distance) > 1e-4
+            ? a.distance - b.distance
+            : 0) ||
           snapScore(a.distance, a.priority) +
             proximity(a.point) -
             snapScore(b.distance, b.priority) -
@@ -2380,7 +2385,7 @@ export function installInteractions({
     return add(start, scale(d.toArray() as Vec3, (w.dot(d) - w.dot(r.direction) * rd) / den));
   };
   const reference = () => heldReference ?? current().reference;
-  const show = (snap?: Snap, plane: WorkPlane = workPlane()) => {
+  const show = (snap?: Snap, plane: WorkPlane = workPlane(), picked?: Snap) => {
     const ref = reference();
     const hovered =
       !ref && !shiftDirection && !current().axis && current().tool !== 'measure'
@@ -2392,6 +2397,8 @@ export function installInteractions({
       hoverMarker.material.size = 16;
     }
     marker.visible = !!snap;
+    canvas.dataset.moveReference =
+      current().tool === 'move' && picked ? JSON.stringify(picked.point) : '';
     canvas.dataset.snapVisible = String(!!snap);
     if (!snap) canvas.dataset.snapPoint = '';
     canvas.dataset.snapKey = snap?.key ?? '';
@@ -2399,7 +2406,9 @@ export function installInteractions({
       canvas.dataset.snapPoint = JSON.stringify(snap.point);
       marker.position.set(...snap.point);
       marker.material.size = snap.key === 'grid' || snap.key === 'free' ? 12 : 16;
-      const p = screen(snap.point);
+      // A constrained move can end far from the pointer. Keep the acquired
+      // reference and its label at the point the user is actually aiming at.
+      const p = screen(picked?.point ?? snap.point);
       hint.hidden = false;
       hint.textContent = snap.label;
       hint.style.left = `${Math.min(container.clientWidth - 170, Math.max(8, p.x + 15))}px`;
@@ -2413,9 +2422,12 @@ export function installInteractions({
       hint.style.left = `${Math.min(container.clientWidth - 200, Math.max(8, p.x + 15))}px`;
       hint.style.top = `${Math.max(65, p.y - 30)}px`;
     }
-    referenceMarker.visible = !!ref;
+    referenceMarker.visible = !!picked || !!ref;
     const segments: number[] = [];
-    if (ref) {
+    if (picked) {
+      referenceMarker.position.set(...picked.point);
+      referenceMarker.material.size = 16;
+    } else if (ref) {
       referenceMarker.position.set(...ref.point);
       referenceMarker.material.size = 16;
       const p = [...ref.point] as Vec3;
@@ -4433,7 +4445,9 @@ export function installInteractions({
         ? linePoint(event, start, direction)
         : planePoint(event, drag.plane, start);
       if (!raw) return;
-      const target = moveSnapAt(event, false);
+      // Use the visible surface center, not the solid's hidden volume center,
+      // consistently with drawing, measurement and Push/Pull references.
+      const target = moveSnapAt(event, false, { surfaceCenters: true });
       let end: Vec3;
       let indication: Snap;
       if (target) {
@@ -4442,8 +4456,8 @@ export function installInteractions({
           ...target,
           point: end,
           label: direction
-            ? `${activeAxis?.toUpperCase() ?? 'Reunan suunta'} · Suunnan mitta · ${target.label}`
-            : `Tartunta · ${target.label}`,
+            ? `${activeAxis?.toUpperCase() ?? 'Reunan suunta'} · ${shift ? 'Shift-viite' : 'Suunnan mitta'} · ${target.label}`
+            : `${shift ? 'Shift-viite' : 'Tartunta'} · ${target.label}`,
           line: direction ? [target.point, end] : undefined,
         };
       } else {
@@ -4465,7 +4479,7 @@ export function installInteractions({
         };
       }
       hoveredReference = undefined;
-      show(indication, drag.plane);
+      show(indication, drag.plane, target);
       canvas.dataset.moveSnap = indication.key;
       canvas.dataset.moveEnd = JSON.stringify(end);
       showMoveAxis(direction, start, end);
@@ -4874,6 +4888,9 @@ export function installInteractions({
             const d = sub(p, drag.start);
             shiftDirection = drag.moveDirection ?? (Math.hypot(...d) > 1e-6 ? unit(d) : undefined);
           }
+          // Pressing Shift must acquire the reference immediately even when
+          // the cursor is already over it and has not moved again.
+          move(lastEvent);
         }
         return;
       }
