@@ -1,5 +1,39 @@
 # Suorituskyky
 
+## V0.41.1 — synkronoinnin ja kynäesikatselun pysähdykset, 14.10.2026
+
+Yksityisen projektin paikallinen kopio: 625 osaa, 6,83 Mt JSON. Apple M1 Pro,
+16 Gt, näkyvä Chromium 153 / ANGLE Metal. Asiakasmallia tai tunnistetietoja
+ei tallenneta repoon. Synkronoinnin laskentavertailu käytti paikallista
+IndexedDB:tä ja muistissa toimivaa etäpalvelua, ei asiakkaan pilvikirjoituksia.
+
+| Mittaus                                               |      Ennen |               Jälkeen |
+| ----------------------------------------------------- | ---------: | --------------------: |
+| Muuttumattoman mallin synkronointitarkistus, 3/2 ajoa | 361–386 ms |          18,8–18,9 ms |
+| Tarkistuksen pitkät pääsäikeen tehtävät               | 343–362 ms | ei yli 50 ms tehtäviä |
+| Kynän osoitin peilin lähinäkymässä, mediaani          |      50 ms |                 25 ms |
+| Sama kynäajo, p95                                     |      75 ms |               42,5 ms |
+| Sama kynäajo, yli 32 ms ruutuja / 350                 |        349 |                    96 |
+
+Ensimmäinen worker-tarkistus kesti kehityspalvelimella 504 ms seinäkelloaikaa
+sisältäen workerin käynnistyksen. Raskas JSON-validointi ja kolme sisältölaskentaa
+suoritettiin taustalla, eivät selaimen pääsäikeessä. Uusi malli on edelleen
+siirrettävä kokonaan verkon yli, joten tämä ei ole verkkosiirron nopeusmittaus.
+Viimeisen muuttumattoman mallin välimuisti poistaa toistuvan laskennan.
+
+Kynän mittauksessa sama perspektiivikamera, 1728 × 1117 CSS-pikseliä,
+DPR 2 ja 360 osoitinliikettä; ensimmäiset 10 ruutua hylätty. Valmis mittaviivasto
+luotiin aiemmin uudelleen joka kynän osoitinmuutoksella. CPU-profiilissa
+`getProgramInfoLog` vei ennen 8,3 sekuntia; toistuva ohjelmien kääntäminen
+poistui korjauksessa. Valinnan ja siirron lähinäkymä pysyi noin 25 ms:ssa.
+Koko mallin orbit oli jo ennen korjausta 8,3 ms mediaani / 16,7 ms p95.
+Kameran jatkuva piirtokuorma on eri asia kuin synkronoinnin toistuva pysähdys.
+
+Paikallinen historiapaketti (30 koemuokkausta) kesti tässä mallissa 76–82 ms
+ja paikallinen tallennus 59–82 ms seinäkelloaikaa ennen korjausta. Niitä ei
+muutettu tässä korjauksessa; ne voivat yhä tuntua erillisenä viiveenä muutosta
+hyväksyttäessä. Tiheän geometrian kynän tartuntahaku jättää myös jatko-optimoitavaa.
+
 ## V0.37.0 — usean projektin kirjasto, 13.10.2026
 
 Projektikirjaston kortit luetaan erillisestä IndexedDB-metatietotaulusta.

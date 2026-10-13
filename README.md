@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.41.1** vähentää mallintamisen aikaisia pysähdyksiä. Pilvisynkronointi
+odottaa kahdeksan sekunnin työskentelytaukoa ja tarkistaa mallin taustasäikeessä.
+Muuttumattoman mallin sisältötunnistetta ei lasketa uudelleen joka tarkistuksella.
+Kynän esikatselu säilyttää valmiiden mittaviivojen grafiikan osoittimen liikkuessa.
+
 Versio **0.41.0** parantaa tarkentuvan renderin kohinan pehmennystä myös kirkkailla
 pinnoilla. Pinta-, normaalikartta- ja syvyystieto suojaavat materiaalien yksityiskohtia.
 **Renderöi → Kuva → Kuvan ilme** tarjoaa realistisen peruskuvan lisäksi pehmeän

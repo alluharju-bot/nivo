@@ -1,6 +1,8 @@
 # Pilvisynkronoinnin ensimmäinen versio
 
-Nivo tallentaa ensin selaimeen. Käyttäjä ottaa synkronoinnin käyttöön projektikirjaston kohdasta **Synkronoi tämä projekti**. Kirjautuminen ei lähetä muita selaimessa olevia projekteja. Avoimen projektin muutokset siirtyvät kolmen sekunnin työskentelytauon jälkeen; yhteyden paluu, ikkunaan palaaminen ja 30 sekunnin tarkistus jatkavat kesken jäänyttä synkronointia. Suljetut paikalliset projektit synkronoidaan, kun ne avataan.
+Nivo tallentaa ensin selaimeen. Käyttäjä ottaa synkronoinnin käyttöön projektikirjaston kohdasta **Synkronoi tämä projekti**. Kirjautuminen ei lähetä muita selaimessa olevia projekteja. Avoimen projektin muutokset siirtyvät kahdeksan sekunnin työskentelytauon jälkeen; yhteyden paluu, ikkunaan palaaminen ja 30 sekunnin tarkistus jatkavat kesken jäänyttä synkronointia. Nämä tarkistukset eivät ohita työskentelytaukoa eivätkä kasaa lähetysjonoa hitaalla yhteydellä. **Synkronoi nyt** toimii heti. Suljetut paikalliset projektit synkronoidaan, kun ne avataan.
+
+Mallin validointi ja siirrettävä SHA-256-sisältötunniste lasketaan erillisessä Web Workerissa. Viimeisen muuttumattoman mallin tarkistustulos käytetään uudelleen; paikallinen tallenne luetaan silti ennen synkronointia, jotta toisen välilehden muutos havaitaan. Paikallinen automaattitallennus ja pilven ristiriitasuojaus säilyvät ennallaan.
 
 Toisella laitteella kirjaudutaan samalla sähköpostilla ja avataan projekti pilvilistasta. Avaaminen tekee oman paikallisen tallenteen: aiempi malli ja sen toimintohistoria säilyvät kirjastossa. Pilvessä muuttunutta mallia ei vaihdeta kesken työskentelyn automaattisesti. Jos molemmat laitteet muokkaavat yhteisen version jälkeen, näkymä tarjoaa pilviversion avaamista tai oman version säilyttämistä erillisenä pilviprojektina. Osien automaattista yhdistämistä ei tehdä.
 

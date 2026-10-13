@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { Project } from '../model/project';
 import { uid } from '../model/project';
@@ -7,8 +7,9 @@ import { readBinding, writeBinding, removeBinding } from './bindings';
 import { supabaseRemote } from './remote';
 import { synchronizeProject } from './sync';
 import type { CloudBinding, CloudHead, SyncResult } from './types';
-import { loadLocalSession, type LocalSession } from '../storage/projects';
-import { projectRevision } from '../storage/projectTransfer';
+import { loadSavedProject, type LocalSession } from '../storage/projects';
+import { CloudSnapshot } from './snapshot';
+import { SyncScheduler } from './scheduler';
 import { saveRevision } from '../storage/revisions';
 
 export function useCloud(project: Project, flushSave: () => Promise<void>) {
@@ -23,11 +24,14 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
   const current = useRef({ project, flushSave, user });
   current.current = { project, flushSave, user };
   const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const snapshot = useRef<CloudSnapshot>(null);
+  snapshot.current ??= new CloudSnapshot();
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      snapshot.current?.dispose();
     };
   }, []);
   useEffect(() => {
@@ -87,7 +91,7 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
       ),
     );
   }, []);
-  const sync = useCallback(
+  const performSync = useCallback(
     () =>
       run(async () => {
         const state = current.current;
@@ -97,32 +101,48 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
         await state.flushSave();
         guard(owner);
         if (current.current.project.id !== state.project.id) return;
-        const saved = await loadLocalSession(state.project.id, false);
-        if (
-          !saved ||
-          (await projectRevision(saved.project)) !== (await projectRevision(state.project))
-        )
-          throw new Error(
-            'Projektia on muutettu toisessa välilehdessä. Avaa uusin paikallinen versio ennen synkronointia.',
-          );
         if (current.current.project !== state.project) return;
         const binding = await readBinding(account, state.project.id);
         if (!binding) {
           setResult({ kind: 'disabled' });
           return;
         }
-        const remote = supabaseRemote(await cloudClient(), owner);
-        const next = await synchronizeProject(state.project, binding, remote, async (b) => {
-          guard(owner);
-          // A queued pause must finish after this acknowledgement, not before it.
-          await writeBinding(b);
+        const saved = await loadSavedProject(state.project.id);
+        if (!saved) throw new Error('Tallenna paikallinen malli ennen synkronointia.');
+        const hash = await snapshot.current!.prepare({
+          project: state.project,
+          saved,
+          remoteId: binding.remoteId,
         });
+        guard(owner);
+        if (current.current.project !== state.project) return;
+        const remote = supabaseRemote(await cloudClient(), owner);
+        const next = await synchronizeProject(
+          state.project,
+          binding,
+          remote,
+          async (b) => {
+            guard(owner);
+            // A queued pause must finish after this acknowledgement, not before it.
+            await writeBinding(b);
+          },
+          hash,
+        );
         guard(owner);
         if ('head' in next) rememberHead(next.head);
         if (current.current.project === state.project) setResult(next);
       }),
     [run, rememberHead],
   );
+  const scheduler = useMemo(
+    () => new SyncScheduler(performSync, () => document.visibilityState === 'visible'),
+    [performSync, scope, project.id, enabled],
+  );
+  useEffect(() => {
+    scheduler.activate();
+    return () => scheduler.dispose();
+  }, [scheduler]);
+  const sync = useCallback(() => scheduler.now(), [scheduler]);
   useEffect(() => {
     let stop = false;
     setEnabled(false);
@@ -143,13 +163,12 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
   useEffect(() => {
     if (!enabled || !user) return;
     setResult({ kind: 'pending' });
-    const timer = window.setTimeout(() => void sync(), 3000);
-    return () => clearTimeout(timer);
-  }, [project, enabled, user?.id, sync]);
+    scheduler.changed();
+  }, [project, enabled, user?.id, scheduler]);
   useEffect(() => {
     if (!enabled || !user) return;
     const refresh = () => {
-      if (document.visibilityState === 'visible') void sync();
+      if (document.visibilityState === 'visible') scheduler.check();
     };
     const timer = window.setInterval(refresh, 30000);
     window.addEventListener('online', refresh);
@@ -159,7 +178,7 @@ export function useCloud(project: Project, flushSave: () => Promise<void>) {
       window.removeEventListener('online', refresh);
       window.removeEventListener('focus', refresh);
     };
-  }, [enabled, user?.id, sync]);
+  }, [enabled, user?.id, scheduler]);
   const refresh = () =>
     run(async () => {
       if (!user) return;

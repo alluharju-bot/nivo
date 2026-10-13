@@ -4,6 +4,28 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.41.1 — pilvisynkronoinnin ja kynän viiveet
+
+574 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.
+TypeScript ja `/nivo/`-tuotantobuild hyväksytty.
+
+- Pilven eristetty selainkoe: kahden laitteen ristiriita, offline-muutokset,
+  rinnakkaisen version säilyminen, uudelleenkäynnistys, tilien eristys ja OTP.
+- Automaattinen lähetys odottaa kahdeksan sekunnin tauon. Fokus/online eivät
+  ohita viivettä. Useat muutokset tuottavat yhden uusimman lähetyksen;
+  käsisynkronointi ohittaa viiveen. Muuttumaton tarkistus ei lataa uutta tiedostoa.
+- Workerin laskema tunniste verrattu ladatun tiedoston alkuperäiseen
+  SHA-256-tunnisteeseen. Toisen välilehden tallennus estää vanhan mallin lähetyksen
+  myös välimuistiin jo tarkistetulla projektilla.
+- Ajastimen yksikkökokeissa myös hidas keskeneräinen lähetys, sen aikaiset
+  muutokset, piilotettu välilehti, projektin poistuminen ja efektin uudelleenkäynnistys.
+- Tuotantoselaimessa kynän esikatselu säilyttää mittaviivan DOM-elementin
+  osoittimen liikkuessa, tarttuu sen tarkkaan tasoon ja siivoaa luonnoksen Escillä.
+  Paksuudettoman ympyrän neljä tartuntatapausta ja mittaviivojen valinta,
+  risteystartunta sekä kumitus/peru/uudelleenavaus hyväksytty.
+- Yksityisen 625 osan mallin ennen/jälkeen-mittaukset: [suorituskyky](performance.md).
+  Testimallia ei tallennettu repoon eikä testillä kirjoitettu asiakkaan pilveen.
+
 ## V0.41.0 — kohinanpoisto ja kuvan ilmeet
 
 568 yksikkö-/CAD-testiä hyväksytty; 4 yksityisen mallin testiä ohitettu.

@@ -63,6 +63,7 @@ interface SceneApi {
   preview: () => void;
   command: (command: CameraCommand) => void;
   annotations: () => void;
+  penAnnotations: () => void;
   interactionSync: () => void;
   dimensionDisplay: () => void;
   markupDisplay: () => void;
@@ -199,7 +200,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     );
     bodyBatches.updateVisibility();
     moveBatches.updateVisibility();
-    for (const marker of guides.children) {
+    for (const marker of [...guides.children, ...penGuides.children]) {
       if (!marker.userData.annotationPoint) continue;
       const p = marker.position.clone().project(camera);
       marker.visible =
@@ -1242,6 +1243,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   const guides = new THREE.Group();
   scene.add(guides);
+  const penGuides = new THREE.Group();
+  scene.add(penGuides);
+  const annotationCount = () => {
+    renderer.domElement.dataset.annotationPoints = String(
+      [...guides.children, ...penGuides.children].filter(
+        (object) => object.userData.annotationPoint,
+      ).length,
+    );
+  };
   const annotations = () => {
     disposeGroup(guides);
     labels.forEach((l) => l.element.remove());
@@ -1341,60 +1351,78 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         guides.add(marker);
       }
     }
+    annotationCount();
+    render();
+  };
+  // Keep guide geometry, labels, textures and GPU programs alive while the
+  // pointer moves. Only the active pen path changes, never the saved guides.
+  const penPath = new Line2(
+    new LineGeometry(),
+    new LineMaterial({
+      color: '#237b65',
+      linewidth: 2.5,
+      depthTest: false,
+      depthWrite: false,
+    }),
+  );
+  penPath.renderOrder = 90;
+  penPath.visible = false;
+  const penHandles = new Line2(
+    new LineGeometry(),
+    new LineMaterial({
+      color: '#df741f',
+      linewidth: 1,
+      dashed: true,
+      dashSize: 8,
+      gapSize: 5,
+      depthTest: false,
+    }),
+  );
+  penHandles.renderOrder = 91;
+  penHandles.visible = false;
+  penGuides.add(penPath, penHandles);
+  const penMarkers: ReturnType<typeof pointMarker>[] = [];
+  const penAnnotations = () => {
+    const props = current();
     renderer.domElement.dataset.penPoints = JSON.stringify(props.penPoints);
     renderer.domElement.dataset.penHover = JSON.stringify(props.penHover ?? null);
-    if (props.penPoints.length) {
-      const points = [...props.penPoints];
-      if (props.penHover) points.push(props.penHover);
-      if (points.length > 1) {
-        const geometry = new LineGeometry();
-        geometry.setPositions(
-          (props.penMode === 'bezier'
-            ? sampleBezier(props.bezierStyle === 'smooth' ? throughPoints(points) : points)
-            : points
-          ).flat(),
-        );
-        const path = new Line2(
-          geometry,
-          new LineMaterial({
-            color: '#237b65',
-            linewidth: 2.5,
-            depthTest: false,
-            depthWrite: false,
-            resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
-          }),
-        );
-        path.renderOrder = 90;
-        guides.add(path);
-      }
-      if (props.penMode === 'bezier' && props.bezierStyle === 'bezier' && points.length > 1) {
-        const geometry = new LineGeometry();
-        geometry.setPositions(points.flat());
-        const handles = new Line2(
-          geometry,
-          new LineMaterial({
-            color: '#df741f',
-            linewidth: 1,
-            dashed: true,
-            dashSize: 8,
-            gapSize: 5,
-            depthTest: false,
-            resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
-          }),
-        );
-        handles.computeLineDistances();
-        handles.renderOrder = 91;
-        guides.add(handles);
-      }
-      props.penPoints.forEach((p, i) => {
+    const points = [...props.penPoints];
+    if (points.length && props.penHover) points.push(props.penHover);
+    penPath.visible = points.length > 1;
+    penHandles.visible =
+      points.length > 1 && props.penMode === 'bezier' && props.bezierStyle === 'bezier';
+    if (penPath.visible) {
+      penPath.geometry.dispose();
+      penPath.geometry = new LineGeometry().setPositions(
+        (props.penMode === 'bezier'
+          ? sampleBezier(props.bezierStyle === 'smooth' ? throughPoints(points) : points)
+          : points
+        ).flat(),
+      );
+      penPath.material.resolution.set(container.clientWidth, container.clientHeight);
+    }
+    if (penHandles.visible) {
+      penHandles.geometry.dispose();
+      penHandles.geometry = new LineGeometry().setPositions(points.flat());
+      penHandles.computeLineDistances();
+      penHandles.material.resolution.set(container.clientWidth, container.clientHeight);
+    }
+    while (penMarkers.length > props.penPoints.length) {
+      const marker = penMarkers.pop()!;
+      penGuides.remove(marker);
+      marker.geometry.dispose();
+      disposeMaterial(marker.material);
+    }
+    props.penPoints.forEach((p, i) => {
+      if (!penMarkers[i]) {
         const marker = pointMarker(p, i === 0 ? '#f0a12c' : '#237b65', i === 0 ? 14 : 12);
         marker.userData = { annotationPoint: true, xray: true };
-        guides.add(marker);
-      });
-    }
-    renderer.domElement.dataset.annotationPoints = String(
-      guides.children.filter((object) => object.userData.annotationPoint).length,
-    );
+        penMarkers.push(marker);
+        penGuides.add(marker);
+      }
+      penMarkers[i].position.set(...p);
+    });
+    annotationCount();
     render();
   };
   const setProjection = (projection: 'perspective' | 'orthographic') => {
@@ -1703,6 +1731,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     sync,
     workspaceViews: workspaceViews.sync,
     annotations,
+    penAnnotations,
     interactionSync: () => {
       interactions.sync();
       knife.sync();
@@ -1729,6 +1758,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       knife.dispose();
       interactions.dispose();
       disposeGroup(guides);
+      disposeGroup(penGuides);
       labels.forEach((l) => l.element.remove());
       extrusionLabels.forEach((l) => l.element.remove());
       locateHighlight.dispose();
@@ -1902,14 +1932,14 @@ export function Viewport(props: Props) {
     ],
   );
   useEffect(
+    () => api.current?.penAnnotations(),
+    [props.penPoints, props.penMode, props.bezierStyle, props.penHover],
+  );
+  useEffect(
     () => api.current?.annotations(),
     [
       props.guides,
       props.guidePreview,
-      props.penPoints,
-      props.penMode,
-      props.bezierStyle,
-      props.penHover,
       props.bodies,
       props.meshes,
       props.guideXray,

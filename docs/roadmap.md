@@ -2,6 +2,20 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.41.1 — mallinnuksen toistuvat pysähdykset
+
+- Pilven automaattinen lähetys kahdeksan sekunnin työskentelytauon jälkeen.
+  Tarkistusajastin, ikkunaan paluu ja verkon palautuminen käyttävät samaa jonoa.
+  Hidas lähetys ei kerää päällekkäisiä tarkistuksia; käsisynkronointi toimii heti.
+- Paikallisen mallin vastaavuus ja pilven sisältötunniste tarkistetaan workerissa.
+  Muuttumattoman mallin tunniste käytetään uudelleen, toisen välilehden kirjoitus
+  tarkistetaan edelleen ja alkuperäinen tiedosto-/pilviversioiden tunniste säilyy.
+- Kynän liikkuva esikatselu on erotettu valmiista mittaviivoista. Osoittimen liike
+  ei luo niiden tekstejä, tekstuureja tai shader-ohjelmia uudelleen.
+- Mitattu käyttäjän 625 osan mallin paikallisella kopiolla. Jatkoseuranta:
+  suuren mallin historiatallennus ja tiheän geometrian tartuntahaku ovat yhä
+  mahdollisia erillisiä kuormituskohtia; tätä korjausta ei pidetä niiden ratkaisuna.
+
 ## V0.41.0 — kirkkaiden pintojen kohina ja kuvan viimeistely
 
 - Kohinan pehmennys vertailee HDR-värien suhteellista eroa. Sama suhteellinen

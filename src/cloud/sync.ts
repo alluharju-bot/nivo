@@ -9,9 +9,10 @@ export async function synchronizeProject(
   binding: CloudBinding,
   remote: CloudRemote,
   acknowledge: (binding: CloudBinding) => Promise<void>,
+  verifiedHash?: string,
 ): Promise<SyncResult> {
   const snapshot = { ...project, id: binding.remoteId };
-  const hash = await projectRevision(snapshot);
+  const hash = verifiedHash ?? (await projectRevision(snapshot));
   const head = await remote.head(binding.remoteId);
   if (!head && binding.baseRevision) return { kind: 'missing' };
   if (head?.hash === hash) {

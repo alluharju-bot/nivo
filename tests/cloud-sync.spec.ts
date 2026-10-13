@@ -2,6 +2,7 @@ import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { ready } from './helpers';
 import { makeBody } from '../src/model/project';
 import type { CloudHead } from '../src/cloud/types';
+import { projectRevision } from '../src/storage/projectRevision';
 test.skip(
   ({ baseURL }) => !baseURL?.includes(':5183'),
   'Run with the isolated cloud fixture server.',
@@ -35,11 +36,7 @@ async function library(page: Page) {
   await page.getByRole('button', { name: 'Projektikirjasto', exact: true }).click();
   return page.getByRole('dialog', { name: 'Projektikirjasto', exact: true });
 }
-test('two devices, offline edits, conflict preservation, restart and account isolation', async ({
-  browser,
-  page,
-  context,
-}) => {
+function cloudBackend() {
   const heads = new Map<string, CloudHead>(),
     files = new Map<string, string>();
   async function backend(c: BrowserContext) {
@@ -112,6 +109,14 @@ test('two devices, offline edits, conflict preservation, restart and account iso
       return respond({ message: 'Unhandled ' + url.pathname }, 404);
     });
   }
+  return { heads, files, backend };
+}
+test('two devices, offline edits, conflict preservation, restart and account isolation', async ({
+  browser,
+  page,
+  context,
+}) => {
+  const { heads, backend } = cloudBackend();
   await account(context, alice);
   await backend(context);
   await ready(page, [makeBody(200, 18, 600)]);
@@ -235,4 +240,61 @@ test('email code signs in with Enter, rejects a wrong code and signs out without
   await dialog.getByRole('button', { name: 'Kirjaudu ulos' }).click();
   await expect(dialog.getByLabel('Sähköposti', { exact: true })).toBeVisible();
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '1');
+});
+
+test('automatic sync waits for an edit pause, manual sync bypasses it and another tab is protected', async ({
+  page,
+  context,
+}) => {
+  const { heads, files, backend } = cloudBackend();
+  await account(context, alice);
+  await backend(context);
+  await ready(page, [makeBody(48, 98, 2700)]);
+  await page.clock.install();
+  const dialog = await library(page);
+  await dialog.getByRole('button', { name: 'Synkronoi tämä projekti', exact: true }).click();
+  await expect(
+    dialog.getByText('Muutokset tallennetaan automaattisesti.', { exact: false }),
+  ).toBeVisible();
+  await page.clock.fastForward(7000);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  expect(files.size).toBe(0);
+  await page.clock.fastForward(1100);
+  await expect(dialog.getByText('Tallessa pilvessä', { exact: true })).toBeVisible();
+  expect(files.size).toBe(1);
+  await dialog.getByRole('button', { name: 'Sulje kirjasto' }).click();
+  const name = page.getByLabel('Projektin nimi', { exact: true });
+  for (const text of ['Ensimmäinen', 'Toinen', 'Uusin muutos']) {
+    await name.fill(text);
+    await name.press('Enter');
+    await expect(page.locator('.save-status')).toContainText('Tallessa');
+    await page.clock.fastForward(4000);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    expect(files.size).toBe(1);
+  }
+  await library(page);
+  await dialog.getByRole('button', { name: 'Synkronoi nyt', exact: true }).click();
+  await expect(dialog.getByText('Tallessa pilvessä', { exact: true })).toBeVisible();
+  expect(files.size).toBe(2);
+  expect([...heads.values()][0].name).toBe('Uusin muutos');
+  const uploaded = [...files.values()].at(-1)!;
+  expect([...heads.values()][0].hash).toBe(await projectRevision(JSON.parse(uploaded)));
+
+  await page.clock.fastForward(31000);
+  await expect(dialog.getByText('Tallessa pilvessä', { exact: true })).toBeVisible();
+  expect(files.size).toBe(2);
+
+  // Same-origin second tab edits the local database while the first tab still
+  // displays its old snapshot. The worker/cache must notice the saved change.
+  const other = await context.newPage();
+  await other.goto('/');
+  await expect(other.getByLabel('Projektin nimi', { exact: true })).toHaveValue('Uusin muutos');
+  await expect(other.getByRole('button', { name: 'Valitse', exact: true })).toBeEnabled();
+  await other.getByLabel('Projektin nimi', { exact: true }).fill('Toisen välilehden muutos');
+  await other.getByLabel('Projektin nimi', { exact: true }).press('Enter');
+  await expect(other.locator('.save-status')).toContainText('Tallessa');
+  await other.close();
+  await dialog.getByRole('button', { name: 'Synkronoi nyt', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('toisessa välilehdessä');
+  expect(files.size).toBe(2);
 });

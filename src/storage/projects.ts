@@ -177,6 +177,16 @@ export async function loadLocalSession(
     tx.onabort = tx.onerror = () => reject(new Error('Projektia ei voitu palauttaa.'));
   });
 }
+/** Cloud verification needs the exact saved project, but not a parsed model or
+ * undo graph on the UI thread. Parsing and hashing happen in its own worker. */
+export async function loadSavedProject(id: string): Promise<string | undefined> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction('sessions').objectStore('sessions').get(id);
+    request.onsuccess = () => resolve((request.result as StoredSession | undefined)?.project);
+    request.onerror = () => reject(new Error('Paikallista tallennusta ei voitu tarkistaa.'));
+  });
+}
 /** Listing never parses CAD geometry or undo histories. */
 export async function listLocalProjects(): Promise<LibraryEntry[]> {
   const db = await openDB();
