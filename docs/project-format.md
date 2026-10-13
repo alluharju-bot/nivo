@@ -484,3 +484,18 @@ vain jakamisen/avaamisen yhteydessä, ei piirto- tai automaattitallennussilmukas
 Selainkohtainen IndexedDB ja nykyinen välilehtien kirjoitusristiriidan suoja säilyvät.
 Pilvisynkki tarvitsee vielä tunnistautumisen, palveluntarjoajan, ehdolliset etäkirjoitukset
 ja offline-jonon. Nykyinen tiedostosiirto ei lähetä mitään automaattisesti verkkoon.
+
+## Reunakäsittelyketju (0.40.0, yhteensopiva v8-lisäys)
+
+`body.edgeTreatment.previous` on valinnainen taulukko aiemmista käsittelyistä,
+vanhin ensin (enintään 64 aiempaa käsittelyä). Alkiolla on samat `source`, `offset`,
+`rotation`, `indices`, `operation`, `size` ja `id` kuin viimeisimmällä käsittelyllä.
+Jokainen lähde on ylemmän käsittelyn lähdegeometrian paikallisessa kehyksessä.
+Poisto yhdistää kehysten kierrot ja siirtymät; pelkkä `previous`-alkion kopiointi
+uuden osan metatiedoksi ei säilyttäisi kierrettyä osaa oikein. Uusi reunakäsittely
+ketjuttaa, edellisen muokkaus korvaa vain viimeisimmän. Muu geometriamuokkaus
+voi edelleen yhdistää käsittelyt BRepiin. Vanhojen tiedostojen puuttuva ketju ei
+tarkoita, että mielivaltaisen BRepin muokkaushistoria olisi palautettavissa.
+
+Pilven laite-/käyttäjäkohtainen yhteisen version osoitin säilytetään erillisessä
+`nivo-cloud`-IndexedDB:ssä eikä `.nivo`-tiedosto sisällä kirjautumistietoja.

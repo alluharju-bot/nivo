@@ -83,8 +83,7 @@ test('linked painting respects shared and instance material, and make unique sev
   await reveal(page);
   await page.getByTestId(`body-${a.id}`).click();
   await page.getByTestId(`body-${b.id}`).click({ modifiers: ['Shift'] });
-  await page.getByText('Komponentti ja linkitys', { exact: true }).click();
-  await page.getByRole('button', { name: 'Linkitä valitut tähän osaan' }).click();
+  await page.getByRole('button', { name: 'Komponentin linkitys', exact: true }).click();
   let saved = await save(page);
   expect(saved.bodies[0].component?.id).toBeTruthy();
   expect(saved.bodies[0].component?.id).toBe(saved.bodies[1].component?.id);
@@ -102,13 +101,13 @@ test('linked painting respects shared and instance material, and make unique sev
   expect(saved.bodies.map((b) => b.color)).toEqual(['#123456', '#abcdef']);
   await page.keyboard.press('Escape');
   await click(page, point(450, 100, 50));
-  await page.getByText('Komponentti ja linkitys', { exact: true }).click();
+  await page.getByText('Materiaalin jakaminen', { exact: true }).click();
   await page
     .getByRole('checkbox', { name: 'Esiintymäkohtainen materiaali', exact: true })
     .uncheck();
   saved = await save(page);
   expect(saved.bodies.map((b) => b.color)).toEqual(['#123456', '#123456']);
-  await page.getByRole('button', { name: 'Tee uniikiksi', exact: true }).click();
+  await page.getByRole('button', { name: 'Komponentin linkitys', exact: true }).click();
   saved = await save(page);
   expect(saved.bodies[1].component).toBeUndefined();
 });
@@ -215,16 +214,16 @@ test('an assembly copies its nested hierarchy, moves all members and honours gro
   await page.keyboard.press('Escape');
   await reveal(page);
   await page.getByRole('button', { name: 'Valitse ryhmä: Runko (kopio #1)', exact: true }).click();
-  await page.getByRole('button', { name: 'Kiinnitä · G', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Vapauta Hold', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Hold-lukitus', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Hold-lukitus', exact: true })).toBeEnabled();
   await page.keyboard.press('x');
   await expect(page.getByRole('alert')).toContainText('Hold');
   expect((await save(page)).bodies).toHaveLength(30);
-  await page.getByRole('button', { name: 'Vapauta Hold', exact: true }).click();
-  await page.getByRole('button', { name: 'Piilota', exact: true }).click();
+  await page.getByRole('button', { name: 'Hold-lukitus', exact: true }).click();
+  await page.getByRole('button', { name: 'Piilota valinta', exact: true }).click();
   saved = await save(page);
   expect(saved.groups.find((g) => g.id === group.id)?.hidden).toBe(true);
-  await page.getByRole('button', { name: 'Näytä', exact: true }).click();
+  await page.getByRole('button', { name: 'Näytä ryhmä: Runko (kopio #1)', exact: true }).click();
   await page.getByRole('button', { name: 'Siirrä valinta', exact: true }).click();
   await page.getByTestId('move-y').fill('250');
   await page.getByTestId('move-y').press('Enter');

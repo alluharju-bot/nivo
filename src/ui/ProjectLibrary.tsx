@@ -1,3 +1,5 @@
+import { CloudProjects } from './CloudProjects';
+import type { CloudController } from '../cloud/useCloud';
 import { useEffect, useState } from 'react';
 import { Box, Copy, Download, FolderOpen, Plus, Search, Trash2, X } from 'lucide-react';
 import { SelectionDialog } from './SelectionDialog';
@@ -16,6 +18,7 @@ import {
 } from '../storage/projects';
 
 export function ProjectLibrary({
+  cloud,
   activeId,
   revision,
   onOpen,
@@ -25,6 +28,7 @@ export function ProjectLibrary({
   onImport,
   onClose,
 }: {
+  cloud: CloudController;
   activeId: string;
   revision: number;
   onOpen: (session: LocalSession) => Promise<boolean>;
@@ -71,11 +75,12 @@ export function ProjectLibrary({
       }}
     >
       <div className="library-heading">
-        <span>Tallessa tässä selaimessa</span>
+        <span>{cloud.configured ? 'Tämä selain ja oma pilvi' : 'Tallessa tässä selaimessa'}</span>
         <button aria-label="Sulje kirjasto" disabled={working} onClick={onClose}>
           <X size={18} />
         </button>
       </div>
+      <CloudProjects cloud={cloud} onOpen={onOpen} />
       <div className="library-toolbar">
         <button className="button dark" disabled={working} onClick={() => void run(onNew)}>
           <Plus size={16} /> Uusi projekti

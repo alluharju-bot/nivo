@@ -4,7 +4,7 @@ import init from 'replicad-opencascadejs';
 import { setOC } from 'replicad';
 import { makeBody, makeProfileBody, parseProject, freshProject, type Body } from '../model/project';
 import { bodyFromShape, createShape, meshBody, pushPullFace } from './kernel';
-import { detailEdges } from './details';
+import { detailEdges, removeEdgeTreatment } from './details';
 import { rotateBodies } from './transforms';
 import { offsetFace, booleanBodies } from './operations';
 import { CadBuildCache } from './buildCache';
@@ -267,4 +267,78 @@ it.skipIf(!process.env.NIVO_AUDIT_MODEL)(
     }
   },
   30000,
+);
+
+it(
+  'moves a 45 mm profile corner together with a subsequent 2 mm roundover and removes both in order',
+  { timeout: 30000 },
+  () => {
+    const base = makeBody(200, 18, 600);
+    const corner = inspect(base).detailEdges!.find(
+      (e) =>
+        e.lines.length === 6 &&
+        Math.abs(e.lines[0] - 200) < 1e-5 &&
+        Math.abs(e.lines[2] - 600) < 1e-5 &&
+        Math.abs(e.lines[4] - e.lines[1]) > 17,
+    )!;
+    expect(corner).toBeDefined();
+    const large = detailEdges(base, [corner.index], 'fillet', 45);
+    const smallEdges = large.mesh
+      .detailEdges!.filter((e) => e.lines.every((v, i) => i % 3 !== 1 || Math.abs(v) < 1e-5))
+      .map((e) => e.index);
+    const small = detailEdges(large.body, smallEdges, 'fillet', 2);
+    expect(small.body.edgeTreatment?.previous).toHaveLength(1);
+    for (const axis of [0, 2]) {
+      const top = small.mesh.faces.find((f) => f.planar && f.normal[axis] > 0.99)!;
+      const resized = pushPullFace(small.body, top.ref, 30);
+      const mesh = inspect(resized);
+      expect(mesh.faces).toHaveLength(small.mesh.faces.length);
+      expect(resized.feature[axis === 0 ? 'width' : 'height']).toBeCloseTo(
+        (axis === 0 ? 200 : 600) + 30,
+        4,
+      );
+      expect(resized.edgeTreatment?.previous?.[0].size).toBe(45);
+      const moved = rotateBodies([resized], [0, 0, 0], [1, 2, 3], 31)[0];
+      const restored = parseProject(JSON.stringify({ ...freshProject(), bodies: [moved] }))
+        .bodies[0];
+      const one = removeEdgeTreatment(restored);
+      expect(one.edgeTreatment?.size).toBe(45);
+      const plain = removeEdgeTreatment(one);
+      expect(plain.edgeTreatment).toBeUndefined();
+      expect(inspect(plain).faces).toHaveLength(6);
+      expect(inspect(plain).volume).toBeCloseTo((axis === 0 ? 230 * 600 : 200 * 630) * 18, 2);
+    }
+  },
+);
+
+it(
+  'recovers a legacy 45 mm corner only after proving the entire original solid',
+  { timeout: 30000 },
+  () => {
+    const base = makeBody(200, 18, 600);
+    const corner = inspect(base).detailEdges!.find(
+      (e) =>
+        e.lines.length === 6 &&
+        Math.abs(e.lines[0] - 200) < 1e-5 &&
+        Math.abs(e.lines[2] - 600) < 1e-5 &&
+        Math.abs(e.lines[4] - e.lines[1]) > 17,
+    )!;
+    const large = detailEdges(base, [corner.index], 'fillet', 45);
+    const legacy = { ...large.body, edgeTreatment: undefined };
+    const smallEdges = large.mesh
+      .detailEdges!.filter((e) => e.lines.every((v, i) => i % 3 !== 1 || Math.abs(v) < 1e-5))
+      .map((e) => e.index);
+    const small = detailEdges(legacy, smallEdges, 'fillet', 2);
+    const removed = removeEdgeTreatment(small.body);
+    expect(removed.edgeTreatment?.size).toBeCloseTo(45, 5);
+    expect(inspect(removeEdgeTreatment(removed)).volume).toBeCloseTo(200 * 18 * 600, 3);
+    const top = small.mesh.faces.find((f) => f.planar && f.normal[2] > 0.99)!;
+    const resized = pushPullFace(small.body, top.ref, 30);
+    expect(resized.edgeTreatment?.previous?.[0].size).toBeCloseTo(45, 5);
+    expect(inspect(resized).faces).toHaveLength(small.mesh.faces.length);
+    const rotated = rotateBodies([legacy], [0, 0, 0], [1, 2, 3], 31)[0];
+    expect(inspect(removeEdgeTreatment(rotated)).volume).toBeCloseTo(200 * 18 * 600, 3);
+    const holed = booleanBodies([legacy], [makeBody(20, 30, 20, [50, -5, 300])], 'cut')[0];
+    expect(() => removeEdgeTreatment(holed)).toThrow('ei voitu erottaa');
+  },
 );

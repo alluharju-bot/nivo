@@ -4,6 +4,43 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.40.0 — pilvisynkronoinnin pohja, reunakäsittelyt ja valinta
+
+550 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.
+30 työpöydän ja 14 tablettiprofiilin selaintapausta hyväksytty tuotantobuildista;
+lisäksi erillinen kahden testiselaimen pilvisynkronointitesti hyväksytty.
+TypeScript, tuotantobuild `/nivo/`, lisenssit ja muutettujen tiedostojen muotoilu tarkistettu.
+
+- 45 mm profiilin nurkkapyöristys + 2 mm reunapyöristys: päädyn Push/Pull
+  kahdella akselilla, pyöristysten säilyminen, kierto, tiedostokierros ja
+  poistaminen vaihe kerrallaan. Vanhan geometriaan sulautuneen pyöristyksen
+  palautuksessa vaaditaan koko muodon vastaavuus; reiälliset muodot hylätään.
+  Ladattu Mankkaanpuro-malli ei sisältänyt ilmoitettua 45 mm tapausta, joten
+  regressio rakennettiin vastaavalla testikappaleella.
+- Ryhmän lukitseminen/vapauttaminen kattaa kaikki alaryhmät ja osien omat lukot.
+  Sekavalinnan vapautus säilyttää valinnan ulkopuolisten osien lukituksen myös
+  yhteisen lukitun yläryhmän sisällä. Geometria, ryhmittely ja Hold-suojaus säilyvät.
+- Monivalinnan pikarivi: Lukitse/Vapauta, Piilota ja Haamu. Molempiin suuntiin
+  toimiva haamutila, valinnan piilotus ja Peru sekä ryhmän yhteiset toiminnot.
+  Myös 20 paneelin yksittäiset/perityt Hold-merkinnät ja tallennuksen yli palautuminen.
+- Yläreunaan siirretyn työkalupalkin alle jäävä muokkausbanneri on näkyvissä ja
+  Lopeta muokkaus saa klikkauksen. Pinned-mallilista ei peitä oikeaan paneeliin
+  siirrettyä kappale/rakennusviivavalintaa tai viitepoimintaa. Kuvakaappaukset
+  työpöydällä ja tablettiprofiilissa tarkastettu.
+- Regressiot: ryhmien kopiointi/siirto, linkitetty maalaus ja uniikki, kokoonpanot,
+  siirron tartunnat, reunakäsittelyn muokkaus/poisto, tekstuurin käsittely,
+  renderöinti, paikalliset projektit ja historiat, vientimuodot, vanhan välilehden
+  kirjoitussuoja sekä fullscreenin Escape.
+- Pilvi: kahden selainkontekstin projektisiirto, offline-muutokset, kilpailevien
+  versioiden säilytys, uudelleenlataus ja toisen tilin eristys HTTP-jäljitelmällä.
+  Synkronointiytimen testit kattavat myös kadonneen kuittauksen ja kesken lähetyksen
+  muuttuvan mallin. PGlite ajaa SQL-migraation sekä RLS- ja versiotarkistustestit.
+- Rajat: Supabase-tuotantoprojektia ei ole yhdistetty; oikeaa sähköpostikirjautumista
+  ja fyysisten laitteiden synkronointia ei vielä testattu. Tabletti on Chromium-emulointi,
+  ei Safari-laite. Vanhasta mielivaltaisesta geometriasta ei päätellä kadonnutta
+  muokkaushistoriaa. Muutama aiempi selaintesti päivitettiin nykyisiin painikenimiin
+  ja erilliseen Muokkaa edellistä käsittelyä -toimintoon.
+
 ## V0.39.0 — projektiot, arkkimerkinnät ja muutosvertailu
 
 540 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.

@@ -4,6 +4,7 @@ import type { BodyGroup } from '../model/project';
 import { groupAncestors } from '../model/groups';
 
 export function GroupActions({
+  sharedActions = false,
   group,
   groups,
   count,
@@ -22,6 +23,7 @@ export function GroupActions({
   onUnique,
   canUnique,
 }: {
+  sharedActions?: boolean;
   group: BodyGroup;
   groups: BodyGroup[];
   count: number;
@@ -65,21 +67,25 @@ export function GroupActions({
         >
           <Trash2 size={15} /> Poista ryhmä
         </button>
-        <button
-          disabled={busy || groupAncestors(groups, group.parentId).some((g) => g.locked)}
-          onClick={() => onChange({ locked: !group.locked })}
-        >
-          {group.locked ? 'Vapauta Hold' : 'Kiinnitä · G'}
-        </button>
-        <button disabled={busy} onClick={() => onChange({ hidden: !group.hidden })}>
-          {group.hidden ? 'Näytä' : 'Piilota'}
-        </button>
-        <button onClick={onMove} disabled={busy || !count || locked}>
-          <Move3D size={15} /> Siirrä valinta
-        </button>
-        <button onClick={onCopy} disabled={busy || !count || locked}>
-          <Copy size={15} /> Kopioi valinta
-        </button>
+        {!sharedActions && (
+          <>
+            <button
+              disabled={busy || groupAncestors(groups, group.parentId).some((g) => g.locked)}
+              onClick={() => onChange({ locked: !group.locked })}
+            >
+              {group.locked ? 'Vapauta Hold' : 'Kiinnitä · G'}
+            </button>
+            <button disabled={busy} onClick={() => onChange({ hidden: !group.hidden })}>
+              {group.hidden ? 'Näytä' : 'Piilota'}
+            </button>
+            <button onClick={onMove} disabled={busy || !count || locked}>
+              <Move3D size={15} /> Siirrä valinta
+            </button>
+            <button onClick={onCopy} disabled={busy || !count || locked}>
+              <Copy size={15} /> Kopioi valinta
+            </button>
+          </>
+        )}
         {canUnique && (
           <button
             onClick={onUnique}

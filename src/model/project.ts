@@ -199,6 +199,21 @@ const featureSchema = z.discriminatedUnion('type', [
   profileFeature,
   unionFeature,
 ]);
+const treatmentLayerSchema = z.object({
+  id,
+  source: featureSchema,
+  offset: pointSchema,
+  rotation: z.tuple([
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+    z.number().finite(),
+  ]),
+  indices: z.array(z.number().int().min(0)).min(1).max(10000),
+  operation: z.enum(['fillet', 'chamfer']),
+  size: length,
+});
+
 export const bodySchema = z.object({
   id,
   name: z.string().min(1).max(120),
@@ -221,20 +236,10 @@ export const bodySchema = z.object({
       detached: z.boolean().optional(),
     })
     .optional(),
-  edgeTreatment: z
-    .object({
-      id,
-      source: featureSchema,
-      offset: pointSchema,
-      rotation: z.tuple([
-        z.number().finite(),
-        z.number().finite(),
-        z.number().finite(),
-        z.number().finite(),
-      ]),
-      indices: z.array(z.number().int().min(0)).min(1).max(10000),
-      operation: z.enum(['fillet', 'chamfer']),
-      size: length,
+  edgeTreatment: treatmentLayerSchema
+    .extend({
+      // Oldest first; each source is in its parent's local coordinate frame.
+      previous: z.array(treatmentLayerSchema).max(64).optional(),
     })
     .optional(),
   origin: pointSchema,

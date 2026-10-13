@@ -239,19 +239,22 @@ export function ShapeProperties({
         </label>
       )}
 
-      <label className="modeling-field">
-        Käyttö
-        <select
-          aria-label="Muodon käyttö"
-          value={purpose}
-          onChange={(e) => onPurpose(e.target.value as Body['purpose'])}
-        >
-          <option value="model">Mallinnettava kappale</option>
-          <option value="construction">Rakentamisen apumuoto</option>
-          <option value="drawing">Piirros</option>
-          <option value="component">Nimetty osa</option>
-        </select>
-      </label>
+      <details className="inspector-disclosure">
+        <summary>Lisäasetukset</summary>
+        <label className="modeling-field">
+          Käyttö
+          <select
+            aria-label="Muodon käyttö"
+            value={purpose}
+            onChange={(e) => onPurpose(e.target.value as Body['purpose'])}
+          >
+            <option value="model">Mallinnettava kappale</option>
+            <option value="construction">Rakentamisen apumuoto</option>
+            <option value="drawing">Piirros</option>
+            <option value="component">Nimetty osa</option>
+          </select>
+        </label>
+      </details>
       {editingBodyName && !(tool === 'circle' && kind === 'sphere') && (
         <label className="modeling-field">
           Piirtotapa

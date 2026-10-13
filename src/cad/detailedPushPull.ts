@@ -1,3 +1,4 @@
+import { recoverCornerTreatment } from './recoverTreatment';
 import { basicFaceExtrusion, Vector, type AnyShape, type Edge, type Face } from 'replicad';
 import type { Body, Vec3 } from '../model/project';
 import type { CadFace } from './protocol';
@@ -5,7 +6,7 @@ import type { TransformCache } from './buildCache';
 import { add, sub, dot, scale } from '../model/geometry';
 import { bodyFromShape, createShape, meshBody, pushPullFace, solidVolume } from './kernel';
 import { detailSourceShape } from './detailSource';
-import { detailEdges } from './details';
+import { detailEdges, removeEdgeTreatment } from './details';
 import { shapeEdges, shapeFaces } from './topology';
 import { isLinearEdge } from './planarity';
 import { transferFaceMaterials } from './faceMaterials';
@@ -62,14 +63,15 @@ export function pushPullDetailedFace(
   distance: number,
   cache?: TransformCache,
 ): Body | undefined {
-  const treatment = body.edgeTreatment;
+  const treatment = body.edgeTreatment ?? recoverCornerTreatment(body);
   if (!treatment) return;
+  if (!body.edgeTreatment) body = { ...body, edgeTreatment: treatment };
   const source = detailSourceShape(body);
   let nextShape: AnyShape | undefined;
   let edges: Edge[] = [],
     nextEdges: Edge[] = [];
   try {
-    const sourceBody = bodyFromShape(body, source);
+    const sourceBody = removeEdgeTreatment(body);
     const mesh = meshBody(sourceBody, source);
     const onPlane = (p: Vec3) => Math.abs(dot(sub(p, target.center), target.normal)) < tolerance;
     const matching = mesh.faces.filter(
@@ -122,17 +124,28 @@ export function pushPullDetailedFace(
         'Päätyä ei voi siirtää säilyttäen nämä reunakäsittelyt. Poista reunakäsittely tai pienennä siirtymää. Alkuperäinen osa säilyi.',
       );
     if (edges.length !== nextEdges.length) throw unsupported();
+    const movedCurveEnds = edges
+      .filter((edge) => !isLinearEdge(edge) && samples(edge).some(onPlane))
+      .flatMap((edge) => {
+        const p = samples(edge);
+        return [p[0], p[4]];
+      });
+    const movingEndpoint = (p: Vec3) => onPlane(p) || movedCurveEnds.some((q) => near(p, q));
     const nextSamples = nextEdges.map(samples);
     const used = new Set<number>();
     const mapping = edges.map((edge) => {
       const points = samples(edge),
         linear = isLinearEdge(edge);
       let expected: Vec3[];
-      if (points.every(onPlane))
+      if (points.every(onPlane) || (!linear && points.some(onPlane)))
         expected = points.map((p) => add(p, scale(target.normal, distance)));
       else if (linear) {
-        const a = onPlane(points[0]) ? add(points[0], scale(target.normal, distance)) : points[0];
-        const b = onPlane(points[4]) ? add(points[4], scale(target.normal, distance)) : points[4];
+        const a = movingEndpoint(points[0])
+          ? add(points[0], scale(target.normal, distance))
+          : points[0];
+        const b = movingEndpoint(points[4])
+          ? add(points[4], scale(target.normal, distance))
+          : points[4];
         expected = [0, 0.25, 0.5, 0.75, 1].map((t) => add(a, scale(sub(b, a), t)));
       } else expected = points;
       const index = nextSamples.findIndex(
@@ -156,6 +169,12 @@ export function pushPullDetailedFace(
           offset: [0, 0, 0],
           rotation: [0, 0, 0, 1],
           indices,
+          previous: resized.edgeTreatment
+            ? [
+                ...(resized.edgeTreatment.previous ?? []),
+                (({ previous, ...layer }) => layer)(resized.edgeTreatment),
+              ]
+            : undefined,
         },
       },
       indices,

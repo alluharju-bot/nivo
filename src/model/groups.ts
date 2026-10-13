@@ -35,6 +35,57 @@ export const groupPath = (groups: BodyGroup[], id?: string) =>
     .map((g) => g.name)
     .join(' / ');
 
+/** Explicit group lock command applies to every nested group and part. */
+export function setGroupHold(project: Project, id: string, locked: boolean): Project {
+  const root = project.groups.find((g) => g.id === id);
+  if (!root) throw new Error('Ryhmää ei löydy.');
+  if (groupAncestors(project.groups, root.parentId).some((g) => g.locked))
+    throw new Error('Vapauta ensin ylemmän ryhmän lukitus.');
+  const ids = new Set(
+    project.groups.filter((g) => groupContains(project.groups, id, g.id)).map((g) => g.id),
+  );
+  return {
+    ...project,
+    groups: project.groups.map((g) =>
+      ids.has(g.id) && !!g.locked !== locked ? { ...g, locked } : g,
+    ),
+    bodies: project.bodies.map((b) =>
+      b.groupId && ids.has(b.groupId) && !!b.locked !== locked ? { ...b, locked } : b,
+    ),
+  };
+}
+
+/** Unlock a selection even inside held groups, preserving every unselected part's Hold. */
+export function setSelectionHold(project: Project, ids: string[], locked: boolean): Project {
+  const selected = new Set(ids);
+  const paths = new Set(
+    locked
+      ? []
+      : project.bodies
+          .filter((b) => selected.has(b.id))
+          .flatMap((b) => groupAncestors(project.groups, b.groupId).map((g) => g.id)),
+  );
+  const groups = project.groups.map((g) => {
+    if (paths.has(g.id)) return g.locked ? { ...g, locked: false } : g;
+    // Keep sibling branches held when removing an ancestor's inherited lock.
+    if (
+      g.parentId &&
+      paths.has(g.parentId) &&
+      groupAncestors(project.groups, g.id).some((a) => a.locked)
+    )
+      return g.locked ? g : { ...g, locked: true };
+    return g;
+  });
+  return {
+    ...project,
+    groups,
+    bodies: project.bodies.map((b) => {
+      if (selected.has(b.id)) return !!b.locked === locked ? b : { ...b, locked };
+      return bodyLocked(b, project.groups) && !bodyLocked(b, groups) ? { ...b, locked: true } : b;
+    }),
+  };
+}
+
 export type TreeMove = { kind: 'bodies'; ids: string[] } | { kind: 'group'; id: string };
 
 /** Dropping onto a part creates a folder beside that part, preserving world geometry. */

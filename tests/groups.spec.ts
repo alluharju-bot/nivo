@@ -19,7 +19,7 @@ test('fifteen-part nested group copies and moves as one adjustable selection', a
   const extra = makeBody(50, 50, 50, [1100, 0, 0], 'Lisäosa');
   await ready(page, [...parts, extra], [], groups);
   await page.getByRole('button', { name: 'Valitse ryhmä: Runko', exact: true }).click();
-  const actions = page.getByRole('region', { name: 'Ryhmän toiminnot' });
+  const actions = page.getByRole('complementary', { name: 'Ominaisuudet' });
   await expect(actions).toContainText('15 osaa valittu');
   // Plain clicks remove or add parts while refining the group selection.
   await page.getByTestId(`body-${parts[14].id}`).click();
@@ -99,7 +99,7 @@ test('nested group rename, reparent, inherited visibility and Hold survive file 
   await page.keyboard.press('e');
   await page.mouse.click(center.x, center.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-hover-face', '');
-  expect((await save(page)).bodies).toEqual([part]);
+  expect((await save(page)).bodies).toEqual([{ ...part, locked: true }]);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Valitse ryhmä: Rimat', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Siirrä valinta', exact: true })).toBeDisabled();

@@ -3,6 +3,22 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.40.0** lisää Supabase-pilvisynkronoinnin ensimmäisen toteutuksen:
+kirjautuminen, projektikohtainen taustatallennus, avaaminen toisella laitteella
+ja rinnakkaisten muutosten säilyttäminen. Palvelu vaatii oman Supabase-projektin
+asetukset ja tietokantamigraation; ilman niitä paikallinen tallennus jatkuu normaalisti.
+[Käyttöönotto, testaus ja nykyiset rajat](docs/cloud-sync.md).
+
+Reunakäsittelyt säilyvät nyt ketjuna: esimerkiksi 45 mm nurkkapyöristyksen päälle
+tehty 2 mm reunapyöristys seuraa päädyn Push/Pullia ja käsittelyt voi poistaa
+uusimmasta alkaen. Vanha geometriaan sulautunut, suorakulmaisesta aihiosta tehty
+nurkkapyöristys palautetaan vain, jos koko geometria voidaan todistaa vastaavaksi.
+
+Mallilistassa lukitusta näyttää yksi lukkokuvake. Ryhmän lukituskomento koskee
+kaikkia alaisia ryhmiä ja osia myös vapautettaessa. Ryhmävalinta tarjoaa samat
+yhteiset materiaali- ja muotoilutoiminnot kuin muut valinnat. Muodon käyttö ja
+viitteen poiminta ovat oikeassa paneelissa poissa kiinnitetyn mallilistan alta.
+
 Versio **0.39.0** kokoaa mittakuvan työkalut: suorat projektiot kuudesta suunnasta,
 **Lisää mitta**, **Tekstilaatikko** ja **Korosta alue**. Tekstilaatikon voi sijoittaa
 ilman kohdistusviivaa, muokata tuplaklikkaamalla ja siirtää vetämällä. Merkinnät
@@ -32,7 +48,7 @@ Renderin pinnat ja valot avautuvat puhelimella erilliseen suljettavaan paneeliin
 Puhelimella voi käyttää selaimen jakovalikkoa, muulloin ladata tiedoston.
 Projektitunnus ja sisältöversio kulkevat mukana: saman version avaaminen käyttää
 paikallista tallennetta, erilainen versio säilytetään erillisenä kopiona.
-Tämä on tiedostosiirto ja pohja synkronoinnille; automaattista pilvisynkronointia ei ole.
+Tiedostosiirto toimii myös ilman pilvitiliä. Uudemman pilvisynkronoinnin käyttöönotto on kuvattu yllä.
 
 Versio **0.37.0** lisää **Projektikirjaston** projektin nimen viereen:
 useita selaimeen tallentuvia projekteja omine historioineen sekä **Omat osat**
@@ -46,7 +62,7 @@ ja maalata. **Vie 3D-malli** tallentaa STL:n 3D-tulostuksen sliceriin, STEP:n
 CAD-ohjelmaan tai GLB:n materiaaleineen. STL-viennissä valitaan tarkkuus ja
 sijoitus tulostusalustalle, ja avonaiset pinnat ilmoitetaan.
 
-Valintapaneelin **Piilota**, **Hold** ja **Linkitetty/Uniikki** ovat heti näkyvissä.
+Valintapaneelin **Lukitse / Vapauta**, **Piilota** ja **Haamu** ovat ensimmäisellä pikarivillä. Ne toimivat koko monivalinnalle; linkitys on niiden alla. Jos vain osa valinnasta on lukittu, **Vapauta** poistaa valittujen lukot ja säilyttää muiden osien lukitukset.
 Uniikiksi muuttaminen irrottaa linkin; linkitettäessä käyttäjä valitsee lähtöosan.
 Oikean napin valikko kokoaa muut komennot **Muokkaa**, **Järjestä** ja
 **Tallenna ja vie** -kohtiin. Koko näytön Esc huomioi selaimen tuen, jotta
@@ -65,7 +81,7 @@ joka saattoi estää muuten ehjän sylinterin muokkaamisen.
 Versio **0.36.11** näyttää valittujen Hold-lukittujen osien kohdalla lukkokuvakkeen
 ja lämpimän reunakorostuksen. Valinnan tiedoista näkee lukittujen osien määrän,
 nimet ja mahdollisen lukitsevan ryhmän. Osaan voi keskittää kameran menettämättä
-monivalintaa. Mallilistassa lukitus näkyy myös pysyvänä Hold-merkkinä.
+monivalintaa. Mallilistassa lukitus näkyy lukkopainikkeessa ilman erillistä Hold-tekstiä.
 
 Versio **0.36.10** yhtenäistää kumittimen korostuksen ja napsautuksen.
 Jakoviivan päässä oleva tartunta ei vaihdu tyhjän tilan valinnaksi.

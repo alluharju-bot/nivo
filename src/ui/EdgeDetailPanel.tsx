@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react';
 export function EdgeDetailPanel({
+  canRecover,
   retained,
   editing,
   onEditPrevious,
@@ -19,6 +20,7 @@ export function EdgeDetailPanel({
   onCorners,
   onFullRound,
 }: {
+  canRecover?: boolean;
   retained: boolean;
   editing: boolean;
   onEditPrevious: () => void;
@@ -93,15 +95,16 @@ export function EdgeDetailPanel({
           tai viisteen.
         </p>
       )}
-      {retained && (
+      {(retained || canRecover) && (
         <details className="tool-advanced">
           <summary>Nykyinen reunakäsittely</summary>
           <p>
-            Kohtaavat reunat lasketaan yhdessä. Muu pintamuokkaus liittää käsittelyn geometriaan.
+            Kohtaavat reunat lasketaan yhdessä. Käsittelyt voi poistaa yksi kerrallaan uusimmasta
+            alkaen. Muu pintamuokkaus voi liittää ne geometriaan.
           </p>
           <div className="object-quick-actions">
             <button disabled={busy} onClick={onRemove}>
-              Poista käsittely
+              {retained ? 'Poista viimeisin käsittely' : 'Poista vanha nurkkapyöristys'}
             </button>
           </div>
         </details>

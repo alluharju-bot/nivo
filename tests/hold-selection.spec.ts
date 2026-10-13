@@ -44,12 +44,13 @@ test('twenty selected panels identify individual and inherited Holds without los
   await expect(notice).toContainText('Lukittu 2 / 20');
   await expect(page.getByRole('img', { name: 'Hold: Paneeli 7', exact: true })).toBeVisible();
   await revealBrowser(page);
-  await expect(page.getByTestId(`body-${parts[6].id}`).locator('.object-hold-badge')).toHaveText(
-    'Hold',
-  );
-  await expect(page.getByTestId(`body-${parts[13].id}`).locator('.object-hold-badge')).toHaveText(
-    'Hold',
-  );
+  await expect(page.locator('.object-hold-badge')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Vapauta: Paneeli 7', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('button', { name: 'Vapauta: Paneeli 14', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Vapauta: Paneeli 7', exact: true }).click();
   await expect(notice).toContainText('Lukittu 1 / 20');
   await expect(page.getByRole('img', { name: 'Hold: Paneeli 7', exact: true })).toHaveCount(0);

@@ -1,3 +1,5 @@
+import { setGroupHold, setSelectionHold } from './model/groups';
+import { useCloud } from './cloud/useCloud';
 import type { DrawingScope } from './model/drawingAnnotations';
 import type { DrawingView } from './model/drawingViews';
 import { ProjectShare } from './ui/ProjectShare';
@@ -49,7 +51,13 @@ import { preserveRegionReferences } from './model/penRegionReferences';
 import { colorPreviewTargets, type ColorPreview } from './model/colorPreview';
 import { toolFaceTarget } from './model/faceTarget';
 import { linkSplitCopies } from './model/linkedSplit';
-import { displayLabels, displayModes, setModelDisplay, type DisplayMode } from './model/display';
+import {
+  commonDisplayMode,
+  displayLabels,
+  displayModes,
+  setModelDisplay,
+  type DisplayMode,
+} from './model/display';
 import { DisplayControls } from './ui/DisplayControls';
 import { selectionDescription } from './model/activity';
 import { bezierInstruction } from './model/bezier';
@@ -105,6 +113,8 @@ import {
 import {
   Eye,
   EyeOff,
+  Ghost,
+  UnlockKeyhole,
   ScanLine,
   ImagePlus,
   Focus,
@@ -406,6 +416,7 @@ function IconButton({
 }
 export default function App() {
   const editor = useEditor();
+  const cloud = useCloud(editor.project, editor.flushSave);
   const { project, busy, ready } = editor;
   const measureMemory = useMeasureMemory(project.id);
   const liveProject = useRef({ project, busy });
@@ -3728,28 +3739,28 @@ export default function App() {
     },
   ];
   const holdSelected = () => {
+    if (busy) return;
     if (selectedGroup) {
       if (groupAncestors(project.groups, selectedGroup.parentId).some((g) => g.locked)) {
-        editor.setError('Vapauta ensin ylemmän ryhmän Hold.');
+        void editor.transact(
+          setSelectionHold(project, selectedIds, false),
+          'Valitut osat vapautettu lukituksesta.',
+        );
         return;
       }
-      void patchGroup(selectedGroup.id, { locked: !selectedGroup.locked });
+      const held =
+        selectedGroup.locked ||
+        groupBodies(project, selectedGroup.id).some((b) => bodyLocked(b, project.groups));
+      void patchGroup(selectedGroup.id, { locked: !held });
       return;
     }
     const ids = selectedIds.length ? selectedIds : selected ? [selected] : [];
-    if (
-      ids.some((id) => {
-        const b = project.bodies.find((b) => b.id === id);
-        return b && groupAncestors(project.groups, b.groupId).some((g) => g.locked);
-      })
-    ) {
-      editor.setError('Vapauta ensin osan ylemmän ryhmän Hold.');
-      return;
-    }
-    if (ids.length)
-      void patchBodies(ids, {
-        locked: !project.bodies.filter((b) => ids.includes(b.id)).every((b) => b.locked),
-      });
+    if (!ids.length || busy) return;
+    const unlock = project.bodies.some((b) => ids.includes(b.id) && bodyLocked(b, project.groups));
+    void editor.transact(
+      setSelectionHold(project, ids, !unlock),
+      unlock ? 'Valitut osat vapautettu lukituksesta.' : 'Valitut osat lukittu.',
+    );
   };
   const originSelected = async (reference: 'min' | 'center') => {
     try {
@@ -3768,7 +3779,8 @@ export default function App() {
   const patchGroup = async (id: string, patch: Partial<import('./model/project').BodyGroup>) => {
     if (busy) return;
     try {
-      const next = 'parentId' in patch ? reparentGroup(project, id, patch.parentId) : project;
+      let next = 'parentId' in patch ? reparentGroup(project, id, patch.parentId) : project;
+      if (patch.locked !== undefined) next = setGroupHold(next, id, patch.locked);
       if (
         await editor.transact(
           {
@@ -5668,10 +5680,10 @@ export default function App() {
       </div>
     </div>
   );
-  const objectActions = body && !selectedGroup && mode === 'model' && (
+  const objectActions = body && mode === 'model' && (
     <ObjectActions
       key={`object:${colorContext}`}
-      body={{ ...body, locked: bodyLocked(body, project.groups) }}
+      body={{ ...body, locked: !!movementBlocked }}
       groups={project.groups}
       mixedColor={project.bodies.some(
         (b) => selectedIdSet.has(b.id) && b.color.toLowerCase() !== body.color.toLowerCase(),
@@ -5880,6 +5892,25 @@ export default function App() {
               }
             />
             {editor.busy ? 'Lasketaan muutosta…' : editor.saveStatus || 'Valmistellaan…'}
+            {cloud.enabled && (
+              <button
+                className="cloud-status"
+                onClick={() => void openLibrary()}
+                title="Avaa pilvisynkronointi"
+              >
+                {cloud.error
+                  ? 'Pilvi · yhteysvirhe'
+                  : cloud.working
+                    ? 'Pilvi · tallennetaan…'
+                    : cloud.result.kind === 'synced'
+                      ? 'Pilvessä'
+                      : cloud.result.kind === 'conflict'
+                        ? 'Pilvi · kaksi versiota'
+                        : cloud.result.kind === 'remote'
+                          ? 'Pilvi · uudempi versio'
+                          : 'Pilvi · odottaa'}
+              </button>
+            )}
           </span>
         </div>
         <button
@@ -7275,75 +7306,6 @@ export default function App() {
                   </button>
                 </div>
               )}
-            {['rectangle', 'circle', 'pen'].includes(tool) && (
-              <div
-                className="guide-actions shape-mode-actions"
-                role="toolbar"
-                aria-label="Muodon toiminnot"
-              >
-                <button
-                  disabled={busy}
-                  aria-pressed={!constructionLine}
-                  onClick={() => setShapePurpose('model')}
-                >
-                  <Square size={15} />
-                  Kappale
-                </button>
-                <button
-                  disabled={busy}
-                  aria-pressed={constructionLine}
-                  onClick={() => {
-                    setShapePurpose('construction');
-                    field('thickness', '0');
-                  }}
-                >
-                  <Ruler size={15} />
-                  Mittaus/rakennusviiva
-                </button>
-              </div>
-            )}
-            {!markupMode &&
-              (editing || ['rectangle', 'circle'].includes(tool)) &&
-              !['extrude', 'offset', 'rotate', 'detail'].includes(tool) &&
-              (tool !== 'move' || !!axis) &&
-              !(tool === 'measure' && measureMode === 'dimension') && (
-                <div className="reference-bar">
-                  {tool !== 'move' && (
-                    <>
-                      <button
-                        aria-pressed={pickReference}
-                        onClick={() => setPickReference(!pickReference)}
-                      >
-                        <Crosshair size={15} />
-                        {pickReference ? 'Napauta viitepistettä' : 'Poimi viite'}
-                      </button>
-                      {reference && (
-                        <button
-                          data-testid="reference-lock"
-                          onClick={() => setReference(undefined)}
-                        >
-                          Viite: {reference.label} <X size={14} />
-                        </button>
-                      )}
-                    </>
-                  )}
-                  {(axis || penConstraint || penRotation) && (
-                    <button
-                      onClick={() => {
-                        setAxis(undefined);
-                        constraintRef.current = undefined;
-                        setPenConstraint(undefined);
-                        clearLocks();
-                        setConstraintReset((value) => value + 1);
-                      }}
-                      aria-label="Vapauta suuntalukko"
-                    >
-                      {axis ? `${axis.toUpperCase()}-akseli` : 'Suunta lukittu'} · Vapauta{' '}
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              )}
             {!project.bodies.length &&
               !project.referenceImages?.length &&
               tool === 'select' &&
@@ -7629,6 +7591,71 @@ export default function App() {
                   onFinish={() => cancel(true)}
                 />
               )}
+              {['rectangle', 'circle', 'pen'].includes(tool) && (
+                <div className="inspector-shape-mode" role="toolbar" aria-label="Muodon toiminnot">
+                  <button
+                    disabled={busy}
+                    aria-pressed={!constructionLine}
+                    onClick={() => setShapePurpose('model')}
+                  >
+                    <Square size={15} />
+                    Kappale
+                  </button>
+                  <button
+                    disabled={busy}
+                    aria-pressed={constructionLine}
+                    onClick={() => {
+                      setShapePurpose('construction');
+                      field('thickness', '0');
+                    }}
+                  >
+                    <Ruler size={15} />
+                    Mittaus/rakennusviiva
+                  </button>
+                </div>
+              )}
+              {!markupMode &&
+                (editing || ['rectangle', 'circle'].includes(tool)) &&
+                !['extrude', 'offset', 'rotate', 'detail'].includes(tool) &&
+                (tool !== 'move' || !!axis) &&
+                !(tool === 'measure' && measureMode === 'dimension') && (
+                  <div className="inspector-reference">
+                    {tool !== 'move' && (
+                      <>
+                        <button
+                          aria-pressed={pickReference}
+                          onClick={() => setPickReference(!pickReference)}
+                        >
+                          <Crosshair size={15} />
+                          {pickReference ? 'Napauta viitepistettä' : 'Poimi viite'}
+                        </button>
+                        {reference && (
+                          <button
+                            data-testid="reference-lock"
+                            onClick={() => setReference(undefined)}
+                          >
+                            Viite: {reference.label} <X size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {(axis || penConstraint || penRotation) && (
+                      <button
+                        onClick={() => {
+                          setAxis(undefined);
+                          constraintRef.current = undefined;
+                          setPenConstraint(undefined);
+                          clearLocks();
+                          setConstraintReset((value) => value + 1);
+                        }}
+                        aria-label="Vapauta suuntalukko"
+                      >
+                        {axis ? `${axis.toUpperCase()}-akseli` : 'Suunta lukittu'} · Vapauta{' '}
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
               {activeTool && linkNotice}
               {activeTool && holdNotice}
               {tool === 'paint' && (
@@ -7917,6 +7944,7 @@ export default function App() {
                       ? `${detailSelections.filter((t) => t.indices.length).length} osaa`
                       : detailSource?.name
                   }
+                  canRecover={detailSource?.feature.type === 'brep' && detailSource.feature.solid}
                   retained={!!detailSource?.edgeTreatment}
                   editing={!!detailTarget?.editing}
                   onEditPrevious={() => {
@@ -8444,7 +8472,25 @@ export default function App() {
                             onChange={(name) => void patchGroup(selectedGroup.id, { name })}
                           />
                         ) : selectedIds.length > 1 ? (
-                          `${selectedIds.length} kappaletta`
+                          <InlineName
+                            name={`${selectedIds.length} kappaletta`}
+                            label="Nimeä valitut"
+                            disabled={busy || !!movementBlocked}
+                            onChange={(name) =>
+                              void editor.transact(
+                                {
+                                  ...project,
+                                  bodies: project.bodies.map((b) => {
+                                    const index = selectedIds.indexOf(b.id);
+                                    return index < 0
+                                      ? b
+                                      : { ...b, name: `${name.slice(0, 108)} ${index + 1}` };
+                                  }),
+                                },
+                                'Valitut osat nimetty.',
+                              )
+                            }
+                          />
                         ) : body ? (
                           <InlineName
                             key={body.id}
@@ -8482,36 +8528,29 @@ export default function App() {
                       {selectedGroup?.kind === 'assembly' ? ' · Kokoonpano' : ''}
                     </p>
                   )}
-                  {body && !selectedGroup && (
+                  {body && (
                     <>
-                      <label className="selection-group-field">
-                        Ryhmä
-                        <select
-                          aria-label="Kappaleen ryhmä"
-                          disabled={busy || !!movementBlocked}
-                          value={
-                            new Set(
-                              project.bodies
-                                .filter((b) => selectedIdSet.has(b.id))
-                                .map((b) => b.groupId ?? ''),
-                            ).size > 1
-                              ? '__mixed__'
-                              : (body.groupId ?? '')
-                          }
-                          onChange={(e) =>
-                            void patchBodies(selectedIds, { groupId: e.target.value || undefined })
-                          }
-                        >
-                          <option value="">Päätaso</option>
-                          <option value="__mixed__" disabled>
-                            Useita ryhmiä
-                          </option>
-                          <GroupOptions groups={project.groups} />
-                        </select>
-                      </label>
                       <div className="selection-essentials">
                         <button
-                          title="Piilota valinta · H"
+                          title={
+                            movementBlocked
+                              ? 'Vapauta valitut osat · G'
+                              : 'Lukitse valitut osat · G'
+                          }
+                          aria-label="Hold-lukitus"
+                          aria-pressed={!!movementBlocked}
+                          disabled={busy}
+                          onClick={holdSelected}
+                        >
+                          {movementBlocked ? (
+                            <UnlockKeyhole size={15} />
+                          ) : (
+                            <LockKeyhole size={15} />
+                          )}
+                          {movementBlocked ? 'Vapauta' : 'Lukitse'}
+                        </button>
+                        <button
+                          title="Piilota valinta · H · Palauta viimeksi piilotetut: Shift+H"
                           aria-label="Piilota valinta"
                           disabled={busy}
                           onClick={() => void hideSelected()}
@@ -8519,15 +8558,55 @@ export default function App() {
                           <EyeOff size={15} /> Piilota
                         </button>
                         <button
-                          title="Hold · G"
-                          aria-label="Hold-lukitus"
-                          aria-pressed={!!movementBlocked}
+                          title="Haamunäkymä valituille osille · Paina uudestaan palauttaaksesi pinnat"
+                          aria-label="Valinnan haamunäkymä"
+                          aria-pressed={
+                            commonDisplayMode(project.settings.modelDisplay, selectedIds) ===
+                            'ghost'
+                          }
                           disabled={busy}
-                          onClick={holdSelected}
+                          onClick={() =>
+                            changeDisplay(
+                              commonDisplayMode(project.settings.modelDisplay, selectedIds) ===
+                                'ghost'
+                                ? 'solid'
+                                : 'ghost',
+                            )
+                          }
                         >
-                          <LockKeyhole size={15} />
-                          {movementBlocked ? 'Lukittu' : 'Hold'}
+                          <Ghost size={15} /> Haamu
                         </button>
+                      </div>
+                      {!selectedGroup && (
+                        <label className="selection-group-field">
+                          Ryhmä
+                          <select
+                            aria-label="Kappaleen ryhmä"
+                            disabled={busy || !!movementBlocked}
+                            value={
+                              new Set(
+                                project.bodies
+                                  .filter((b) => selectedIdSet.has(b.id))
+                                  .map((b) => b.groupId ?? ''),
+                              ).size > 1
+                                ? '__mixed__'
+                                : (body.groupId ?? '')
+                            }
+                            onChange={(e) =>
+                              void patchBodies(selectedIds, {
+                                groupId: e.target.value || undefined,
+                              })
+                            }
+                          >
+                            <option value="">Päätaso</option>
+                            <option value="__mixed__" disabled>
+                              Useita ryhmiä
+                            </option>
+                            <GroupOptions groups={project.groups} />
+                          </select>
+                        </label>
+                      )}
+                      <div className="selection-link-action">
                         <button
                           title={linkedSelection ? 'Tee valinnasta uniikki' : 'Linkitä osat'}
                           aria-label="Komponentin linkitys"
@@ -8650,7 +8729,7 @@ export default function App() {
                       </button>
                     </div>
                   )}
-                  {body && !selectedGroup ? (
+                  {body ? (
                     <div className="selection-info">
                       <span className="selection-tag" data-face-selected={!!selectedFace}>
                         {selectedIds.length > 1
@@ -8711,14 +8790,14 @@ export default function App() {
                         <>
                           <div className="selection-actions object-quick-actions">
                             <button
-                              aria-label="Siirrä valittua"
+                              aria-label={selectedGroup ? 'Siirrä valinta' : 'Siirrä valittua'}
                               disabled={busy || !!movementBlocked}
                               onClick={() => begin('move')}
                             >
                               <Move3D size={15} /> Siirrä
                             </button>
                             <button
-                              aria-label="Kopioi kappale"
+                              aria-label={selectedGroup ? 'Kopioi valinta' : 'Kopioi kappale'}
                               disabled={busy || !!movementBlocked}
                               onClick={() => void copyBody()}
                             >
@@ -8737,6 +8816,11 @@ export default function App() {
                           <div className="selection-actions object-quick-actions primary-object-actions">
                             <button
                               aria-label="Muokkaa osaa"
+                              title={
+                                selectedIds.length > 1
+                                  ? 'Valitse yksi osa avataksesi sen muokkaustilaan.'
+                                  : 'Avaa osan pinnat muokattaviksi'
+                              }
                               onClick={() => openBodyEdit(body.id)}
                               disabled={
                                 busy ||
@@ -8892,6 +8976,7 @@ export default function App() {
 
                   {selectedGroup && mode === 'model' && (
                     <GroupActions
+                      sharedActions={!!body}
                       group={selectedGroup}
                       groups={project.groups}
                       count={selectedIds.length}
@@ -9188,6 +9273,7 @@ export default function App() {
       )}
       {libraryOpen && (
         <ProjectLibrary
+          cloud={cloud}
           activeId={project.id}
           revision={libraryRevision}
           onOpen={openProjectSession}

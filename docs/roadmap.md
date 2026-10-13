@@ -2,6 +2,37 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.40.0 — pilvisynkronoinnin pohja, reunakäsittelyt ja valinnan selkeys
+
+- Supabase Auth + yksityinen tiedostosäiliö + käyttäjäkohtainen projektitaulu.
+  Paikallinen tallennus ensin; vain erikseen käyttöön otetun avoimen projektin
+  synkronointi. Sisältöhash, palvelimen atominen versiotarkistus, offline-paluu
+  ja rinnakkaisten versioiden säilyttäminen. Oma Supabase-projekti ja julkiset
+  selainasetukset tarvitaan käyttöönottoon. [Tarkemmat rajat](cloud-sync.md).
+- Reunakäsittelyjen lähteet säilyvät ketjuna. Päädyn Push/Pull uusintaa myös
+  aiemmat pyöristykset; poistaminen etenee uusimmasta kohti aiempia. Vanhan
+  suorakulmaisen aihion nurkkapyöristys voidaan palauttaa vain tarkan
+  uudelleenrakennuksen ja tilavuusleikkauksen vastaavuustodistuksen jälkeen.
+- Mallilistassa ei erillistä Hold-merkkiä nimen vieressä; lukkopainike riittää.
+- Valinnan ensimmäisellä pikarivillä **Lukitse / Vapauta**, **Piilota** ja **Haamu**.
+  Sekavalinnan vapautus koskee vain valittuja osia, myös perityssä ryhmälukossa;
+  muut osat pysyvät lukittuina. Haamu vaihtuu toisella painalluksella Solid-tilaan.
+  Ryhmän lukitus ja vapautus koskevat koko alipuuta, myös erikseen lukittuja osia.
+- Ryhmävalintaan yhteiset materiaalit, värit, siirto, kopio, kierto, skaalaus,
+  poistaminen, linkitys ja määrät. Yksittäisen osan muokkaus vaatii yhden valinnan.
+  Vapaassa monivalinnassa voi nimetä osat yhteisellä pohjanimellä ja järjestysnumerolla.
+- Kappale/rakennusviiva ja viitepoiminta oikeaan paneeliin; tarkemmat käyttötavat
+  lisäasetuksissa. Muokkaustilan banneri ja pinnattu mallilista eivät peitä valintoja.
+
+### Pilven jatko ennen laajaa tuotantokäyttöä
+
+- Versioiden säilytysraja, käyttämättömien tiedostojen palvelinsiivous, tilakiintiöt
+  ja pilviprojektin poistaminen. Nykyiset tiedostoversiot säilyvät muuttumattomina.
+- Suljettujen paikallisten projektien jonon synkronointi, nimettyjen vertailuversioiden
+  siirto ja ristiriitojen vertailun suora avaaminen.
+- Oikean Supabase-projektin ja sähköpostitoimituksen käyttöönottotesti kahdella
+  fyysisellä laitteella. Paikalliset testit käyttävät eristettyä palvelujäljitelmää.
+
 ## V0.39.0 — mittakuvien merkinnät ja projektiversioiden vertailu
 
 - Projektikirjastolla on oma kirjastokuvake; tiedoston avaaminen säilyttää kansiokuvakkeen.
@@ -35,8 +66,8 @@
   käytettävät suomalaiset/ISO-piirustusohjeet ja tarkistetaan niiden käyttöehdot
   ennen merkkikirjaston toteutusta. Nykyinen yleinen viivoitus ei väitä materiaalin
   tyyppiä eikä insinööritoimiston hyväksyntää.
-- Käyttäjäkohtainen synkronointi ja etäversiohistoria; paikallinen versiovertailu
-  antaa pohjan ristiriitojen näyttämiseen. Automaattista yhdistämistä ei tehdä.
+- Etäversiohistoria ja paikallisen versiovertailun kytkeminen pilviristiriitoihin.
+  Käyttäjäkohtaisen synkronoinnin ensimmäinen toteutus on V0.40.0:ssa.
 
 ## V0.38.0 — mobiilityötila ja projektin siirto laitteiden välillä
 

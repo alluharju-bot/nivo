@@ -1,3 +1,5 @@
+import { recoverCornerTreatment } from './recoverTreatment';
+import { Quaternion, Vector3 } from 'three';
 import { shapeEdges } from './topology';
 import { cast, getOC, type AnyShape } from 'replicad';
 import { featureIsSolid, uid, type Body } from '../model/project';
@@ -26,6 +28,8 @@ export function detailEdges(
     );
   if (!Number.isFinite(size) || size < 0.1 || size > 100000)
     throw new Error('Anna mitta väliltä 0,1–100 000 mm.');
+  if (!editing && (body.edgeTreatment?.previous?.length ?? 0) >= 64)
+    throw new Error('Osalla on jo 65 muokattavaa reunakäsittelyä.');
   const source = editing ? body.edgeTreatment : undefined;
   const shape = source ? detailSourceShape(body) : (cache?.shape(body) ?? createShape(body)),
     edges = shapeEdges(shape);
@@ -81,6 +85,14 @@ export function detailEdges(
       indices: selected,
       operation,
       size,
+      previous: source
+        ? source.previous
+        : body.edgeTreatment
+          ? [
+              ...(body.edgeTreatment.previous ?? []),
+              (({ previous, ...layer }) => layer)(body.edgeTreatment),
+            ]
+          : undefined,
     };
     next.quantityBasis = transformQuantityBasis(body, next, (v) => v);
     const mesh = meshBody(next, result);
@@ -100,10 +112,38 @@ export function detailEdges(
 
 export function removeEdgeTreatment(body: Body): Body {
   if (body.locked) throw new Error('Vapauta Hold ennen reunakäsittelyn poistamista.');
-  if (!body.edgeTreatment) return body;
+  if (!body.edgeTreatment) {
+    const recovered = recoverCornerTreatment(body);
+    if (!recovered)
+      throw new Error(
+        'Vanhaa reunakäsittelyä ei voitu erottaa varmasti geometriasta. Alkuperäinen osa säilyi.',
+      );
+    return removeEdgeTreatment({ ...body, edgeTreatment: recovered });
+  }
   const shape = detailSourceShape(body);
   try {
     const next = bodyFromShape(body, shape);
+    const layers = body.edgeTreatment.previous;
+    const previous = layers?.at(-1);
+    if (previous) {
+      const rotation = new Quaternion(...body.edgeTreatment.rotation).normalize();
+      next.edgeTreatment = {
+        ...previous,
+        offset: sub(
+          add(
+            add(body.origin, body.edgeTreatment.offset),
+            new Vector3(...previous.offset).applyQuaternion(rotation).toArray() as Body['origin'],
+          ),
+          next.origin,
+        ),
+        rotation: rotation
+          .multiply(new Quaternion(...previous.rotation))
+          .normalize()
+          .toArray(),
+        previous: layers!.slice(0, -1),
+      };
+    }
+    if (!next.edgeTreatment) next.edgeTreatment = recoverCornerTreatment(next);
     next.quantityBasis = transformQuantityBasis(body, next, (v) => v);
     return next;
   } finally {

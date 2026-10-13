@@ -24,6 +24,15 @@ The unmodified kernel can be replaced or rebuilt independently of Nivo.
 See docs/architecture.md for integration and replacement instructions.
 
 Installed runtime dependencies:
+@supabase/supabase-js 2.117.3: MIT (@supabase__supabase-js-LICENSE)
+@supabase/auth-js 2.117.3: MIT (@supabase__auth-js-LICENSE)
+tslib 2.8.1: 0BSD (tslib-LICENSE.txt)
+@supabase/functions-js 2.117.3: MIT (@supabase__functions-js-LICENSE)
+@supabase/realtime-js 2.117.3: MIT (@supabase__realtime-js-LICENSE)
+@supabase/phoenix 0.4.5: MIT (@supabase__phoenix-LICENSE.md)
+@supabase/storage-js 2.117.3: MIT (@supabase__storage-js-LICENSE)
+iceberg-js 0.8.1: MIT (iceberg-js-LICENSE)
+@supabase/postgrest-js 2.117.3: MIT (@supabase__postgrest-js-LICENSE)
 brepjs-opencascade 0.15.6: LGPL-2.1-only (brepjs-opencascade-LICENSE, brepjs-opencascade-NOTICE)
 jspdf 4.2.1: MIT (jspdf-LICENSE)
 @babel/runtime 7.29.7: MIT (@babel__runtime-LICENSE)

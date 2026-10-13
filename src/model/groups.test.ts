@@ -1,3 +1,5 @@
+import { setGroupHold, setSelectionHold } from './groups';
+import { assertHolds } from './holds';
 import { describe, it, expect } from 'vitest';
 import { freshProject, makeBody, parseProject, type Project } from './project';
 import { bodyVisible, moveToOrigin } from './transforms';
@@ -186,4 +188,44 @@ it('dropping parts onto a part creates a nested folder without changing geometry
       target.id,
     ),
   ).toThrow('Vapauta');
+});
+
+it('explicit parent Hold locks and unlocks every descendant and preserves unrelated parts and geometry', () => {
+  const p = frame();
+  p.bodies[4].locked = true;
+  p.groups[1].locked = true;
+  const locked = setGroupHold(p, 'root', true);
+  expect(groupBodies(locked, 'root').every((b) => b.locked)).toBe(true);
+  expect(locked.groups.every((g) => g.locked)).toBe(true);
+  assertHolds(p, locked);
+  expect(() => setGroupHold(locked, 'child', false)).toThrow('ylemmän');
+  const free = setGroupHold(locked, 'root', false);
+  assertHolds(locked, free);
+  expect(groupBodies(free, 'root').every((b) => !b.locked)).toBe(true);
+  expect(free.groups.every((g) => !g.locked)).toBe(true);
+  expect(free.bodies.at(-1)).toBe(p.bodies.at(-1));
+  free.bodies.forEach((b, i) => {
+    expect(b.feature).toBe(p.bodies[i].feature);
+    expect(b.origin).toBe(p.bodies[i].origin);
+  });
+});
+
+describe('multi-selection Hold', () => {
+  it('unlocks selected parts across inherited and individual Holds without unlocking siblings', () => {
+    const p = frame();
+    p.groups[0].locked = true;
+    p.groups.push({ id: 'sibling', parentId: 'root', name: 'Muu ryhmä', hidden: false });
+    p.bodies[14].groupId = 'sibling';
+    p.bodies[15].locked = true;
+    const ids = [p.bodies[0].id, p.bodies[5].id, p.bodies[15].id];
+    const next = setSelectionHold(p, ids, false);
+    for (const b of next.bodies) expect(!!bodyLocked(b, next.groups)).toBe(!ids.includes(b.id));
+    expect(next.groups.find((g) => g.id === 'sibling')?.locked).toBe(true);
+    expect(() => assertHolds(p, next)).not.toThrow();
+    expect(next.bodies.map((b) => b.feature)).toEqual(p.bodies.map((b) => b.feature));
+    expect(next.bodies.map((b) => b.groupId)).toEqual(p.bodies.map((b) => b.groupId));
+    const held = setSelectionHold(next, ids, true);
+    expect(held.bodies.every((b) => bodyLocked(b, held.groups))).toBe(true);
+    expect(() => assertHolds(next, held)).not.toThrow();
+  });
 });

@@ -32,6 +32,7 @@ test('retained fillet reopens, adds a meeting edge, changes size and can be remo
   await selectListed(page, body.id);
   await page.keyboard.press('f');
   await expect(page.getByTestId('detail-size')).toHaveValue('3');
+  await page.getByRole('button', { name: 'Muokkaa edellistä käsittelyä', exact: true }).click();
   await click(page, p(0, 240, 18));
   await page.getByTestId('detail-size').fill('2');
   await page.getByRole('button', { name: 'Hyväksy reunakäsittely', exact: true }).click();
@@ -46,7 +47,9 @@ test('retained fillet reopens, adds a meeting edge, changes size and can be remo
   await page.keyboard.press('f');
   await revealBrowser(page);
   await page.getByRole('button', { name: 'Kiinnitä ryhmä: Ovilevyt', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Poista käsittely', exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Poista viimeisin käsittely', exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole('button', {
       name: 'Hyväksy reunakäsittely',
@@ -63,7 +66,7 @@ test('retained fillet reopens, adds a meeting edge, changes size and can be remo
     .locator('summary')
     .filter({ hasText: /^Nykyinen reunakäsittely$/ })
     .click();
-  await page.getByRole('button', { name: 'Poista käsittely', exact: true }).click();
+  await page.getByRole('button', { name: 'Poista viimeisin käsittely', exact: true }).click();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   expect((await save(page)).bodies[0].edgeTreatment).toBeUndefined();
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
@@ -290,7 +293,7 @@ test('move snaps edge points and axis references and obeys a saved grid step', a
   await page.keyboard.press('x');
   const ref = p(257.375, 143.625, 20);
   await page.mouse.move(ref.x, ref.y, { steps: 8 });
-  await expect(page.getByTestId('snap-hint')).toContainText('Akselin mitta');
+  await expect(page.getByTestId('snap-hint')).toContainText('Suunnan mitta');
   await page.mouse.up();
   await expect(page.getByTestId('dynamic-input')).toHaveCount(0);
   result = await save(page);

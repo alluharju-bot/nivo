@@ -3778,18 +3778,7 @@ p {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.object-select .object-hold-badge {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 3px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: #f8e6b9cc;
-  color: #765016;
-  font-size: 10px;
-  font-weight: 650;
-}
+
 .component-link-notice > div {
   display: flex;
   align-items: center;
@@ -5093,7 +5082,7 @@ p {
   font-weight: 500;
   text-shadow: 0 1px 2px #ffffffc0;
 }
-.model-browser .object-select > span:not(.tree-drag-grip):not(.object-hold-badge),
+.model-browser .object-select > span:not(.tree-drag-grip),
 .model-browser .group-select {
   font-size: 12px;
   font-weight: 600;
@@ -7208,6 +7197,7 @@ p {
   gap: 5px;
   margin: 10px 0 14px;
 }
+.selection-link-action button,
 .selection-essentials button {
   display: flex;
   align-items: center;
@@ -7220,11 +7210,13 @@ p {
   background: #edf1eb;
   color: #405647;
 }
+.selection-link-action button[aria-pressed='true'],
 .selection-essentials button[aria-pressed='true'] {
   background: #dce8de;
   color: #234432;
   box-shadow: inset 0 0 0 1px #bdcfc1;
 }
+.selection-link-action button:disabled,
 .selection-essentials button:disabled {
   opacity: 0.48;
 }
@@ -8205,4 +8197,121 @@ p {
 }
 .drawing-paper:has([data-paper-annotation]) {
   touch-action: none;
+}
+
+.cloud-projects {
+  border: 1px solid #d8e2dd;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 18px;
+  background: #f4f8f6;
+}
+.cloud-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.cloud-heading span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.cloud-projects form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.cloud-projects form > p,
+.cloud-projects form > details {
+  flex-basis: 100%;
+}
+.cloud-projects label {
+  display: grid;
+  gap: 4px;
+}
+.cloud-current {
+  border-block: 1px solid #d8e2dd;
+  padding: 12px 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 8px;
+}
+.cloud-current p {
+  margin: 0;
+}
+.cloud-project-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid #e1e7e3;
+}
+.cloud-project-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cloud-project-row small {
+  display: block;
+  color: #586c61;
+  margin-top: 3px;
+}
+.cloud-status {
+  border: 0;
+  background: transparent;
+  color: #3c7765;
+  padding: 0 4px;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.inspector-shape-mode,
+.inspector-reference {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 18px;
+}
+.inspector-shape-mode button,
+.inspector-reference button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #d5dfd8;
+  border-radius: 7px;
+  padding: 8px;
+  font-size: 12px;
+}
+.inspector-shape-mode button[aria-pressed='true'],
+.inspector-reference button[aria-pressed='true'] {
+  background: #dfece5;
+  color: #24543f;
+  border-color: #8bad99;
+}
+/* Overlay offsets are measured inside the canvas, independent of rail position. */
+.edit-context {
+  z-index: 12;
+}
+.workspace:is([data-dock='top'], [data-dock='bottom']) > .tool-rail {
+  min-height: 0;
+  flex-wrap: nowrap;
+}
+.canvas-area:has(.model-browser[data-expanded='true']) .guide-actions,
+.canvas-area:has(.model-browser[data-expanded='true']) .section-notice {
+  left: 272px;
+  max-width: calc(100% - 288px);
+  flex-wrap: wrap;
+}
+.app-shell[data-compact='true'] .canvas-area .guide-actions,
+.app-shell[data-compact='true'] .canvas-area .section-notice {
+  left: 8px;
+  max-width: calc(100% - 16px);
+}
+
+.selection-link-action {
+  margin: 8px 0;
+}
+.selection-link-action button {
+  padding-inline: 10px;
 }
