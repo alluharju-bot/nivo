@@ -11,10 +11,12 @@ export function assertHolds(before: Project, after: Project) {
   const comparable = ({
     locked: _locked,
     hidden: _hidden,
+    listColor: _listColor,
     ...value
   }: {
     locked?: boolean;
     hidden?: boolean;
+    listColor?: string;
   }) => JSON.stringify(value);
   if (held.length) {
     const next = new Map(after.bodies.map((b) => [b.id, b]));

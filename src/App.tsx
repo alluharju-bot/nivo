@@ -1,3 +1,4 @@
+import { useTreeExpansion } from './ui/useTreeExpansion';
 import { setGroupHold, setSelectionHold } from './model/groups';
 import { useCloud } from './cloud/useCloud';
 import type { DrawingScope } from './model/drawingAnnotations';
@@ -844,6 +845,17 @@ export default function App() {
     };
   }, [headerMenuOpen]);
   const [tab, setTab] = useState<'objects' | 'dimensions' | 'guides' | 'markups'>('objects');
+  const treeExpansion = useTreeExpansion(
+    project.id,
+    project.bodies,
+    project.groups,
+    selectedIds,
+    selected,
+    selectedGroupId,
+  );
+  useEffect(() => {
+    if (treeExpansion.activeKey) setTab('objects');
+  }, [treeExpansion.revealKey]);
   const fileInput = useRef<HTMLInputElement>(null);
   const inspectorDetails = useRef<HTMLDivElement>(null);
   const body = project.bodies.find((b) => b.id === selected);
@@ -4425,6 +4437,21 @@ export default function App() {
 
   const objectTree = (
     <ObjectTree
+      key={project.id}
+      expansion={treeExpansion}
+      onListColor={(ids, groupId, listColor) => {
+        const chosen = new Set(ids);
+        void editor.transact(
+          {
+            ...project,
+            bodies: project.bodies.map((b) =>
+              !groupId && chosen.has(b.id) ? { ...b, listColor } : b,
+            ),
+            groups: project.groups.map((g) => (g.id === groupId ? { ...g, listColor } : g)),
+          },
+          listColor ? 'Mallilistan riviväri asetettu.' : 'Mallilistan riviväri poistettu.',
+        );
+      }}
       bodies={project.bodies}
       groups={project.groups}
       selected={loftOpen ? loftIds : selectedIds}
@@ -4495,7 +4522,7 @@ export default function App() {
       }}
       onFit={(id) => {
         const part = project.bodies.find((b) => b.id === id);
-        if (part) setCameraCommand({ id: performance.now(), type: 'fit', ids: [id] });
+        if (part) setCameraCommand({ id: performance.now(), type: 'fit', ids: [id], locate: true });
       }}
       onSelectGroup={(id) => {
         if (editingBodyId) {
@@ -4670,7 +4697,9 @@ export default function App() {
       parts={heldSelection}
       groups={project.groups}
       count={selectedIds.length}
-      onFocus={(id) => setCameraCommand({ id: performance.now(), type: 'fit', ids: [id] })}
+      onFocus={(id) =>
+        setCameraCommand({ id: performance.now(), type: 'fit', ids: [id], locate: true })
+      }
     />
   );
   const planarSelection =
@@ -8985,7 +9014,14 @@ export default function App() {
                       onChange={(patch) => void patchGroup(selectedGroup.id, patch)}
                       onMove={() => begin('move')}
                       onCopy={copyBody}
-                      onFit={fit}
+                      onFit={() =>
+                        setCameraCommand({
+                          id: performance.now(),
+                          type: 'fit',
+                          ids: selectedIds,
+                          locate: true,
+                        })
+                      }
                       onSubgroup={() => void createGroup(selectedGroup.id)}
                       onRemove={() => void removeGroup(selectedGroup.id)}
                       onMerge={() => void mergeSelected()}

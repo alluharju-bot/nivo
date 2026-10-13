@@ -650,11 +650,26 @@ export function installInteractions({
         label: i === 0 ? 'Aloituspiste' : 'Kynän piste',
       }));
     if (event) {
+      const projectReference =
+        (event.shiftKey || shift) && ['rectangle', 'circle'].includes(p.tool);
       const accepts = (point: Vec3) =>
-        Math.abs(dot(sub(point, frame.origin), frame.normal)) < 1e-5 &&
+        (projectReference || Math.abs(dot(sub(point, frame.origin), frame.normal)) < 1e-5) &&
         (p.tool !== 'pen' || !start || Math.hypot(...sub(point, start)) > 1e-6);
       const picked = referenceAt(event, accepts, true);
       if (picked) {
+        if (projectReference) {
+          const projected = fromUV(toUV(picked.point, frame), frame);
+          show({
+            ...picked,
+            point: projected,
+            label: `${picked.label} · Shift-viite`,
+            line: [picked.point, projected],
+          });
+          referenceMarker.visible = true;
+          referenceMarker.position.set(...picked.point);
+          referenceMarker.material.size = 16;
+          return projected;
+        }
         show(picked);
         return picked.point;
       }
@@ -1457,7 +1472,11 @@ export function installInteractions({
       })
       .filter((e) => e.distance < snapRadius(event, 'line') && e.depth >= -1 && e.depth <= 1)
       .sort((a, b) =>
-        Math.abs(a.distance - b.distance) < 1 ? a.depth - b.depth : a.distance - b.distance,
+        // Neighbouring segments of a rounded edge must follow the pointer,
+        // not walk toward the camera by a pixel on every acquisition.
+        Math.abs(a.distance - b.distance) < (a.mesh.id === b.mesh.id ? 1e-4 : 1)
+          ? a.depth - b.depth
+          : a.distance - b.distance,
       );
     const found = candidates.find(
       (candidate) => accepts(candidate.point, candidate.mesh.id) && visiblePoint(candidate.point),

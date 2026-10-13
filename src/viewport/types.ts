@@ -53,6 +53,7 @@ export interface CameraCommand {
   id: number;
   type: 'fit' | 'view' | 'projection' | 'origin' | 'frame';
   ids?: string[];
+  locate?: boolean;
   frame?: SketchFrame;
   width?: number;
   height?: number;

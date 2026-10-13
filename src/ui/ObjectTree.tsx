@@ -1,7 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import type { useTreeExpansion } from './useTreeExpansion';
+import { TreeColorMenu, type TreeColorTarget } from './TreeColorMenu';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { VirtualTreeRows } from './VirtualTreeRows';
 import { createPortal } from 'react-dom';
 import {
+  Palette,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -22,6 +25,8 @@ import type { Body, BodyGroup } from '../model/project';
 import { useTreeDrag } from './useTreeDrag';
 
 export function ObjectTree({
+  expansion,
+  onListColor,
   bodies,
   groups,
   selected,
@@ -39,6 +44,8 @@ export function ObjectTree({
   onNewGroup,
   onMove,
 }: {
+  expansion: ReturnType<typeof useTreeExpansion>;
+  onListColor: (ids: string[], groupId?: string, color?: string) => void;
   bodies: Body[];
   groups: BodyGroup[];
   selected: string[];
@@ -57,7 +64,18 @@ export function ObjectTree({
   onMove: (move: TreeMove, parentId?: string, bodyId?: string) => void;
 }) {
   const rangeAnchor = useRef<string | undefined>(undefined);
-  const [collapsed, setCollapsed] = useState(new Set<string>());
+  const { collapsed, setCollapsed, activeKey, revealKey } = expansion;
+  const [colorMenu, setColorMenu] = useState<TreeColorTarget>();
+  const rowStyle = (item: Body | BodyGroup) =>
+    ({ '--tree-row-color': item.listColor }) as CSSProperties;
+  const selectionParents = useMemo(() => {
+    const chosen = new Set(selected);
+    return new Set(
+      bodies
+        .filter((b) => chosen.has(b.id))
+        .flatMap((b) => groupAncestors(groups, b.groupId).map((g) => g.id)),
+    );
+  }, [bodies, groups, selected]);
   const [renaming, setRenaming] = useState<string>();
   const { tree, drag, start, suppressClick } = useTreeDrag(
     groups,
@@ -110,6 +128,18 @@ export function ObjectTree({
     append();
     return rows;
   }, [byGroup, children, collapsed]);
+  useLayoutEffect(() => {
+    if (!activeKey || bodies.length + groups.length > 400) return;
+    const list = tree.current?.querySelector<HTMLElement>('.object-list');
+    const row = tree.current?.querySelector<HTMLElement>(
+      `[data-tree-key="${CSS.escape(activeKey)}"]`,
+    );
+    if (!list || !row) return;
+    const view = list.getBoundingClientRect(),
+      rect = row.getBoundingClientRect();
+    if (rect.top < view.top) list.scrollTop += rect.top - view.top;
+    else if (rect.bottom > view.bottom) list.scrollTop += rect.bottom - view.bottom;
+  }, [activeKey, revealKey, collapsed]);
   const dropClass = (id: string) =>
     drag?.drop?.id === id ? (drag.drop.allowed ? ' tree-drop-active' : ' tree-drop-invalid') : '';
   const rename = (item: Body | BodyGroup, kind: 'body' | 'group') => (
@@ -146,6 +176,20 @@ export function ObjectTree({
     return (
       <div
         key={body.id}
+        data-tree-key={body.id}
+        data-list-color={body.listColor}
+        style={rowStyle(body)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!busy)
+            setColorMenu({
+              x: e.clientX,
+              y: e.clientY,
+              ids,
+              name: ids.length > 1 ? `${ids.length} kappaletta` : body.name,
+            });
+        }}
         data-tree-drop={body.groupId ?? ''}
         data-tree-body={body.id}
         className={`object-row${dropClass(body.id)} ${held ? 'held' : ''} ${visible ? '' : 'hidden-body'} ${drag?.move.kind === 'bodies' && drag.move.ids.includes(body.id) ? 'tree-dragging' : ''}`}
@@ -196,7 +240,7 @@ export function ObjectTree({
         <button
           className="object-action"
           aria-label={`Keskitä: ${body.name}`}
-          title="Keskitä osa näkymään"
+          title="Paikanna osa · korosta 5 sekuntia myös muiden osien läpi"
           disabled={busy || !visible}
           onClick={() => onFit(body.id)}
         >
@@ -233,7 +277,26 @@ export function ObjectTree({
   const groupHeading = (group: BodyGroup) => {
     const ancestors = groupAncestors(groups, group.id);
     return (
-      <div className={`object-group-heading${dropClass(group.id)}`} data-tree-drop={group.id}>
+      <div
+        className={`object-group-heading${dropClass(group.id)}${selectionParents.has(group.id) ? ' contains-selection' : ''}`}
+        data-tree-key={group.id}
+        data-tree-drop={group.id}
+        data-contains-selection={selectionParents.has(group.id)}
+        data-list-color={group.listColor}
+        style={rowStyle(group)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!busy)
+            setColorMenu({
+              x: e.clientX,
+              y: e.clientY,
+              ids: [],
+              groupId: group.id,
+              name: group.name,
+            });
+        }}
+      >
         <button
           className="group-collapse"
           aria-label={`${collapsed.has(group.id) ? 'Avaa' : 'Sulje'} ryhmä: ${group.name}`}
@@ -348,6 +411,25 @@ export function ObjectTree({
     >
       <div className="object-tree-heading">
         <button
+          aria-label="Valinnan riviväri"
+          title="Riviväri · myös rivin oikealla painikkeella"
+          disabled={busy || (!selected.length && !selectedGroupId)}
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setColorMenu({
+              x: rect.left,
+              y: rect.bottom,
+              ids: selected,
+              groupId: selectedGroupId,
+              name: selectedGroupId
+                ? (groups.find((g) => g.id === selectedGroupId)?.name ?? 'Ryhmä')
+                : `${selected.length} kappaletta`,
+            });
+          }}
+        >
+          <Palette size={15} />
+        </button>
+        <button
           aria-pressed={multiSelect}
           onClick={onMultiSelect}
           title="Shift valitsee rivivälin. Ctrl/⌘ lisää tai poistaa yksittäisen osan."
@@ -375,9 +457,7 @@ export function ObjectTree({
         <VirtualTreeRows
           items={flatRows}
           itemKey={(item) => (item.kind === 'body' ? item.body.id : item.group.id)}
-          activeKey={
-            renaming ?? selectedGroupId ?? (selected.length === 1 ? selected[0] : undefined)
-          }
+          activeKey={renaming ?? activeKey}
           render={(item) => (
             <div style={{ paddingLeft: Math.min(item.depth, 12) * 9 }}>
               {item.kind === 'body' ? (
@@ -405,6 +485,13 @@ export function ObjectTree({
           ? `${drag.label}: ${drag.drop ? (drag.drop.allowed ? `Siirrä: ${drag.drop.name}` : 'Ei sallittu') : 'Valitse kohderyhmä'}`
           : ''}
       </span>
+      {colorMenu && (
+        <TreeColorMenu
+          target={colorMenu}
+          onClose={() => setColorMenu(undefined)}
+          onChange={(color) => onListColor(colorMenu.ids, colorMenu.groupId, color)}
+        />
+      )}
       {drag &&
         createPortal(
           <div

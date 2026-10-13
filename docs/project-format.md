@@ -499,3 +499,12 @@ tarkoita, että mielivaltaisen BRepin muokkaushistoria olisi palautettavissa.
 
 Pilven laite-/käyttäjäkohtainen yhteisen version osoitin säilytetään erillisessä
 `nivo-cloud`-IndexedDB:ssä eikä `.nivo`-tiedosto sisällä kirjautumistietoja.
+
+### Mallilistan riviväri
+
+Osan ja ryhmän valinnainen `listColor` on kuusinumeroinen heksaväri. Se on
+vain mallilistan tunnusväri: `color`, materiaalit ja geometria säilyvät.
+Kenttä on esiintymäkohtainen, kulkee kopioinnissa ja `.nivo`-siirrossa ja on
+v8-tiedoston kanssa taaksepäin yhteensopiva. Suljetut ryhmät ovat sen sijaan
+selaimen projektikohtainen käyttöliittymäasetus (`nivo-tree-folds:<projectId>`),
+eivät yhteinen geometria- tai muokkaushistoriatieto.

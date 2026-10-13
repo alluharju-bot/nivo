@@ -20,6 +20,15 @@ it('protects held geometry, placement, appearance and removal until a separate u
   expect(() =>
     assertHolds(before, { ...before, bodies: [{ ...part, hidden: true }] }),
   ).not.toThrow();
+  expect(() =>
+    assertHolds(before, { ...before, bodies: [{ ...part, listColor: '#5486b3' }] }),
+  ).not.toThrow();
+  expect(() =>
+    assertHolds(before, {
+      ...before,
+      bodies: [{ ...part, listColor: '#5486b3', color: '#ffffff' }],
+    }),
+  ).toThrow('Hold');
   const unlocked = { ...before, bodies: [{ ...part, locked: false }] };
   expect(() => assertHolds(before, unlocked)).not.toThrow();
   expect(() =>

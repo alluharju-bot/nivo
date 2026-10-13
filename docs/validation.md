@@ -4,6 +4,35 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.40.1 — mallilista, paikannus ja kaarevien reunojen Shift-viite
+
+24 työpöydän selaintapausta sekä 19 tablettiprofiilin tapausta hyväksytty.
+TypeScript ja `/nivo/`-tuotantobuild tarkistettu.
+
+- Ryhmien sulkeminen säilyy listan piilotuksessa, välilehtien vaihdossa ja
+  sivun latauksessa. Valinta avaa oman polun ja korostaa yläryhmät; muu suljettu
+  ryhmä säilyy kiinni. Valitun haaran voi myös sulkea käsin ilman automaattista avaamista.
+- 410 osan listassa viimeisen osan valinta mallista vierittää oikean rivin
+  näkyviin ja pitää listan virtuaalisena. Rivivärit säilyvät tiedostossa ja
+  latauksen yli myös Hold-osalla; geometria ja materiaaliväri säilyvät samoina.
+- Paikannus näkyy seinän läpi viisi sekuntia. Meshien rakennuslaskuri ei kasva.
+  Yksikkötesti varmistaa oikean sijainnin, depthTest/depthWrite-asetukset,
+  ajastimen uusinnan ja overlay-materiaalien vapautuksen ilman jaettujen
+  geometriapuskurien hävittämistä. Kuvakaappaus tarkastettu.
+- Suorakulmio ja ympyrä pyöristetyllä ovella: 45 mm pyöristyksen kaarireuna on
+  eri syvyydessä kuin etupinta. Shift poimii kaaren sijainnin tarkasti ja
+  valmistuva muoto pysyy alkuperäisessä piirtotasossa. Oven geometria säilyy.
+- Kaarevan reunan vierekkäisten segmenttien pisteytys seuraa tarkkaa osoitusta
+  eikä suosi saman kappaleen kameraa lähempänä olevaa segmenttiä yhden pikselin
+  säteellä. Tämä virhe löytyi tablettikoon testistä ja korjaus varmistettiin molemmissa koossa.
+- Regressiot: alkuperäinen pinnan keskipisteen Shift-viite, korotetun lattian
+  risteykset neljällä työkalulla muokkaustilassa ja sen ulkopuolella,
+  rakennusmuodot, kokoonpanot, linkitetyt materiaalit ja valinnan pikatoiminnot.
+  Vanha viitetesti odotti kappaleen keskipisteen nimeä ja klikkasi nykyistä
+  yläreunan painiketta; testi päivitettiin pinnan viitteeseen ja vapaaseen piirtoalueeseen.
+- Tabletti on Chromium-emulointi. Sulkemismuisti on selainkohtainen; rivivärit
+  kuuluvat malliin. Paikannus ei tuo erikseen piilotettuja osia näkyviin.
+
 ## V0.40.0 — pilvisynkronoinnin pohja, reunakäsittelyt ja valinta
 
 550 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.

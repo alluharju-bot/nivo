@@ -3,6 +3,18 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.40.1** muistaa mallilistan avatut ja suljetut ryhmät projektikohtaisesti
+samassa selaimessa myös välilehtien vaihdon ja sivun päivityksen yli. Mallista
+valittu osa tulee näkyviin listassa, sen oma ryhmäpolku avautuu ja korostuu.
+Muut suljetut ryhmät säilyvät suljettuina. Rivien **Riviväri** löytyy listan
+palettipainikkeesta tai rivin oikealla napsautuksella. Värit tallentuvat `.nivo`-tiedostoon
+ja ovat erillisiä osien materiaaleista. Listan paikannuspainike näyttää osan
+oranssina viisi sekuntia myös seinän läpi.
+
+Suorakulmion ja ympyrän **Shift-viite** poimii myös piirustustason ulkopuoliset
+kaarevat reunat: esimerkiksi pyöristetyn oven reunan sijainti siirtyy viitteeksi
+etupinnan tasolle ilman, että piirretty muoto hyppää pyöristyksen syvyyteen.
+
 Versio **0.40.0** lisää Supabase-pilvisynkronoinnin ensimmäisen toteutuksen:
 kirjautuminen, projektikohtainen taustatallennus, avaaminen toisella laitteella
 ja rinnakkaisten muutosten säilyttäminen. Palvelu vaatii oman Supabase-projektin

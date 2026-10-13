@@ -1,3 +1,4 @@
+import { createLocateHighlight } from './locateHighlight';
 import { scalingPreview } from './scalingPreview';
 import { createHoldLabels } from './holdLabels';
 import { markupSvg, updateMarkupSvg } from './markupSvg';
@@ -147,6 +148,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         renderNow();
       });
   };
+  const locateHighlight = createLocateHighlight(scene, renderer.domElement, render);
   const updateMarkups = () => {
     const markupProps = current();
     const markupList = [
@@ -681,6 +683,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const geometryChanged =
       nextNodes.size !== bodyNodes.size ||
       [...nextNodes].some(([id, node]) => node.data !== bodyNodes.get(id)?.data);
+    if (geometryChanged) locateHighlight.clear();
     bodyNodes = nextNodes;
     if (geometryChanged || !bodies.userData.spatialIndex)
       bodies.userData.spatialIndex = new BodySpatialIndex(props.bodies);
@@ -1448,6 +1451,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     render();
   };
   const command = (command: CameraCommand) => {
+    if (command.locate) {
+      const ids = command.ids ?? current().selectedIds;
+      locateHighlight.show(
+        ids.flatMap((id) => {
+          const node = bodyNodes.get(id);
+          return node ? [{ id, mesh: node.mesh, outline: node.outline }] : [];
+        }),
+      );
+    }
     if (command.type === 'view') {
       const view = command.view!;
       const normal = { iso: [1, -1.4, 1], front: [0, -1, 0], right: [1, 0, 0], top: [0, 0, 1] }[
@@ -1667,6 +1679,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         renderNow();
         const hidden = [
           pickPreview,
+          locateHighlight.group,
           scene.getObjectByName('interaction-overlays'),
           scene.getObjectByName('section-handles'),
         ]
@@ -1718,6 +1731,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       disposeGroup(guides);
       labels.forEach((l) => l.element.remove());
       extrusionLabels.forEach((l) => l.element.remove());
+      locateHighlight.dispose();
       disposeGroup(pickPreview);
       openingPreview.dispose();
       scalePreview.dispose();

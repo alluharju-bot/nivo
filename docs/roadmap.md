@@ -2,6 +2,22 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.40.1 — mallilistassa suunnistaminen ja pyöristetyn reunan viite
+
+- Projektikohtainen ryhmien sulkemismuisti selaimessa. Listan piilotus,
+  Kappaleet/Mitat-vaihto ja sivun lataus säilyttävät tilan. Uuden osan valinta
+  avaa vain sen omat yläryhmät ja vierittää rivin näkyviin myös virtuaalilistassa.
+  Valittujen osien yläryhmät korostuvat; käyttäjä voi yhä sulkea valitun haaran.
+- Rivivärit osille ja ryhmille, palettipainike ja rivin oikea napsautus.
+  Esiintymäkohtainen `listColor` säilyy tiedostossa, kopioissa ja tuonnissa;
+  materiaali ei muutu. Hold sallii tämän listan visuaalisen merkinnän.
+- Paikannus korostaa osan viideksi sekunniksi myös geometrian läpi. Uusi
+  paikannus aloittaa ajan uudestaan. Ei geometrian uudelleenlaskentaa,
+  poimintakohteiden muutoksia tai korostusta tallennettuun PNG-kuvaan.
+- Suorakulmion/ympyrän Shift-viite hakee näkyvän reunan myös piirtotason
+  ulkopuolelta ja projisoi pisteen aktiiviseen tasoon. Ruudukko ei pyöristä
+  poimittua mittaa; pyöristetty ovi säilyy alkuperäisenä.
+
 ## V0.40.0 — pilvisynkronoinnin pohja, reunakäsittelyt ja valinnan selkeys
 
 - Supabase Auth + yksityinen tiedostosäiliö + käyttäjäkohtainen projektitaulu.

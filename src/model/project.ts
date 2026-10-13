@@ -243,6 +243,10 @@ export const bodySchema = z.object({
     })
     .optional(),
   origin: pointSchema,
+  listColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
   material: z.enum(['matte', 'paint', 'wood', 'metal', 'glass']).optional(),
   appearance: appearanceSchema.optional(),
@@ -411,6 +415,10 @@ export const isPointDimension = (d: Dimension): d is PointDimension =>
 export const isOverallDimension = (d: Dimension): d is OverallDimension =>
   'kind' in d && d.kind === 'overall';
 export const groupSchema = z.object({
+  listColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
   id,
   name: z.string().trim().min(1).max(120),
   hidden: z.boolean().default(false),
