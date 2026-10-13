@@ -6,7 +6,91 @@ import { makeProfileBody, type Vec3, freshProject, parseProject } from '../model
 import { sketchFrame } from '../model/sketch';
 import { fillPenRegions } from './penRegions';
 import { penPath } from './paths';
-import { createShape, meshBody } from './kernel';
+import { createShape, meshBody, pushPullFace, solidVolume } from './kernel';
+import { bezierPath } from './modeling';
+
+for (const reverse of [false, true])
+  it(`fills a Bézier arc closed by one straight pen edge (${reverse ? 'reversed' : 'forward'})`, () => {
+    const points: Vec3[] = [
+      [0, 0, 40],
+      [100 / 3, 200 / 3, 40],
+      [200 / 3, 200 / 3, 40],
+      [100, 0, 40],
+    ];
+    const curve = bezierPath(reverse ? [...points].reverse() : points, 'Altaan kaari');
+    const straight = penPath([points[3], points[0]], 'Suora takareuna');
+    const result = fillPenRegions(straight, [curve]);
+    expect(result.bodies).toHaveLength(1);
+    const body = result.bodies[0],
+      shape = createShape(body);
+    try {
+      const faces = shape.faces;
+      try {
+        expect(faces).toHaveLength(1);
+        expect(measureArea(faces[0])).toBeCloseTo(10000 / 3, 3);
+      } finally {
+        faces.forEach((f) => f.delete());
+      }
+      const mesh = meshBody(body, shape);
+      expect(mesh.faces).toHaveLength(1);
+      expect(mesh.curveEdges!.length).toBeGreaterThan(0);
+      const pulled = createShape(pushPullFace(body, mesh.faces[0].ref, 25));
+      try {
+        expect(solidVolume(pulled)).toBeCloseTo((10000 / 3) * 25, 2);
+      } finally {
+        pulled.delete();
+      }
+      expect(body.penRegion!.sources.sort()).toEqual([curve.id, straight.id].sort());
+    } finally {
+      shape.delete();
+    }
+    expect(
+      parseProject(JSON.stringify({ ...freshProject(), bodies: result.bodies })).bodies,
+    ).toEqual(result.bodies);
+  });
+
+it('does not fill a straight out-and-back stroke or a visible gap', () => {
+  const line = penPath(
+    [
+      [0, 0, 0],
+      [100, 0, 0],
+    ],
+    'Suora',
+  );
+  expect(
+    fillPenRegions(
+      penPath(
+        [
+          [100, 0, 0],
+          [0, 0, 0],
+        ],
+        'Paluu',
+      ),
+      [line],
+    ).bodies,
+  ).toHaveLength(0);
+  const curve = bezierPath(
+    [
+      [0, 0, 0],
+      [0, 100, 0],
+      [100, 100, 0],
+      [100, 0, 0],
+    ],
+    'Kaari',
+  );
+  expect(
+    fillPenRegions(
+      penPath(
+        [
+          [100, 0, 0],
+          [1, 0, 0],
+        ],
+        'Rako',
+      ),
+      [curve],
+    ).bodies,
+  ).toHaveLength(0);
+});
 
 beforeAll(
   async () =>

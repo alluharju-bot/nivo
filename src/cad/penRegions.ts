@@ -109,7 +109,9 @@ export function fillPenRegions(path: Body, boundaries: Body[], previous: Body[] 
         }
     }
     const active = links.filter((e) => connected.has(e.from));
-    if (active.length < 3) return empty;
+    // A curved edge and its straight chord already bound a face. Counting three
+    // edges only works for polygons; winding/area below reject degenerate loops.
+    if (active.length < 2) return empty;
     const points = active.flatMap((e) => e.samples);
     const origin = points[0];
     const far = points.reduce((a, b) =>

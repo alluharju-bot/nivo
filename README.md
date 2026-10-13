@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.40.4** korjaa Bézier-kaaren sulkemisen kynän suoralla viivalla.
+Yksi kaari ja yksi suora voivat muodostaa pinnan: **Valmis viiva** säilyttää
+käyrän, ja sen päätepisteet yhdistävä kynäviiva täyttää rajauksen muokattavaksi
+pinnaksi. Kaareva reuna säilyy myös Push/Pullissa.
+
 Versio **0.40.3** valmistelee Supabasen käyttöönoton yhdellä komennolla:
 migraatiot, kirjautumisen paluuosoitteet, sähköpostin linkki ja koodi sekä
 julkiset selainasetukset. Pilviprojektin nimi ja versio päivittyvät listaan

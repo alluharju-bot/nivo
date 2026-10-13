@@ -4,6 +4,26 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.40.4 — Bézier-kaaren sulkeminen kynällä
+
+13 kohdistettua yksikkö-/CAD-testiä hyväksytty. Tuotantobuildissa 12 selaintapausta
+hyväksytty (6 työpöytä, 6 tablettiprofiili). TypeScript, `/nivo/`-build ja muutettujen
+tiedostojen muotoilu tarkistettu.
+
+- Toistettu virhe ennen korjausta: yksi tarkka Bézier-kaari ja päätepisteet yhdistävä
+  suora palauttivat tyhjän pintatuloksen kumpaankin piirtosuuntaan. Kolmen reunan
+  vähimmäisraja hylkäsi kaarevan, kahdesta reunasta muodostuvan suljetun alueen.
+- Korjauksen jälkeen tarkka pinta-ala, 25 mm Push/Pullin tilavuus, kaarireuna,
+  lähdeviitteet ja tiedoston tallennus/luku hyväksytty. Päällekkäinen edestakainen
+  suora ja yhden millimetrin avoin rako eivät muodosta pintaa.
+- Käyttöliittymä: Bézierin **Valmis viiva**, sivun uudelleenlataus, kynään vaihtaminen
+  ja päätepisteiden yhdistäminen. Tarkka Bézier + yksi suora sekä pisteiden kautta
+  piirretty käyrä + kolme suoraa täyttyvät pinnoiksi; Push/Pull, Peru ja Palauta toimivat.
+  Valmistuneen muodon kuvakaappaus tarkastettu.
+- Regressiot: kaivon ympyrän ja suorakulmion väliset kaatopinnat, niiden jakaminen,
+  neljän eri korkeudella olevan kulman pinta sekä valmiin kaatopinnan reunatartunnat
+  ylhäältä ja perspektiivissä.
+
 ## V0.40.3 — Supabasen käyttöönoton valmistelu
 
 558 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.

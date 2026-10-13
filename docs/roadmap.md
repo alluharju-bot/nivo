@@ -2,6 +2,15 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.40.4 — Bézier-kaaren ja kynäviivan yhteinen pinta
+
+- Kaari ja suora voivat jo rajata ehjän pinnan. Sulkeutumistarkistus ei enää
+  vaadi kolmea reunaa kuten suorista sivuista koostuva monikulmio.
+- Bézierin **Valmis viiva** ja sen jälkeen kynällä päätepisteestä toiseen
+  piirretty suora muodostavat pinnan heti sulkemisessa, myös aiemmin tallennetulla
+  käyrällä. Tarkka kaari säilyy; pinta toimii Push/Pullilla.
+- Avoin rako ja edestakainen päällekkäinen suora säilyvät viivoina.
+
 ## V0.40.3 — Supabasen käyttöönoton valmistelu
 
 - Hallinta-API:n käyttöönottokomento: ensin kuiva-ajo, sitten puuttuvat migraatiot,
