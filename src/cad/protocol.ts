@@ -120,6 +120,7 @@ export type CadRequest =
   | { type: 'knife'; targets: Body[]; rays: import('./modeling').KnifeRay[]; curveNormal?: Vec3 }
   | { type: 'pen-path'; points: Vec3[]; name: string }
   | { type: 'pen-regions'; path: Body; boundaries: Body[]; previous: Body[] }
+  | { type: 'add-surface-regions'; body: Body; regions: Body[]; normal?: Vec3 }
   | { type: 'split-path'; body: Body; face: FaceRef; path: Body }
   | {
       type: 'cut-opening';

@@ -2216,6 +2216,11 @@ export default function App() {
       revision === editor.revision();
     let ownsCommit = false;
     try {
+      const edited =
+        editingBodyId && surfaceMode === 'region' && shapePurpose === 'model'
+          ? project.bodies.find((b) => b.id === editingBodyId)
+          : undefined;
+      if (edited) requireMovable([edited], project.groups);
       const path = {
         ...(await (penMode === 'bezier'
           ? editor.cad.bezier(
@@ -2241,11 +2246,15 @@ export default function App() {
       // Closed drawing cells may include a lower drain rim or another sloping edge.
       // Keep their exact boundary wires, so the next stroke can subdivide the network.
       const boundaries =
-        !divided && penMode === 'line' && shapePurpose === 'model' && !editingBodyId
+        (!divided || edited) &&
+        penMode === 'line' &&
+        shapePurpose === 'model' &&
+        (!editingBodyId || edited)
           ? project.bodies.filter((b) => {
               const mesh = editor.meshes.find((m) => m.id === b.id);
               return (
                 bodyVisible(b, project.groups) &&
+                b.id !== edited?.id &&
                 !featureIsSolid(b.feature) &&
                 !b.penRegion &&
                 inAssembly(project, b.id, openedAssembly) &&
@@ -2258,26 +2267,41 @@ export default function App() {
         ? await editor.cad.penRegions(
             path,
             boundaries,
-            project.bodies
-              .filter((b) => b.penRegion)
-              .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
+            edited
+              ? []
+              : project.bodies
+                  .filter((b) => b.penRegion)
+                  .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
           )
         : undefined;
       if (!current()) return;
+      // A loop over a hole has no existing face to split. In part edit mode
+      // retain its surface in that part instead of creating a separate object.
+      const added =
+        edited && regions?.bodies.length
+          ? await editor.cad.addSurfaceRegions(
+              divided?.body ?? edited,
+              regions.bodies,
+              surface?.target.normal ?? shapeFrameRef.current?.normal,
+            )
+          : undefined;
+      if (!current()) return;
+      const changed = added ?? divided;
+      const standalone = edited ? undefined : regions;
       // A dangling segment remains editable. It must not add an empty history
       // action or turn into a separate wire until the user finishes it.
-      if (!divided && !regions?.bodies.length && !final) return;
+      if (!changed && !standalone?.bodies.length && !final) return;
       committing.current = true;
       ownsCommit = true;
-      const next = divided
+      const next = changed
         ? {
             ...project,
-            bodies: project.bodies.map((b) => (b.id === divided.body.id ? divided.body : b)),
+            bodies: project.bodies.map((b) => (b.id === changed.body.id ? changed.body : b)),
           }
         : {
-            ...preserveRegionReferences(project, regions?.replaceIds ?? []),
+            ...preserveRegionReferences(project, standalone?.replaceIds ?? []),
             bodies: [
-              ...project.bodies.filter((b) => !regions?.replaceIds.includes(b.id)),
+              ...project.bodies.filter((b) => !standalone?.replaceIds.includes(b.id)),
               {
                 ...path,
                 purpose:
@@ -2285,20 +2309,22 @@ export default function App() {
                     ? ('construction' as const)
                     : ('drawing' as const),
               },
-              ...(regions?.bodies.map((b) => ({ ...b, groupId: openedAssembly })) ?? []),
+              ...(standalone?.bodies.map((b) => ({ ...b, groupId: openedAssembly })) ?? []),
             ],
           };
       if (
         await editor.transact(
           next,
-          divided
-            ? 'Pinta jaettu viivalla. E muokkaa kumpaakin aluetta erikseen.'
-            : regions?.bodies.length
-              ? 'Suljetut rajaukset täytetty pinnoiksi. Reunojen korkeudet säilytettiin.'
-              : 'Piirrosviiva valmis. Valitse viiva ja Jaa pinta liittääksesi sen osaan.',
+          added
+            ? 'Suljettu rajaus lisätty osan pinnaksi. E muokkaa uutta pintaa.'
+            : divided
+              ? 'Pinta jaettu viivalla. E muokkaa kumpaakin aluetta erikseen.'
+              : standalone?.bodies.length
+                ? 'Suljetut rajaukset täytetty pinnoiksi. Reunojen korkeudet säilytettiin.'
+                : 'Piirrosviiva valmis. Valitse viiva ja Jaa pinta liittääksesi sen osaan.',
         )
       )
-        finishOperation(divided?.body.id ?? regions?.bodies[0]?.id ?? path.id, divided?.face);
+        finishOperation(changed?.body.id ?? standalone?.bodies[0]?.id ?? path.id, changed?.face);
     } catch (e) {
       if (current()) editor.setError((e as Error).message);
     } finally {

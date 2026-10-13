@@ -25,7 +25,7 @@ import { measureFaceSpan } from './measurement';
 import { rotateBodies } from './transforms';
 import { detailEdges, removeEdgeTreatment } from './details';
 import { instantiateComponents } from './components';
-import { removeSurfaceFaces } from './surfaces';
+import { addSurfaceRegions, removeSurfaceFaces } from './surfaces';
 import { readStep, writeStep, printMeshes } from './exchange';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
@@ -92,6 +92,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
       else if (request.type === 'pen-path') reply.result = penPath(request.points, request.name);
       else if (request.type === 'pen-regions')
         reply.result = fillPenRegions(request.path, request.boundaries, request.previous);
+      else if (request.type === 'add-surface-regions')
+        reply.result = addSurfaceRegions(request.body, request.regions, request.normal);
       else if (request.type === 'split-path')
         reply.result = splitWithPath(request.body, request.face, request.path);
       else if (request.type === 'cut-opening')

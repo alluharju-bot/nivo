@@ -251,6 +251,14 @@ export class CadClient {
   splitPath(body: Body, face: FaceRef, path: Body) {
     return this.request<SplitResult>({ type: 'split-path', body, face, path });
   }
+  addSurfaceRegions(body: Body, regions: Body[], normal?: Vec3) {
+    return this.request<SplitResult | undefined>({
+      type: 'add-surface-regions',
+      body,
+      regions,
+      normal,
+    });
+  }
   divideSurfaces(profile: Body, targets: Body[]) {
     return this.request<SplitResult[]>({ type: 'divide-surfaces', profile, targets });
   }

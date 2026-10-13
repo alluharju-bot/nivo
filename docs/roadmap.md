@@ -2,6 +2,15 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.40.5 — suljetun rajauksen pinta osan muokkaustilassa
+
+- Muokkaustila erottaa olemassa olevan pinnan jakamisen ja uuden pinnan lisäämisen
+  tyhjään kohtaan. Altaan aukon yli suljettu käyrä + kynäviiva muodostaa pinnan samaan osaan.
+- Uusi pinta seuraa piirtotason suuntaa myös vastakkaisella käyrän piirtojärjestyksellä.
+  Push/Pull liittää sisään pursotetun ulokkeen altaan tilavuuteen.
+- Olemassa olevat pinnat ja umpinaisen geometrian sisäpuoli rajataan pois lisättävästä
+  alueesta. Hold, linkitetyt kopiot, tallennus sekä Peru/Palauta säilyvät käytössä.
+
 ## V0.40.4 — Bézier-kaaren ja kynäviivan yhteinen pinta
 
 - Kaari ja suora voivat jo rajata ehjän pinnan. Sulkeutumistarkistus ei enää

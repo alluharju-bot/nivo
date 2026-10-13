@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.40.5** täydentää saman toiminnon osan muokkaustilaan: Bézier-käyrän
+ja kynäviivan sulkema rajaus voi luoda uuden pinnan myös osan avoimeen kohtaan,
+esimerkiksi altaan sisään. Pinta kuuluu muokattavaan osaan, ja sitä voi pursottaa
+Push/Pullilla. Olemassa olevien pintojen päälle ei lisätä päällekkäistä pintaa.
+
 Versio **0.40.4** korjaa Bézier-kaaren sulkemisen kynän suoralla viivalla.
 Yksi kaari ja yksi suora voivat muodostaa pinnan: **Valmis viiva** säilyttää
 käyrän, ja sen päätepisteet yhdistävä kynäviiva täyttää rajauksen muokattavaksi

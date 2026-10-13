@@ -4,6 +4,27 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.40.5 — käyrärajauksen täyttö osan muokkaustilassa
+
+566 yksikkö-/CAD-testiä hyväksytty; 4 yksityisen mallin testiä ohitettu.
+TypeScript ja `/nivo/`-tuotantobuild hyväksytty.
+
+- Käyttäjän pilveen tallennetun altaan ja käyrän yksityisellä paikallisella kopiolla
+  toistettu: sama täsmällisesti suljettu rajaus toimi normaalitilassa mutta jäi viivaksi
+  muokkaustilassa. Muokkaustila esti rajauksen täytön, eikä altaan aukossa ollut
+  olemassa olevaa pintaa jaettavaksi. Pilviprojektia ei muutettu.
+- Korjauksen paikallinen käyttöliittymätesti käyttäjän geometrialla: kaari sulkeutuu
+  altaan omaksi pinnaksi, Peru/Palauta palauttaa molemmat tilat ja −20 mm Push/Pull
+  lisää sisäulokkeen. CAD-varmistus säilyttää alkuperäisen tilavuuden pinnan luomisessa
+  ja yhdistää pursotuksen yhdeksi umpinaiseksi tilavuudeksi.
+- Julkiset regressiot käyttävät erillistä synteettistä allasta. Käyrän molemmat
+  piirtojärjestykset, piirtotason suunta, olemassa olevien pintojen päällekkäisyyden
+  poisto, umpinaisen osan sisään jäävän pinnan hylkäys, Hold ja linkitetyt kopiot.
+- Tuotannon selaintestit: tallennetun kaaren sulkeminen osan muokkaustilassa myös silloin,
+  kun aiempi sulkuviiva on jo mallissa; Peru/Palauta, sivun uudelleenlataus, jatkomuokkaus
+  ja sisään pursotetun ulokkeen tilavuus. Aiemmat normaalitilan Bézier-, suora kynä-,
+  Shift- ja Hold-työnkulut varmistettu samalla koodilla.
+
 ## V0.40.4 — Bézier-kaaren sulkeminen kynällä
 
 13 kohdistettua yksikkö-/CAD-testiä hyväksytty. Tuotantobuildissa 12 selaintapausta
