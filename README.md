@@ -3,6 +3,23 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.38.0** antaa puhelimella enemmän tilaa mallintaa: kapeampi
+54 px työkalupalkki, avattavat mallilista ja ominaisuudet sekä yksi työtilavalikko.
+Koko näytön painike pysyy näkyvissä. Selaimessa aloitus vaatii yhden napautuksen;
+kotinäytölle lisätty Nivo avautuu erillisenä sovellusikkunana ilman osoitepalkkia.
+Kotinäyttöasennus ei vielä sisällä offline-välimuistia.
+
+Kosketuksella piirretty suorakulmio, ympyrä, ellipsi, monikulmio tai pallo jää
+esikatseluun: **piirrä → tarkista mitat → Hyväksy muoto**. Sama numerovaihe on
+kosketuksella Push/Pullissa ja Offsetissa. Hiiren välitön hyväksyminen säilyy.
+Renderin pinnat ja valot avautuvat puhelimella erilliseen suljettavaan paneeliin.
+
+**Lisää toimintoja → Jatka toisella laitteella** valmistelee jaettavan .nivo-tiedoston.
+Puhelimella voi käyttää selaimen jakovalikkoa, muulloin ladata tiedoston.
+Projektitunnus ja sisältöversio kulkevat mukana: saman version avaaminen käyttää
+paikallista tallennetta, erilainen versio säilytetään erillisenä kopiona.
+Tämä on tiedostosiirto ja pohja synkronoinnille; automaattista pilvisynkronointia ei ole.
+
 Versio **0.37.0** lisää **Projektikirjaston** projektin nimen viereen:
 useita selaimeen tallentuvia projekteja omine historioineen sekä **Omat osat**
 uudelleenkäyttöä varten. **Lisää malli nykyiseen projektiin** tuo toisen

@@ -2,6 +2,29 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.38.0 — mobiilityötila ja projektin siirto laitteiden välillä
+
+- Puhelimen työtilavalikko, aina näkyvä koko näytön painike, 54 px työkalupalkki,
+  avattavat mallilista, näkymäasetukset ja ominaisuudet. Näppäimistölle varataan
+  tila VisualViewportin mukaan; pysty- ja vaakakäyttö sekä safe area -reunat.
+- Kosketuspiirto ja numeroiden tarkistus erotettu: perusmuodot, Push/Pull ja Offset
+  hyväksytään erikseen. Hiiri säilyttää välittömän hyväksymisen myös pienessä ikkunassa.
+  Tabletin kosketus käyttää samaa tarkistusvaihetta. Kahden sormen navigointi ei hyväksy muotoa.
+- Ensimmäinen napautus voi avata fullscreenin, aloitusehdotuksen voi poistaa käytöstä.
+  Tukemattomassa selaimessa näytetään kotinäyttöasennuksen ohje. Manifesti ja kuvakkeet,
+  ei vielä palvelutyöntekijää/offline-käyttölupausta.
+- Renderin asetuspaneeli suljettavissa puhelimella. Työpöydän paneelivalinta säilyy erikseen.
+- Jatka toisella laitteella: .nivo-siirtotiedosto, käyttöjärjestelmän tiedostojako tai lataus.
+  Pysyvä projektitunnus ja SHA-256-sisältöversio; sama sisältö käyttää olemassa olevaa
+  projektia, eroava sisältö avataan erilliseen kirjastoprojektiin. Vanhojen tiedostojen
+  Avaa- ja Lisää malliin -käytös säilyy. Historiat pysyvät paikallisina.
+- Jatko synkille: palvelu ja tunnistautuminen, versioitu etätallenne,
+  compare-and-swap-kirjoitus, offline-muutosjono ja ristiriitojen vertailunäkymä.
+  Eri laitteiden tiedostoja ei saa yhdistää pelkän aikaleiman perusteella.
+- Jatko mobiilille: fyysisen iPhonen/Safarin näppäimistö ja kotinäyttöasennus,
+  pitkäpainalluksen kontekstivalikko, kynän kosketuskohtainen segmentin tarkistus
+  ja yhtenäinen kosketusnavigoinnin opastus kaikissa työtiloissa.
+
 ## V0.37.0 — projektikirjasto, mallien tuonti ja 3D-vienti
 
 - Useita selaimeen tallentuvia projekteja, omat historiat, nimeäminen,

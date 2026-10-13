@@ -133,7 +133,7 @@ test('new-part drawing uses a held vertical face as a plane and preserves typed 
   await ready(page, [source]);
   const point = await view(page, [source], 'front');
   await page.keyboard.press('s');
-  await page.getByRole('combobox', { name: 'Piirtotapa', exact: true }).selectOption('new');
+  // Drawing outside component editing creates a separate part by default.
   await click(page, point(60, 0, 60));
   await page.getByTestId('width-input').fill('120');
   await page.getByTestId('depth-input').fill('160');

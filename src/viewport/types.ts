@@ -235,7 +235,7 @@ export interface ViewportProps {
     markupIds?: string[],
   ) => void;
   onGesture: (gesture: Gesture) => void;
-  onAccept: (continueMeasure?: boolean) => void;
+  onAccept: (continueMeasure?: boolean, pointerType?: string) => void;
   onPenHover: (point?: Vec3) => void;
   onSnap: (label: string) => void;
   onReference: (point?: ReferencePoint) => void;

@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ListTree, Pin, PinOff, ChevronLeft } from 'lucide-react';
 
-export function ModelBrowser({ children }: { children: ReactNode }) {
+export function ModelBrowser({
+  children,
+  compact = false,
+}: {
+  children: ReactNode;
+  compact?: boolean;
+}) {
   const [pinned, setPinned] = useState(
     () => localStorage.getItem('nivo-browser-pinned') === 'true',
   );
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(!compact);
+  useEffect(() => {
+    if (compact) setExpanded(false);
+  }, [compact]);
   const host = useRef<HTMLElement>(null);
   const dragging = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -45,12 +54,14 @@ export function ModelBrowser({ children }: { children: ReactNode }) {
         ref={host}
         className="model-browser"
         aria-label="Mallilista"
-        data-expanded={expanded || pinned}
+        data-expanded={expanded || (!compact && pinned)}
         onPointerDown={() => {
           dragging.current = true;
           clearTimeout(timer.current);
         }}
-        onPointerEnter={enter}
+        onPointerEnter={(e) => {
+          if (!compact && e.pointerType === 'mouse') enter();
+        }}
         onPointerLeave={leave}
         onFocus={() => setExpanded(true)}
       >
@@ -85,10 +96,10 @@ export function ModelBrowser({ children }: { children: ReactNode }) {
       <button
         className="browser-handle"
         aria-label="Näytä mallilista"
-        aria-expanded={expanded || pinned}
-        data-expanded={expanded || pinned}
+        aria-expanded={expanded || (!compact && pinned)}
+        data-expanded={expanded || (!compact && pinned)}
         onPointerEnter={(e) => {
-          if (e.pointerType === 'mouse') enter();
+          if (!compact && e.pointerType === 'mouse') enter();
         }}
         onPointerLeave={leave}
         onClick={enter}

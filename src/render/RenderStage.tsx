@@ -49,6 +49,7 @@ import { SavedRenderViews } from './SavedRenderViews';
 import type { RenderView } from '../model/renderViews';
 
 type Props = {
+  compact?: boolean;
   onPaint: (
     id: string,
     face: number | undefined,
@@ -131,7 +132,8 @@ function TextureNumber({
 }
 
 export function RenderStage(props: Props) {
-  const { bodies, meshes, settings, selectedIds, busy } = props;
+  const { bodies, meshes, settings, selectedIds, busy, compact } = props;
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [target, setTarget] = useState(
     selectedIds.some((id) => bodies.some((b) => b.id === id)) ? 'selection' : 'all',
   );
@@ -504,6 +506,15 @@ export function RenderStage(props: Props) {
           </div>
         )}
         <div className="render-toolbar">
+          {compact && (
+            <button
+              className="button subtle"
+              aria-expanded={mobileSettingsOpen}
+              onClick={() => setMobileSettingsOpen(!mobileSettingsOpen)}
+            >
+              {mobileSettingsOpen ? 'Sulje säädöt' : 'Pinnat ja valot'}
+            </button>
+          )}
           <button
             className="button subtle"
             onClick={async () => {
@@ -543,7 +554,11 @@ export function RenderStage(props: Props) {
               : 'Vedä kiertääksesi · rulla zoomaa · klikkaa osaa valitaksesi sen materiaalin'}
         </p>
       </div>
-      <aside className="render-panel" aria-label="Renderöinnin asetukset">
+      <aside
+        className="render-panel"
+        aria-label="Renderöinnin asetukset"
+        hidden={compact && !mobileSettingsOpen}
+      >
         <div className="render-panel-header">
           <h2>Esityskuva</h2>
           <div className="render-material-tools" role="toolbar" aria-label="Pintatyökalut">

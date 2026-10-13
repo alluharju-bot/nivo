@@ -25,6 +25,7 @@ export function DynamicInput({
   activeKey,
   onActivate,
   initialValue,
+  touchReview = false,
 }: {
   fields: NumericField[];
   showActions?: boolean;
@@ -41,6 +42,7 @@ export function DynamicInput({
   activeKey?: string;
   onActivate?: (key: string, transfer: boolean) => void;
   initialValue?: (key: string, character: string) => string;
+  touchReview?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointer: number; x: number; y: number } | undefined>(undefined);
@@ -102,47 +104,55 @@ export function DynamicInput({
   return (
     <div
       ref={panel}
-      className={`dynamic-input ${position ? 'floating' : docked ? 'docked' : 'undocked'}`}
+      className={`dynamic-input ${touchReview ? 'touch-review' : position ? 'floating' : docked ? 'docked' : 'undocked'}`}
+      role={touchReview ? 'region' : undefined}
+      aria-label={touchReview ? 'Tarkista mitat' : undefined}
       data-testid="dynamic-input"
-      style={position ? { left: position[0], top: position[1] } : undefined}
+      style={position && !touchReview ? { left: position[0], top: position[1] } : undefined}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="dynamic-title">
-        <button
-          type="button"
-          className="dynamic-drag"
-          aria-label="Siirrä mittaikkunaa"
-          onPointerDown={(event) => {
-            if (event.button !== 0) return;
-            event.preventDefault();
-            const rect = panel.current!.getBoundingClientRect();
-            drag.current = {
-              pointer: event.pointerId,
-              x: event.clientX - rect.left,
-              y: event.clientY - rect.top,
-            };
-            event.currentTarget.setPointerCapture(event.pointerId);
-            onPositionChange(clamp(rect.left, rect.top));
-          }}
-          onPointerMove={(event) => {
-            const active = drag.current;
-            if (active?.pointer === event.pointerId)
-              onPositionChange(clamp(event.clientX - active.x, event.clientY - active.y));
-          }}
-          onPointerUp={(event) => {
-            if (drag.current?.pointer === event.pointerId) {
+        {touchReview ? (
+          <strong>Tarkista mitat</strong>
+        ) : (
+          <button
+            type="button"
+            className="dynamic-drag"
+            aria-label="Siirrä mittaikkunaa"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              const rect = panel.current!.getBoundingClientRect();
+              drag.current = {
+                pointer: event.pointerId,
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
+              };
+              event.currentTarget.setPointerCapture(event.pointerId);
+              onPositionChange(clamp(rect.left, rect.top));
+            }}
+            onPointerMove={(event) => {
+              const active = drag.current;
+              if (active?.pointer === event.pointerId)
+                onPositionChange(clamp(event.clientX - active.x, event.clientY - active.y));
+            }}
+            onPointerUp={(event) => {
+              if (drag.current?.pointer === event.pointerId) {
+                drag.current = undefined;
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+            }}
+            onPointerCancel={() => {
               drag.current = undefined;
-              event.currentTarget.releasePointerCapture(event.pointerId);
-            }
-          }}
-          onPointerCancel={() => {
-            drag.current = undefined;
-          }}
-        >
-          <GripHorizontal size={14} />
-          <span>{title}</span>
-        </button>
-        {position ? (
+            }}
+          >
+            <GripHorizontal size={14} />
+            <span>{title}</span>
+          </button>
+        )}
+        {touchReview ? (
+          <span>Muoto on vielä esikatselu</span>
+        ) : position ? (
           <button
             type="button"
             className="dynamic-redock"
@@ -173,6 +183,7 @@ export function DynamicInput({
               }}
               value={field.value}
               inputMode="decimal"
+              enterKeyHint={touchReview ? (i === fields.length - 1 ? 'done' : 'next') : undefined}
               disabled={busy}
               onFocus={(e) => {
                 onActivate?.(field.key, false);
@@ -189,7 +200,10 @@ export function DynamicInput({
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (canAccept) onAccept();
+                  if (touchReview) {
+                    if (i < fields.length - 1) inputs.current[i + 1]?.focus();
+                    else e.currentTarget.blur();
+                  } else if (canAccept) onAccept();
                 }
                 if (e.key === 'Escape') {
                   e.preventDefault();
@@ -221,15 +235,16 @@ export function DynamicInput({
           <span className="dynamic-spacer" />
           <button aria-label="Peruuta" onClick={onCancel}>
             <X size={15} />
+            {touchReview && 'Peruuta'}
           </button>
           <button
             className="dynamic-accept"
-            aria-label="Hyväksy"
+            aria-label={touchReview ? 'Hyväksy muoto' : 'Hyväksy'}
             onClick={onAccept}
             disabled={busy || !canAccept}
           >
             <Check size={15} />
-            <span>Enter</span>
+            <span>{touchReview ? 'Hyväksy muoto' : 'Enter'}</span>
           </button>
         </div>
       )}

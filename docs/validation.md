@@ -1,8 +1,45 @@
-# Validointi — 12.10.2026
+# Validointi — 13.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.38.0 — mobiilityötila ja siirrettävät projektiversiot
+
+532 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.
+35 erillistä selaintapausta hyväksytty: 9 mobiili-/kosketustapausta,
+13 työpöydän regressiota ja 13 tablettiprofiilin regressiota.
+Mobiilisarja tarkistettu lopullisesta `/nivo/`-tuotantobuildista.
+TypeScript, tuotantopaketti, lisenssit ja muutettujen tiedostojen muotoilu tarkistettu.
+
+- Puhelin 320–390 px pystyssä ja 844 × 390 vaakana: ei sivuttaisylivuotoa,
+  fullscreen näkyvissä, mallilista/ominaisuudet avattavissa. Ominaisuudet eivät
+  muuta piirtoalueen kokoa. Työpöydän oma paneelivalinta palautuu leveyden vaihtuessa.
+- Aidot CDP-kosketustapahtumat: suorakulmion ja ympyrän veto, esikatselu ilman
+  kappaleen luontia, mittasyöttö, Enter siirtyy seuraavaan kenttään ja lopuksi
+  sulkee syötön, erillinen hyväksyntä, peruminen ja yksi Peru koko muodolle.
+  Mittaikkuna mahtuu myös 380 px korkeaan näkymään. Tämä simuloi käytettävissä
+  olevan tilan pienentymistä, ei fyysisen puhelimen näppäimistöä.
+- Kahden sormen navigointi ei hyväksy eikä avaa tarkistusvaihetta. Seuraava
+  yhden sormen piirto toimii. Tabletin kosketus käyttää samaa mittavaihetta;
+  hiiri hyväksyy yhä välittömästi myös pienessä ikkunassa.
+- Koko näyttö avautuu aloituspainikkeesta ja sulkeutuu näkyvästä painikkeesta.
+  Aloitusehdotuksen poisto säilyy latauksen yli. Tukemattoman API:n haara
+  näyttää kotinäyttöohjeen. Manifestin ja kuvakkeiden polut tarkistettu Pages-buildista.
+- Renderityötilan paneeli avautuu ja sulkeutuu ilman piirtoalueen kaventumista.
+- Jaettava .nivo tunnistaa projektin ja sisältöversion. Erilainen paikallinen
+  versio säilytetään; kirjasto sisältää sekä alkuperäisen että tuodun version.
+  Tarkistussumma sietää kenttäjärjestyksen ja tallennusajan muutoksia mutta tunnistaa
+  sisällön muutokset. Väärät versiotiedot hylätään. Vanhat .nivo-tiedostot toimivat.
+- Työpöytä/tabletti: kaksi napsautusta, Hold-pinnalle piirto ja mitat, pinnanjako,
+  erillinen kahden kaapin ylittävä osa, kirjasto/historiat, linkitys, STL/STEP/GLB,
+  välilehtien kirjoitussuoja sekä fullscreenin Escape-käytös.
+- Vanha Hold-pinnan testi odotti poistettua Piirtotapa-valikkoa. Testi päivitettiin
+  nykyiseen uuden osan oletuskäytökseen ja tarkistettiin molemmissa profiileissa.
+- Rajat: Chromium-kosketusemulointi, ei fyysistä iPhonea/iPadia tai Safaria.
+  Käyttöjärjestelmän jakovalikon ulkopuolista toimitusta tai kotinäyttöasennuksen
+  laitekohtaista käyttöliittymää ei automatisoitu. Automaattista pilvisynkkiä ja
+  offline-käyttöä ei ole; siirtotiedosto ei sisällä paikallista toimintohistoriaa.
 
 ## V0.36.13 — renderin materiaaliviitteet ja reunakäsitellyn päädyn siirto
 

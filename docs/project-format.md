@@ -446,3 +446,25 @@ jatku toiseen projektiin. Kirjaston listaus ei lue koko mallien geometriaa.
 Muissa välilehdissä tapahtuneet kirjoitukset tunnistetaan versiosta ja vanhan
 välilehden ylikirjoitus hylätään. Käyttäjän nykyinen muistissa oleva malli säilyy
 ladattavaksi tiedostona. Kirjasto on selain-/sivustokohtainen, ei pilvisynkronointi.
+
+## Siirrettävä projektiversio (v0.38.0)
+
+`Jatka toisella laitteella` säilyttää tavallisen v8-projektin ja lisää juureen
+`transfer: { format: 1, projectId, revision }`. `projectId` vastaa projektin ID:tä.
+`revision` on SHA-256 normalisoidusta, avaimiltaan koodipistejärjestetystä projektista;
+`updatedAt` jätetään pois, taulukoiden järjestys säilyy. Projektin version lukija
+normalisoi oletukset ennen laskentaa. Aikaleimoja ei käytetä versioiden paremmuuteen.
+Versiointimuodon muutos vaatii uuden `transfer.format`-version.
+
+Tarkistussumma tunnistaa sisällön, se ei ole allekirjoitus tai käyttäjän tunnistus.
+Vastaanotin tarkistaa metatietojen vastaavuuden ennen avaamista. Uusi tunnus säilyy,
+sama sisältö avaa olemassa olevan kirjastotallenteen historioineen ja erilainen
+sisältö tallentuu uudella tunnuksella nimellä `… · tuotu versio`. Kumpaakaan
+olemassa olevaa versiota ei korvata. Lisää malliin käyttää edelleen tavallista
+ID-uudelleenkartoitusta. Ilman `transfer`-metatietoa vanha tiedosto avataan kuten ennen.
+
+Siirtotiedosto sisältää projektin, ei paikallista toimintohistoriaa. Laskenta tehdään
+vain jakamisen/avaamisen yhteydessä, ei piirto- tai automaattitallennussilmukassa.
+Selainkohtainen IndexedDB ja nykyinen välilehtien kirjoitusristiriidan suoja säilyvät.
+Pilvisynkki tarvitsee vielä tunnistautumisen, palveluntarjoajan, ehdolliset etäkirjoitukset
+ja offline-jonon. Nykyinen tiedostosiirto ei lähetä mitään automaattisesti verkkoon.

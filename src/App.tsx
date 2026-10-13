@@ -1,9 +1,14 @@
+import { ProjectShare } from './ui/ProjectShare';
+import { readProjectTransfer, compareTransferredProject } from './storage/projectTransfer';
 import { ProjectLibrary } from './ui/ProjectLibrary';
 import { ImportDialog, ExportDialog } from './ui/ExchangeDialogs';
 import { useFullscreen } from './ui/useFullscreen';
+import { useMobileWorkspace } from './ui/useMobileWorkspace';
+import { MobileStart } from './ui/MobileStart';
 import { mergeProject, selectionProject } from './model/projectImport';
 import {
   listLocalProjects,
+  loadLocalSession,
   saveLocal,
   updateThumbnail,
   type LocalSession,
@@ -126,6 +131,7 @@ import {
   Minimize,
   MoreHorizontal,
   Settings2,
+  Share2,
   Search,
   MousePointer2,
   Move3D,
@@ -389,6 +395,7 @@ function IconButton({
       title={label}
     >
       {children}
+      <span className="icon-button-label">{label}</span>
     </button>
   );
 }
@@ -772,11 +779,26 @@ export default function App() {
   const [projection, setProjection] = useState<'perspective' | 'orthographic'>('perspective');
   const [view, setView] = useState<View>();
   const [cameraCommand, setCameraCommand] = useState<CameraCommand>();
-  const [panelOpen, setPanelOpen] = useState(true);
+  const compact = useMobileWorkspace();
+  const [desktopPanelOpen, setDesktopPanelOpen] = useState(true);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const panelOpen = compact ? mobilePanelOpen : desktopPanelOpen;
+  const setPanelOpen = compact ? setMobilePanelOpen : setDesktopPanelOpen;
+  const [touchReview, setTouchReview] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [mobileStart, setMobileStart] = useState(
+    () =>
+      matchMedia('(pointer: coarse)').matches &&
+      localStorage.getItem('nivo-mobile-start') !== 'off' &&
+      !matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches &&
+      !(navigator as Navigator & { standalone?: boolean }).standalone,
+  );
+  const fullscreenSupported = !!document.fullscreenEnabled;
   const [help, setHelp] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const { fullscreen, escapeCaptured, toggleFullscreen } = useFullscreen(editor.setError);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [libraryRevision, setLibraryRevision] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const importMode = useRef<'open' | 'add'>('open');
@@ -1312,6 +1334,7 @@ export default function App() {
     setPenInputAxis('x');
   };
   const resetGesture = () => {
+    setTouchReview(false);
     setNewPartId(undefined);
     setMarkupAppearance(undefined);
     setMarkupFocus(undefined);
@@ -1742,7 +1765,7 @@ export default function App() {
         'scale',
       ].includes(next)
     ) {
-      setPanelOpen(true);
+      setPanelOpen(!compact);
       setDraftId(uid());
       writeFields({ ...defaults });
       if (next === 'circle') writeFields({ width: '100', depth: '60' });
@@ -4013,9 +4036,30 @@ export default function App() {
         setImportFiles(files);
         return;
       }
-      const loaded = parseProject(await file.text());
+      const incoming = await readProjectTransfer(await file.text());
+      const loaded = incoming.project;
       if (importMode.current === 'add') await addProject(loaded);
-      else await openProjectSession({ project: { ...loaded, id: uid() } });
+      else if (incoming.transfer) {
+        await editor.flushSave();
+        const local = await loadLocalSession(loaded.id, false);
+        const relation = await compareTransferredProject(local?.project, incoming);
+        if (relation === 'same') {
+          // Opening the matching local session explicitly authorizes its tracked revision.
+          const tracked = await loadLocalSession(loaded.id);
+          if (tracked) await openProjectSession(tracked);
+        } else {
+          const copy = relation === 'different';
+          await openProjectSession({
+            project: copy
+              ? { ...loaded, id: uid(), name: `${loaded.name.slice(0, 100)} · tuotu versio` }
+              : loaded,
+          });
+          if (copy)
+            editor.setMessage(
+              'Projektista oli jo eri versio. Tuotu versio tallennettiin erikseen; molemmat ovat projektikirjastossa.',
+            );
+        }
+      } else await openProjectSession({ project: { ...loaded, id: uid() } });
     } catch (e) {
       editor.setError((e as Error).message);
     } finally {
@@ -5633,7 +5677,8 @@ export default function App() {
       onOrigin={(reference) => void originSelected(reference)}
     />
   );
-  const numericInput = !markupMode &&
+  const numericInput = (!compact || panelOpen || touchReview) &&
+    !markupMode &&
     editing &&
     (tool !== 'move' || !!body) &&
     (tool !== 'rotate' || !!rotation) &&
@@ -5644,12 +5689,13 @@ export default function App() {
     numericFields.length > 0 && (
       <DynamicInput
         fields={numericFields}
+        touchReview={touchReview}
         showActions={tool !== 'detail'}
         canAccept={
           tool !== 'detail' ||
           (!!detailRequests.length && !detailPreview.loading && !detailPreview.error)
         }
-        position={popup}
+        position={compact ? undefined : popup}
         onPositionChange={setPopup}
         docked={panelOpen}
         locked={locked}
@@ -5716,7 +5762,7 @@ export default function App() {
     );
 
   return (
-    <div className="app-shell" onContextMenu={(e) => e.preventDefault()}>
+    <div className="app-shell" data-compact={compact} onContextMenu={(e) => e.preventDefault()}>
       <header className="app-header">
         <a
           className="brand"
@@ -5732,6 +5778,31 @@ export default function App() {
             nivo<span className="brand-dot">.</span>
           </span>
         </a>
+        {compact && (
+          <select
+            className="mobile-workspace-select"
+            aria-label="Työtila"
+            value={renderOpen ? 'render' : partsOpen ? 'parts' : mode}
+            onChange={(e) => {
+              setHeaderMenuOpen(false);
+              if (e.target.value === 'render') openRender();
+              else if (e.target.value === 'parts') openParts();
+              else if (e.target.value === 'drawing') openDrawing();
+              else closeRender();
+            }}
+          >
+            <option value="model">Malli</option>
+            <option value="drawing" disabled={!project.bodies.length || busy}>
+              Mittakuva
+            </option>
+            <option value="render" disabled={!ready || busy}>
+              Renderöi
+            </option>
+            <option value="parts" disabled={!ready || busy || !project.bodies.length}>
+              Osat
+            </option>
+          </select>
+        )}
         <div className="mode-switch" aria-label="Työtila">
           <button
             aria-pressed={!renderOpen && !partsOpen && mode === 'model'}
@@ -5806,6 +5877,18 @@ export default function App() {
           <Search size={16} />
           <span className="command-search-label">Hae</span>
         </button>
+        {compact && (
+          <IconButton
+            label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
+            aria-pressed={fullscreen}
+            onClick={() => {
+              if (fullscreenSupported) void toggleFullscreen();
+              else setMobileStart(true);
+            }}
+          >
+            {fullscreen ? <Minimize /> : <Maximize />}
+          </IconButton>
+        )}
         <button
           className="icon-button header-menu-toggle"
           aria-label="Lisää toimintoja"
@@ -5844,6 +5927,16 @@ export default function App() {
             </button>
           </div>
           <div className="header-actions exchange-actions">
+            <IconButton
+              label="Jatka toisella laitteella"
+              disabled={!ready || busy}
+              onClick={() => {
+                setHeaderMenuOpen(false);
+                setShareOpen(true);
+              }}
+            >
+              <Share2 size={18} />
+            </IconButton>
             <IconButton
               label="Lisää malli nykyiseen projektiin"
               disabled={busy}
@@ -6020,14 +6113,16 @@ export default function App() {
                 </IconButton>
               </>
             )}
-            <IconButton
-              label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
-              disabled={!document.fullscreenEnabled}
-              aria-pressed={fullscreen}
-              onClick={() => void toggleFullscreen()}
-            >
-              {fullscreen ? <Minimize /> : <Maximize />}
-            </IconButton>
+            {!compact && (
+              <IconButton
+                label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
+                disabled={!document.fullscreenEnabled}
+                aria-pressed={fullscreen}
+                onClick={() => void toggleFullscreen()}
+              >
+                {fullscreen ? <Minimize /> : <Maximize />}
+              </IconButton>
+            )}
             <IconButton label="Käyttöohje" onClick={() => setHelp(true)}>
               <CircleHelp />
             </IconButton>
@@ -6047,7 +6142,7 @@ export default function App() {
       <div
         className={`workspace ${panelOpen ? 'panel-open' : ''} ${mode === 'drawing' ? 'drawing-workspace' : ''}`}
         hidden={renderOpen || partsOpen}
-        data-dock={mode === 'model' ? dock : undefined}
+        data-dock={mode === 'model' ? (compact ? 'left' : dock) : undefined}
       >
         {mode === 'model' && (
           <>
@@ -6071,7 +6166,8 @@ export default function App() {
               />
             )}
             <ToolRail
-              dock={dock}
+              compact={compact}
+              dock={compact ? 'left' : dock}
               onDock={(next) => {
                 setDock(next);
                 localStorage.setItem('nivo-tool-dock', next);
@@ -6139,7 +6235,30 @@ export default function App() {
               <button onClick={() => setPickOthers(false)}>Peru · Esc</button>
             </div>
           )}
-          <div className="canvas-topbar" hidden={mode !== 'model'}>
+          {compact && mode === 'model' && (
+            <div className="mobile-canvas-actions">
+              <button
+                aria-label="Näkymän asetukset"
+                aria-expanded={viewMenuOpen}
+                onClick={() => setViewMenuOpen(!viewMenuOpen)}
+              >
+                <Eye size={18} />
+                Näkymä
+              </button>
+              <button
+                aria-label={panelOpen ? 'Sulje ominaisuudet' : 'Avaa ominaisuudet'}
+                aria-expanded={panelOpen}
+                onClick={() => setPanelOpen(!panelOpen)}
+              >
+                <Settings2 size={18} />
+                {activeTool ? 'Työkalu' : 'Valinta'}
+              </button>
+            </div>
+          )}
+          <div
+            className={`canvas-topbar ${compact && !viewMenuOpen ? 'mobile-collapsed' : ''}`}
+            hidden={mode !== 'model'}
+          >
             <DisplayControls
               display={project.settings.modelDisplay}
               ids={selectedIds}
@@ -6281,7 +6400,7 @@ export default function App() {
                 <button onClick={() => setIsolated(undefined)}>Palauta näkymä</button>
               </div>
             )}
-            <ModelBrowser>
+            <ModelBrowser compact={compact}>
               <div className="object-panel">
                 <div className="panel-tabs">
                   <button aria-pressed={tab === 'objects'} onClick={() => setTab('objects')}>
@@ -6702,6 +6821,10 @@ export default function App() {
               onTexture={previewTexture}
               onTextureCommit={commitTexture}
               modalOpen={
+                touchReview ||
+                (compact && mobileStart) ||
+                libraryOpen ||
+                shareOpen ||
                 help ||
                 commandOpen ||
                 measureMenu ||
@@ -7008,7 +7131,15 @@ export default function App() {
                     penLengthDirectionRef.current = penDirectionRef.current;
                 }
               }}
-              onAccept={(continueMeasure) => void apply(false, continueMeasure)}
+              onAccept={(continueMeasure, pointerType) => {
+                if (
+                  pointerType === 'touch' &&
+                  ['rectangle', 'circle', 'extrude', 'offset'].includes(tool)
+                ) {
+                  setTouchReview(true);
+                  if (compact) setPanelOpen(false);
+                } else void apply(false, continueMeasure);
+              }}
               onPenHover={penMove}
               onReference={setReference}
               onReferencePicked={() => setPickReference(false)}
@@ -7036,6 +7167,10 @@ export default function App() {
               }}
               onRotationAxis={(axis) => changeRotation({ axis, picking: undefined })}
               onStart={() => {
+                if (compact) {
+                  setPanelOpen(false);
+                  setViewMenuOpen(false);
+                }
                 activityHistory.prepare(actionContext);
                 if (tool === 'rotate') {
                   lockRef.current.delete('angle');
@@ -7058,7 +7193,7 @@ export default function App() {
                 return selectedIds;
               }}
             />
-            {!panelOpen && numericInput}
+            {(!panelOpen || touchReview) && !(compact && touchReview) && numericInput}
             {tool === 'select' && selectedGuide && !selectedIds.length && (
               <div className="guide-actions" role="toolbar" aria-label="Viivan toiminnot">
                 <span>
@@ -7317,6 +7452,11 @@ export default function App() {
 
         {panelOpen && mode === 'model' && loftOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
+            {compact && (
+              <button className="mobile-panel-close" onClick={() => setPanelOpen(false)}>
+                <X size={18} /> Sulje ominaisuudet
+              </button>
+            )}
             {surfaceLevelsOpen ? (
               <SurfaceLevelsPanel
                 key={levelEditingId ?? 'new'}
@@ -7409,6 +7549,11 @@ export default function App() {
         )}
         {panelOpen && mode === 'model' && !loftOpen && (
           <aside className="inspector" aria-label="Ominaisuudet">
+            {compact && (
+              <button className="mobile-panel-close" onClick={() => setPanelOpen(false)}>
+                <X size={18} /> Sulje ominaisuudet
+              </button>
+            )}
             <div
               ref={inspectorDetails}
               className={`inspector-details ${activeTool ? 'tool-inspector' : ''}`}
@@ -7481,7 +7626,7 @@ export default function App() {
                   )}
                 </>
               )}
-              {numericInput}
+              {!touchReview && numericInput}
               {canRepeat && ['select', 'move'].includes(tool) && (
                 <RepeatAction
                   copy={repeatStep.copy}
@@ -8942,6 +9087,15 @@ export default function App() {
           </div>
         </SelectionDialog>
       )}
+      {compact && touchReview && numericInput}
+      {shareOpen && <ProjectShare project={project} onClose={() => setShareOpen(false)} />}
+      {compact && mobileStart && (
+        <MobileStart
+          supported={fullscreenSupported}
+          onFullscreen={toggleFullscreen}
+          onClose={() => setMobileStart(false)}
+        />
+      )}
       {fullscreen && (
         <div className="fullscreen-hint">
           {escapeCaptured
@@ -9155,6 +9309,7 @@ export default function App() {
 
       {renderOpen && (
         <RenderStage
+          compact={compact}
           colorPreview={colorPreview}
           onPreviewColor={previewColor}
           onStartRender={renderJob.start}

@@ -52,6 +52,7 @@ const measureOptions = [
 ] as const;
 export function ToolRail({
   tools,
+  compact = false,
   tool,
   busy,
   onTool,
@@ -67,6 +68,7 @@ export function ToolRail({
   onMeasureMode,
 }: {
   tools: ToolItem[];
+  compact?: boolean;
   tool: Tool;
   busy: boolean;
   onTool: (tool: Tool) => void;
@@ -239,8 +241,11 @@ export function ToolRail({
                     title={`${measureOptions.find((m) => m.id === measureMode)!.label} (T)`}
                     onClick={() => {
                       setOpen(false);
-                      onMeasureMenu(false);
-                      onTool('measure');
+                      if (compact && tool === 'measure') onMeasureMenu(!measureMenu);
+                      else {
+                        onMeasureMenu(false);
+                        onTool('measure');
+                      }
                     }}
                   >
                     {measureOptions.find((m) => m.id === measureMode)!.icon}
@@ -252,6 +257,7 @@ export function ToolRail({
                           : measureOptions.find((m) => m.id === measureMode)!.label}
                     </span>
                     <kbd>T</kbd>
+                    {compact && <ChevronRight className="shape-chevron" />}
                   </button>
                   <button
                     ref={measureTrigger}
@@ -349,12 +355,15 @@ export function ToolRail({
                         (dock === 'left' ? 70 : dock === 'right' ? -220 : 0),
                     ),
                   ),
-                  top: Math.min(
-                    window.innerHeight - 410,
-                    Math.max(
-                      8,
-                      trigger.current.getBoundingClientRect().top +
-                        (dock === 'top' ? 64 : dock === 'bottom' ? -400 : 0),
+                  top: Math.max(
+                    8,
+                    Math.min(
+                      window.innerHeight - 410,
+                      Math.max(
+                        8,
+                        trigger.current.getBoundingClientRect().top +
+                          (dock === 'top' ? 64 : dock === 'bottom' ? -400 : 0),
+                      ),
                     ),
                   ),
                 }

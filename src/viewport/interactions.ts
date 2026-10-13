@@ -4587,7 +4587,7 @@ export function installInteractions({
           return;
         if (detailSession?.started) {
           // Keep the last pointer value or typed dimension, just like Offset.
-          current().onAccept();
+          current().onAccept(false, event.pointerType);
         } else if (!moved) {
           const edge = detailEdgeAt(event);
           if (edge) props.onDetailEdge(edge.bodyId, edge.index);
@@ -4616,13 +4616,13 @@ export function installInteractions({
       } else if (props.tool === 'scale' && scaleDrag) {
         if (moved) {
           updateScale(event);
-          props.onAccept();
+          props.onAccept(false, event.pointerType);
         }
         scaleDrag = undefined;
       } else if (props.tool === 'rotate' && rotationDrag) {
         if (moved) {
           updateRotation(event);
-          props.onAccept();
+          props.onAccept(false, event.pointerType);
         }
         scaleDrag = undefined;
         rotationDrag = undefined;
@@ -4630,17 +4630,18 @@ export function installInteractions({
       } else if (props.tool === 'offset') {
         if (moved || active.second) {
           // Use the last pointermove value. A click must not overwrite a typed dimension.
-          props.onAccept();
+          props.onAccept(false, event.pointerType);
         }
       } else if (props.tool === 'extrude') {
         if (moved || active.second) {
           move(event);
-          if (props.extrusionLocked || !shift || canvas.dataset.depthTarget) props.onAccept();
+          if (props.extrusionLocked || !shift || canvas.dataset.depthTarget)
+            props.onAccept(false, event.pointerType);
         }
       } else if ((props.tool === 'rectangle' || props.tool === 'circle') && shapeSession) {
         if (moved || active.second) {
           move(event);
-          props.onAccept();
+          props.onAccept(false, event.pointerType);
         }
       } else if (props.tool === 'boolean' && !moved) {
         const hit = faceAt(event);
@@ -4711,7 +4712,7 @@ export function installInteractions({
         measureSession = undefined;
       } else if (moved && ['rectangle', 'circle', 'move'].includes(props.tool)) {
         move(event);
-        props.onAccept();
+        props.onAccept(false, event.pointerType);
       }
     }
     if (detailSession) {

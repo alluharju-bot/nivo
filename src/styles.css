@@ -7308,3 +7308,523 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+/* Touch review keeps the drawing origin and camera size stable while entering dimensions. */
+.dynamic-input.touch-review {
+  position: fixed;
+  z-index: 45;
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  top: auto;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  width: min(420px, calc(100% - 16px));
+  margin: 0 auto;
+  max-height: min(50dvh, 330px);
+  overflow: auto;
+  padding: 12px;
+  border-radius: 16px;
+  background: #fafcf8;
+  box-shadow: 0 6px 36px #182e2a30;
+}
+.touch-review .dynamic-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0 10px;
+}
+.touch-review .dynamic-title span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.touch-review .dynamic-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.touch-review .dynamic-fields label {
+  min-width: 0;
+}
+.touch-review .dynamic-fields input {
+  width: 100%;
+  min-height: 44px;
+  font-size: 18px;
+}
+.touch-review .dynamic-footer {
+  display: flex;
+  align-items: center;
+  padding-top: 10px;
+  gap: 8px;
+}
+.touch-review .dynamic-footer button {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 13px;
+  gap: 6px;
+}
+.mobile-start {
+  position: fixed;
+  z-index: 90;
+  left: 12px;
+  right: 12px;
+  top: calc(var(--mobile-top, 0px) + env(safe-area-inset-top) + 64px);
+  margin: auto;
+  max-width: 380px;
+  max-height: calc(var(--mobile-height, 100dvh) - 90px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #f9fbf6;
+  box-shadow: 0 12px 80px #182e2a40;
+  display: grid;
+  gap: 12px;
+}
+.mobile-start strong {
+  font-size: 19px;
+}
+.mobile-start p {
+  line-height: 1.6;
+  color: #52675d;
+}
+.mobile-start label {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  min-height: 44px;
+}
+.mobile-start input {
+  width: 20px;
+  height: 20px;
+}
+.mobile-start-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 44px;
+  height: 44px;
+}
+.mobile-start .button {
+  min-height: 44px;
+}
+.mobile-canvas-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+}
+.mobile-canvas-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+  background: #fafcf4d9;
+  border: 1px solid #d8dfd5;
+  border-radius: 10px;
+}
+.mobile-panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-shell[data-compact='true'] {
+  height: var(--mobile-height, 100dvh);
+  min-height: 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--mobile-top, 0px);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+.app-shell[data-compact='true'] .app-header {
+  height: 54px;
+  padding: 0 8px;
+  gap: 4px;
+  min-width: 0;
+}
+.app-shell[data-compact='true'] .app-header > .mode-switch,
+.app-shell[data-compact='true'] .app-header .brand > span,
+.app-shell[data-compact='true'] .app-header .command-search-trigger {
+  display: none;
+}
+.app-shell[data-compact='true'] .app-header .brand {
+  flex: 0 0 28px;
+  margin-right: 2px;
+}
+.app-shell[data-compact='true'] .mobile-workspace-select {
+  width: 99px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 5px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 16px;
+}
+.app-shell[data-compact='true'] .app-header .project-heading {
+  flex: 1;
+  min-width: 0;
+}
+.app-shell[data-compact='true'] .app-header .project-heading input {
+  font-size: 16px;
+  min-height: 30px;
+}
+.app-shell[data-compact='true'] .app-header .save-status {
+  font-size: 9px;
+}
+.app-shell[data-compact='true'] .app-header > .icon-button {
+  min-width: 40px;
+  width: 40px;
+  height: 44px;
+  flex: 0 0 40px;
+}
+.app-shell[data-compact='true'] .app-header .header-menu-toggle {
+  display: inline-flex;
+}
+.app-shell[data-compact='true'] .header-controls {
+  display: none;
+}
+.app-shell[data-compact='true'] .header-controls.is-open {
+  display: flex;
+  position: absolute;
+  top: 53px;
+  right: 4px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(var(--mobile-height, 100dvh) - 80px);
+  overflow: auto;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 8px 30px #18382b26;
+}
+.app-shell[data-compact='true'] .header-controls .history-controls {
+  flex-wrap: wrap;
+}
+.app-shell[data-compact='true'] .viewport-settings-panel {
+  position: fixed;
+  inset: 62px 8px auto;
+  width: auto;
+  max-height: calc(var(--mobile-height, 100dvh) - 86px);
+  overflow: auto;
+}
+.app-shell[data-compact='true'] .workspace[data-dock],
+.app-shell[data-compact='true'] .workspace[data-dock].panel-open {
+  --rail: 54px;
+  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'rail canvas';
+}
+.app-shell[data-compact='true'] .tool-rail {
+  padding: 4px 2px;
+  gap: 2px;
+}
+.app-shell[data-compact='true'] .tool-grip {
+  display: none;
+}
+.app-shell[data-compact='true'] .tool-button {
+  width: 48px;
+  min-height: 49px;
+  padding: 4px 0;
+  gap: 2px;
+}
+.app-shell[data-compact='true'] .tool-button > span {
+  font-size: 9px;
+  line-height: 1.15;
+}
+.app-shell[data-compact='true'] .tool-button > svg {
+  width: 20px;
+  height: 20px;
+}
+.app-shell[data-compact='true'] .tool-button > kbd {
+  display: none;
+}
+.app-shell[data-compact='true'] .shape-menu {
+  max-height: calc(var(--mobile-height, 100dvh) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app-shell[data-compact='true'] .canvas-area {
+  min-width: 0;
+  overflow: hidden;
+}
+.app-shell[data-compact='true'] .canvas-topbar.mobile-collapsed {
+  display: none;
+}
+.app-shell[data-compact='true'] .canvas-topbar:not(.mobile-collapsed) {
+  position: absolute;
+  z-index: 20;
+  top: 53px;
+  left: 8px;
+  right: 8px;
+  max-height: calc(100% - 70px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #f9faf6;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 4px 25px #19352622;
+}
+.app-shell[data-compact='true'] .canvas-topbar .view-actions {
+  flex-wrap: wrap;
+}
+.app-shell[data-compact='true'] .display-controls {
+  flex-wrap: wrap;
+}
+.app-shell[data-compact='true'] .workspace > .inspector {
+  grid-area: auto;
+  position: absolute;
+  z-index: 25;
+  top: 52px;
+  right: 6px;
+  bottom: 6px;
+  width: min(310px, calc(100% - 66px));
+  border-radius: 14px;
+  border: 1px solid #d4ddd1;
+  box-shadow: 0 8px 35px #193b312b;
+  background: var(--paper);
+}
+.app-shell[data-compact='true']
+  .inspector
+  input:not([type='checkbox']):not([type='color']):not([type='range']),
+.app-shell[data-compact='true'] .inspector select,
+.app-shell[data-compact='true'] .selection-dialog input,
+.app-shell[data-compact='true'] .selection-dialog select {
+  font-size: 16px;
+}
+.app-shell[data-compact='true'] .model-browser {
+  top: 8px;
+  left: 6px;
+  width: min(300px, calc(100% - 12px));
+  max-height: calc(100% - 64px);
+  background: #f6f9f1f2;
+  backdrop-filter: blur(8px);
+}
+.app-shell[data-compact='true'] .model-browser[data-expanded='false'] {
+  visibility: hidden;
+}
+.app-shell[data-compact='true'] .browser-heading button {
+  width: 44px;
+  height: 44px;
+}
+.app-shell[data-compact='true'] .browser-heading button:last-child {
+  display: none;
+}
+.app-shell[data-compact='true'] .browser-handle {
+  top: 8px;
+  left: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f9fbf4d9;
+  border: 1px solid #d8dfd5;
+}
+.app-shell[data-compact='true'] .view-cube {
+  top: 8px;
+  right: 6px;
+}
+.app-shell[data-compact='true'] .welcome {
+  left: 18px;
+  right: 10px;
+  max-width: calc(100% - 28px);
+  top: 34%;
+}
+.app-shell[data-compact='true'] .welcome h1 {
+  font-size: 42px;
+}
+.app-shell[data-compact='true'] .welcome p {
+  font-size: 12px;
+}
+.app-shell[data-compact='true'] .welcome .eyebrow {
+  font-size: 10px;
+}
+.app-shell[data-compact='true'] .status-bar {
+  min-height: 28px;
+  height: 28px;
+  padding: 0 8px;
+  gap: 8px;
+}
+.app-shell[data-compact='true'] .status-bar > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.app-shell[data-compact='true'] .canvas-corner {
+  display: none;
+}
+.app-shell[data-compact='true'] .reference-bar {
+  top: auto;
+  bottom: 48px;
+  left: 8px;
+  right: 8px;
+  transform: none;
+  width: auto;
+  flex-wrap: wrap;
+}
+.app-shell[data-compact='true'] .fullscreen-hint {
+  display: none;
+}
+.app-shell[data-compact='true'] .dynamic-input.touch-review {
+  top: auto;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  position: absolute;
+  max-height: calc(100% - 76px);
+}
+.app-shell[data-compact='true'] .welcome {
+  top: 30%;
+  transform: none;
+}
+.app-shell[data-compact='true'] .touch-review ~ .reference-bar,
+.app-shell[data-compact='true'] .model-stage:has(.touch-review) .shape-purpose-bar {
+  display: none;
+}
+@media (max-width: 370px) {
+  .app-shell[data-compact='true'] .app-header .brand {
+    display: none;
+  }
+}
+.icon-button-label {
+  display: none;
+}
+.transfer-help {
+  margin: 16px 0;
+  line-height: 1.6;
+  color: #52675d;
+}
+.transfer-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.transfer-actions .button {
+  min-height: 44px;
+}
+.app-shell[data-compact='true'] .header-controls.is-open {
+  width: min(300px, calc(100vw - 16px));
+}
+.app-shell[data-compact='true'] .header-controls .header-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+.app-shell[data-compact='true'] .header-controls .header-actions .icon-button {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 10px;
+}
+.app-shell[data-compact='true'] .header-controls .header-actions .icon-button-label {
+  display: inline;
+  font-size: 13px;
+}
+.app-shell[data-compact='true'] .download-project::after {
+  content: 'Tallenna tiedosto';
+  font-size: 13px;
+}
+.touch-review .dynamic-fields label > span {
+  font-size: 12px;
+}
+.app-shell[data-compact='true'] .model-stage:has(.touch-review) .shape-mode-actions {
+  display: none;
+}
+.app-shell[data-compact='true'] .render-workspace {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.app-shell[data-compact='true'] .render-panel {
+  position: absolute;
+  z-index: 15;
+  inset: 100px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 8px 30px #19362822;
+}
+.app-shell[data-compact='true'] .render-panel[hidden] {
+  display: none;
+}
+.app-shell[data-compact='true']
+  .render-panel
+  input:not([type='range']):not([type='checkbox']):not([type='color']),
+.app-shell[data-compact='true'] .render-panel select {
+  font-size: 16px;
+}
+.app-shell[data-compact='true'] .render-toolbar {
+  gap: 4px;
+  right: 8px;
+}
+.app-shell[data-compact='true'] .render-toolbar button {
+  min-height: 40px;
+  padding: 8px;
+  font-size: 12px;
+}
+.app-shell[data-compact='true'] .render-caption {
+  font-size: 10px;
+  padding: 8px;
+}
+.app-shell[data-compact='true'] .parts-layout,
+.app-shell[data-compact='true'] .cut-workspace {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.app-shell[data-compact='true'] .parts-workspace-toolbar {
+  flex-wrap: wrap;
+  padding: 8px;
+  gap: 8px;
+}
+.app-shell[data-compact='true'] .selection-dialog {
+  max-width: calc(100vw - 24px);
+  max-height: calc(var(--mobile-height, 100dvh) - 32px);
+}
+.app-shell[data-compact='true'] .command-backdrop {
+  padding: 12px;
+}
+.app-shell[data-compact='true'] .measure-tool {
+  width: 48px;
+}
+.app-shell[data-compact='true'] .measure-tool .tool-button {
+  width: 48px;
+  border-radius: 9px;
+}
+.app-shell[data-compact='true'] .tool-menu-trigger {
+  display: none;
+}
+.app-shell[data-compact='true'] .command-backdrop {
+  position: absolute;
+  inset: 0;
+}
+.app-shell[data-compact='true'] .welcome-example ~ .welcome-example,
+.app-shell[data-compact='true'] .welcome-meta {
+  display: none;
+}
+.app-shell[data-compact='true']:has(.touch-review) .shape-mode-actions,
+.app-shell[data-compact='true']:has(.touch-review) .reference-bar {
+  display: none;
+}
+@media (max-height: 540px) {
+  .app-shell[data-compact='true'] .welcome {
+    top: 28%;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .app-shell[data-compact='true'] .welcome > :not(h1):not(.button.dark) {
+    display: none;
+  }
+  .app-shell[data-compact='true'] .welcome h1 {
+    font-size: 32px;
+  }
+}
