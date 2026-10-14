@@ -3,6 +3,10 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.42.1** tarjoaa Cutin yhteydessä valinnan tehdä kohteista uniikkeja
+tai säilyttää niiden linkitykset. Uniikiksi tekeminen ja leikkaus peruuntuvat
+yhdessä. Tab vaihtaa Cutin kohde- ja työstökappalevalinnan välillä.
+
 Versio **0.42.0** parantaa tarkentuvan renderin kirkkaita pintoja. Kohinanpoisto
 seuraa valonäytteiden vaihtelua ja suojaa puunsyitä, pintojen rajoja ja heijastuksia.
 Valonäytteet painottavat lähellä olevia, pintaa kohti suuntautuvia valoja. GPU:n

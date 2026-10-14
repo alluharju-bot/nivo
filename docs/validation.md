@@ -4,6 +4,24 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.42.1 — Cutin uniikit kohteet ja Tab-valinta
+
+30 kohdistettua yksikkö-/CAD-testiä hyväksytty. TypeScript ja `/nivo/`-tuotantobuild hyväksytty.
+
+- Kuusi uutta selaintapausta sekä työpöytä- että tablettiprofiilissa: 12 hyväksytty.
+  Kahden saman perheen kopion leikkaaminen eri päistä tuottaa odotetut sijainnit
+  ja mitat; vain kohteet muuttuvat uniikeiksi. Valitsematon Hold-kopio säilyy.
+- Leikkurin poistaminen tai säilyttäminen, muiden leikkurikopioiden linkitys,
+  yhteisen linkityksen kautta tapahtuva leikkauksen jakaminen, yksi Peru/Palauta
+  sekä selaimen uudelleenlataus tarkistettu.
+- Ikkunan Esc säilyttää valinnat. Testissä pysäytetty CAD-pyyntö keskeytetään
+  laskennan aikana ja samoilla valinnoilla onnistuu uusi yritys. Linkitykset ja
+  geometria säilyvät myös ohi osuvassa leikkauksessa ja Hold-virheessä.
+- Tab/Shift+Tab testattu mallinäkymän valinnasta sekä kohteen valintaruudusta.
+  Toiminto-pudotusvalikossa Tab ei vaihda kohderyhmää. Valintaikkuna tarkastettu kuvasta.
+- Viisi aiempaa Cut/Join-työnkulkua hyväksytty: useat kohteet/leikkurit, käänteinen
+  leikkaus, seinien yhdistäminen, tasomuotojen yhdistäminen ja irrallisen pinnan leikkaaminen.
+
 ## V0.42.0 — kohinanpoisto, valonhaku ja renderin kuormitus
 
 575 yksikkö-/CAD-testiä hyväksytty, 4 yksityisen mallin testiä ohitettu.

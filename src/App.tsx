@@ -360,7 +360,8 @@ const instructions: Record<Tool, string> = {
     'Klikkaa alkukulmaa, siirrä osoitinta ja klikkaa vastakulmaa. X/Y/Z vaihtaa piirtotasoa. Myös veto tai numerosarja → Tab toimii. Enter hyväksyy.',
   circle:
     'C · Klikkaa keskipistettä ja sitten reunaa tai vedä säde. Kirjoita halkaisija, Tab vaihtaa kenttää. Enter hyväksyy.',
-  boolean: 'Valitse kohteet ja työstökappaleet. Vaihda keskenään kääntää leikkauksen suunnan.',
+  boolean:
+    'Valitse kohteet ja työstökappaleet. Tab vaihtaa valintaryhmää. Vaihda keskenään kääntää leikkauksen suunnan.',
   extrude:
     'E · Shift poimii tavoitemitan pisteestä, reunasta, apuviivasta tai pinnasta. Kirjoitettu mitta ohittaa tartunnan. Enter tai klikkaus hyväksyy.',
   move: 'Korostus näyttää siirrettävät osat. Vedä valitusta osasta; Shift-klikkaus muuttaa valintaa. Tyhjästä veto valitsee laatikolla. X/Y/Z lukitsee akselin, Ctrl vaihtaa kopioinnin.',
@@ -610,6 +611,7 @@ export default function App() {
   const [booleanTargets, setBooleanTargets] = useState<string[]>([]);
   const [booleanTools, setBooleanTools] = useState<string[]>([]);
   const [booleanActive, setBooleanActive] = useState<'targets' | 'tools'>('targets');
+  const [booleanLinkPrompt, setBooleanLinkPrompt] = useState(false);
   const [keepTools, setKeepTools] = useState(true);
   const [pickDepth, setPickDepth] = useState(false);
   const [copyMove, setCopyMove] = useState(false);
@@ -1367,6 +1369,7 @@ export default function App() {
     setPenInputAxis('x');
   };
   const resetGesture = () => {
+    setBooleanLinkPrompt(false);
     setTouchReview(false);
     setNewPartId(undefined);
     setMarkupAppearance(undefined);
@@ -2120,39 +2123,79 @@ export default function App() {
       finishOperation(candidate.id);
     }
   };
-  const applyBooleanOperation = async () => {
-    const targets = project.bodies.filter((b) => booleanTargets.includes(b.id)),
-      tools = project.bodies.filter((b) => booleanTools.includes(b.id));
+  const closeBooleanLinkPrompt = () => {
+    if (busy) editor.cancel();
+    setBooleanLinkPrompt(false);
+  };
+  const applyBooleanOperation = async (linkMode?: 'unique' | 'shared') => {
+    if (busy || (linkMode && committing.current)) return;
+    const targetIds = new Set(booleanTargets);
+    const families = new Map<string, number>();
+    for (const body of project.bodies)
+      if (body.component)
+        families.set(body.component.id, (families.get(body.component.id) ?? 0) + 1);
+    if (
+      booleanOperation === 'cut' &&
+      !linkMode &&
+      booleanTools.length &&
+      project.bodies.some(
+        (body) => targetIds.has(body.id) && body.component && families.get(body.component.id)! > 1,
+      )
+    ) {
+      editor.setError('');
+      setBooleanLinkPrompt(true);
+      return;
+    }
+    // Detach only the targets, in the same transaction as the cut. Failed or
+    // cancelled geometry must not leave a separate unlink operation behind.
+    const base =
+      booleanOperation === 'cut' && linkMode === 'unique'
+        ? uniqueComponents(project, booleanTargets)
+        : project;
+    const targets = base.bodies.filter((b) => targetIds.has(b.id)),
+      tools = base.bodies.filter((b) => booleanTools.includes(b.id));
     let nextSelected: string | undefined;
-    const success = await editor.transact(
-      async () => {
-        requireMovable(targets, project.groups);
-        if (tools.length && (booleanOperation === 'join' || !keepTools))
-          requireMovable(tools, project.groups);
-        const results = await editor.cad.boolean(targets, tools, booleanOperation);
-        nextSelected = results[0]?.id;
-        if (
-          booleanOperation === 'cut' &&
-          results.length === targets.length &&
-          results.every(
-            (b) =>
-              JSON.stringify(b.feature) ===
-              JSON.stringify(targets.find((t) => t.id === b.id)?.feature),
+    committing.current = true;
+    try {
+      const success = await editor.transact(
+        async () => {
+          requireMovable(targets, project.groups);
+          if (tools.length && (booleanOperation === 'join' || !keepTools))
+            requireMovable(tools, project.groups);
+          const results = await editor.cad.boolean(targets, tools, booleanOperation);
+          nextSelected = results[0]?.id;
+          if (
+            booleanOperation === 'cut' &&
+            results.length === targets.length &&
+            results.every(
+              (b) =>
+                JSON.stringify(b.feature) ===
+                JSON.stringify(targets.find((t) => t.id === b.id)?.feature),
+            )
           )
-        )
-          throw new Error('Työstökappaleet eivät leikkaa kohteita. Tarkista sijainnit.');
-        return applyBoolean(
-          project,
-          booleanTargets,
-          booleanTools,
-          results,
-          booleanOperation,
-          keepTools,
-        );
-      },
-      booleanOperation === 'cut' ? 'Leikkaus valmis.' : 'Kappaleet yhdistetty.',
-    );
-    if (success) finishOperation(nextSelected);
+            throw new Error('Työstökappaleet eivät leikkaa kohteita. Tarkista sijainnit.');
+          return applyBoolean(
+            base,
+            booleanTargets,
+            booleanTools,
+            results,
+            booleanOperation,
+            keepTools,
+          );
+        },
+        booleanOperation === 'cut'
+          ? linkMode === 'unique'
+            ? 'Kohteet tehty uniikeiksi ja leikattu.'
+            : 'Leikkaus valmis.'
+          : 'Kappaleet yhdistetty.',
+      );
+      if (success) {
+        setBooleanLinkPrompt(false);
+        finishOperation(nextSelected);
+      }
+    } finally {
+      committing.current = false;
+    }
   };
   const commitDimension = async (dimension: PointDimension) => {
     if (busy) return;
@@ -4257,6 +4300,13 @@ export default function App() {
         return;
       }
       if (measureMenu || guidePointMenu) return;
+      if (booleanLinkPrompt) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeBooleanLinkPrompt();
+        }
+        return;
+      }
       if (
         commandOpen ||
         pickList ||
@@ -4309,6 +4359,25 @@ export default function App() {
         return;
       }
       const target = event.target as HTMLElement;
+      if (
+        tool === 'boolean' &&
+        booleanOperation === 'cut' &&
+        event.key === 'Tab' &&
+        !busy &&
+        !renderOpen &&
+        !partsOpen &&
+        mode !== 'drawing' &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !target.closest(
+          'textarea, select, [contenteditable], input:not([type="checkbox"]):not([type="radio"])',
+        )
+      ) {
+        event.preventDefault();
+        if (!event.repeat) setBooleanActive((group) => (group === 'targets' ? 'tools' : 'targets'));
+        return;
+      }
       if (target.closest('input, textarea, select, [contenteditable]')) return;
       // Enter/Space belong to the focused control, e.g. a view-cube face while
       // drawing. Do not accept geometry instead of activating that control.
@@ -9083,6 +9152,38 @@ export default function App() {
         )}
       </div>
 
+      {booleanLinkPrompt && tool === 'boolean' && (
+        <SelectionDialog title="Linkitettyjen kohteiden leikkaus" onClose={closeBooleanLinkPrompt}>
+          <p>Tehdäänkö leikattavista kappaleista uniikkeja?</p>
+          <p className="tool-consequence">
+            Vain valitut kohteet irrotetaan linkityksestä. Muut kopiot ja työstökappaleiden
+            linkitykset säilyvät. Peru palauttaa myös kohteiden linkitykset.
+          </p>
+          {editor.error && <p role="alert">{editor.error}</p>}
+          {busy && <p role="status">Leikataan kohteita…</p>}
+          <button
+            className="button dark full"
+            disabled={busy}
+            onClick={() => void applyBooleanOperation('unique')}
+          >
+            Tee uniikeiksi ja leikkaa
+          </button>
+          <button
+            className="button outlined full"
+            disabled={busy}
+            onClick={() => void applyBooleanOperation('shared')}
+          >
+            Säilytä linkitys ja leikkaa
+          </button>
+          <p className="tool-consequence">
+            Linkitetty leikkaus päivittää myös muut kopiot. Saman komponentin kopioiden erilliset
+            leikkaukset tarvitsevat uniikit kohteet.
+          </p>
+          <button className="button outlined full" onClick={closeBooleanLinkPrompt}>
+            {busy ? 'Keskeytä laskenta' : 'Takaisin valintoihin'}
+          </button>
+        </SelectionDialog>
+      )}
       {surfaceSplitDraft && (
         <SelectionDialog
           side

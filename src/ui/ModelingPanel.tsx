@@ -75,6 +75,11 @@ export function BooleanPanel({
               <button
                 className="body-set-heading"
                 aria-pressed={active === group}
+                title={
+                  operation === 'cut'
+                    ? 'Tab vaihtaa kohteiden ja työstökappaleiden välillä'
+                    : undefined
+                }
                 disabled={busy}
                 onClick={() => onActive(group)}
               >

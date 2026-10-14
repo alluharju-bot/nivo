@@ -2,6 +2,18 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.42.1 — Cutin linkitysvalinta ja Tab
+
+- Ennen linkitettyjen kohteiden Cut-laskentaa valinta: **Tee uniikeiksi ja leikkaa**,
+  **Säilytä linkitys ja leikkaa** tai **Takaisin valintoihin**. Kohde- ja
+  työstökappalevalinnat sekä työstökappaleiden säilyttämisasetus pysyvät mukana.
+- Uniikiksi tekeminen koskee vain valittuja kohteita; muut kopiot säilyvät.
+  Leikkaus ja linkityksen poisto tehdään yhtenä historiatoimintona. Virhe tai
+  keskeytys ei irrota linkityksiä. Hold estää edelleen lukittujen kohteiden muokkauksen.
+- Pitkän laskennan voi keskeyttää ikkunasta tai Escillä ja yrittää samoilla valinnoilla uudelleen.
+- Tab vaihtaa Cutin aktiivista valintaryhmää myös paneelin valintaruutujen jälkeen.
+  Tekstikentät ja pudotusvalikot säilyttävät tavallisen Tab-käytön. Join toimii ennallaan.
+
 ## V0.42.0 — renderin kohina, valonäytteet ja GPU-kuorma
 
 - Raakojen, peräkkäisten valonäytteiden keskiarvoista arvioidaan varianssi GPU:lla.
