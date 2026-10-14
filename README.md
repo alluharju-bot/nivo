@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.44.1** lisää **Omat osat → Tuo osia kirjastoon** -toiminnon.
+Valitse yksi tai useampi valmis .nivo-tiedosto ja lisää osat myöhemmin malliisi.
+Tuonti säilyttää avoimen projektin ja sen historian. Kaikki valitut tiedostot
+tarkistetaan ennen yhteistä tallennusta; valmistajien aineistoa ei jaeta sovelluksen mukana.
+
 Versio **0.44.0** lisää **Projektikirjasto → Tuotekirjasto** -näkymän:
 43 tuotetta ja tuoteperhettä SAVOlta, Blumilta, GRASSilta, Hettichiltä,
 Häfeleltä, Geberitiltä, Orakselta, GROHElta, hansgrohelta ja Gustavsbergiltä.

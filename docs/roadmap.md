@@ -2,6 +2,66 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.44.1 — omien valmiiden osien monituonti
+
+- **Projektikirjasto → Omat osat → Tuo osia kirjastoon** hyväksyy useita
+  .nivo-tiedostoja samalla kertaa. Kaikki tiedostot tarkistetaan ennen tallennusta;
+  virheellinen tiedosto tai tallennusvirhe peruu koko tuonnin. Avoin projekti,
+  sen historia ja aiemmat osat säilyvät. Tuodut osat saavat omat tunnisteensa.
+- Valmistajien tiedostoja valmisteltu käyttäjän paikalliseen kirjastoon:
+  Hettich Sensys 9094000/9094010/9094020 ja Novisys 9313100/9313110/9313120,
+  Oras Inspera 3018F sekä GROHE SmartControl 102168KF00. Alkuperäinen STEP
+  ja .nivo-CAD-versio säilyvät paikallisesti; tiedostoja ei lisätä julkiseen repoon.
+  Jakelu- ja muokkausoikeudet on tarkistettava ennen julkista mallikirjastoa.
+  Molemmista hanoista lisäksi erillinen kevyt kolmiomalli sijoitteluun:
+  GROHE 513 038 → 84 958 kolmiota, Oras 130 382 → 11 864. CAD-versiot säilyvät.
+  Kolmiomallissa ei ole tarkkaa CAD-pintamuokkausta. Materiaalivärit eivät
+  siirry STEP-tuonnissa; tuodut tiedostot käyttävät neutraalia pintaväriä.
+  SAVO TWISTin varsinaista tuotemallia ei saatu; aiempi asennusprofiili säilyy.
+  Häfelen, Blumin ja muiden valmistajien kattavampi mallivalikoima on jatkotyötä.
+- hansgrohe Raindance Select E 300:n lähdesivu ilmoittaa tuotteen poistuneeksi;
+  tieto näkyy nyt kortissa. Suomen saatavuutta ei päätellä lähdesivusta.
+
+## Seuraava ehdotus — osan pisteiden ja reunojen muokkaus
+
+**Suunnitelma, ei vielä toteutettu.** Nykyinen Korkeustasot muuttaa sisäkkäisten
+rajausten korkeuksia. Se ei korvaa vapaata piste-, reuna- tai pintamuokkausta.
+Tämä kokonaisuus palvelee kaatoja, vinoja rakenteita, altaita, koteloita ja
+3D-tulostettavia sovitusosia. STL-vienti on jo olemassa.
+
+1. Osan muokkaustilaan rajattu **Muokkaa geometriaa** ja siinä
+   **Pisteet / Reunat / Pinnat**. Nykyinen Muotoile-nimi on jo Cut/Joinin käytössä.
+   Selvä valintakorostus, aluevalinta ja reunalenkin valinta. Tavallinen
+   Siirrä/Kierrä/Skaalaa säilyy osakohtaisena; geometriavalinta vaikuttaa vain
+   tässä näkyvästi aktivoidussa toiminnossa. Numeroita 1–4 ei oteta näyttötiloilta.
+   Shift lisää valintaan ennen operaatiota ja hakee viitteen aktiivisen
+   operaation aikana; sama painallus ei muuta valintaa ja poimi viitettä.
+2. Valittujen pisteiden, reunojen ja lenkkien siirto, kierto ja skaalaus,
+   poimittava keski-/ankkuripiste, akselit sekä tarkka mm-/prosenttisyöttö.
+   Yksi piste ei itsessään pienene: skaalaus muuttaa sen etäisyyttä ankkurista.
+   Pullon suuaukon tai kaivon reunalenkin säätö on selkeä ensimmäinen käyttötapaus.
+   Muut pisteet pysyvät paikallaan; liittyvät pinnat mukautuvat ja esikatselu
+   näyttää koko vaikutusalueen. Hold, linkitykset ja Peru huomioidaan yhdessä.
+3. Ensimmäinen rajaus: kolmiomallit ja suorareunaiset muodot. CAD:n tarkkaa
+   pintaa ei muuteta pelkäksi näyttöverkon siirroksi. Kaareville CAD-pinnoille
+   tarvitaan topologian säilyttävä muokkaus tai käyttäjän valitsema erillinen
+   verkkokopio; alkuperäinen tarkka CAD säilytetään. Epätasomainen rajaus
+   trianguloidaan hallitusti, ja itsensä leikkaava tulos hylätään ennen hyväksyntää.
+4. Seuraavaksi reunojen jakaminen, pisteiden yhdistäminen, aukon täyttö ja
+   kahden reunalenkin yhdistäminen. Sovitetaan nykyisiin Kynä-, Offset-,
+   Muotojen läpi- ja pintapursotustoimintoihin, ei rinnakkaisia samannimisiä työkaluja.
+5. Tulostustarkistus: avoimet/moninkertaiset reunat, pintojen suunta,
+   itsensä leikkaaminen ja seinämäpaksuus. Nykyinen STL:n sulkeutumistarkistus
+   on lähtökohta, ei täydellinen tulostettavuustakuu. Sen jälkeen 3MF, joka
+   säilyttää yksiköt ja osajaon, sekä sovitusvälysten helppo säätö.
+
+Hyväksyntäkokeet: suorakulmion kaksi kulmaa +20 mm muodostaa tasaisen kaadon;
+ympyrän reunalenkin skaalaus säilyttää keskityksen ja muun kappaleen;
+vinoon kierretyn osan paikallinen akseli ja Shift-viite ovat toistettavia;
+Peru/Palauta ja tallennus palauttavat topologian ja valinnan; tulostusvienti
+tunnistaa muokkauksessa syntyneen avoimen reunan. Vapaa muodon pehmennys
+ja subdivision tulevat tämän vakaan perustan jälkeen.
+
 ## V0.44.0 — tuotekirjaston ensimmäinen versio
 
 - Projektikirjaston kolmas välilehti **Tuotekirjasto**: 43 tuotetta ja tuoteperhettä,

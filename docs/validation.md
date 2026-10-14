@@ -4,6 +4,37 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.44.1 — valmistajamallien oma kirjasto
+
+- 34 tuotantobuildin selaintapausta hyväksytty: osakirjaston monituonti,
+  aktiivisen projektin ja historian säilyminen, tiedostovirheen koko erän
+  hylkäys, korjattu uudelleentuonti, tuoteviite ja kokoonpano osan lisäämisessä,
+  puhelinleveys sekä aiemmat tuotekirjaston ja projektivaihdon regressiot.
+  Viimeinen kirjastoajo sisältää lisäksi tallennustransaktion keskeyttämisen:
+  osittaista erää ei jää selaimeen eikä avoin projekti vaihdu.
+- 18 kohdistettua yksikkö-/CAD-testiä hyväksytty (tuoteviitteet, projektien
+  yhdistäminen, STEP-tuonti ja tulostusvienti). TypeScript, `/nivo/`-build ja
+  lisenssitarkistus hyväksytty.
+- Valmistajien omista lähteistä ladatut 8 STEP-mallia muunnettu paikallisesti
+  .nivo-CAD-tiedostoiksi. Kaikki osat läpäisivät Nivon CAD-tarkistuksen ja
+  normaalin näyttöverkon muodostuksen. GROHEn STEP-lukija ilmoitti yhden
+  ratkaisemattoman lähdeviitteen, mutta palautti 11 ehjää osaa; valmistajan
+  täydellisyyttä tai asennustoleransseja ei tästä päätellä.
+- Erillinen näkyvän Chromiumin koe toi kaikki 8 CAD-versiota ja 2 kevyttä
+  hanaversiota Omiin osiin ja avasi jokaisen mallin näkymään. Ei selaimen
+  pageerror-virheitä. Saranat noin 1,3–1,9 s, GROHE CAD 25,2 s / kevyt 2,1 s,
+  Oras CAD 3,9 s / kevyt 1,2 s. Ajat sisältävät tarkoituksellisen yhden sekunnin
+  kuvan vakautusodotuksen ja kuvakaappauksen; tämä on yksi latauskoe, ei FPS-mittaus.
+  Mallien ja kirjaston kuvakaappaukset tarkastettu. Valmistajan koordinaatisto
+  säilyy; esimerkiksi Oraksen hana tarvitsee kierron Z-ylössuuntaan sijoitettaessa.
+- Kevennetyt versiot tesselloitu 0,35 mm / 0,3 rad asetuksella. Tarkka
+  CAD säilyy erikseen. Nämä ovat sijoittelumalleja, eivät valmistusgeometrian
+  korvaajia. STEP-värejä ei tuoda. Alkuperäiset tiedostot, lähteet, SHA-256:t,
+  Nivo-versiot ja testikuvat säilyvät vain käyttäjän latauskansiossa;
+  valmistajien CAD-aineistoa ei lisätty julkiseen repositorioon tai testifixtureiksi.
+- Vapaa vertex-/reunamuokkaus on kirjattu roadmapin suunnitelmaksi.
+  Sitä ei ole toteutettu tai merkitty tässä versiossa valmiiksi.
+
 ## V0.44.0 — valmistajien tuotekirjasto
 
 - Koko yksikkö-/CAD-sarja: 604 hyväksyttyä ja 4 yksityisen mallin testiä ohitettu.

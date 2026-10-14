@@ -411,7 +411,8 @@ export const productCatalog: CatalogProduct[] = [
     brand: 'hansgrohe',
     name: 'Raindance Select E 300',
     category: 'taps',
-    summary: 'Suihkukokonaisuus. Latauksissa useita 3D-tiedostomuotoja.',
+    summary:
+      'Suihkukokonaisuus. Valmistajan lähdesivulla poistunut tuote; tarkista korvaava malli.',
     source:
       'https://www.hansgrohe.com.tr/articledetail-raindance-select-e-dus-kolonu-300-2-jet-showertablet-select-300-ile-27126400',
     region: 'Kansainvälinen',

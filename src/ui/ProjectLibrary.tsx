@@ -2,8 +2,8 @@ import { CloudProjects } from './CloudProjects';
 import { ProductCatalog } from './ProductCatalog';
 import type { CadClient } from '../cad/client';
 import type { CloudController } from '../cloud/useCloud';
-import { useEffect, useState } from 'react';
-import { Box, Copy, Download, FolderOpen, Plus, Search, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Box, Copy, Download, FolderOpen, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { SelectionDialog } from './SelectionDialog';
 import { InlineName } from './InlineName';
 import { History } from '../model/history';
@@ -11,6 +11,7 @@ import { uid, type Project } from '../model/project';
 import {
   deleteLocalProject,
   downloadFile,
+  importLibraryParts,
   listLocalProjects,
   loadLocalSession,
   safeFilename,
@@ -47,6 +48,8 @@ export function ProjectLibrary({
   const [query, setQuery] = useState('');
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const partFiles = useRef<HTMLInputElement>(null);
   const [removing, setRemoving] = useState<string>();
   const refresh = async () => setEntries(await listLocalProjects());
   useEffect(() => {
@@ -55,6 +58,7 @@ export function ProjectLibrary({
   const run = async (action: () => Promise<void>) => {
     setWorking(true);
     setError('');
+    setNotice('');
     try {
       await action();
       await refresh();
@@ -82,7 +86,7 @@ export function ProjectLibrary({
         <span>
           {tab === 'product'
             ? 'Tuotteet suunnitteluun'
-            : cloud.configured
+            : tab === 'project' && cloud.configured
               ? 'Tämä selain ja oma pilvi'
               : 'Tallessa tässä selaimessa'}
         </span>
@@ -90,8 +94,8 @@ export function ProjectLibrary({
           <X size={18} />
         </button>
       </div>
-      {tab !== 'product' && <CloudProjects cloud={cloud} onOpen={onOpen} />}
-      {tab !== 'product' && (
+      {tab === 'project' && <CloudProjects cloud={cloud} onOpen={onOpen} />}
+      {tab === 'project' && (
         <div className="library-toolbar">
           <button className="button dark" disabled={working} onClick={() => void run(onNew)}>
             <Plus size={16} /> Uusi projekti
@@ -136,6 +140,38 @@ export function ProjectLibrary({
           </label>
         )}
       </div>
+      {tab === 'part' && (
+        <div className="library-toolbar">
+          <button
+            className="button dark"
+            disabled={working}
+            onClick={() => partFiles.current?.click()}
+          >
+            <Upload size={16} /> Tuo osia kirjastoon
+          </button>
+          <input
+            ref={partFiles}
+            data-testid="library-part-files"
+            type="file"
+            accept=".nivo"
+            multiple
+            hidden
+            disabled={working}
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              event.target.value = '';
+              if (files.length)
+                void run(async () => {
+                  const count = await importLibraryParts(files);
+                  setQuery('');
+                  setNotice(`${count} ${count === 1 ? 'osa lisätty' : 'osaa lisätty'} kirjastoon.`);
+                });
+            }}
+          />
+          <span className="muted">Valitse yksi tai useampi .nivo-tiedosto.</span>
+        </div>
+      )}
+      {notice && <p role="status">{notice}</p>}
       {tab === 'product' ? (
         <ProductCatalog cad={cad} onAdd={onAdd} onWorkingChange={setWorking} />
       ) : (
@@ -270,7 +306,7 @@ export function ProjectLibrary({
           {!entries.some((e) => e.kind === tab) && (
             <p className="muted">
               {tab === 'part'
-                ? 'Valitse osat mallista ja valitse Tallenna valinta kirjastoon.'
+                ? 'Tuo valmiita osatiedostoja tai valitse mallin osat ja Tallenna valinta kirjastoon.'
                 : 'Tallennetut projektit näkyvät täällä.'}
             </p>
           )}

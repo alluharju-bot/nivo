@@ -1,4 +1,5 @@
 import { parseProject, type Project } from '../model/project';
+import { reidentifyProject } from '../model/projectImport';
 
 export type LibraryEntry = {
   id: string;
@@ -176,6 +177,46 @@ export async function loadLocalSession(
     };
     tx.onabort = tx.onerror = () => reject(new Error('Projektia ei voitu palauttaa.'));
   });
+}
+/** Validate the whole batch first, then commit independent library copies atomically.
+ * Importing parts must never replace a project, its history or the active session. */
+export async function importLibraryParts(files: File[]): Promise<number> {
+  if (!files.length) return 0;
+  if (files.length > 50 || files.reduce((sum, file) => sum + file.size, 0) > 64_000_000)
+    throw new Error('Tuo kerralla enintään 50 osatiedostoa, yhteensä enintään 64 Mt.');
+  const incoming: { project: Project; serialized: string }[] = [];
+  for (const file of files) {
+    try {
+      if (!file.name.toLowerCase().endsWith('.nivo'))
+        throw new Error('Valitse Nivo-osatiedosto (.nivo).');
+      const project = reidentifyProject(parseProject(await file.text()));
+      if (!project.bodies.length) throw new Error('Tiedostossa ei ole osia.');
+      project.updatedAt = new Date().toISOString();
+      incoming.push({ project, serialized: JSON.stringify(project) });
+    } catch (error) {
+      throw new Error(`${file.name}: ${(error as Error).message} Mitään osia ei tuotu.`);
+    }
+  }
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(['sessions', 'entries'], 'readwrite');
+    for (const { project, serialized } of incoming) {
+      tx.objectStore('sessions').add(
+        { project: serialized, revision: 1 } satisfies StoredSession,
+        project.id,
+      );
+      tx.objectStore('entries').add({ ...metadata(project), kind: 'part' });
+    }
+    tx.oncomplete = () => resolve();
+    tx.onabort = () =>
+      reject(
+        new Error(
+          'Osia ei voitu tallentaa selaimeen. Mitään osia ei tuotu. Tarkista tallennustila.',
+        ),
+      );
+  });
+  for (const { project } of incoming) revisions.set(project.id, 1);
+  return incoming.length;
 }
 /** Cloud verification needs the exact saved project, but not a parsed model or
  * undo graph on the UI thread. Parsing and hashing happen in its own worker. */
