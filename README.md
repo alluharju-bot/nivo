@@ -3,6 +3,18 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.43.0** lisää **Tasajaon** osille, muodoille ja mitta-/apuviivoille.
+Valitse kohteet → **Tasajako** oikeasta paneelista tai kontekstivalikosta.
+Kopioi valinta tai järjestä nykyiset osat kokonaismitan, jakovälin tai vapaan
+välin mukaan. Ulkoreunojen kokonaismitta huomioi osien paksuudet; viitekohdiksi
+voi valita ala-/alkureunan, keskipisteen tai ylä-/loppureunan. Viivoissa
+5 väliä tarkoittaa 6 viivaa rajat mukaan lukien. Kaavio näyttää jaon ennen hyväksyntää.
+Jaon asetukset tallentuvat projektiin: valitse sarjan osa → **Muokkaa tasajakoa**.
+**Toteuta ja käytä leikkureina** avaa Cutin valmiilla työstökappaleilla.
+Myös suljetut tasomuodot kelpaavat nyt Cutin läpileikkaaviksi leikkureiksi.
+Jaon muokkaaminen ei laske jo tehtyä Cutia uudelleen; peru leikkaus, säädä jako
+ja leikkaa uudelleen. Paksujen leikkureiden rajattu leikkaus toimii ennallaan.
+
 Versio **0.42.1** tarjoaa Cutin yhteydessä valinnan tehdä kohteista uniikkeja
 tai säilyttää niiden linkitykset. Uniikiksi tekeminen ja leikkaus peruuntuvat
 yhdessä. Tab vaihtaa Cutin kohde- ja työstökappalevalinnan välillä.

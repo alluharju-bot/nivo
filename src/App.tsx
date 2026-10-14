@@ -31,7 +31,7 @@ import {
   type Scaling,
 } from './model/scaling';
 import { ScalingPanel } from './ui/ScalingPanel';
-import { Scaling as ScalingIcon } from 'lucide-react';
+import { Scaling as ScalingIcon, Repeat2 } from 'lucide-react';
 import { guideForTool } from './ui/guides/catalog';
 import { useMeasureMemory } from './ui/useMeasureMemory';
 import { GuideBoundary } from './ui/guides/GuideBoundary';
@@ -92,6 +92,14 @@ import type { Command } from './ui/commands';
 import { ToolContext } from './ui/ToolContext';
 import { HoldSelection } from './ui/HoldSelection';
 import { RepeatAction } from './ui/RepeatAction';
+import { DistributionDialog } from './ui/DistributionDialog';
+import {
+  applyDistribution,
+  distributionMembers,
+  matchingDistribution,
+  newDistribution,
+} from './model/distribution';
+import type { Distribution } from './model/distributionSchema';
 import { repeatTranslation } from './model/repeat';
 import { OverlapPicker, type PickCandidate } from './ui/OverlapPicker';
 import { defaultAppearance, type TexturePlacement, type Appearance } from './model/materials';
@@ -626,6 +634,13 @@ export default function App() {
     copy: boolean;
   }>();
   const [repeatCount, setRepeatCount] = useState('1');
+  const [distributionDraft, setDistributionDraft] = useState<{
+    series: Distribution;
+    selection: string[];
+    revision: number;
+    editing: boolean;
+    groupId?: string;
+  }>();
   const copyMoveRef = useRef(false);
   const pickedFaceRef = useRef<{ bodyId: string; face: FaceRef } | undefined>(undefined);
   const hoveredFaceRef = useRef<FaceTarget | undefined>(undefined);
@@ -1369,6 +1384,7 @@ export default function App() {
     setPenInputAxis('x');
   };
   const resetGesture = () => {
+    setDistributionDraft(undefined);
     setBooleanLinkPrompt(false);
     setTouchReview(false);
     setNewPartId(undefined);
@@ -1438,6 +1454,7 @@ export default function App() {
   const toggleBoolean = (id: string, group: 'targets' | 'tools' = booleanActive) => {
     if (
       booleanOperation === 'cut' &&
+      group === 'targets' &&
       !featureIsSolid(project.bodies.find((b) => b.id === id)!.feature)
     ) {
       editor.setMessage('Anna luonnokselle ensin paksuus.');
@@ -1764,8 +1781,13 @@ export default function App() {
     editor.setError('');
     if (next === 'boolean') {
       setPanelOpen(true);
-      setBooleanTargets(selectedIds);
-      setBooleanTools([]);
+      const planar = new Set(
+        project.bodies.filter((b) => !featureIsSolid(b.feature)).map((b) => b.id),
+      );
+      setBooleanTargets(
+        booleanOperation === 'cut' ? selectedIds.filter((id) => !planar.has(id)) : selectedIds,
+      );
+      setBooleanTools(booleanOperation === 'cut' ? selectedIds.filter((id) => planar.has(id)) : []);
       setBooleanActive('targets');
       return;
     }
@@ -2047,7 +2069,9 @@ export default function App() {
         project.bodies.filter((b) => featureIsSolid(b.feature)).map((b) => b.id),
       );
       setBooleanTargets((ids) => ids.filter((id) => solidIds.has(id)));
-      setBooleanTools((ids) => ids.filter((id) => solidIds.has(id)));
+      setBooleanTools((ids) => [
+        ...new Set([...ids, ...booleanTargets.filter((id) => !solidIds.has(id))]),
+      ]);
     }
     setBooleanOperation(operation);
   };
@@ -4300,6 +4324,13 @@ export default function App() {
         return;
       }
       if (measureMenu || guidePointMenu) return;
+      if (distributionDraft) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeDistribution();
+        }
+        return;
+      }
       if (booleanLinkPrompt) {
         if (event.key === 'Escape') {
           event.preventDefault();
@@ -4596,8 +4627,13 @@ export default function App() {
         }
         if (tool === 'boolean') {
           if (booleanActive === 'targets') {
-            setBooleanTargets((old) => [...new Set([...old, ...range])]);
-            setBooleanTools((old) => old.filter((id) => !range.includes(id)));
+            const eligible = range.filter(
+              (id) =>
+                booleanOperation === 'join' ||
+                project.bodies.some((b) => b.id === id && featureIsSolid(b.feature)),
+            );
+            setBooleanTargets((old) => [...new Set([...old, ...eligible])]);
+            setBooleanTools((old) => old.filter((id) => !eligible.includes(id)));
           } else {
             setBooleanTools((old) => [...new Set([...old, ...range])]);
             setBooleanTargets((old) => old.filter((id) => !range.includes(id)));
@@ -4852,6 +4888,126 @@ export default function App() {
       committing.current = false;
     }
   };
+  const distributionKind = selectedIds.length ? 'bodies' : 'guides';
+  const distributionIds = selectedIds.length ? selectedIds : selectedGuideIds;
+  const canDistribute =
+    mode === 'model' &&
+    !editingBodyId &&
+    !selectedDimensionIds.length &&
+    !selectedMarkupIds.length &&
+    !!distributionIds.length &&
+    !(selectedIds.length && selectedGuideIds.length);
+  const selectedDistribution = useMemo(
+    () =>
+      canDistribute ? matchingDistribution(project, distributionKind, distributionIds) : undefined,
+    [project, canDistribute, distributionKind, distributionIds],
+  );
+  const distributionLabel = selectedDistribution ? 'Muokkaa tasajakoa' : 'Tasajako';
+  const closeDistribution = () => {
+    if (busy) editor.cancel();
+    setDistributionDraft(undefined);
+  };
+  const openDistribution = () => {
+    if (!canDistribute || busy) return;
+    try {
+      const ids = [...distributionIds];
+      const series =
+        selectedDistribution ??
+        newDistribution(
+          project,
+          distributionKind,
+          ids,
+          distributionKind === 'guides'
+            ? ids.length > 2
+              ? 'arrange'
+              : 'copy'
+            : distributionMembers(project, ids, openedAssembly).length > 1
+              ? 'arrange'
+              : 'copy',
+          selectedGroupId,
+          openedAssembly,
+        );
+      resetGesture();
+      setTool('select');
+      editor.setError('');
+      setDistributionDraft({
+        series,
+        selection: ids,
+        editing: !!selectedDistribution,
+        revision: editor.revision(),
+        groupId: selectedGroupId,
+      });
+    } catch (error) {
+      editor.setError((error as Error).message);
+    }
+  };
+  const acceptDistribution = async (series: Distribution, cut = false) => {
+    if (!distributionDraft || busy || committing.current) return;
+    if (distributionDraft.revision !== editor.revision()) {
+      editor.setError('Malli muuttui. Avaa tasajako uudelleen nykyisestä valinnasta.');
+      return;
+    }
+    committing.current = true;
+    try {
+      const result = applyDistribution(project, series);
+      if (
+        await editor.transact(
+          result.project,
+          `Tasajako · ${series.options.count} ${series.kind === 'guides' ? 'viivaa' : 'valintaa'} · ${formatLength(result.plan.extent)} mm`,
+        )
+      ) {
+        setDistributionDraft(undefined);
+        setTool('select');
+        setSelectedGroupId(undefined);
+        setSelectedFace(undefined);
+        if (series.kind === 'bodies') {
+          setSelectedIds(result.ids);
+          setSelected(result.ids[0]);
+          setSelectedGuideIds([]);
+          if (cut) {
+            setTool('boolean');
+            setBooleanOperation('cut');
+            setBooleanTargets([]);
+            setBooleanTools(result.ids);
+            setBooleanActive('targets');
+            setKeepTools(true);
+            setPanelOpen(true);
+            editor.setMessage('Tasajako valmis. Valitse nyt leikattavat kohteet.');
+          }
+        } else {
+          setSelectedIds([]);
+          setSelected(undefined);
+          setSelectedGuideIds(result.ids);
+        }
+      }
+    } catch (error) {
+      editor.setError((error as Error).message);
+    } finally {
+      committing.current = false;
+    }
+  };
+  const releaseDistribution = async () => {
+    if (!distributionDraft || busy) return;
+    if (
+      await editor.transact(
+        {
+          ...project,
+          distributions: project.distributions?.filter((s) => s.id !== distributionDraft.series.id),
+        },
+        'Tasajako vapautettu. Osat ja viivat säilyvät.',
+      )
+    )
+      setDistributionDraft(undefined);
+  };
+  const distributionButton = canDistribute ? (
+    <button
+      className="button outlined full"
+      disabled={busy || !!movementBlocked}
+      onClick={openDistribution}
+    >
+      <Repeat2 size={15} /> {distributionLabel}
+    </button>
+  ) : null;
   const canDivideSurface =
     !!body &&
     selectedIds.length === 1 &&
@@ -5344,6 +5500,12 @@ export default function App() {
       },
       { label: 'Vie 3D-malli…', run: () => setExportOpen(true), disabled: busy },
     );
+  if (canDistribute)
+    quickActions.push({
+      label: distributionLabel,
+      run: openDistribution,
+      disabled: busy || !!movementBlocked,
+    });
   quickActions.push({ label: 'Näkyvyys', run: () => {}, children: visibilityActions });
   if (body || selectedGroup)
     quickActions.push({
@@ -5419,6 +5581,18 @@ export default function App() {
     setLoftOpen(true);
   };
   const commands: Command[] = [
+    {
+      id: 'distribute',
+      label: distributionLabel,
+      group: 'Muokkaa',
+      keywords: 'tasaväli jako kopioi toisto reiät hyllyt välit mittaviivat',
+      reason: !canDistribute
+        ? 'Valitse osia, muotoja tai viivoja.'
+        : busy
+          ? 'Odota laskennan valmistumista.'
+          : undefined,
+      run: openDistribution,
+    },
     {
       id: 'surface-levels',
       label: 'Pinnan korkeudet',
@@ -7157,7 +7331,10 @@ export default function App() {
                           ? booleanTargets
                           : booleanTools
                         : []),
-                      ...ids.filter((id) => booleanOperation === 'join' || solid.has(id)),
+                      ...ids.filter(
+                        (id) =>
+                          booleanOperation === 'join' || booleanActive === 'tools' || solid.has(id),
+                      ),
                     ]),
                   ];
                   const set = new Set(next);
@@ -8542,11 +8719,13 @@ export default function App() {
                     }
                     onDelete={() => void removeBody()}
                   />
+                  {distributionButton}
                 </>
               ) : selectedDimensionIds.length + selectedGuideIds.length > 1 &&
                 !selectedIds.length ? (
                 <section className="annotation-properties">
                   <h2>{selectedDimensionIds.length + selectedGuideIds.length} merkintää</h2>
+                  {distributionButton}
                   <button
                     disabled={busy}
                     onClick={() =>
@@ -8751,6 +8930,7 @@ export default function App() {
                     </small>
                   )}
                   {holdNotice}
+                  {distributionButton}
                   {canDivideSurface && surfaceActions}
                   {body?.feature.type === 'brep' &&
                     body.feature.surfaceLevels &&
@@ -9152,6 +9332,22 @@ export default function App() {
         )}
       </div>
 
+      {distributionDraft && (
+        <DistributionDialog
+          key={distributionDraft.series.id}
+          project={project}
+          initial={distributionDraft.series}
+          selection={distributionDraft.selection}
+          groupId={distributionDraft.groupId}
+          openedAssembly={openedAssembly}
+          editing={distributionDraft.editing}
+          busy={busy}
+          error={editor.error}
+          onApply={(series, cut) => void acceptDistribution(series, cut)}
+          onClose={closeDistribution}
+          onRelease={() => void releaseDistribution()}
+        />
+      )}
       {booleanLinkPrompt && tool === 'boolean' && (
         <SelectionDialog title="Linkitettyjen kohteiden leikkaus" onClose={closeBooleanLinkPrompt}>
           <p>Tehdäänkö leikattavista kappaleista uniikkeja?</p>

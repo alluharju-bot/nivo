@@ -4,6 +4,26 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.43.0 — tasajako, tallennus ja tasomuotojen Cut
+
+- Koko yksikkö-/CAD-sarja: 589 hyväksyttyä ja 4 yksityisen mallin testiä ohitettu.
+  Tämän jälkeen lisätty suunnanvaihdon regressiotesti tarkistettu kohdistetulla ajolla.
+- Tasajaon laskenta: eripaksuiset osat, sama vapaa väli, kolme viitekohtaa
+  molempiin suuntiin, nollaväli, tasomuotojen kopiot, linkitys, kokonaiset kokoonpanot,
+  määrän vähentäminen/lisääminen, alkuperäisen paikallaan pysyminen, pääakselin vaihto,
+  rajaviivojen identiteetti, vapaat mittaviivat, negatiiviset koordinaatit,
+  Hold ja virheelliset mitat. Yksi Undo/Redo palauttaa koko jaon.
+- Jaon tallentuminen `.nivo`-tiedostoon, kirjastovientiin ja projektien yhdistämiseen
+  tarkistettu. Pilvelle ei lisätä erillistä formaattia: jako kuuluu projektidataan.
+- CAD-testi mittaa levyn tilavuuden kymmenen ympyräreiän jälkeen ja uudelleen
+  viiden reiän jaolla alkuperäisestä levystä. Lisäksi tasosuorakulmion, ympyrän
+  ja paksun leikkurin yhteiskäyttö sekä ohi menevä tasoleikkuri.
+- 28 selaintapausta työpöytä- ja tablettiprofiilissa: tasajako, tallennus/uudelleenlataus,
+  muokkaus, peruutus, liian pieni mitta, viivojen jako ja suora siirtymä Cutin
+  työstökappaleiksi. Mukana aiemmat linkitetyn Cutin, Tabin, Joinin, kiertokopioinnin
+  ja ympyräaukkosarjan regressiot. Ikkunan kaavio tarkastettu kuvasta.
+- TypeScript, `/nivo/`-tuotantobuild ja lisenssitarkistus hyväksytty.
+
 ## V0.42.1 — Cutin uniikit kohteet ja Tab-valinta
 
 30 kohdistettua yksikkö-/CAD-testiä hyväksytty. TypeScript ja `/nivo/`-tuotantobuild hyväksytty.

@@ -29,6 +29,9 @@ export function removeSelection(project: Project, ids: string[]) {
   return {
     ...project,
     bodies: project.bodies.filter((b) => !chosen.has(b.id)),
+    distributions: project.distributions?.filter(
+      (s) => s.kind !== 'bodies' || !s.members.some((m) => m.ids.some((id) => chosen.has(id))),
+    ),
     dimensions: project.dimensions.filter(
       (d) => isOverallDimension(d) || !dimensionBodyIds(d, project).some((id) => chosen.has(id)),
     ),

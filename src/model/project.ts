@@ -1,4 +1,5 @@
 import { drawingAnnotationSchema } from './drawingAnnotations';
+import { distributionSchema } from './distributionSchema';
 import { quantityBasis } from './quantityBasis';
 import { surfaceLevelsSchema } from './surfaceLevels';
 import { renderViewSchema } from './renderViews';
@@ -434,6 +435,7 @@ export const projectSchema = z
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
+    distributions: z.array(distributionSchema).max(1000).optional(),
     assets: z.record(z.string().max(100), assetSchema).optional(),
     sections: z.array(sectionSchema).max(100).optional(),
     drawingSheets: z.array(drawingSheetSchema).max(50).optional(),
@@ -507,6 +509,7 @@ export const projectSchema = z
       p.referenceImages ?? [],
       p.partTypes ?? [],
       p.renderViews ?? [],
+      p.distributions ?? [],
     ]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });

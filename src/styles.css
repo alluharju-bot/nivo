@@ -6020,6 +6020,49 @@ p {
   margin-top: 20px;
 }
 
+.distribution-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.distribution-fields .modeling-field {
+  min-width: 0;
+  margin: 0;
+}
+.distribution-fields input,
+.distribution-fields select {
+  min-width: 0;
+  width: 100%;
+}
+.distribution-fields label:has(select[aria-label='Tasajaon mittatapa']) {
+  grid-column: 1 / -1;
+}
+.distribution-preview {
+  padding: 10px;
+  border-radius: 10px;
+  background: #e5efeb;
+  color: #275d50;
+}
+.distribution-preview svg {
+  display: block;
+  width: 100%;
+}
+.distribution-preview rect {
+  fill: #679b8c;
+  stroke: #275d50;
+  stroke-width: 0.7;
+}
+.distribution-preview text {
+  fill: currentColor;
+  font-size: 11px;
+}
+.distribution-preview p {
+  margin: 6px 0 0;
+}
+.selection-dialog:has(.distribution-fields) > .button {
+  margin-top: 6px;
+}
+
 .opening-targets {
   display: grid;
   gap: 10px;

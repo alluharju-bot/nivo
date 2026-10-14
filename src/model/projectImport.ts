@@ -103,6 +103,7 @@ export function mergeProject(target: Project, source: Project) {
     assets: { ...target.assets, ...incoming.assets },
     dimensions: [...target.dimensions, ...incoming.dimensions],
     guides: [...target.guides, ...incoming.guides],
+    distributions: [...(target.distributions ?? []), ...(incoming.distributions ?? [])],
     annotations: [...(target.annotations ?? []), ...(incoming.annotations ?? [])],
     sections: [...(target.sections ?? []), ...(incoming.sections ?? [])],
     drawingSheets: [...(target.drawingSheets ?? []), ...(incoming.drawingSheets ?? [])],
@@ -159,6 +160,9 @@ export function selectionProject(project: Project, ids: string[], name: string):
       ...freshProject(),
       name,
       bodies,
+      distributions: project.distributions?.filter(
+        (s) => s.kind === 'bodies' && s.members.every((m) => m.ids.every((id) => selected.has(id))),
+      ),
       groups: project.groups.filter((g) => groups.has(g.id)),
       partTypes: project.partTypes?.filter((t) => types.has(t.id)),
       assets: Object.fromEntries(

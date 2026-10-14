@@ -9,6 +9,7 @@ import { booleanBodies } from './operations';
 import { cutOpening } from './paths';
 import { singleOpening, openingAngles } from '../model/openingPattern';
 import { applyBoolean } from '../model/operations';
+import { applyDistribution, newDistribution } from '../model/distribution';
 
 beforeAll(
   async () =>
@@ -28,6 +29,34 @@ function inspect<T>(body: Body, run: (shape: ReturnType<typeof createShape>) => 
   }
 }
 const volume = (body: Body) => inspect(body, solidVolume);
+
+it('cuts ten distributed planar circles through a plate and recalculates a changed distribution from the original plate', () => {
+  const plate = makeBody(1000, 100, 20);
+  const circle = makeProfileBody({ kind: 'circle', radius: 4 }, sketchFrame([50, 50, 20]));
+  const p = { ...freshProject(), bodies: [plate, circle] };
+  const s = newDistribution(p, 'bodies', [circle.id], 'copy');
+  const r = applyDistribution(p, s, { ...s.options, count: 10, measure: 'span', value: 900 });
+  const cutters = r.project.bodies.filter((b) => r.ids.includes(b.id));
+  const cut = booleanBodies([plate], cutters, 'cut')[0];
+  expect(volume(cut)).toBeCloseTo(2000000 - 10 * Math.PI * 16 * 20, 4);
+  const changed = applyDistribution(r.project, r.series, {
+    ...r.series.options,
+    count: 5,
+    value: 400,
+  });
+  const next = booleanBodies(
+    [plate],
+    changed.project.bodies.filter((b) => changed.ids.includes(b.id)),
+    'cut',
+  )[0];
+  expect(volume(next)).toBeCloseTo(2000000 - 5 * Math.PI * 16 * 20, 4);
+  const rectangle = makeBody(10, 20, 0, [20, 30, 200]);
+  const solid = makeBody(10, 10, 30, [70, 30, -5]);
+  const mixed = booleanBodies([plate], [circle, rectangle, solid], 'cut')[0];
+  expect(volume(mixed)).toBeCloseTo(2000000 - Math.PI * 16 * 20 - 200 * 20 - 100 * 20, 4);
+  const miss = makeBody(10, 10, 0, [2000, 0, 0]);
+  expect(booleanBodies([plate], [miss], 'cut')[0]).toBe(plate);
+});
 
 it('joins four face-touching walls with door and window openings in a single selection', () => {
   const right = booleanBodies(

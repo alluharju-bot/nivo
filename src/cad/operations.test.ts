@@ -393,7 +393,8 @@ describe('face regions and exact boolean modelling', () => {
     expect(booleanBodies([a], [makeBody(10, 10, 10, [200, 0, 0])], 'cut')[0]).toBe(a);
     expect(booleanBodies([a], [makeBody(200, 200, 40, [-10, -10, -10])], 'cut')).toEqual([]);
     expect(() => booleanBodies([a], [a], 'cut')).toThrow('yhtä aikaa');
-    expect(() => booleanBodies([a], [makeBody()], 'cut')).toThrow('paksuus');
+    expect(booleanBodies([a], [makeBody()], 'cut')).toEqual([]);
+    expect(() => booleanBodies([makeBody()], [a], 'cut')).toThrow('paksuuden');
   });
   it('keeps exact curved bounds on oblique ellipses and round trips a boolean result', () => {
     const ellipse = makeProfileBody(

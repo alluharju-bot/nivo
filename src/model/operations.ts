@@ -29,6 +29,13 @@ export function applyBoolean(
   };
   return {
     ...project,
+    distributions: project.distributions?.filter(
+      (s) =>
+        s.kind !== 'bodies' ||
+        s.members.every((m) =>
+          m.ids.every((id) => !removed.has(id) || results.some((b) => b.id === id)),
+        ),
+    ),
     bodies: [...project.bodies.filter((b) => !removed.has(b.id)), ...results],
     guides: project.guides.map((g) => ({
       ...g,

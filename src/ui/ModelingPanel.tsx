@@ -94,19 +94,26 @@ export function BooleanPanel({
                     <label
                       key={b.id}
                       className={
-                        operation === 'cut' && !featureIsSolid(b.feature) ? 'unavailable' : ''
+                        operation === 'cut' && group === 'targets' && !featureIsSolid(b.feature)
+                          ? 'unavailable'
+                          : ''
                       }
                     >
                       <input
                         type="checkbox"
                         aria-label={`${operation === 'join' ? 'Yhdistä' : group === 'targets' ? 'Kohde' : 'Työstökappale'}: ${b.name}`}
                         checked={ids.includes(b.id)}
-                        disabled={busy || (operation === 'cut' && !featureIsSolid(b.feature))}
+                        disabled={
+                          busy ||
+                          (operation === 'cut' && group === 'targets' && !featureIsSolid(b.feature))
+                        }
                         onChange={() => onToggle(b.id, group)}
                       />
                       <span>{b.name}</span>
                       {operation === 'cut' && !featureIsSolid(b.feature) && (
-                        <small>Tarvitsee paksuuden</small>
+                        <small>
+                          {group === 'targets' ? 'Tarvitsee paksuuden' : 'Leikkaa läpi'}
+                        </small>
                       )}
                     </label>
                   ))}
@@ -117,7 +124,18 @@ export function BooleanPanel({
       )}
       {operation === 'cut' && (
         <>
-          <button className="button outlined full" disabled={busy} onClick={onSwap}>
+          <button
+            className="button outlined full"
+            disabled={
+              busy || bodies.some((b) => tools.includes(b.id) && !featureIsSolid(b.feature))
+            }
+            title={
+              bodies.some((b) => tools.includes(b.id) && !featureIsSolid(b.feature))
+                ? 'Tasomuoto toimii leikkurina. Leikattava kohde tarvitsee paksuuden.'
+                : undefined
+            }
+            onClick={onSwap}
+          >
             <ArrowLeftRight size={16} />
             Vaihda keskenään
           </button>

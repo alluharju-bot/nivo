@@ -19,6 +19,7 @@ import {
 } from './kernel';
 import type { SplitResult } from './protocol';
 import { cutShapes, cutResultState } from './cut';
+import { openingCutter } from './openingCutter';
 import type { TransformCache } from './buildCache';
 import { shapeFaces } from './topology';
 import { offsetPlanarLoop, planarOffsetRegion } from './planarOffset';
@@ -300,9 +301,9 @@ export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' |
         'Yhdistä keskenään joko tasomuotoja tai tilavuuskappaleita. Anna tasomuodoille ensin paksuus, jos yhdistät ne tilavuuskappaleeseen.',
       );
   }
-  if (all.some((b) => !featureIsSolid(b.feature)))
+  if (targets.some((b) => !featureIsSolid(b.feature)))
     throw new Error(
-      'Cut tarvitsee tilavuuskappaleet. Anna luonnokselle ensin paksuus tai käytä Leikkaa aukko -toimintoa.',
+      'Cutin kohde tarvitsee paksuuden. Tasomuotoa voi käyttää läpileikkaavana työstökappaleena.',
     );
   const held: AnyShape[] = [];
   const keep = <T extends AnyShape>(s: T) => {
@@ -316,7 +317,12 @@ export function booleanBodies(targets: Body[], tools: Body[], operation: 'cut' |
         result = keep(result.fuse(keep(createShape(body).asShape3D())));
       return [bodyFromShape({ ...all[0], component: undefined }, result, all)];
     }
-    const cutters = tools.map((b) => keep(createShape(b).asShape3D()));
+    const cutters = tools.flatMap((b) => {
+      if (featureIsSolid(b.feature)) return [keep(createShape(b).asShape3D())];
+      const cutter = openingCutter(b, targets);
+      return cutter ? [keep(cutter.shape)] : [];
+    });
+    if (!cutters.length) return targets;
     return targets.flatMap((body) => {
       const source = keep(createShape(body).asShape3D());
       const result = keep(cutShapes(source, cutters));

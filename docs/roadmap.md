@@ -2,6 +2,39 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.43.0 — tasajako ja muotosarjat leikkureina
+
+- Sama **Tasajako** oikeassa paneelissa, kontekstivalikossa ja toimintojen haussa:
+  kopioi valinta tai järjestä nykyiset osat. Suljettu kokoonpano pysyy yhtenä
+  yksikkönä; kansioryhmän osat voidaan järjestää erikseen.
+- Ulkoreunojen kokonaismitta vähentää osien todelliset akselinsuuntaiset mitat
+  ja jakaa vapaan tilan tasan. Vaihtoehtoina viitekohtien kokonaismitta,
+  jakoväli ja vapaa väli. Viitekohtana alku-/alareuna, keskipiste tai loppu-/yläreuna.
+  X/Y/Z ja molemmat suunnat. Ensimmäinen yksikkö pysyy paikallaan.
+- Määrä sisältää alkuperäisen. Mitta-/apuviivoille yksi lähtöviiva tai kaksi
+  rinnakkaista rajaviivaa; N väliä = N+1 viivaa. Molempien rajojen tunnisteet
+  säilyvät myös määrää muutettaessa. Useita viivoja voi järjestää luomatta kopioita.
+- Kevyt kaavio, vapaan välin lukema ja päällekkäisyyden ilmaisu. Liian lyhyt
+  ulkomitta, Hold, väärä viivasuunta ja projektin rajat estävät hyväksymisen.
+  Kopioiden linkit, ryhmät ja nimet käyttävät olemassa olevaa kopiointia.
+- **Muokkaa tasajakoa** löytyy mistä tahansa sarjan jäsenestä myös uudelleenavauksen
+  jälkeen. Määrän pienentäminen poistaa loppupään kopiot; järjestäminen ei muuta
+  osamäärää. Kopioiden suunnan vaihto säilyttää suoran sarjan. **Vapauta tasajako**
+  jättää osat paikoilleen. Koko muutos on yksi Peru-toiminto. Tiedostot, pilven
+  projektidata, projektien yhdistäminen ja osakirjasto säilyttävät jaon viitteet.
+- **Toteuta ja käytä leikkureina** asettaa koko sarjan Cutin työstökappaleiksi;
+  käyttäjä valitsee kohteet. Suljettu tasomuoto leikkaa valittujen kohteiden läpi
+  oman tasonsa normaalin suunnassa. Paksu työstökappale leikkaa oman tilavuutensa.
+  Tasomuoto ei ole leikattava tilavuuskohde; virheellinen roolien vaihto estetään.
+- Nykyinen jako on suora pääakselin suuntainen. Viivan mitta tarkoittaa
+  jakosuuntaista siirtymää; viivojen pitää olla rinnakkaiset. Enintään 1 001
+  yksikköä sekä projektin 10 000 osan / 1 000 viivan rajat.
+- Jatkokehitys: vapaan suunnan ja kokonaismitan poiminta mallista kahdella pisteellä;
+  päihin erikseen määritettävät marginaalit; aidosti muokattava leikkaushistoria,
+  jossa jaon muuttaminen korvaa vanhat reiät. Nykyinen Cut on geometriamuutos:
+  peru leikkaus, muuta jakoa ja tee Cut uudelleen. Pelkkä leikkurien siirtäminen
+  ei palauta poistettua materiaalia.
+
 ## V0.42.1 — Cutin linkitysvalinta ja Tab
 
 - Ennen linkitettyjen kohteiden Cut-laskentaa valinta: **Tee uniikeiksi ja leikkaa**,
