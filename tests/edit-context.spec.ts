@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import init from 'replicad-opencascadejs';
 import { setOC } from 'replicad';
@@ -7,6 +7,31 @@ import { sketchFrame } from '../src/model/sketch';
 import { createShape, meshBody } from '../src/cad/kernel';
 import { splitFace } from '../src/cad/operations';
 import { ready, view, click, save, editBody, revealBrowser } from './helpers';
+
+async function storedHistory(page: Page, history?: string) {
+  await page.evaluate(async (history) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('nivo');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(['projects', 'sessions'], 'readwrite');
+        const active = tx.objectStore('projects').get('activeId');
+        active.onsuccess = () => {
+          const sessions = tx.objectStore('sessions'),
+            current = sessions.get(active.result);
+          current.onsuccess = () => sessions.put({ ...current.result, history }, active.result);
+        };
+        tx.oncomplete = () => resolve();
+        tx.onabort = tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
+  }, history);
+}
 
 test.beforeAll(async () =>
   setOC(
@@ -146,7 +171,7 @@ test('the edit button works for components; references snap but cannot be pushed
   await expect(page.getByTestId('edit-context')).toHaveCount(0);
   await revealBrowser(page);
   await page.getByTestId(`body-${source.id}`).click();
-  await page.getByRole('button', { name: 'Kiinnitä paikalleen', exact: true }).click();
+  await page.getByRole('button', { name: 'Hold-lukitus', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Muokkaa osaa', exact: true })).toBeDisabled();
 });
 
@@ -156,18 +181,7 @@ test('eraser repairs saved geometry without history, highlights both faces, and 
   const original = dividedPlate();
   await ready(page, [original]);
   await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
-  await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve) => {
-      const request = indexedDB.open('nivo', 1);
-      request.onsuccess = () => resolve(request.result);
-    });
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction('projects', 'readwrite');
-      tx.objectStore('projects').delete('history');
-      tx.oncomplete = () => resolve();
-    });
-    db.close();
-  });
+  await storedHistory(page);
   await page.reload();
   await expect(page.locator('.busy-badge')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Peru', exact: true })).toBeDisabled();
@@ -253,18 +267,7 @@ test('undo and redo survive reload while editing context resets; corrupt history
   await page.getByRole('button', { name: 'Palauta', exact: true }).click();
   expect((await save(page)).bodies[0]).toEqual(changed);
   await expect(page.locator('.save-status')).toContainText('Tallessa selaimessa');
-  await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve) => {
-      const request = indexedDB.open('nivo', 1);
-      request.onsuccess = () => resolve(request.result);
-    });
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction('projects', 'readwrite');
-      tx.objectStore('projects').put('{ broken history', 'history');
-      tx.oncomplete = () => resolve();
-    });
-    db.close();
-  });
+  await storedHistory(page, '{ broken history');
   await page.reload();
   await expect(page.locator('.busy-badge')).toHaveCount(0);
   expect((await save(page)).bodies[0]).toEqual(changed);
@@ -277,7 +280,12 @@ test('a history storage failure still saves the current model and reports the sh
   await page.addInitScript(() => {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (value: unknown, key?: IDBValidKey) {
-      if (this.name === 'projects' && key === 'history')
+      if (
+        this.name === 'sessions' &&
+        value &&
+        typeof value === 'object' &&
+        typeof (value as { history?: unknown }).history === 'string'
+      )
         throw new DOMException('Simulated history quota', 'QuotaExceededError');
       return put.call(this, value, key);
     };

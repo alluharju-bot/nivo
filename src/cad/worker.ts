@@ -1,4 +1,5 @@
 import { scaleBodies } from './scaling';
+import { prepareGeometry, commitGeometry } from './geometryEditing';
 import { sphereBody, bezierPath, knifeBodies } from './modeling';
 import { throughShapes } from './throughShapes';
 import { surfaceLevels } from './surfaceLevels';
@@ -45,6 +46,9 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
+      else if (request.type === 'prepare-geometry') reply.result = prepareGeometry(request.body);
+      else if (request.type === 'commit-geometry')
+        reply.result = commitGeometry(request.body, request.points, request.meshCopy);
       else if (request.type === 'release-history') {
         cache.releaseHistory();
         detailPreview = undefined;

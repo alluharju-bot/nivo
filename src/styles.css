@@ -8784,3 +8784,297 @@ p {
     margin: 8px 0;
   }
 }
+
+/* The precision editor owns its input and preview; normal modeling tools stay untouched. */
+.selection-backdrop:has(.geometry-editor),
+.selection-backdrop:has(.geometry-editor-loading) {
+  align-items: center;
+  padding: 16px;
+}
+.selection-dialog:has(.geometry-editor),
+.selection-dialog:has(.geometry-editor-loading) {
+  width: min(1280px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow: hidden;
+}
+.selection-dialog:has(.geometry-editor) > h2 {
+  display: none;
+}
+.selection-dialog:has(.geometry-editor-loading) > h2 {
+  margin: 24px 24px 0;
+}
+.geometry-editor-loading {
+  padding: 24px;
+  max-width: 620px;
+}
+.geometry-editor-loading button {
+  margin: 12px 8px 0 0;
+}
+.geometry-editor {
+  display: flex;
+  flex-direction: column;
+  height: min(850px, calc(100dvh - 32px));
+}
+.geometry-editor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px 8px;
+}
+.geometry-editor-heading div {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+.geometry-editor-heading strong {
+  max-width: 65vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.geometry-editor-heading span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.geometry-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 18px 12px;
+  flex-wrap: wrap;
+}
+.geometry-editor-toolbar .mode-switch button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+}
+.geometry-editor-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+.geometry-editor-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 240px;
+  overflow: hidden;
+}
+.geometry-stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+.geometry-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+.geometry-stage canvas:focus-visible {
+  outline: 2px solid #4d786d;
+  outline-offset: -2px;
+}
+.geometry-view-actions {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 9px;
+  background: #ffffffe6;
+}
+.geometry-view-actions button {
+  font-size: 11px;
+  padding: 5px 8px;
+}
+.selection-dialog p.geometry-stage-help {
+  position: absolute;
+  bottom: 7px;
+  left: 12px;
+  right: 12px;
+  margin: 0;
+  font-size: 11px;
+  color: #415d53;
+  pointer-events: none;
+}
+.geometry-box-selection {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid #538b86;
+  background: #5b9d9225;
+}
+.geometry-box-selection[hidden] {
+  display: none;
+}
+.geometry-editor-settings {
+  padding: 14px;
+  border-left: 1px solid var(--line);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+}
+.geometry-editor-settings p {
+  margin: 0;
+  font-size: 11px;
+}
+.geometry-editor-settings .checkbox-label {
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.geometry-editor-settings .checkbox-label input {
+  width: auto;
+  flex: 0 0 auto;
+}
+.geometry-selection-actions,
+.geometry-pivot-actions,
+.geometry-axis-buttons,
+.geometry-plane-buttons {
+  display: flex;
+  gap: 5px;
+}
+.geometry-selection-actions button,
+.geometry-pivot-actions button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.geometry-axis-buttons button {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px;
+  opacity: 0.5;
+  font-weight: 700;
+}
+.geometry-axis-buttons button[aria-pressed='true'] {
+  opacity: 1;
+}
+.geometry-axis-buttons [data-axis='x'][aria-pressed='true'] {
+  background: #e8b4a440;
+  color: #a64739;
+  border-color: #cd8472;
+}
+.geometry-axis-buttons [data-axis='y'][aria-pressed='true'] {
+  background: #bdd7ac50;
+  color: #4d743b;
+  border-color: #88ac71;
+}
+.geometry-axis-buttons [data-axis='z'][aria-pressed='true'] {
+  background: #b3cbe74d;
+  color: #3a6b9c;
+  border-color: #82aaca;
+}
+.geometry-numeric {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.geometry-numeric legend {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.geometry-numeric > label:not(.checkbox-label) {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.geometry-numeric input:not([type='checkbox']) {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+}
+.geometry-editor-settings details {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.geometry-editor-settings details > *:not(summary) {
+  margin-top: 10px;
+}
+.geometry-editor-settings summary {
+  cursor: pointer;
+}
+.geometry-plane-buttons button {
+  flex: 1;
+  font-size: 11px;
+  padding: 6px 2px;
+}
+.geometry-editor-settings small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.geometry-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+.geometry-editor-footer p {
+  flex: 1;
+  margin: 0;
+  font-size: 11px;
+}
+.geometry-editor-footer button {
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .selection-dialog:has(.geometry-editor) {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 32px);
+  }
+  .geometry-editor {
+    height: calc(100dvh - 32px);
+  }
+  .geometry-editor-heading {
+    padding: 10px;
+  }
+  .geometry-editor-heading span {
+    display: none;
+  }
+  .geometry-editor-toolbar {
+    gap: 5px;
+    padding: 5px 8px;
+  }
+  .geometry-editor-toolbar .mode-switch button {
+    padding: 6px 9px;
+  }
+  .geometry-editor-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(240px, 1fr) 230px;
+  }
+  .geometry-editor-settings {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .geometry-editor-footer {
+    flex-wrap: wrap;
+    padding: 8px;
+    gap: 6px;
+  }
+  .geometry-editor-footer p {
+    flex-basis: 100%;
+  }
+}

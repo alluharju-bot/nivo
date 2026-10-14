@@ -19,6 +19,15 @@ import { translateMesh } from './translateMesh';
 import { requireMovable } from '../model/transforms';
 
 export class CadClient {
+  prepareGeometry(body: Body) {
+    return this.request<import('../model/geometryEditing').EditableGeometry>({
+      type: 'prepare-geometry',
+      body,
+    });
+  }
+  commitGeometry(body: Body, points: Vec3[], meshCopy = false) {
+    return this.request<Body>({ type: 'commit-geometry', body, points, meshCopy });
+  }
   private buildQueue: Promise<unknown> = Promise.resolve();
   private generation = 0;
   private meshKeys = new Map<string, string>();

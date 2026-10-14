@@ -3,6 +3,20 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.45.0** lisää erillisen **Geometrian muokkaus** -työtilan.
+Valitse yksi osa → oikeasta paneelista **Geometrian muokkaus** (myös
+**Muodot**-valikossa ja toimintohaussa). Osan muokkaustilaan ei tarvitse ensin
+mennä; sama työkalu toimii myös sen sisältä. Valitse pisteitä, reunoja tai pintoja,
+siirrä, kierrä tai skaalaa valintaa kahvoilla tai mitoilla ja hyväksy osaan.
+Muut pisteet pysyvät paikallaan ja liittyvät pinnat mukautuvat mukana.
+Tavalliset Siirrä/Kierrä/Skaalaa säilyvät osakohtaisina.
+
+Suorareunainen tasopinnoista koostuva CAD-osa säilyy CAD-osana.
+Kaarevalle CAD-osalle tarjotaan erillistä verkkokopiota: alkuperäinen
+säilyy piilotettuna, eikä tarkkoja CAD-pintatyökaluja luvata verkkokopiolle.
+Hold, linkitetyt kopiot, uniikiksi tekeminen ja projektin Peru huomioidaan.
+[Työnkulku, rajat ja jatkokehitys](docs/roadmap.md#v0450--geometrian-muokkaus).
+
 Versio **0.44.1** lisää **Omat osat → Tuo osia kirjastoon** -toiminnon.
 Valitse yksi tai useampi valmis .nivo-tiedosto ja lisää osat myöhemmin malliisi.
 Tuonti säilyttää avoimen projektin ja sen historian. Kaikki valitut tiedostot

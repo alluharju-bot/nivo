@@ -49,9 +49,10 @@ test('hover selects a free face for E without a selection click, held faces stay
   await page.keyboard.press('Escape');
   await page.getByTestId(`body-${body.id}`).click();
   await page.keyboard.press('g');
-  await expect(
-    page.getByRole('button', { name: 'Kiinnitä paikalleen', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Hold-lukitus', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.mouse.move(p.x, p.y);
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-hover-face', '');
   await page.keyboard.press('e');

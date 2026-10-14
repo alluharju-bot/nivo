@@ -1,8 +1,43 @@
-# Validointi — 14.10.2026
+# Validointi — 15.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.45.0 — erillinen geometrian muokkaus
+
+- Koko yksikkötestistö: **618 hyväksyttyä, 4 ohitettua** testiä, 117 hyväksyttyä
+  testitiedostoa. Uuden geometriakokonaisuuden 14 CAD-/mallitestiä kattavat
+  kulmien kaadon, pintakohtaisen skaalauksen, vinon osan, avoimen pinnan,
+  sylinterin verkkokopion ja reunalenkin, pintavärien/UV-saumojen säilymisen,
+  tarkat pisteviitteet, aihiomitat, kaukaisen origon pienet mitat, sisärajan
+  laskemisen, läpireiän sekä monikuorisen/invertoituvan tuloksen hylkäyksen.
+  Muokattuun CAD-osaan on kokeiltu myös Push/Pullia ja Offsetia.
+- Tuotantobuildista **65 hyväksyttyä selaintapausta** eri ajoissa: geometrian
+  10 tapausta sekä desktop- että tablettiprofiilissa, lisäksi työkalumoduulin
+  latausvirhe desktopissa; 37 nykyisten työkalujen ja muokkaustilan tapausta;
+  7 kirjaston/tallennuksen tapausta. Akselivedon aikana päämallin CAD-rakennusten
+  määrä pysyy muuttumattomana. Testit kattavat suoran avaamisen ja osan
+  muokkaustilan, osoituksen, piste-/reuna-/pintavalinnan, Shift-monivalinnan,
+  aluevalinnan, oman ankkurin, viitteen akseliprojektion, XY-skaalauksen,
+  negatiivisen mitan, esikatselun perumisen, yhden projektiperun, tallennuksen
+  ja uudelleenavauksen, linkitykset, Holdin, uniikiksi tekemisen ja verkkokopion.
+- Uusissa selaintesteissä tarkistetaan myös pageerror-virheiden puuttuminen.
+  Desktopin ja 390 × 844 -näkymän kuvakaappaukset tarkastettu. Tablettiprofiilin
+  hiirikomennot eivät todista kaikkia fyysisen kosketuslaitteen eleitä;
+  Safari ja varsinainen kahden sormen käyttö tarvitsevat vielä laitetestauksen.
+- Vanhojen Hold-testien painikenimet ja muokkaustilan historiatestien
+  tietokantaviittaukset päivitetty nykyiseen sessions-tallennukseen.
+  Päivitetty testi paljasti aidon synkronisen QuotaExceededError-virheen
+  katoamisen IndexedDB-kutsun tapahtumakäsittelijässä. Korjaus palauttaa
+  olemassa olevan mallin ilman historiaa tallentavan varapolun. Virheen
+  simulointi, uudelleenlataus, kirjastotuonti ja kahden välilehden ristiriitasuojaus
+  tarkistettu selaimessa; normaalia synkronointiväliä ei muutettu.
+- TypeScript, muotoilu, lisenssit ja `/nivo/`-tuotantobuild hyväksytty.
+  Viten aiemmat suurten pakettien ja materiaalimoduulin sekoitetun tuonnin
+  huomautukset säilyvät. Uuden työtilan UI ja akselikahvat ladataan tarvittaessa.
+  Raskaan CAD-/verkkokappaleen sujuvuudesta ei tehdä yleistä FPS-lupausta;
+  rajat ja jatkotyöt on kirjattu roadmapille.
 
 ## V0.44.1 — valmistajamallien oma kirjasto
 

@@ -60,6 +60,7 @@ export function ToolRail({
   onCabinet,
   onThroughShapes,
   onSurfaceLevels,
+  onGeometryEditing,
   dock,
   onDock,
   measureMode,
@@ -76,6 +77,7 @@ export function ToolRail({
   onCabinet: () => void;
   onThroughShapes: () => void;
   onSurfaceLevels: () => void;
+  onGeometryEditing: () => void;
   dock: ToolDock;
   onDock: (dock: ToolDock) => void;
   measureMode: MeasureMode;
@@ -397,6 +399,15 @@ export function ToolRail({
             </button>
           ))}
           <hr />
+          <button
+            onClick={() => {
+              setOpen(false);
+              onGeometryEditing();
+            }}
+          >
+            <Grip />
+            <span>Geometrian muokkaus</span>
+          </button>
           <button
             onClick={() => {
               setOpen(false);

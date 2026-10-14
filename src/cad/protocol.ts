@@ -92,6 +92,8 @@ export interface SectionResult {
 import type { DrawingView } from '../model/drawingViews';
 export type { DrawingView } from '../model/drawingViews';
 export type CadRequest =
+  | { type: 'prepare-geometry'; body: Body }
+  | { type: 'commit-geometry'; body: Body; points: Vec3[]; meshCopy: boolean }
   | { type: 'release-history' }
   | { type: 'import-step'; data: ArrayBuffer; name: string }
   | { type: 'export-step'; bodies: Body[] }
@@ -168,6 +170,7 @@ export interface ProbeResult {
 export interface CadReply {
   id: number;
   result?:
+    | import('../model/geometryEditing').EditableGeometry
     | Blob
     | import('../exchange/export').ExportMesh[]
     | import('./surfaceLevels').SurfaceLevelsResult

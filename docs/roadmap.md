@@ -2,6 +2,75 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.45.0 — geometrian muokkaus
+
+Erillinen, tarvittaessa avattava **Geometrian muokkaus** toimii suoraan
+valitulle osalle sekä osan muokkaustilassa. Avaa oikeasta paneelista,
+Muodot-valikosta tai toimintohausta. Sulkeminen palauttaa samaan projektiin;
+osan muokkaustila säilyy, ellei tulokseksi tehdä erillistä verkkokopiota.
+
+- **Pisteet / Reunat / Pinnat**, osoituskorostus, oranssi valinta, aluevalinta
+  ja Shiftillä lisääminen/poistaminen. Reunan tuplaklikkaus seuraa yhtenäistä
+  reunalenkkiä tai selvää pehmeää jatkumoa, eikä arvaa haaraa terävässä kulmassa.
+  Takapisteiden valinta on erikseen kytkettävissä. Uloimpien X/Y/Z-tasojen
+  pisteet voi valita yhdellä painikkeella lisäasetuksista.
+- **Siirrä / Kierrä / Skaalaa** vaikuttavat vain valittuihin pisteisiin.
+  Liittyvät pinnat mukautuvat. Akselikahvat, millimetrit, asteet ja prosentit,
+  yksi tai useampi akseli sekä maailman tai osan oma akselisto. Tasainen
+  skaalaus toimii myös esimerkiksi vain X- ja Y-suunnassa. Kierron hiiriaskel
+  on 5°; tarkka kirjoitettu kulma ohittaa sen. Siirtoon voi valita 1 mm askeleen.
+- **Poimi ankkuri** asettaa keskipisteen esimerkiksi valittuun nurkkaan.
+  **Poimi viite** siirtää ankkurin osan toiseen pisteeseen valittuja akseleita
+  pitkin. Yksittäisen pisteen kierto/skaalaus tarvitsee muualle poimitun ankkurin.
+  Ensiversiossa poiminta koskee tämän työtilan osaa; viitteet muista
+  projektin osista ja Shift-poiminta aktiivisen vedon aikana ovat jatkotyötä.
+  M/R/L ja X/Y/Z koskevat vain avointa työtilaa. Näyttötilojen 1–4 ja
+  tavallisten mallinnustyökalujen valinta- ja Shift-säännöt säilyvät.
+- Esikatselussa voi tehdä useita muutoksia (Enter tai **Toteuta muutos**).
+  Työtilassa on 30 paikallisen muutoksen Peru/Palauta. **Hyväksy osaan**
+  tallentaa koko istunnon yhtenä projektihistorian toimintona. Esc tai Peru
+  hylkää koko luonnoksen. Projektin historiakapasiteettia ei muutettu.
+- Suorareunaiset, tasopinnoista koostuvat osat palautetaan oikeaksi CAD:ksi.
+  Vanhan pinnan sisäiset kolmiosaumat yhdistetään, mutta tarkoitukselliset
+  pintajaot ja pintavärit säilyvät. Epätasomainen pinta jakautuu tasopaloiksi.
+  Pisteisiin kiinnitettyjen mittojen viitteet sekä automaattiset aihiomitat
+  päivitetään. Tavalliset Push/Pull ja Offset toimivat sopivilla tulospinnoilla.
+- Kaarevan CAD-osan vapaa pistemuokkaus vaatii nimenomaisen
+  **Muokkaa verkkokopiota** -valinnan. Alkuperäinen tarkka osa säilyy
+  piilotettuna, uusi osa on uniikki. Verkkokopiolla on materiaali-, sijoittelu-
+  ja STL-tuki, ei täyttä CAD-pintatyökalujen tukea. Olemassa oleva kolmiomalli
+  voidaan muokata paikallaan; sen UV-saumat ja materiaaliryhmät säilyvät.
+- Linkitetyn osan muutos jaetaan perheelle oletuksena. **Muokkaa vain tätä
+  osaa · tee uniikki** erottaa sen. Osan tai ryhmän Hold estää aloituksen;
+  lukittu linkitetty kopio estää yhteisen muutoksen. Esikatselu ei tallennu
+  projektiin tai pilveen, eikä vedossa käynnistetä CAD-laskentaa. Osoitus käyttää
+  erillistä BVH-kiihdytystä; työtila latautuu vasta avattaessa.
+- Hyväksyntä tarkistaa risteävät pinnat, nollakokoiset kolmiot, päällekkäiset
+  pisteet, tilavuuden suunnan ja CAD:n kelvollisuuden. Epäonnistunut muutos
+  jättää luonnoksen korjattavaksi ja alkuperäisen ennalleen. Enimmäisrajat ovat
+  30 000 pistettä / 60 000 kolmiota, CAD:n uudelleenrakennuksessa 4 000
+  kolmiota. Monikuorisen tai irrallisista solideista koostuvan CAD-osan
+  uudelleenrakennus ei vielä ole tuettu; tällaista osaa ei typistetä yhdeksi
+  solidiksi. Tarkistukset eivät ole täydellinen tulostettavuustakuu.
+
+Tallennuksen lisäkorjaus: synkroninen historian kirjoituksen tilavirhe tunnistetaan
+myös IndexedDB-tapahtumakäsittelijässä, jolloin malli voidaan tallentaa ilman
+historiaa aiemman varapolun mukaisesti.
+
+### Tarkkojen muotojen seuraavat vaiheet
+
+1. Reunojen jakaminen, pisteiden yhdistäminen, aukon täyttö ja kahden
+   reunalenkin yhdistäminen. Sovitetaan nykyisiin Kynä-, Offset-, Muotojen
+   läpi- ja pintapursotustoimintoihin. Nämä eivät vielä kuulu pistemuokkaukseen.
+2. Viitteet muista osista ja hallittu Shift-viite vedon aikana; projektin
+   taustageometrian näyttäminen tarvittaessa uudessa työtilassa.
+3. Kaarevien CAD-pintojen parametrinen muotoilu sekä monikuoristen osien
+   säilyttäminen ilman kolmiomalliksi muuttamista.
+4. Tulostustarkistus: avoimet/moninkertaiset reunat, pintojen suunta,
+   seinämäpaksuus ja sovitusvälykset. Nykyistä STL:n sulkeutumistarkistusta
+   laajennetaan; 3MF:n yksiköt ja osajako ovat jatkotyötä.
+5. Vapaa pehmennys ja subdivision vasta tämän vakaan perustan jälkeen.
+
 ## V0.44.1 — omien valmiiden osien monituonti
 
 - **Projektikirjasto → Omat osat → Tuo osia kirjastoon** hyväksyy useita
@@ -21,46 +90,6 @@
   Häfelen, Blumin ja muiden valmistajien kattavampi mallivalikoima on jatkotyötä.
 - hansgrohe Raindance Select E 300:n lähdesivu ilmoittaa tuotteen poistuneeksi;
   tieto näkyy nyt kortissa. Suomen saatavuutta ei päätellä lähdesivusta.
-
-## Seuraava ehdotus — osan pisteiden ja reunojen muokkaus
-
-**Suunnitelma, ei vielä toteutettu.** Nykyinen Korkeustasot muuttaa sisäkkäisten
-rajausten korkeuksia. Se ei korvaa vapaata piste-, reuna- tai pintamuokkausta.
-Tämä kokonaisuus palvelee kaatoja, vinoja rakenteita, altaita, koteloita ja
-3D-tulostettavia sovitusosia. STL-vienti on jo olemassa.
-
-1. Osan muokkaustilaan rajattu **Muokkaa geometriaa** ja siinä
-   **Pisteet / Reunat / Pinnat**. Nykyinen Muotoile-nimi on jo Cut/Joinin käytössä.
-   Selvä valintakorostus, aluevalinta ja reunalenkin valinta. Tavallinen
-   Siirrä/Kierrä/Skaalaa säilyy osakohtaisena; geometriavalinta vaikuttaa vain
-   tässä näkyvästi aktivoidussa toiminnossa. Numeroita 1–4 ei oteta näyttötiloilta.
-   Shift lisää valintaan ennen operaatiota ja hakee viitteen aktiivisen
-   operaation aikana; sama painallus ei muuta valintaa ja poimi viitettä.
-2. Valittujen pisteiden, reunojen ja lenkkien siirto, kierto ja skaalaus,
-   poimittava keski-/ankkuripiste, akselit sekä tarkka mm-/prosenttisyöttö.
-   Yksi piste ei itsessään pienene: skaalaus muuttaa sen etäisyyttä ankkurista.
-   Pullon suuaukon tai kaivon reunalenkin säätö on selkeä ensimmäinen käyttötapaus.
-   Muut pisteet pysyvät paikallaan; liittyvät pinnat mukautuvat ja esikatselu
-   näyttää koko vaikutusalueen. Hold, linkitykset ja Peru huomioidaan yhdessä.
-3. Ensimmäinen rajaus: kolmiomallit ja suorareunaiset muodot. CAD:n tarkkaa
-   pintaa ei muuteta pelkäksi näyttöverkon siirroksi. Kaareville CAD-pinnoille
-   tarvitaan topologian säilyttävä muokkaus tai käyttäjän valitsema erillinen
-   verkkokopio; alkuperäinen tarkka CAD säilytetään. Epätasomainen rajaus
-   trianguloidaan hallitusti, ja itsensä leikkaava tulos hylätään ennen hyväksyntää.
-4. Seuraavaksi reunojen jakaminen, pisteiden yhdistäminen, aukon täyttö ja
-   kahden reunalenkin yhdistäminen. Sovitetaan nykyisiin Kynä-, Offset-,
-   Muotojen läpi- ja pintapursotustoimintoihin, ei rinnakkaisia samannimisiä työkaluja.
-5. Tulostustarkistus: avoimet/moninkertaiset reunat, pintojen suunta,
-   itsensä leikkaaminen ja seinämäpaksuus. Nykyinen STL:n sulkeutumistarkistus
-   on lähtökohta, ei täydellinen tulostettavuustakuu. Sen jälkeen 3MF, joka
-   säilyttää yksiköt ja osajaon, sekä sovitusvälysten helppo säätö.
-
-Hyväksyntäkokeet: suorakulmion kaksi kulmaa +20 mm muodostaa tasaisen kaadon;
-ympyrän reunalenkin skaalaus säilyttää keskityksen ja muun kappaleen;
-vinoon kierretyn osan paikallinen akseli ja Shift-viite ovat toistettavia;
-Peru/Palauta ja tallennus palauttavat topologian ja valinnan; tulostusvienti
-tunnistaa muokkauksessa syntyneen avoimen reunan. Vapaa muodon pehmennys
-ja subdivision tulevat tämän vakaan perustan jälkeen.
 
 ## V0.44.0 — tuotekirjaston ensimmäinen versio
 

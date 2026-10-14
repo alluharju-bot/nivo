@@ -89,28 +89,36 @@ export async function saveLocal(
         entry = entries.get(project.id);
       let conflict = false,
         nextRevision = 0;
+      let writeError: unknown;
       entry.onsuccess = () => {
-        const saved = current.result as StoredSession | undefined;
-        if (saved && revisions.get(project.id) !== saved.revision) {
-          conflict = true;
+        try {
+          const saved = current.result as StoredSession | undefined;
+          if (saved && revisions.get(project.id) !== saved.revision) {
+            conflict = true;
+            tx.abort();
+            return;
+          }
+          nextRevision = (saved?.revision ?? 0) + 1;
+          sessions.put(
+            {
+              project: serialized,
+              history: withHistory ? history : undefined,
+              revision: nextRevision,
+            } satisfies StoredSession,
+            project.id,
+          );
+          entries.put({
+            ...metadata(project, entry.result),
+            ...(options?.kind ? { kind: options.kind } : {}),
+            ...(options?.thumbnail ? { thumbnail: options.thumbnail } : {}),
+          });
+          if (options?.activate !== false) tx.objectStore('projects').put(project.id, 'activeId');
+        } catch (error) {
+          // A synchronous put failure inside an IndexedDB callback otherwise
+          // becomes AbortError and hides the QuotaExceededError recovery path.
+          writeError = error;
           tx.abort();
-          return;
         }
-        nextRevision = (saved?.revision ?? 0) + 1;
-        sessions.put(
-          {
-            project: serialized,
-            history: withHistory ? history : undefined,
-            revision: nextRevision,
-          } satisfies StoredSession,
-          project.id,
-        );
-        entries.put({
-          ...metadata(project, entry.result),
-          ...(options?.kind ? { kind: options.kind } : {}),
-          ...(options?.thumbnail ? { thumbnail: options.thumbnail } : {}),
-        });
-        if (options?.activate !== false) tx.objectStore('projects').put(project.id, 'activeId');
       };
       tx.oncomplete = () => {
         revisions.set(project.id, nextRevision);
@@ -126,7 +134,8 @@ export async function saveLocal(
             ? new Error(
                 'Projektia on muutettu toisessa välilehdessä. Tallenna tämä versio tiedostoksi tai kirjastoon kopiona ennen jatkamista.',
               )
-            : (tx.error ??
+            : (writeError ??
+                tx.error ??
                 transactionError ??
                 new Error('Automaattitallennus epäonnistui. Lataa projektitiedosto talteen.')),
         );

@@ -303,6 +303,22 @@ const faceNames: Record<FaceRef, string> = {
   'z:min': 'Alapinta',
   'z:max': 'Yläpinta',
 };
+const GeometryEditor = lazy(() =>
+  import('./ui/GeometryEditor')
+    .then((m) => ({ default: m.GeometryEditor }))
+    .catch(() => ({
+      default: ({ onClose }: { onClose: () => void }) => (
+        <SelectionDialog title="Geometrian muokkaus" onClose={onClose}>
+          <p>
+            Työkalua ei saatu ladattua. Tarkista verkkoyhteys ja päivitä sivu ennen uutta yritystä.
+          </p>
+          <button className="button dark" onClick={onClose}>
+            Palaa malliin
+          </button>
+        </SelectionDialog>
+      ),
+    })),
+);
 const RevisionReview = lazy(() => import('./ui/RevisionReview'));
 const ToolGuide = lazy(() => import('./ui/guides/ToolGuide'));
 
@@ -522,6 +538,8 @@ export default function App() {
   const [bezierStyle, setBezierStyle] = useState<'smooth' | 'bezier'>('smooth');
   const [loftOpen, setLoftOpen] = useState(false);
   const [surfaceLevelsOpen, setSurfaceLevelsOpen] = useState(false);
+  const [geometryBodyId, setGeometryBodyId] = useState<string>();
+  const geometryBody = project.bodies.find((b) => b.id === geometryBodyId);
   const [levelEditingId, setLevelEditingId] = useState<string>();
   const [loftIds, setLoftIds] = useState<string[]>([]);
   const [loftPreview, setLoftPreview] = useState<import('./cad/protocol').EdgeDetailResult>();
@@ -4305,6 +4323,7 @@ export default function App() {
     const keydown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
+        geometryBodyId ||
         cabinetOpen ||
         actionMenu ||
         revisionsOpen ||
@@ -5563,6 +5582,33 @@ export default function App() {
     begin(next);
     setPanelOpen(true);
   };
+  const geometryTarget = editingBodyId
+    ? project.bodies.find((b) => b.id === editingBodyId)
+    : selectedIds.length === 1
+      ? body
+      : undefined;
+  const openGeometryEditing = () => {
+    if (busy) return;
+    if (!geometryTarget) {
+      editor.setError('Valitse yksi osa geometrian muokkaamiseen.');
+      return;
+    }
+    if (bodyLocked(geometryTarget, project.groups)) {
+      editor.setError('Vapauta osan tai ryhmän lukitus ennen geometrian muokkaamista.');
+      return;
+    }
+    resetGesture();
+    setLoftOpen(false);
+    setLoftPreview(undefined);
+    setTool('select');
+    setActionMenu(undefined);
+    editor.setError('');
+    setGeometryBodyId(geometryTarget.id);
+  };
+  const closeGeometryEditing = () => {
+    if (busy) editor.cancel();
+    setGeometryBodyId(undefined);
+  };
   const openSurfaceLevels = () => {
     begin('select');
     resetGesture();
@@ -5582,6 +5628,20 @@ export default function App() {
     setLoftOpen(true);
   };
   const commands: Command[] = [
+    {
+      id: 'geometry-editing',
+      label: 'Geometrian muokkaus',
+      group: 'Muokkaa',
+      keywords: 'vertex pisteet reunat pinnat deformoi skaalaa muoto tarkka',
+      reason: busy
+        ? 'Odota laskennan valmistumista.'
+        : !geometryTarget
+          ? 'Valitse yksi osa.'
+          : bodyLocked(geometryTarget, project.groups)
+            ? 'Vapauta osan lukitus.'
+            : undefined,
+      run: openGeometryEditing,
+    },
     {
       id: 'distribute',
       label: distributionLabel,
@@ -6553,6 +6613,7 @@ export default function App() {
                 setTool('select');
                 setCabinetOpen(true);
               }}
+              onGeometryEditing={openGeometryEditing}
               onSurfaceLevels={openSurfaceLevels}
               onThroughShapes={() => {
                 begin('select');
@@ -7175,6 +7236,7 @@ export default function App() {
               onTexture={previewTexture}
               onTextureCommit={commitTexture}
               modalOpen={
+                !!geometryBodyId ||
                 touchReview ||
                 (compact && mobileStart) ||
                 revisionsOpen ||
@@ -8933,6 +8995,15 @@ export default function App() {
                   )}
                   {holdNotice}
                   {distributionButton}
+                  {geometryTarget && (
+                    <button
+                      className="button subtle full"
+                      disabled={busy || bodyLocked(geometryTarget, project.groups)}
+                      onClick={openGeometryEditing}
+                    >
+                      Geometrian muokkaus
+                    </button>
+                  )}
                   {canDivideSurface && surfaceActions}
                   {body?.feature.type === 'brep' &&
                     body.feature.surfaceLevels &&
@@ -9334,6 +9405,88 @@ export default function App() {
         )}
       </div>
 
+      {geometryBody && (
+        <Suspense
+          fallback={
+            <SelectionDialog title="Geometrian muokkaus" onClose={closeGeometryEditing}>
+              <p>Ladataan työkalua…</p>
+            </SelectionDialog>
+          }
+        >
+          <GeometryEditor
+            body={geometryBody}
+            cad={editor.cad}
+            busy={busy}
+            error={editor.error}
+            linkedCount={
+              geometryBody.component
+                ? project.bodies.filter((b) => b.component?.id === geometryBody.component?.id)
+                    .length
+                : 1
+            }
+            lockedCopies={
+              geometryBody.component
+                ? project.bodies.filter(
+                    (b) =>
+                      b.id !== geometryBody.id &&
+                      b.component?.id === geometryBody.component?.id &&
+                      bodyLocked(b, project.groups),
+                  ).length
+                : 0
+            }
+            onClose={closeGeometryEditing}
+            onCommit={async (points, meshCopy, unique) => {
+              const source = geometryBody;
+              const outputId = meshCopy ? uid() : source.id;
+              activityHistory.prepare(actionContext);
+              const ok = await editor.transact(
+                async () => {
+                  requireMovable([source], project.groups);
+                  const result = await editor.cad.commitGeometry(
+                    unique ? { ...source, component: undefined } : source,
+                    points,
+                    meshCopy,
+                  );
+                  const next = meshCopy
+                    ? {
+                        ...result,
+                        id: outputId,
+                        name: `${source.name.slice(0, 95)} · verkkokopio`,
+                        component: undefined,
+                        hidden: false,
+                      }
+                    : result;
+                  return {
+                    ...project,
+                    bodies: meshCopy
+                      ? [
+                          ...project.bodies.map((b) =>
+                            b.id === source.id ? { ...b, hidden: true } : b,
+                          ),
+                          next,
+                        ]
+                      : project.bodies.map((b) => (b.id === source.id ? next : b)),
+                  };
+                },
+                meshCopy
+                  ? 'Geometriasta luotu muokattu verkkokopio. Alkuperäinen piilotettu.'
+                  : 'Osan geometriaa muokattu.',
+              );
+              if (ok) {
+                setGeometryBodyId(undefined);
+                setSelectedFace(undefined);
+                setTool('select');
+                if (meshCopy) {
+                  setEditingBodyId(undefined);
+                  setSurfaceMode('new');
+                }
+                select(outputId, undefined, false, true);
+              }
+              return ok;
+            }}
+          />
+        </Suspense>
+      )}
       {distributionDraft && (
         <DistributionDialog
           key={distributionDraft.series.id}
