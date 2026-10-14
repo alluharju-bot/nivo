@@ -6,16 +6,21 @@ it('uses one seamless mask for rough green oxide and more reflective exposed cop
   let oxide = 0,
     copper = 0,
     seam = 0,
-    largest = 0;
+    largest = 0,
+    oxideContrast = Infinity,
+    oxideRoughness = Infinity,
+    copperContrast = Infinity,
+    copperRoughness = -Infinity;
+  // Check every pixel, but aggregate the bounds instead of creating thousands of matchers.
   for (let i = 0; i < maps.color.length; i += 4) {
     if (maps.metalness[i] < 25) {
       oxide++;
-      expect(maps.color[i + 1]).toBeGreaterThan(maps.color[i]);
-      expect(maps.roughness[i]).toBeGreaterThan(200);
+      oxideContrast = Math.min(oxideContrast, maps.color[i + 1] - maps.color[i]);
+      oxideRoughness = Math.min(oxideRoughness, maps.roughness[i]);
     } else if (maps.metalness[i] > 230) {
       copper++;
-      expect(maps.color[i]).toBeGreaterThan(maps.color[i + 1]);
-      expect(maps.roughness[i]).toBeLessThan(110);
+      copperContrast = Math.min(copperContrast, maps.color[i] - maps.color[i + 1]);
+      copperRoughness = Math.max(copperRoughness, maps.roughness[i]);
     }
   }
   for (let y = 0; y < 256; y++) {
@@ -29,6 +34,12 @@ it('uses one seamless mask for rough green oxide and more reflective exposed cop
   }
   expect(oxide).toBeGreaterThan(1000);
   expect(copper).toBeGreaterThan(1000);
+  expect(oxideContrast).toBeGreaterThan(0);
+  expect(oxideRoughness).toBeGreaterThan(200);
+  expect(copperContrast).toBeGreaterThan(0);
+  expect(copperRoughness).toBeLessThan(110);
   expect(seam / 256).toBeLessThan(largest);
-  expect(patinaPixels()).toEqual(maps);
+  const repeated = patinaPixels();
+  for (const key of ['color', 'height', 'roughness', 'metalness'] as const)
+    expect(Buffer.from(repeated[key]).equals(Buffer.from(maps[key])), key).toBe(true);
 });

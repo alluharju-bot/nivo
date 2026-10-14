@@ -28,6 +28,11 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
   Valmistajien tiedostoja ei jaeta sovelluspaketissa. Suomen saatavuutta,
   kaikkien ulkoisten CAD-tiedostojen tuontia tai tuotteiden keskinäistä sähköistä
   yhteensopivuutta ei ole tällä testisarjalla vahvistettu.
+- Ensimmäinen GitHub-ajo pysähtyi aiemman patinamateriaalin testin 5 sekunnin
+  aikarajaan (8,3 s). Testi tarkistaa edelleen kaikki pikselit, samat rajat ja
+  jokaisen kanavan toistettavuuden, mutta kokoaa pikselikohtaiset rajat ennen
+  vertailuja ja vertaa toistettavuuden tavuina. Aikarajaa ei nostettu eikä
+  materiaalikoodia muutettu. Patinan ja tuotekirjaston 15 testiä hyväksytty paikallisesti.
 
 ## V0.43.0 — tasajako, tallennus ja tasomuotojen Cut
 
