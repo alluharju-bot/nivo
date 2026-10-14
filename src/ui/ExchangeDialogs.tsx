@@ -18,17 +18,23 @@ export function ImportDialog({
   cad,
   onAccept,
   onClose,
+  title,
+  description,
+  initialPlace = false,
 }: {
   files: File[];
   mode: 'open' | 'add';
   cad: CadClient;
   onAccept: (project: Project, place: boolean) => Promise<boolean>;
   onClose: () => void;
+  title?: string;
+  description?: string;
+  initialPlace?: boolean;
 }) {
   const file = files.find((f) => /\.(step|stp|stl|glb|gltf)$/i.test(f.name))!;
   const step = /\.(step|stp)$/i.test(file.name);
   const [options, setOptions] = useState<ImportOptions>(importDefaults(file.name));
-  const [place, setPlace] = useState(false);
+  const [place, setPlace] = useState(initialPlace);
   const [working, setWorking] = useState(false),
     [error, setError] = useState('');
   const accept = async () => {
@@ -57,13 +63,14 @@ export function ImportDialog({
   };
   return (
     <SelectionDialog
-      title={mode === 'add' ? 'Lisää malli' : 'Avaa 3D-tiedosto'}
+      title={title ?? (mode === 'add' ? 'Lisää malli' : 'Avaa 3D-tiedosto')}
       onClose={() => {
         if (!working) onClose();
       }}
       onAccept={() => void accept()}
     >
       <p className="exchange-filename">{file.name}</p>
+      {description && <p>{description}</p>}
       {!step && (
         <div className="exchange-fields">
           <label>

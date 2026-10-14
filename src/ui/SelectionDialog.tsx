@@ -49,7 +49,7 @@ export function SelectionDialog({
           if (e.key === 'Tab') {
             const items = [
               ...host.current!.querySelectorAll<HTMLElement>(
-                'select:not(:disabled),button:not(:disabled),input:not(:disabled):not([type=hidden]),textarea:not(:disabled),summary,[tabindex="0"]',
+                'select:not(:disabled),button:not(:disabled),input:not(:disabled):not([type=hidden]),textarea:not(:disabled),a[href],summary,[tabindex="0"]',
               ),
             ].filter((el) => el.getClientRects().length > 0);
             const at = items.indexOf(document.activeElement as HTMLElement);

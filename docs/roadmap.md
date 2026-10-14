@@ -2,6 +2,52 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.44.0 — tuotekirjaston ensimmäinen versio
+
+- Projektikirjaston kolmas välilehti **Tuotekirjasto**: 43 tuotetta ja tuoteperhettä,
+  haku nimellä, valmistajalla tai tuotekoodilla sekä käyttötarkoituksen rajaus.
+  Ei uusia mallinnustyökaluja tai jatkuvia taustahakuja. Ei valmistajien kuvia,
+  logoja tai CAD-aineistoa julkisessa sovelluspaketissa.
+- SAVO: TWIST, ONE, ELEVATOR, NELIÖ, VOLTTI USB-C, SPIN USB-C, DUE ja WallDisQ.
+  Valmistajan tuotekoodit ja versiot, asennusmitat ja lähteet. Seitsemälle tuotteelle
+  aukkoluonnos, neljälle myös upotustila. DUE:n kahden reiän välimatkaa ei arvata.
+  Asennusluonnokset ovat yksinkertaisia Nivon CAD-muotoja; kansi, johdot,
+  kiinnikkeet, huullokset ja valmistuksen vaatimat nurkkasäteet eivät sisälly.
+  Pinta on z=0:ssa ja upotustila sen alapuolella. Aukkoluonnos toimii olemassa
+  olevassa Cutissa tasoleikkurina; asentaminen ei muuta kohdegeometriaa itsestään.
+- Hettich: Sensys, Novisys, Quadro, Actro 5D, AvanTech YOU, TopLine XL ja
+  AvanTech YOU Illumination. Häfele: Free space/flap/up, Slido D-Line11,
+  Loox5 LED 2062/2068 ja 24 V:n haaroitusjohto. Lisäksi Blumin ja GRASSin
+  hela-/laatikkoperheet sekä Geberitin, Oraksen, GROHEn, hansgrohen ja
+  Gustavsbergin saniteetti-/hanatuotteiden lähteet.
+- **Tuo tuotteen 3D-tiedosto** käyttää olemassa olevaa STEP/STP-, GLB/glTF- tai
+  STL-tuontia. Valmistajan palvelusta haetun tiedoston voi samalla tallentaa
+  Omiin osiin. Moniosaiset tuotteet ryhmitetään kokoonpanoksi. Tuotekoodi,
+  nimi, lähde ja esitystapa tallentuvat osan tietoihin ja kulkevat projektissa,
+  kirjastokopioissa sekä pilven projektidatassa. Alkuperäistä geometriaa ei skaalata
+  automaattisesti tuotekortin mittoihin. Tuotetieto ei takaa myöhemmin muokatun
+  geometrian vastaavan ostettavaa tuotetta.
+- Lähteet tarkistettu 14.10.2026. Kortti näyttää dokumentaation lähdealueen;
+  kansainvälisiä koodeja ei väitetä Suomessa saataviksi. Tämä on toimituksellinen
+  aloitusvalikoima, ei vahvistettu myyntijärjestys. Tuotesivut voivat vaatia
+  valmistajan kirjautumisen. Revit, IFC ja DWG tarvitsevat erillisen muunnoksen.
+- **Jatko:** valmistajakohtaiset jakelu-/muokkausluvat ja niiden jälkeen kevennetyt
+  suoraan lisättävät tuotemallit, suomalaiset tuotenumerot ja saatavuus,
+  asennuspisteet sekä mallin korvaaminen tilavarauksen sijaintiin. Valaisimille
+  valopinta ja mitattuun valovirtaan perustuvat asetukset, helasarjoille
+  kokoonpanokohtaiset asennus- ja porauskuviot. Sähkötuotteiden yhteensopivuuden
+  laskentaa ja asennussuunnittelua ei ole toteutettu tässä versiossa.
+
+Keskeiset alkuperäislähteet:
+[SAVO TWIST](https://savo.fi/tuote/pistorasia-twist/),
+[SAVO ONE](https://savo.fi/tuote/pistorasia-one/),
+[SAVO VOLTTI](https://savo.fi/tuote/pistorasia-voltti-usb-c/),
+[Hettich CAD](https://www.hettich.com/en-dk/services/hettich-cad),
+[Häfele Loox5](https://files.hafele.co.uk/catalogfiles/www/25-1014.pdf),
+[GRASS CAD](https://www.grass.eu/fr/tec-center/donnees-cad/),
+[Geberit BIM](https://www.geberit.fi/saniteetti-ja-putkistojarjestelmat/digitaaliset-tyokalut-ja-sovellukset/bim/).
+Kaikkien korttien lähdeosoitteet ovat `src/model/productCatalog.ts`:ssä.
+
 ## V0.43.0 — tasajako ja muotosarjat leikkureina
 
 - Sama **Tasajako** oikeassa paneelissa, kontekstivalikossa ja toimintojen haussa:

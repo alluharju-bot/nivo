@@ -4,6 +4,31 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.44.0 — valmistajien tuotekirjasto
+
+- Koko yksikkö-/CAD-sarja: 604 hyväksyttyä ja 4 yksityisen mallin testiä ohitettu.
+  Tuoteviitteen ja projektituonnin kohdistettu sarja: 17 hyväksyttyä.
+- 43 kortin haku, valmistaja-/tuoteryhmärajaukset, tuotekoodit, tunnetut versiot
+  ja virheellisten versioiden torjunta. Kaikkien seitsemän asennusluonnoksen
+  mitat tarkistettu; puuttuvaa asennussyvyyttä tai DUE:n reikien välimatkaa ei arvata.
+- Tuoteviitteen säilyminen tiedostossa, kopioinnissa, projektien yhdistämisessä
+  ja historiassa. Tuotu moniosainen tuote muodostaa kokoonpanon; geometriaa
+  ei skaalata tai alkuperäistä projektia muuteta. Virheelliset lähdeosoitteet hylätään.
+- 28 tuotantobuildin selaintapausta työpöytä- ja tablettiprofiilissa: tuotekoodihaku,
+  upotustilan mitat ja sijainti, aukkoluonnoksen lisääminen, Undo/Redo ja uudelleenlataus,
+  tiedoston tuonti tuotekortista, tallennus Omiin osiin ja tuonnin peruutus.
+  TWIST-aukkoluonnos leikkaa työtason Cutilla ja yksi peruutus palauttaa työtason.
+  Mukana aiemman projektikirjaston, tiedostotuonnin/-viennin ja vanhentuneen
+  välilehden tallennussuojan regressiot. Tuontikoe käyttää testin omaa STL-geometriaa,
+  ei valmistajan latausta. Leikkauskokeen ensimmäisessä ajossa puuttui siirtyminen
+  työstökappaleiden valintaan; testin käyttövaihe korjattu ja molemmat profiilit hyväksytty.
+- 390 × 844 puhelinleveys: ei vaakaylivuotoa, tuotekortin lähdelinkit mukana
+  näppäimistön fokusjärjestyksessä. Työpöydän ja tabletin näkymät tarkastettu kuvista.
+- TypeScript, `/nivo/`-tuotantobuild, muotoilu ja lisenssitarkistus hyväksytty.
+  Valmistajien tiedostoja ei jaeta sovelluspaketissa. Suomen saatavuutta,
+  kaikkien ulkoisten CAD-tiedostojen tuontia tai tuotteiden keskinäistä sähköistä
+  yhteensopivuutta ei ole tällä testisarjalla vahvistettu.
+
 ## V0.43.0 — tasajako, tallennus ja tasomuotojen Cut
 
 - Koko yksikkö-/CAD-sarja: 589 hyväksyttyä ja 4 yksityisen mallin testiä ohitettu.

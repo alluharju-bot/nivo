@@ -3,6 +3,14 @@
 UTF-8 JSON, tunniste `format: "nivo"` ja `version: 8`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
+V0.44.0 lisää valinnaisen `body.product`-tuoteviitteen:
+`catalogKey`, `brand`, `name`, valinnaiset `article` ja `variant`, HTTPS-`source`,
+`checkedAt` sekä `representation` (`installation-space`, `opening-profile` tai
+`imported-model`). Viite kuvaa alkuperää, ei geometrian tuotehyväksyntää.
+`catalogKey` on pysyvä ulkoinen avain, jota projektien yhdistäminen ei uudelleennimeä.
+Geometria säilyy tavallisena CAD-/mesh-osana. Formaattiversio säilyy kahdeksana;
+vanhemmat versiot voivat pudottaa tuoteviitteen seuraavassa tallennuksessa.
+
 V0.39.0 lisää valinnaisen `drawingAnnotations`-taulukon (enintään 2 000 merkintää).
 Merkinnän `page` viittaa yksittäiseen pääsuunnan projektioon + kohteeseen,
 leikkaukseen + kohteeseen tai tallennetun arkin `sheetId`:hen. `kind` on `note`

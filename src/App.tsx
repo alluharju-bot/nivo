@@ -6,6 +6,7 @@ import type { DrawingView } from './model/drawingViews';
 import { ProjectShare } from './ui/ProjectShare';
 import { readProjectTransfer, compareTransferredProject } from './storage/projectTransfer';
 import { ProjectLibrary } from './ui/ProjectLibrary';
+import { ProductSource } from './ui/ProductSource';
 import { ImportDialog, ExportDialog } from './ui/ExchangeDialogs';
 import { useFullscreen } from './ui/useFullscreen';
 import { useMobileWorkspace } from './ui/useMobileWorkspace';
@@ -8833,6 +8834,7 @@ export default function App() {
                   )}
                   {body && (
                     <>
+                      {body.product && <ProductSource product={body.product} />}
                       <div className="selection-essentials">
                         <button
                           title={
@@ -9633,6 +9635,7 @@ export default function App() {
       {libraryOpen && (
         <ProjectLibrary
           cloud={cloud}
+          cad={editor.cad}
           activeId={project.id}
           revision={libraryRevision}
           onOpen={openProjectSession}

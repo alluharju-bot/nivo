@@ -1,4 +1,6 @@
 import { CloudProjects } from './CloudProjects';
+import { ProductCatalog } from './ProductCatalog';
+import type { CadClient } from '../cad/client';
 import type { CloudController } from '../cloud/useCloud';
 import { useEffect, useState } from 'react';
 import { Box, Copy, Download, FolderOpen, Plus, Search, Trash2, X } from 'lucide-react';
@@ -19,6 +21,7 @@ import {
 
 export function ProjectLibrary({
   cloud,
+  cad,
   activeId,
   revision,
   onOpen,
@@ -29,17 +32,18 @@ export function ProjectLibrary({
   onClose,
 }: {
   cloud: CloudController;
+  cad: CadClient;
   activeId: string;
   revision: number;
   onOpen: (session: LocalSession) => Promise<boolean>;
-  onAdd: (project: Project) => Promise<boolean>;
+  onAdd: (project: Project, place?: boolean) => Promise<boolean>;
   onNew: () => Promise<void>;
   onRenameActive: (name: string) => Promise<void>;
   onImport: (mode: 'open' | 'add') => void;
   onClose: () => void;
 }) {
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
-  const [tab, setTab] = useState<'project' | 'part'>('project');
+  const [tab, setTab] = useState<'project' | 'part' | 'product'>('project');
   const [query, setQuery] = useState('');
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
@@ -75,178 +79,203 @@ export function ProjectLibrary({
       }}
     >
       <div className="library-heading">
-        <span>{cloud.configured ? 'Tämä selain ja oma pilvi' : 'Tallessa tässä selaimessa'}</span>
+        <span>
+          {tab === 'product'
+            ? 'Tuotteet suunnitteluun'
+            : cloud.configured
+              ? 'Tämä selain ja oma pilvi'
+              : 'Tallessa tässä selaimessa'}
+        </span>
         <button aria-label="Sulje kirjasto" disabled={working} onClick={onClose}>
           <X size={18} />
         </button>
       </div>
-      <CloudProjects cloud={cloud} onOpen={onOpen} />
-      <div className="library-toolbar">
-        <button className="button dark" disabled={working} onClick={() => void run(onNew)}>
-          <Plus size={16} /> Uusi projekti
-        </button>
-        <button disabled={working} onClick={() => onImport('open')}>
-          <FolderOpen size={16} /> Avaa tiedosto
-        </button>
-        <button disabled={working} onClick={() => onImport('add')}>
-          <Plus size={16} /> Lisää malliin
-        </button>
-      </div>
-      <div className="library-filters">
-        <div className="mode-switch" aria-label="Kirjaston sisältö">
-          <button aria-pressed={tab === 'project'} onClick={() => setTab('project')}>
-            Projektit
+      {tab !== 'product' && <CloudProjects cloud={cloud} onOpen={onOpen} />}
+      {tab !== 'product' && (
+        <div className="library-toolbar">
+          <button className="button dark" disabled={working} onClick={() => void run(onNew)}>
+            <Plus size={16} /> Uusi projekti
           </button>
-          <button aria-pressed={tab === 'part'} onClick={() => setTab('part')}>
-            Omat osat
+          <button disabled={working} onClick={() => onImport('open')}>
+            <FolderOpen size={16} /> Avaa tiedosto
+          </button>
+          <button disabled={working} onClick={() => onImport('add')}>
+            <Plus size={16} /> Lisää malliin
           </button>
         </div>
-        <label>
-          <Search size={15} />
-          <input
-            aria-label="Hae kirjastosta"
-            placeholder="Hae nimellä"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
+      )}
+      <div className="library-filters">
+        <div className="mode-switch" aria-label="Kirjaston sisältö">
+          <button
+            disabled={working}
+            aria-pressed={tab === 'project'}
+            onClick={() => setTab('project')}
+          >
+            Projektit
+          </button>
+          <button disabled={working} aria-pressed={tab === 'part'} onClick={() => setTab('part')}>
+            Omat osat
+          </button>
+          <button
+            disabled={working}
+            aria-pressed={tab === 'product'}
+            onClick={() => setTab('product')}
+          >
+            Tuotekirjasto
+          </button>
+        </div>
+        {tab !== 'product' && (
+          <label>
+            <Search size={15} />
+            <input
+              aria-label="Hae kirjastosta"
+              placeholder="Hae nimellä"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
+        )}
       </div>
-      <div className="library-grid" aria-busy={working}>
-        {entries
-          .filter(
-            (e) =>
-              e.kind === tab &&
-              e.name.toLocaleLowerCase('fi').includes(query.toLocaleLowerCase('fi')),
-          )
-          .map((entry) => (
-            <article className="library-card" key={entry.id} data-active={entry.id === activeId}>
-              <div className="library-preview">
-                {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : <Box size={44} />}
-              </div>
-              <InlineName
-                name={entry.name}
-                label={`Nimeä ${entry.name}`}
-                disabled={working}
-                onChange={(name) =>
-                  void run(async () => {
-                    if (entry.id === activeId) {
-                      await onRenameActive(name);
-                      return;
-                    }
-                    const session = await read(entry.id),
-                      history = new History(session.project);
-                    history.restore(session.history);
-                    history.commit({
-                      ...session.project,
-                      name,
-                      updatedAt: new Date().toISOString(),
-                    });
-                    await saveLocal(history.current, history.serialize(), { activate: false });
-                  })
-                }
-              />
-              <small>
-                {entry.parts} osaa · {new Date(entry.updatedAt).toLocaleDateString('fi-FI')}
-                {entry.id === activeId ? ' · Avoinna' : ''}
-              </small>
-              <div className="library-card-actions">
-                {tab === 'project' && (
+      {tab === 'product' ? (
+        <ProductCatalog cad={cad} onAdd={onAdd} onWorkingChange={setWorking} />
+      ) : (
+        <div className="library-grid" aria-busy={working}>
+          {entries
+            .filter(
+              (e) =>
+                e.kind === tab &&
+                e.name.toLocaleLowerCase('fi').includes(query.toLocaleLowerCase('fi')),
+            )
+            .map((entry) => (
+              <article className="library-card" key={entry.id} data-active={entry.id === activeId}>
+                <div className="library-preview">
+                  {entry.thumbnail ? <img src={entry.thumbnail} alt="" /> : <Box size={44} />}
+                </div>
+                <InlineName
+                  name={entry.name}
+                  label={`Nimeä ${entry.name}`}
+                  disabled={working}
+                  onChange={(name) =>
+                    void run(async () => {
+                      if (entry.id === activeId) {
+                        await onRenameActive(name);
+                        return;
+                      }
+                      const session = await read(entry.id),
+                        history = new History(session.project);
+                      history.restore(session.history);
+                      history.commit({
+                        ...session.project,
+                        name,
+                        updatedAt: new Date().toISOString(),
+                      });
+                      await saveLocal(history.current, history.serialize(), { activate: false });
+                    })
+                  }
+                />
+                <small>
+                  {entry.parts} osaa · {new Date(entry.updatedAt).toLocaleDateString('fi-FI')}
+                  {entry.id === activeId ? ' · Avoinna' : ''}
+                </small>
+                <div className="library-card-actions">
+                  {tab === 'project' && (
+                    <button
+                      disabled={working || entry.id === activeId}
+                      onClick={() =>
+                        void run(async () => {
+                          if (await onOpen(await read(entry.id))) onClose();
+                        })
+                      }
+                    >
+                      Avaa
+                    </button>
+                  )}
                   <button
-                    disabled={working || entry.id === activeId}
+                    disabled={working || !entry.parts}
                     onClick={() =>
                       void run(async () => {
-                        if (await onOpen(await read(entry.id))) onClose();
+                        if (await onAdd((await read(entry.id)).project)) onClose();
                       })
                     }
                   >
-                    Avaa
+                    Lisää malliin
                   </button>
-                )}
-                <button
-                  disabled={working || !entry.parts}
-                  onClick={() =>
-                    void run(async () => {
-                      if (await onAdd((await read(entry.id)).project)) onClose();
-                    })
-                  }
-                >
-                  Lisää malliin
-                </button>
-                <button
-                  title="Monista"
-                  aria-label={`Monista ${entry.name}`}
-                  disabled={working}
-                  onClick={() =>
-                    void run(async () => {
-                      const { project } = await read(entry.id);
-                      await saveLocal(
-                        {
-                          ...project,
-                          id: uid(),
-                          name: `${project.name.slice(0, 105)} (kopio)`,
-                          updatedAt: new Date().toISOString(),
-                        },
-                        undefined,
-                        { kind: entry.kind, thumbnail: entry.thumbnail, activate: false },
-                      );
-                    })
-                  }
-                >
-                  <Copy size={15} />
-                </button>
-                <button
-                  title="Lataa tiedosto"
-                  aria-label={`Lataa ${entry.name}`}
-                  disabled={working}
-                  onClick={() =>
-                    void run(async () => {
-                      const { project } = await read(entry.id);
-                      downloadFile(
-                        JSON.stringify(project),
-                        `${safeFilename(project.name)}.nivo`,
-                        'application/json',
-                      );
-                    })
-                  }
-                >
-                  <Download size={15} />
-                </button>
-                <button
-                  title="Poista"
-                  aria-label={`Poista ${entry.name}`}
-                  disabled={working || entry.id === activeId}
-                  onClick={() => setRemoving(entry.id)}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-              {removing === entry.id && (
-                <div className="library-delete">
-                  <span>Poistetaanko selaimesta?</span>
                   <button
+                    title="Monista"
+                    aria-label={`Monista ${entry.name}`}
                     disabled={working}
                     onClick={() =>
                       void run(async () => {
-                        await deleteLocalProject(entry.id);
-                        setRemoving(undefined);
+                        const { project } = await read(entry.id);
+                        await saveLocal(
+                          {
+                            ...project,
+                            id: uid(),
+                            name: `${project.name.slice(0, 105)} (kopio)`,
+                            updatedAt: new Date().toISOString(),
+                          },
+                          undefined,
+                          { kind: entry.kind, thumbnail: entry.thumbnail, activate: false },
+                        );
                       })
                     }
                   >
-                    Poista
+                    <Copy size={15} />
                   </button>
-                  <button onClick={() => setRemoving(undefined)}>Peruuta</button>
+                  <button
+                    title="Lataa tiedosto"
+                    aria-label={`Lataa ${entry.name}`}
+                    disabled={working}
+                    onClick={() =>
+                      void run(async () => {
+                        const { project } = await read(entry.id);
+                        downloadFile(
+                          JSON.stringify(project),
+                          `${safeFilename(project.name)}.nivo`,
+                          'application/json',
+                        );
+                      })
+                    }
+                  >
+                    <Download size={15} />
+                  </button>
+                  <button
+                    title="Poista"
+                    aria-label={`Poista ${entry.name}`}
+                    disabled={working || entry.id === activeId}
+                    onClick={() => setRemoving(entry.id)}
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
-              )}
-            </article>
-          ))}
-        {!entries.some((e) => e.kind === tab) && (
-          <p className="muted">
-            {tab === 'part'
-              ? 'Valitse osat mallista ja valitse Tallenna valinta kirjastoon.'
-              : 'Tallennetut projektit näkyvät täällä.'}
-          </p>
-        )}
-      </div>
+                {removing === entry.id && (
+                  <div className="library-delete">
+                    <span>Poistetaanko selaimesta?</span>
+                    <button
+                      disabled={working}
+                      onClick={() =>
+                        void run(async () => {
+                          await deleteLocalProject(entry.id);
+                          setRemoving(undefined);
+                        })
+                      }
+                    >
+                      Poista
+                    </button>
+                    <button onClick={() => setRemoving(undefined)}>Peruuta</button>
+                  </div>
+                )}
+              </article>
+            ))}
+          {!entries.some((e) => e.kind === tab) && (
+            <p className="muted">
+              {tab === 'part'
+                ? 'Valitse osat mallista ja valitse Tallenna valinta kirjastoon.'
+                : 'Tallennetut projektit näkyvät täällä.'}
+            </p>
+          )}
+        </div>
+      )}
       {error && <p role="alert">{error}</p>}
     </SelectionDialog>
   );

@@ -3,6 +3,19 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.44.0** lisää **Projektikirjasto → Tuotekirjasto** -näkymän:
+43 tuotetta ja tuoteperhettä SAVOlta, Blumilta, GRASSilta, Hettichiltä,
+Häfeleltä, Geberitiltä, Orakselta, GROHElta, hansgrohelta ja Gustavsbergiltä.
+Hae nimellä tai tuotekoodilla ja rajaa valmistajan tai käyttötarkoituksen mukaan.
+SAVOn tarkistetuista asennusmitoista voi lisätä aukkoluonnoksen tai upotustilan.
+Ne ovat asennusmittojen mukaisia yksinkertaisia CAD-muotoja, eivät varsinaisia
+tuotemalleja. Valmistajan oman STEP-, GLB/glTF- tai STL-mallin voi tuoda
+tuotekortin kautta ja tallentaa Omiin osiin. Tuotekoodi ja lähde säilyvät
+projektissa; moniosainen tuonti muodostaa suljetun kokoonpanon.
+Kirjastoon ei sisälly valmistajien jaeltavia CAD-malleja tai tuotekuvia.
+Tuotesivujen lähdealue ja tarkistuspäivä näkyvät kortissa; valikoima ei ole
+myyntitilastoihin perustuva suosituimmuuslista. [Rajaukset ja jatkokehitys](docs/roadmap.md).
+
 Versio **0.43.0** lisää **Tasajaon** osille, muodoille ja mitta-/apuviivoille.
 Valitse kohteet → **Tasajako** oikeasta paneelista tai kontekstivalikosta.
 Kopioi valinta tai järjestä nykyiset osat kokonaismitan, jakovälin tai vapaan

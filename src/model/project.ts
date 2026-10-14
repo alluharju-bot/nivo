@@ -1,4 +1,5 @@
 import { drawingAnnotationSchema } from './drawingAnnotations';
+import { productReferenceSchema } from './productReference';
 import { distributionSchema } from './distributionSchema';
 import { quantityBasis } from './quantityBasis';
 import { surfaceLevelsSchema } from './surfaceLevels';
@@ -217,6 +218,7 @@ const treatmentLayerSchema = z.object({
 
 export const bodySchema = z.object({
   id,
+  product: productReferenceSchema.optional(),
   name: z.string().min(1).max(120),
   kind: z.literal('cad'),
   feature: featureSchema,
