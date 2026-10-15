@@ -200,23 +200,36 @@ test('Escape during a direct drag cancels it before pointer release', async ({ p
   expect((await save(page)).bodies).toEqual([part]);
   await expect(bar(page)).toBeVisible();
 });
-test('a failed geometry module still allows returning to ordinary modeling', async ({ page }) => {
+test('geometry editing stays available when a deployment removes late scripts', async ({
+  page,
+}) => {
   const part = makeBody(100, 80, 20);
   await ready(page, [part]);
-  await page.route(/GeometryEditor[^/]*\.(?:js|tsx)(?:\?.*)?$/, (route) => route.abort());
-  await editBody(page, part.id);
+  const lateScripts: string[] = [];
+  // Simulate an already-open app whose old asset URLs have disappeared, or a
+  // connection lost after loading the model. No refresh should be necessary.
+  await page.route(/\.(?:m?js|tsx?)(?:\?.*)?$/, (route) => {
+    lateScripts.push(route.request().url());
+    return route.abort();
+  });
+  await open(page, part, 'Pisteet');
+  await panel(page).getByText('Valinta ja tarkkuus', { exact: true }).click();
+  await panel(page).getByRole('button', { name: 'Valitse Z+ tason pisteet', exact: true }).click();
+  const z = panel(page).getByRole('textbox', { name: 'Geometrian siirtymä Z', exact: true });
+  await z.fill('5');
+  await z.press('Enter');
+  await expect(z).toHaveValue('0');
+  const changed = await save(page);
+  expect(bounds(changed.bodies)).toEqual({ min: [0, 0, 0], max: [100, 80, 25] });
+  await bar(page).getByRole('button', { name: 'Valmis', exact: true }).click();
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies).toEqual([part]);
+  // Finishing geometry mode keeps the part's ordinary editing context open.
   await page
     .getByLabel('Muokkauksen kohde', { exact: true })
-    .getByRole('button', { name: 'Reunat', exact: true })
+    .getByRole('button', { name: 'Pisteet', exact: true })
     .click();
-  await expect(
-    panel(page).getByText('Työkalua ei saatu ladattua.', { exact: false }),
-  ).toBeVisible();
-  await bar(page).getByRole('button', { name: 'Valmis', exact: true }).click();
-  expect((await save(page)).bodies).toEqual([part]);
-  await page.getByRole('button', { name: 'Siirrä', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Siirrä', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(panel(page).getByText('Valinta ja tarkkuus', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-geometry-editing', part.id);
+  expect(lateScripts).toEqual([]);
 });

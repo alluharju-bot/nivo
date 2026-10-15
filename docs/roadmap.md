@@ -2,6 +2,15 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.46.6 — geometriatyökalun latausvarmuus
+
+- Geometrian muokkaus kuuluu sovelluksen alkulataukseen. Pages-päivityksen
+  poistama vanha laiskasti ladattava skripti ei enää estä perustyökalun avaamista
+  kesken istunnon. Geometrian valmistelu ja virheilmoitukset toimivat ennallaan.
+- Tuotantobuildin regressio estää mallin avaamisen jälkeen kaikki uudet
+  JavaScript-pyynnöt: geometriatyökalu avautuu, pisteiden siirto valmistuu,
+  muutos voidaan perua ja työkalu avata uudelleen ilman sivun päivittämistä.
+
 ## V0.46.5 — vaaleiden pintojen valoläikät
 
 - Kohinanpoiston tarkka lineaarinen syvyys ja pintatasotesti korjaavat vinon

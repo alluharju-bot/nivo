@@ -2,7 +2,8 @@ import { BodyDimensions } from './ui/BodyDimensions';
 import type { DimensionKey } from './model/editableDimensions';
 import type { GeometryStageProps } from './viewport/GeometryStage';
 import type { GeometrySelection } from './model/geometryEditing';
-import type { GeometrySession } from './ui/GeometryEditor';
+// Keep the core editor loaded: a deploy can remove old lazy chunk URLs while modeling.
+import { GeometryEditor, type GeometrySession } from './ui/GeometryEditor';
 import { useTreeExpansion } from './ui/useTreeExpansion';
 import { setGroupHold, setSelectionHold } from './model/groups';
 import { useCloud } from './cloud/useCloud';
@@ -308,17 +309,6 @@ const faceNames: Record<FaceRef, string> = {
   'z:min': 'Alapinta',
   'z:max': 'Yläpinta',
 };
-const GeometryEditor = lazy(() =>
-  import('./ui/GeometryEditor')
-    .then((m) => ({ default: m.GeometryEditor }))
-    .catch(() => ({
-      default: () => (
-        <p role="alert">
-          Työkalua ei saatu ladattua. Tarkista yhteys ja päivitä sivu ennen uutta yritystä.
-        </p>
-      ),
-    })),
-);
 const RevisionReview = lazy(() => import('./ui/RevisionReview'));
 const ToolGuide = lazy(() => import('./ui/guides/ToolGuide'));
 
@@ -8244,39 +8234,37 @@ export default function App() {
                 <X size={18} /> Sulje ominaisuudet
               </button>
             )}
-            <Suspense fallback={<p role="status">Ladataan geometrian muokkausta…</p>}>
-              <GeometryEditor
-                body={geometryBody}
-                cad={editor.cad}
-                busy={busy}
-                error={editor.error}
-                selection={geometrySelection}
-                keyboardInput={tool !== 'select'}
-                onInput={() => setPanelOpen(true)}
-                operation={tool === 'rotate' ? 'rotate' : tool === 'scale' ? 'scale' : 'move'}
-                session={geometrySession}
-                onStage={setGeometryStage}
-                onCommit={commitGeometry}
-                gridSnap={gridSnap}
-                gridStep={project.settings.gridStep ?? 10}
-                linkedCount={
-                  geometryBody.component
-                    ? project.bodies.filter((b) => b.component?.id === geometryBody.component?.id)
-                        .length
-                    : 1
-                }
-                lockedCopies={
-                  geometryBody.component
-                    ? project.bodies.filter(
-                        (b) =>
-                          b.id !== geometryBody.id &&
-                          b.component?.id === geometryBody.component?.id &&
-                          bodyLocked(b, project.groups),
-                      ).length
-                    : 0
-                }
-              />
-            </Suspense>
+            <GeometryEditor
+              body={geometryBody}
+              cad={editor.cad}
+              busy={busy}
+              error={editor.error}
+              selection={geometrySelection}
+              keyboardInput={tool !== 'select'}
+              onInput={() => setPanelOpen(true)}
+              operation={tool === 'rotate' ? 'rotate' : tool === 'scale' ? 'scale' : 'move'}
+              session={geometrySession}
+              onStage={setGeometryStage}
+              onCommit={commitGeometry}
+              gridSnap={gridSnap}
+              gridStep={project.settings.gridStep ?? 10}
+              linkedCount={
+                geometryBody.component
+                  ? project.bodies.filter((b) => b.component?.id === geometryBody.component?.id)
+                      .length
+                  : 1
+              }
+              lockedCopies={
+                geometryBody.component
+                  ? project.bodies.filter(
+                      (b) =>
+                        b.id !== geometryBody.id &&
+                        b.component?.id === geometryBody.component?.id &&
+                        bodyLocked(b, project.groups),
+                    ).length
+                  : 0
+              }
+            />
             {dimensionFields(geometryBody)}
           </aside>
         )}

@@ -3,6 +3,10 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.46.6** korjaa geometrian muokkauksen avaamisen pitkään auki olleessa
+välilehdessä. Työkalu latautuu sovelluksen mukana, joten päivityksen poistama
+vanha skriptitiedosto tai myöhemmin katkennut yhteys ei estä sen avaamista.
+
 Versio **0.46.5** korjaa vaaleiden pintojen venyneitä valoläikkiä.
 Kohinanpoisto tunnistaa saman vinon pinnan ja seuraa jäljellä olevaa kohinaa
 vaiheittain. Se tasoittaa kirkkaita kohinaryhmiä säilyttäen puunsyyt, pintojen
