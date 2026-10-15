@@ -5,6 +5,7 @@ export type DenoiseGuides = {
   /** View-space shading normal in RGB, linear view depth in metres in alpha. */
   normal: THREE.Texture;
   projectionInverse: THREE.Matrix4;
+  reflection?: { albedo: THREE.Texture; normal: THREE.Texture };
 };
 
 /** Raster guides preserve real texture/normal detail when smoothing stochastic

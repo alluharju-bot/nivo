@@ -24,7 +24,11 @@ export async function exerciseTraceSampling() {
         tracer.renderDelay = 0;
         tracer.bounces = 2;
         if (mode === 'production') configureEmitterSampling(tracer);
-        else material.defines.RANDOM_TYPE = mode === 'legacy' ? 2 : 0;
+        else {
+          material.defines.RANDOM_TYPE = mode === 'legacy' ? 2 : 0;
+          material.fragmentShader =
+            'layout(location=1) out vec4 nivoDiffuseOutput;\n' + material.fragmentShader;
+        }
         const start = material.fragmentShader.lastIndexOf('void main() {');
         if (start < 0) throw new Error('Missing sampling shader');
         material.fragmentShader =
@@ -36,7 +40,7 @@ export async function exerciseTraceSampling() {
             sobolPathIndex = uint(seed);
             vec3 r = rand3(3);
             float value = r.x < 0.2 && r.y < 0.5 ? 10.0 : 0.0;
-            gl_FragColor = vec4(vec3(value), opacity);
+            gl_FragColor = vec4(vec3(value), opacity); nivoDiffuseOutput = vec4(0.0,0.0,0.0,opacity);
           }`;
         material.needsUpdate = true;
         const checkpoints = [];

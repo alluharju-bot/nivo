@@ -29,6 +29,11 @@ export function traceDenoise() {
       useVariance: { value: false },
       stepSize: { value: 1 },
       projectionInverse: { value: new THREE.Matrix4() },
+      lobe: { value: 0 },
+      diffuseMap: { value: null },
+      reflectionAlbedo: { value: null },
+      reflectionNormal: { value: null },
+      useReflection: { value: false },
     },
     vertexShader: screenVertex,
     fragmentShader: /* glsl */ `
@@ -39,6 +44,9 @@ export function traceDenoise() {
       uniform float stepSize;
       uniform bool useGuides;
       uniform mat4 projectionInverse;
+      uniform int lobe;
+      uniform sampler2D diffuseMap, reflectionAlbedo, reflectionNormal;
+      uniform bool useReflection;
       vec3 viewPosition(vec2 uv, float depth) {
         vec2 xy = uv * 2.0 - 1.0;
         vec4 a = projectionInverse * vec4(xy, -1.0, 1.0);
@@ -62,10 +70,11 @@ export function traceDenoise() {
         vec4 a = texture2D(albedoMap, uv);
         // Filter illumination, then restore the unfiltered surface texture.
         // The floor keeps dark paint/specular energy from amplifying noise.
-        return a.a >= 0.4 ? max(a.rgb, vec3(0.04)) : vec3(1.0);
+        return lobe != 2 && (lobe == 1 || a.a >= 0.4) ? max(a.rgb, vec3(0.04)) : vec3(1.0);
       }
       vec4 colorAt(vec2 uv) {
         vec4 c = texture2D(map, uv);
+        if (lobe == 2 && stepSize == 1.0) c.rgb = max(vec3(0.0), c.rgb - texture2D(diffuseMap, uv).rgb);
         if (stepSize == 1.0) c.rgb /= reflectance(uv);
         return c;
       }
@@ -123,6 +132,9 @@ export function traceDenoise() {
         }
         float y0 = max(nivoLuminance(center.rgb), 0.0);
         float confidence = useGuides ? albedo.a : 0.0;
+        if (lobe == 1) confidence = 1.0;
+        bool reflected = lobe == 2 && useReflection && texture2D(reflectionAlbedo, vUv).a > 0.5;
+        if (reflected) confidence = 0.55;
         // Measured uncertainty, not sample count, controls edge stopping. A
         // quiet surface retains lighting detail while sparse bright noise needs
         // more than a compact blur that merely turns points into blotches.
@@ -177,6 +189,7 @@ export function traceDenoise() {
           float weight = exp(-radius / 3.0 - dot(delta, delta) / (6.0 * sigma2));
           if (stepSize > 1.0 && sampleColor.a < 0.0) weight = 0.0;
           if (stepSize > 1.0 && confidence < 0.4 && radius > 0.0) weight = 0.0;
+          if (reflected && stepSize > 4.0 && radius > 0.0) weight = 0.0;
           if (stepSize == 1.0) weight *= exp(-abs(sampleColor.a - center.a) * 64.0);
           if (useGuides) {
             vec4 a = texture2D(albedoMap, uv), n = texture2D(normalMap, uv);
@@ -185,6 +198,13 @@ export function traceDenoise() {
             weight *= exp(-dot(da, da) / 0.0018 - abs(a.a - albedo.a) * 24.0);
             weight *= exp(-dot(n.rgb - normal.rgb, n.rgb - normal.rgb) / 0.008);
             weight *= surfaceWeight(uv, n.a, normal.a, position, geometricNormal);
+            if (reflected) {
+              vec4 a0 = texture2D(reflectionAlbedo, vUv), a1 = texture2D(reflectionAlbedo, uv);
+              vec4 n0 = texture2D(reflectionNormal, vUv), n1 = texture2D(reflectionNormal, uv);
+              vec3 da = a1.rgb - a0.rgb, dn = n1.rgb - n0.rgb;
+              float depth = (n1.a - n0.a) / max(0.001, n0.a * 0.02);
+              weight *= a1.a * exp(-dot(da,da) / 0.0018 - dot(dn,dn) / 0.008 - depth*depth);
+            }
           }
           sum += sampleColor * weight; total += weight; varianceSum += weight * weight * max(v0, v1);
         }
@@ -217,8 +237,15 @@ export function traceDenoise() {
       guides?: DenoiseGuides,
       output: THREE.WebGLRenderTarget | null = null,
       variance?: THREE.Texture,
+      lobe: 0 | 1 | 2 = 0,
+      diffuse?: THREE.Texture,
     ) {
       material.uniforms.map.value = material.uniforms.originalMap.value = map;
+      material.uniforms.lobe.value = lobe;
+      material.uniforms.diffuseMap.value = diffuse ?? map;
+      material.uniforms.useReflection.value = !!guides?.reflection;
+      material.uniforms.reflectionAlbedo.value = guides?.reflection?.albedo ?? map;
+      material.uniforms.reflectionNormal.value = guides?.reflection?.normal ?? map;
       material.uniforms.finalPass.value = false;
       material.uniforms.varianceMap.value = variance ?? map;
       material.uniforms.useVariance.value = !!variance;

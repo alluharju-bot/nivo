@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
-import { traceDenoise } from './traceDenoise';
-import { traceVariance } from './traceVariance';
+import { traceLighting } from './traceLighting';
 import type { DenoiseGuides } from './traceGuides';
 import type { ImageLook } from './imageLook';
 import { coarseImageWeight } from './traceRefinement';
@@ -13,6 +12,7 @@ export function traceImage() {
   let coarse: THREE.WebGLRenderTarget | undefined;
   let samples = 0;
   let filtered: THREE.WebGLRenderTarget | undefined;
+  let albedoGuide: THREE.Texture | undefined;
   const copy = new THREE.ShaderMaterial({
     depthTest: false,
     depthWrite: false,
@@ -21,6 +21,8 @@ export function traceImage() {
       map: { value: null as THREE.Texture | null },
       coarse: { value: null as THREE.Texture | null },
       coarseWeight: { value: 0 },
+      diffuse: { value: null },
+      coarseDiffuse: { value: null },
     },
     vertexShader:
       'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
@@ -29,15 +31,20 @@ export function traceImage() {
       uniform sampler2D coarse;
       uniform float coarseWeight;
       varying vec2 vUv;
+      uniform sampler2D diffuse, coarseDiffuse;
+      layout(location = 1) out vec4 diffuseOutput;
       void main() {
         gl_FragColor = mix(texture2D(map, vUv), texture2D(coarse, vUv), coarseWeight);
+        diffuseOutput = mix(texture2D(diffuse, vUv), texture2D(coarseDiffuse, vUv), coarseWeight);
       }`,
   });
   const display = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
   const quad = new FullScreenQuad(copy);
-  const denoise = traceDenoise();
-  const variance = traceVariance();
+  const denoise = traceLighting();
   return {
+    get noise() {
+      return denoise.noise;
+    },
     get size() {
       return target ? ([target.width, target.height] as const) : undefined;
     },
@@ -48,7 +55,7 @@ export function traceImage() {
       return coarse ? coarseImageWeight(samples) : 0;
     },
     observe(renderer: THREE.WebGLRenderer, source: THREE.WebGLRenderTarget, count: number) {
-      variance.update(renderer, source, count);
+      denoise.observe(renderer, source, count, albedoGuide);
     },
     capture(renderer: THREE.WebGLRenderer, source: THREE.WebGLRenderTarget, count: number) {
       if (target && (target.width !== source.width || target.height !== source.height)) {
@@ -57,6 +64,7 @@ export function traceImage() {
         target = undefined;
       }
       target ??= new THREE.WebGLRenderTarget(source.width, source.height, {
+        count: source.textures.length,
         type: THREE.FloatType,
         depthBuffer: false,
         minFilter: THREE.NearestFilter,
@@ -67,6 +75,9 @@ export function traceImage() {
       copy.uniforms.map.value = source.texture;
       copy.uniforms.coarse.value = coarse?.texture ?? source.texture;
       copy.uniforms.coarseWeight.value = coarse ? coarseImageWeight(count) : 0;
+      copy.uniforms.diffuse.value = source.textures[1] ?? source.texture;
+      copy.uniforms.coarseDiffuse.value =
+        coarse?.textures[1] ?? source.textures[1] ?? source.texture;
       quad.material = copy;
       renderer.setRenderTarget(target);
       quad.render(renderer);
@@ -80,6 +91,7 @@ export function traceImage() {
     },
     draw(renderer: THREE.WebGLRenderer, smooth: boolean, look?: ImageLook, guides?: DenoiseGuides) {
       if (!target) return;
+      albedoGuide = guides?.albedo;
       if (look?.active) {
         if (smooth) {
           filtered ??= new THREE.WebGLRenderTarget(target.width, target.height, {
@@ -87,7 +99,7 @@ export function traceImage() {
             depthBuffer: false,
           });
           filtered.setSize(target.width, target.height);
-          denoise.draw(renderer, target.texture, samples, guides, filtered, variance.texture);
+          denoise.draw(renderer, target, samples, guides, filtered);
           look.draw(renderer, filtered.texture);
         } else {
           filtered?.dispose();
@@ -97,7 +109,7 @@ export function traceImage() {
       } else {
         filtered?.dispose();
         filtered = undefined;
-        if (smooth) denoise.draw(renderer, target.texture, samples, guides, null, variance.texture);
+        if (smooth) denoise.draw(renderer, target, samples, guides);
         else {
           display.map = target.texture;
           quad.material = display;
@@ -109,7 +121,7 @@ export function traceImage() {
       }
     },
     clear() {
-      variance.clear();
+      albedoGuide = undefined;
       denoise.clear();
       target?.dispose();
       coarse?.dispose();
@@ -132,7 +144,6 @@ export function traceImage() {
       copy.dispose();
       display.dispose();
       denoise.dispose();
-      variance.dispose();
     },
   };
 }

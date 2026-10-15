@@ -8,6 +8,8 @@ import { traceResources } from './traceResources';
 import { traceResolutions } from './traceResolution';
 import { traceImage } from './traceImage';
 import { traceGuides } from './traceGuides';
+import { reflectionGuides } from './reflectionGuides';
+import { setTraceNoise } from './traceAdaptive';
 import type { ImageLook } from './imageLook';
 import { refinementSamples } from './traceRefinement';
 import { gpuQueue } from './gpuQueue';
@@ -56,6 +58,7 @@ export function progressiveRenderer(
     needsSize = true;
   const image = traceImage();
   const guides = traceGuides();
+  const reflections = reflectionGuides();
   const raster = () =>
     look ? look.renderScene(renderer, scene, camera) : renderer.render(scene, camera);
   const queue = gpuQueue(renderer.getContext() as WebGL2RenderingContext);
@@ -99,6 +102,7 @@ export function progressiveRenderer(
     renderer.domElement.dataset.traceResolutionStep = String(resolution);
     renderer.domElement.dataset.traceResolutionSteps = String(sizes.length);
     guides.invalidate();
+    reflections.invalidate();
     needsSize = false;
   };
   const rebuild = () => {
@@ -159,6 +163,8 @@ export function progressiveRenderer(
       size && options.denoise !== false && snapshot
         ? guides.ensure(renderer, snapshot, camera, size[0], size[1])
         : undefined;
+    if (guide && tracer && size)
+      guide.reflection = reflections.ensure(renderer, tracer, size[0], size[1]);
     image.draw(renderer, options.denoise !== false, look, guide);
   };
   const initialize = () => {
@@ -245,6 +251,7 @@ export function progressiveRenderer(
         const samples = Math.floor(tracer.samples);
         if (samples > Math.floor(before)) {
           image.observe(renderer, tracer.target, samples);
+          setTraceNoise(tracer, image.noise, samples);
           // Denoising is a display cost, not a cost per path-tracing sample.
           // Keep the first, each refinement boundary and the final image exact.
           const boundary = samples === (resolution === 0 ? 4 : refinementSamples);
@@ -309,6 +316,7 @@ export function progressiveRenderer(
     lastPresented = 0;
     image.clear();
     guides.reset();
+    reflections.reset();
     if (tracer) tracer.pausePathTracing = false;
     tracer?.reset();
     renderer.domElement.dataset.traceSamples = '0';
@@ -405,6 +413,7 @@ export function progressiveRenderer(
       disposeSnapshotGeometry = undefined;
       image.clear();
       guides.clear();
+      reflections.clear();
       samplingConfigured = false;
       dirty = true;
       needsSize = true;
@@ -466,6 +475,7 @@ export function progressiveRenderer(
       resources?.dispose();
       image.dispose();
       guides.dispose();
+      reflections.dispose();
       environment?.dispose();
       disposeSnapshotGeometry?.();
     },

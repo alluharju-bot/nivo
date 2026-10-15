@@ -3,9 +3,10 @@ import { configureTraceTextures, checkTraceUpload } from './traceTextures';
 import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import type { RenderSnapshot } from './snapshot';
 import { configureEmitterSampling } from './emitterSampling';
-import { traceVariance } from './traceVariance';
 import { gpuQueue } from './gpuQueue';
-import { traceDenoise } from './traceDenoise';
+import { traceLighting } from './traceLighting';
+import { reflectionGuides } from './reflectionGuides';
+import { setTraceNoise } from './traceAdaptive';
 import { traceGuides } from './traceGuides';
 import { imageLook } from './imageLook';
 import { traceResources } from './traceResources';
@@ -61,8 +62,8 @@ export async function renderSnapshot(
   const { width, samples: target } = options,
     height = Math.max(1, Math.round(width / snapshot.aspect));
   const started = performance.now();
-  const denoise = traceDenoise();
-  const variance = traceVariance();
+  const denoise = traceLighting();
+  const reflections = reflectionGuides();
   const guides = traceGuides();
   const look = imageLook(snapshot.look);
   let filtered: THREE.WebGLRenderTarget | undefined;
@@ -169,8 +170,11 @@ export async function renderSnapshot(
         tracer.renderSample();
         submitted++;
         const samples = Math.floor(tracer.samples);
-        if (options.denoise !== false && samples > before)
-          variance.update(renderer, tracer.target, samples);
+        if (samples > before) {
+          const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
+          denoise.observe(renderer, tracer.target, samples, guide.albedo);
+          setTraceNoise(tracer, denoise.noise, samples);
+        }
         if (performance.now() - batchStart >= 6) break;
       }
       queue.submit(submitted);
@@ -186,14 +190,15 @@ export async function renderSnapshot(
     report('saving');
     if (options.denoise !== false) {
       const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
+      guide.reflection = reflections.ensure(renderer, tracer, width, height);
       if (look.active) {
         filtered = new THREE.WebGLRenderTarget(width, height, {
           type: THREE.HalfFloatType,
           depthBuffer: false,
         });
-        denoise.draw(renderer, tracer.target.texture, target, guide, filtered, variance.texture);
+        denoise.draw(renderer, tracer.target, target, guide, filtered);
         look.draw(renderer, filtered.texture);
-      } else denoise.draw(renderer, tracer.target.texture, target, guide, null, variance.texture);
+      } else denoise.draw(renderer, tracer.target, target, guide);
     } else look.draw(renderer, tracer.target.texture);
     check();
     const blob = await new Promise<Blob>((resolve, reject) =>
@@ -210,7 +215,7 @@ export async function renderSnapshot(
     else tracer?.dispose();
     disposeSnapshotGeometry?.();
     denoise.dispose();
-    variance.dispose();
+    reflections.dispose();
     guides.dispose();
     look.dispose();
     filtered?.dispose();

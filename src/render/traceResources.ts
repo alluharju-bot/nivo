@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import type { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { resetTraceMaterialIndices } from './traceMaterials';
+import { prepareLobeTargets } from './traceLobes';
 
 type TraceRenderer = {
   _primaryTarget: THREE.WebGLRenderTarget;
   _blendTargets: THREE.WebGLRenderTarget[];
   _blendQuad: { material: THREE.Material };
+  _compilePromise: Promise<unknown> | null;
   material: THREE.ShaderMaterial;
   setSize(width: number, height: number): void;
   dispose(): void;
@@ -23,6 +25,7 @@ type Internals = {
  * need depth, and its public dispose omits the low-resolution renderer and
  * material-owned textures. Never dispose the input scene's shared maps here. */
 export function traceResources(tracer: WebGLPathTracer) {
+  prepareLobeTargets(tracer);
   const internal = tracer as unknown as Internals;
   const renderers = [internal._pathTracer, internal._lowResPathTracer];
   // Three's WebGLArrayRenderTarget replaces its texture after construction;
@@ -59,35 +62,58 @@ export function traceResources(tracer: WebGLPathTracer) {
     dispose() {
       if (disposed) return;
       disposed = true;
-      const materials = new Set(renderers.map((r) => r.material));
-      tracer.dispose();
-      internal._lowResPathTracer.dispose();
-      for (const r of renderers) r._blendQuad.material.dispose();
-      for (const material of materials) {
-        for (const key of [
-          'bvh',
-          'attributesArray',
-          'materialIndexAttribute',
-          'materials',
-          'envMapInfo',
-          'stratifiedTexture',
-          'stratifiedOffsetTexture',
-        ])
-          material.uniforms[key].value.dispose();
-        material.uniforms.lights.value.tex.dispose();
-        for (const key of ['textures', 'iesProfiles']) {
-          const texture = material.uniforms[key].value;
-          const target = targetOf(texture);
-          if (target) {
-            target.fsQuad.material.dispose();
-            target.dispose();
-          } else texture.dispose();
+      // Finish outstanding shader compilation before deleting its programs.
+      // A cancelled preview may still have compileAsync polling in a timer.
+      // Releasing immediately can race the GPU driver's program queries.
+      const pending = renderers.flatMap((r) => (r._compilePromise ? [r._compilePromise] : []));
+      const release = () => {
+        const materials = new Set(renderers.map((r) => r.material));
+        // compileAsync may still be polling an earlier camera/define variant.
+        // Three deletes its program on material disposal; mark that poll ready
+        // instead of querying a deleted WebGLProgram on the next timer tick.
+        for (const material of materials) {
+          type Program = { program?: WebGLProgram; isReady(): boolean };
+          const programs = (
+            internal._renderer.properties.get(material) as {
+              programs?: Map<string, Program>;
+            }
+          ).programs;
+          for (const program of programs?.values() ?? []) {
+            const ready = program.isReady.bind(program);
+            program.isReady = () => !program.program || ready();
+          }
         }
-        material.dispose();
-      }
-      internal._internalBackground?.dispose();
-      internal._colorBackground?.dispose();
-      internal._generator.geometry.dispose();
+        tracer.dispose();
+        internal._lowResPathTracer.dispose();
+        for (const r of renderers) r._blendQuad.material.dispose();
+        for (const material of materials) {
+          for (const key of [
+            'bvh',
+            'attributesArray',
+            'materialIndexAttribute',
+            'materials',
+            'envMapInfo',
+            'stratifiedTexture',
+            'stratifiedOffsetTexture',
+          ])
+            material.uniforms[key].value.dispose();
+          material.uniforms.lights.value.tex.dispose();
+          for (const key of ['textures', 'iesProfiles']) {
+            const texture = material.uniforms[key].value;
+            const target = targetOf(texture);
+            if (target) {
+              target.fsQuad.material.dispose();
+              target.dispose();
+            } else texture.dispose();
+          }
+          material.dispose();
+        }
+        internal._internalBackground?.dispose();
+        internal._colorBackground?.dispose();
+        internal._generator.geometry.dispose();
+      };
+      if (pending.length) void Promise.allSettled(pending).then(release);
+      else release();
     },
   };
 }

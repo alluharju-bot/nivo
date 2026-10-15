@@ -1,5 +1,6 @@
 /** Interactive preview budget; export jobs retain their explicitly chosen size.
- * 3 MP keeps three RGBA32F accumulation targets below 144 MB, independent of DPR.
+ * 3 MP bounds lighting accumulators, guide images and shared filter scratch,
+ * independent of DPR. Opaque tracing leaves alpha fallback targets at 1×1.
  * Start slightly coarser than the old 800 px preview and grow at rest. */
 export const previewPixelBudget = 3_000_000;
 export function traceResolutions(width: number, height: number) {

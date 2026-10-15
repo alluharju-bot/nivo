@@ -3,6 +3,8 @@ import type { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { stableTraceNumerics } from './traceNumerics';
 import { stableTraceSamples } from './traceFireflies';
 import { importanceSampleLights } from './lightImportance';
+import { splitTraceLobes } from './traceLobes';
+import { adaptiveTraceSamples } from './traceAdaptive';
 
 /** Adapter for the pinned three-gpu-pathtracer 0.0.26 shader. The library samples
  * area lights with MIS, but adds mesh emission again when the same ray reaches
@@ -26,6 +28,28 @@ export function configureEmitterSampling(tracer: WebGLPathTracer, importance = t
   material.fragmentShader = stableTraceNumerics(material.fragmentShader);
   if (importance) material.fragmentShader = importanceSampleLights(material.fragmentShader);
   material.fragmentShader = stableTraceSamples(material.fragmentShader);
+  material.fragmentShader = splitTraceLobes(material.fragmentShader);
+  material.fragmentShader = adaptiveTraceSamples(material.fragmentShader);
+  material.uniforms.nivoAdaptive = { value: false };
+  material.uniforms.nivoNoiseVariance = { value: null };
+  material.uniforms.nivoBackgroundColor = { value: new THREE.Color() };
+  const background = (compile = true) => {
+    const color = tracer.scene?.background;
+    const solid = color instanceof THREE.Color ? 1 : 0;
+    if (solid) material.uniforms.nivoBackgroundColor.value.copy(color);
+    if (material.defines.NIVO_SOLID_BACKGROUND !== solid) {
+      material.defines.NIVO_SOLID_BACKGROUND = solid;
+      if (compile) material.needsUpdate = true;
+    }
+  };
+  // A solid background needs a vec3, not a texture unit. This leaves room for
+  // adaptive sampling on WebGL2 hardware with the minimum 16 texture units.
+  background(false);
+  const before = material.onBeforeRender.bind(material);
+  material.onBeforeRender = (...args) => {
+    background();
+    before(...args);
+  };
   // Integrate coverage within this pixel. The library's two-pixel-wide tent
   // footprint softens fine cabinet gaps and silhouettes even after convergence.
   const jitter =

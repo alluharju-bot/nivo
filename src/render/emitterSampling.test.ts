@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import * as PathTracing from 'three-gpu-pathtracer';
-import type { ShaderMaterial } from 'three';
+import { Color, DataTexture, type ShaderMaterial } from 'three';
 import { configureEmitterSampling } from './emitterSampling';
 
 it('integrates with the installed tracer shader and rejects incompatible upgrades', () => {
@@ -34,5 +34,31 @@ it('integrates with the installed tracer shader and rejects incompatible upgrade
     expect(() => configureEmitterSampling(tracer)).toThrow('valolaskennan versio');
   } finally {
     material.dispose();
+  }
+});
+
+it('compiles once for a solid background and updates its color without recompilation', () => {
+  const { PhysicalPathTracingMaterial } = PathTracing as unknown as {
+    PhysicalPathTracingMaterial: new () => ShaderMaterial;
+  };
+  const material = new PhysicalPathTracingMaterial(),
+    map = new DataTexture();
+  material.uniforms.backgroundMap.value = map;
+  let compilations = 0;
+  material.addEventListener('recompilation' as 'dispose', () => compilations++);
+  const scene = { background: new Color('#aabbcc') };
+  const tracer = { scene, _pathTracer: { material } } as unknown as PathTracing.WebGLPathTracer;
+  try {
+    configureEmitterSampling(tracer);
+    (material as unknown as { onBeforeRender: () => void }).onBeforeRender();
+    expect(compilations).toBe(1);
+    expect(material.defines.NIVO_SOLID_BACKGROUND).toBe(1);
+    scene.background.set('#bbccdd');
+    (material as unknown as { onBeforeRender: () => void }).onBeforeRender();
+    expect(compilations).toBe(1);
+    expect(material.uniforms.nivoBackgroundColor.value.equals(scene.background)).toBe(true);
+  } finally {
+    material.dispose();
+    map.dispose();
   }
 });

@@ -72,7 +72,7 @@ export async function exerciseTraceEdges() {
             sobolPixelIndex=(uint(gl_FragCoord.x)<<16)|uint(gl_FragCoord.y); sobolPathIndex=uint(seed);
             Ray ray=getCameraRay(); vec2 p=(ray.origin.xy+1.0)*48.0;
             float c=p.x-0.37*p.y-30.3>0.0?0.8:0.2;
-            gl_FragColor=vec4(vec3(c),opacity);}`;
+            gl_FragColor=vec4(vec3(c),opacity); nivoDiffuseOutput=vec4(0.0,0.0,0.0,opacity);}`;
         material.needsUpdate = true;
         while (tracer.samples < 256) {
           await new Promise<void>((r) => requestAnimationFrame(() => r()));
