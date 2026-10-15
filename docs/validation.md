@@ -31,6 +31,9 @@ Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
   kuvasta; myös pienen osan aiempi 40 mm:n vähimmäissäde poistettu.
 - Lopullisen tuotantobuildin tablettiemulointi: **37 hyväksyttyä**. Mukana
   samat kamera-/geometria-/suuntatestit sekä kosketusorbit ja nipistyszoom.
+- Viimeisen kahvakoon ja 5°/Shift-kierron neljä tarkistusta läpäisivät desktopin
+  ja tabletin. CI:n kahdeksan päätypursotuksen NURBS-testierä kesti 64,8 s;
+  vain tämän testin aikaraja nostettiin 60 → 120 s, väitteet säilyivät.
 - Rajat: aiemmin typistetystä leikkausmuodosta ei voi palauttaa kadonnutta
   piirrosta automaattisesti. Pyöristysten jatkaminen vaatii edelleen
   yksiselitteisen vastaavuuden; epäselvä muutos säilyttää alkuperäisen osan.

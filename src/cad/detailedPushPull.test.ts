@@ -391,4 +391,6 @@ it('resizes both ends of a spline cylinder with five perimeter cuts before and a
       }
     expect(JSON.stringify(body)).toBe(before);
   }
-}, 60000);
+  // Includes eight end edits, two fillet layers and affine conversion. The hosted
+  // Linux runner takes ~65 s for this batch; keep its assertions and allow headroom.
+}, 120000);
