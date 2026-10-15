@@ -32,6 +32,8 @@ export interface CadEdge {
   end: Vec3;
   from: VertexAnchor;
   to: VertexAnchor;
+  /** Adjacent CAD faces; exact curved anchors can lie outside display triangles. */
+  adjacentFaces?: FaceRef[];
   /** Exact supporting circle for a short tessellated arc. */
   circle?: { center: Vec3; normal: Vec3; radius: number };
 }

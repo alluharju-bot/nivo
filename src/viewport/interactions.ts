@@ -3905,6 +3905,7 @@ export function installInteractions({
       props.tool === 'circle' ||
       (props.tool === 'pen' && !props.penPoints.length)
     ) {
+      penPressPoint = undefined;
       const picked = sketchStartAt(event);
       if (picked) {
         drawingTarget = picked.target;
@@ -3939,6 +3940,26 @@ export function installInteractions({
           return;
         }
       }
+    }
+    if (props.tool === 'pen') {
+      // Hover already resolves the actual sketch plane / exact reference. Do not
+      // require an additional hit on the global origin plane: when that plane is
+      // behind the camera it used to silently discard every otherwise valid click.
+      const point = props.penPoints.length ? updatePen(event) : penPressPoint;
+      if (!point) return;
+      props.onStart();
+      drag = {
+        start: point,
+        origin: point,
+        screenX: event.clientX,
+        screenY: event.clientY,
+        height: 0,
+        plane: drawingPlane ? normalPlane(drawingPlane.normal) : workPlane(),
+        second: false,
+      };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.focus({ preventScroll: true });
+      return;
     }
     const moveHit = props.tool === 'move' ? faceAt(event) : undefined;
     const moveSnap = props.tool === 'move' ? moveSnapAt(event, true) : undefined;
@@ -4192,12 +4213,18 @@ export function installInteractions({
       rebased = true;
     }
     if (props.tool === 'pen' && props.penPoints.length && lastPenPoint && drawingPlane) {
-      const direction = props.axis ? axisVector(props.axis) : shiftDirection;
-      const point = direction
-        ? linePoint(event, props.penPoints.at(-1)!, direction)
-        : framePoint(event, drawingPlane);
-      if (point) penPointerOffset = sub(lastPenPoint, point);
-      rebased = true;
+      const start = props.penPoints.at(-1)!;
+      // There is no preview segment to preserve immediately after placing a
+      // point. Rebasing that zero-length segment swallowed the first direction
+      // after orbit / a view change and prevented typed lengths from starting.
+      if (Math.hypot(...sub(lastPenPoint, start)) > 1e-8) {
+        const direction = props.axis ? axisVector(props.axis) : shiftDirection;
+        const point = direction
+          ? linePoint(event, start, direction)
+          : framePoint(event, drawingPlane);
+        if (point) penPointerOffset = sub(lastPenPoint, point);
+        rebased = true;
+      } else penPointerOffset = undefined;
     }
     if (rotationDrag && props.rotation) {
       const point = framePoint(event, sketchFrame(rotationDrag.pivot, rotationDrag.axis));

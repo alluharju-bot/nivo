@@ -3,7 +3,74 @@ import { readFileSync } from 'node:fs';
 import initOpenCascade from 'replicad-opencascadejs';
 import { setOC, drawCircle, type Sketch } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
-import { makeBody, makePolygonBody, mergeBodies } from '../model/project';
+import {
+  makeBody,
+  makePolygonBody,
+  makeProfileBody,
+  mergeBodies,
+  type Vec3,
+} from '../model/project';
+import { sketchFrame, fromUV } from '../model/sketch';
+import { contextualFace } from '../viewport/picking';
+
+it('recognizes the exact circular rim as its planar face on both sides of a sheet', () => {
+  const frame = sketchFrame([6000, 5000, 800], [0, -1, 0]);
+  const body = makeProfileBody({ kind: 'circle', radius: 200 }, frame, 0);
+  const shape = createShape(body);
+  try {
+    const mesh = meshBody(body, shape);
+    for (const normal of [
+      [0, -1, 0],
+      [0, 1, 0],
+    ] as Vec3[])
+      for (const uv of [
+        [120, 160],
+        [200, 0],
+        [0, 200],
+        [-120, -160],
+      ] as [number, number][])
+        expect(contextualFace(mesh, fromUV(uv, frame), normal)?.ref).toBe(mesh.faces[0].ref);
+    expect(contextualFace(mesh, fromUV([220, 0], frame), [0, -1, 0])).toBeUndefined();
+  } finally {
+    shape.delete();
+  }
+});
+
+it('keeps circular rim ownership on the correct split face and after a rigid rotation', async () => {
+  const { penPath, splitWithPath } = await import('./paths');
+  const { rotateMesh } = await import('./rotateMesh');
+  const frame = sketchFrame([0, 0, 0]);
+  const body = makeProfileBody({ kind: 'circle', radius: 200 }, frame, 0);
+  const shape = createShape(body);
+  try {
+    const original = meshBody(body, shape);
+    const split = splitWithPath(
+      body,
+      original.faces[0].ref,
+      penPath(
+        [
+          [-200, 0, 0],
+          [200, 0, 0],
+        ],
+        'Halkaisu',
+      ),
+    );
+    const divided = createShape(split.body);
+    try {
+      const mesh = meshBody(split.body, divided);
+      expect(mesh.faces).toHaveLength(2);
+      expect(contextualFace(mesh, [120, 160, 0], [0, 0, 1], [0, 100, 0])).toBeDefined();
+      expect(contextualFace(mesh, [120, 160, 0], [0, 0, 1], [120, -160, 0])).toBeUndefined();
+      const rotated = rotateMesh(mesh, split.body, [0, 0, 0], [1, 0, 0], 90);
+      expect(contextualFace(rotated, [120, 0, 160], [0, -1, 0], [0, 0, 100])).toBeDefined();
+      expect(contextualFace(rotated, [120, 0, 160], [0, -1, 0], [120, 0, -160])).toBeUndefined();
+    } finally {
+      divided.delete();
+    }
+  } finally {
+    shape.delete();
+  }
+});
 
 beforeAll(async () => {
   setOC(

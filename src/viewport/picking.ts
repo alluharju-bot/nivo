@@ -3,6 +3,7 @@ import type { BodyMesh } from '../cad/protocol';
 import { dot, sub } from '../model/geometry';
 import { Camera, Matrix4, Ray, Triangle, Vector3, Vector4 } from 'three';
 import type { CadFace } from '../cad/protocol';
+import { circleLineIntersections } from '../model/curveSnap';
 
 export function cylinderHit(ray: Ray, surface: NonNullable<CadFace['cylinder']>, near: Vector3) {
   const axis = new Vector3(...surface.axis),
@@ -90,6 +91,28 @@ export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3, 
   const triangle = new Triangle(a, b, c),
     closest = new Vector3();
   const end = through && new Vector3(...through);
+  // CAD circles are exact; the display mesh uses inscribed straight chords.
+  // Use topological ownership for an exact arc hit instead of inflating the
+  // whole face's tolerance (which would also accept nearby holes / other faces).
+  const arcFaces = (point: Vec3) =>
+    new Set(
+      (mesh.curveEdges ?? []).flatMap((edge) => {
+        if (!edge.circle || !edge.adjacentFaces?.length) return [];
+        const delta = sub(point, edge.circle.center);
+        if (
+          Math.abs(dot(delta, edge.circle.normal)) > tolerance ||
+          Math.abs(Math.hypot(...delta) - edge.circle.radius) > tolerance
+        )
+          return [];
+        return circleLineIntersections([edge.circle.center, point], edge).some(
+          (hit) => Math.hypot(...sub(hit, point)) <= tolerance,
+        )
+          ? edge.adjacentFaces
+          : [];
+      }),
+    );
+  const startArcs = arcFaces(point),
+    endArcs = through ? arcFaces(through) : undefined;
   const candidates = mesh.faces
     .flatMap((face) => {
       if (
@@ -98,8 +121,8 @@ export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3, 
         (through && Math.abs(dot(sub(through, face.center), face.normal)) > tolerance)
       )
         return [];
-      let contains = false,
-        containsEnd = !end,
+      let contains = startArcs.has(face.ref),
+        containsEnd = !end || !!endArcs?.has(face.ref),
         area = 0;
       for (let i = face.start; i < face.start + face.count; i += 3) {
         a.fromArray(mesh.vertices, mesh.triangles[i] * 3);
@@ -115,7 +138,16 @@ export function contextualFace(mesh: BodyMesh, point: Vec3, towardCamera: Vec3, 
           containsEnd = true;
       }
       return contains && containsEnd
-        ? [{ face, area, facing: dot(face.normal, towardCamera) }]
+        ? [
+            {
+              face,
+              area,
+              facing:
+                mesh.volume === 0
+                  ? Math.abs(dot(face.normal, towardCamera))
+                  : dot(face.normal, towardCamera),
+            },
+          ]
         : [];
     })
     .filter((c) => c.facing > 0.03);

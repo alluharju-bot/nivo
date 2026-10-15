@@ -297,6 +297,20 @@ export function meshBody(
     center.delete();
     return result;
   });
+  const edgeFaces = new Map<number, FaceRef[]>();
+  for (const face of faces) {
+    if (!face.planar) continue;
+    const edges = cadFaces[face.index].edges;
+    try {
+      for (const edge of edges) {
+        const refs = edgeFaces.get(edge.hashCode) ?? [];
+        refs.push(face.ref);
+        edgeFaces.set(edge.hashCode, refs);
+      }
+    } finally {
+      edges.forEach((edge) => edge.delete());
+    }
+  }
   cadFaces.forEach((f) => f.delete());
   const verticesCAD: BodyMesh['verticesCAD'] = [];
   const midpointsCAD: Vec3[] = [];
@@ -409,6 +423,7 @@ export function meshBody(
               end,
               from: anchor(start),
               to: anchor(end),
+              adjacentFaces: edgeFaces.get(edge.hashCode),
               ...(circle ? { circle } : {}),
             });
         }

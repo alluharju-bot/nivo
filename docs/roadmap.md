@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.46.3 — kynän aloitus ja ympyrän piirto­taso
+
+- Kynän pisteet hyväksytään sen omalta piirto­tasolta tai tarkasta
+  tartunnasta. Erillinen origotason tarkistus ei enää hylkää klikkauksia,
+  kun kamera on mallin lähellä ja origotaso kameran takana. Sama korjaus
+  koskee aloitusta ja jatkopisteitä sekä tavallista näkymää että osan muokkausta.
+- Tarkka ympyrän kaaripiste tunnistaa oman CAD-pintansa, vaikka se jää
+  näyttökolmioiden suorien jänteiden ulkopuolelle. Suorakulmion ja kynän
+  aloitus säilyy oikealla pinnalla; tartuntatoleranssia ei levennetä reikiin
+  tai viereisiin pintoihin. Paksuudettomalle pinnalle voi aloittaa kummaltakin puolelta.
+- Kameran kääntö heti kynän alkupisteen jälkeen ei enää niele seuraavaa
+  hiiren liikettä ja estä kirjoitetun pituuden käyttöä. Olemassa olevan
+  luonnosviivan säilyttäminen kameran liikkeen aikana jatkuu ennallaan.
+- Regressiot: ulospäin jatkuva viiva ympyrästä, akselilukitus, perspektiivissä
+  kirjoitettu mitta, Peru/Palauta, suorakulmio kaarireunasta, jaetun kaaren
+  pintaomistus sekä kameran käännön jälkeinen piirto.
+
 ## V0.46.2 — geelit, aerogeeli ja muovit
 
 - 14 uutta visuaalista esiasetusta: kirkas, meripihkanvärinen ja maitomainen geeli,

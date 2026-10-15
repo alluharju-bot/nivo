@@ -43,6 +43,7 @@ export function rotateMesh(
       end,
       from: vertex(start).anchor,
       to: vertex(end).anchor,
+      adjacentFaces: e.adjacentFaces?.map((ref) => refs.get(ref)!),
       circle: e.circle
         ? { ...e.circle, center: point(e.circle.center), normal: normal(e.circle.normal) }
         : undefined,

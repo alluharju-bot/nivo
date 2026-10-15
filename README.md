@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.46.3** korjaa kynän klikkaukset lähellä mallia: aloitus ja
+jatkopisteet käyttävät piirrettävää tasoa myös origon jäädessä kameran taakse.
+Ympyrän tarkka kaarireuna tunnistetaan osan pintaan kuuluvaksi myös
+suorakulmiota aloitettaessa. Kynän suunta löytyy myös heti kameran käännön jälkeen.
+
 Versio **0.46.2** lisää geelit, aerogeelin pinta-arvion ja kymmenen uutta
 muovimateriaalia. Materiaalin **Läpäisy ja sisäinen sävy** -säädöt toimivat
 maalaustyökalussa, osapaneelissa ja renderissä. Sisäinen sävy voimistuu
