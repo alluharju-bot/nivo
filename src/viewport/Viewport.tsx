@@ -1,3 +1,4 @@
+import { installGeometryStage } from './GeometryStage';
 import { createLocateHighlight } from './locateHighlight';
 import { scalingPreview } from './scalingPreview';
 import { createHoldLabels } from './holdLabels';
@@ -55,6 +56,7 @@ import { createTriangleIndex } from './triangleIndex';
 import { createRenderer, watchGraphicsContext, contextLostMessage } from './graphicsContext';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
+  geometry: () => void;
   capture: () => Promise<Blob>;
   color: () => void;
   texture: () => void;
@@ -133,6 +135,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   ];
   let navigation = installCameraNavigation(controls, renderer.domElement, navigationSurfaces);
   let viewCube: ReturnType<typeof createViewCube> | undefined;
+  let geometryEditor: ReturnType<typeof installGeometryStage> | undefined;
+  let editingGeometry: Props['geometryEditing'];
   let textureEditor: ReturnType<typeof installTextureEditing> | undefined;
   let reportedView: View | undefined;
   const labels: { element: HTMLDivElement; point: THREE.Vector3; xray: boolean }[] = [];
@@ -207,7 +211,21 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         Math.abs(p.z) <= 1 && (marker.userData.xray || !labelOccluded?.(marker.position));
     }
     scalePreview.resize(camera, container.clientHeight);
+    geometryEditor?.cameraChanged();
+    const hidden: { object: THREE.Object3D; visible: boolean }[] = [];
+    const editingNode =
+      current().geometryEditing && bodyNodes.get(current().geometryEditing!.bodyId);
+    if (geometryEditor && editingNode)
+      for (const object of [editingNode.mesh, editingNode.outline, editingNode.boundary]) {
+        if (object) {
+          hidden.push({ object, visible: object.visible });
+          object.visible = false;
+        }
+      }
     renderer.render(scene, camera);
+    hidden.forEach(({ object, visible }) => {
+      object.visible = visible;
+    });
     viewCube?.update();
     const facing = camera.getWorldDirection(new THREE.Vector3()).negate();
     const actualView: View | undefined =
@@ -1696,10 +1714,33 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     bodies,
     guides,
     camera: () => camera,
-    current,
+    current: () => (current().geometryActive ? { ...current(), modalOpen: true } : current()),
     render,
   });
+  const syncGeometry = () => {
+    const next = current().geometryEditing;
+    if (editingGeometry?.geometry !== next?.geometry || editingGeometry?.bodyId !== next?.bodyId) {
+      geometryEditor?.dispose();
+      geometryEditor = undefined;
+      if (next)
+        geometryEditor = installGeometryStage({
+          container,
+          canvas: renderer.domElement,
+          scene,
+          camera: () => camera,
+          controls: () => controls,
+          current: () => current().geometryEditing!,
+          render,
+          referenceAt: interactions.pickReferencePoint,
+        });
+    }
+    editingGeometry = next;
+    geometryEditor?.update();
+    renderer.domElement.dataset.geometryEditing = next?.bodyId ?? '';
+    render();
+  };
   const result: SceneApi = {
+    geometry: syncGeometry,
     capture: async () => {
       await materialLibrary.ready();
       if (disposed) throw new Error('Mallinnusnäkymä on suljettu.');
@@ -1709,6 +1750,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           pickPreview,
           locateHighlight.group,
           scene.getObjectByName('interaction-overlays'),
+          scene.getObjectByName('geometry-editing-overlays'),
           scene.getObjectByName('section-handles'),
         ]
           .filter((object): object is THREE.Object3D => !!object)
@@ -1749,6 +1791,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     },
     dispose() {
       disposed = true;
+      geometryEditor?.dispose();
       cancelAnimationFrame(renderFrame);
       observer.disconnect();
       navigation.dispose();
@@ -1867,6 +1910,10 @@ export function Viewport(props: Props) {
     props.editingTexture?.id,
     props.colorPreview?.ids.join(','),
   ]);
+  useEffect(() => {
+    api.current?.geometry();
+    api.current?.interactionSync();
+  }, [props.geometryEditing, props.geometryActive]);
   useEffect(() => api.current?.color(), [props.colorPreview]);
   useEffect(() => api.current?.texture(), [props.editingTexture]);
   useEffect(

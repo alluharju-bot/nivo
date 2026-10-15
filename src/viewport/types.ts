@@ -81,6 +81,8 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  geometryEditing?: import('./GeometryStage').GeometryStageProps;
+  geometryActive?: boolean;
   /** Actual Hold locks; body.locked also includes temporary edit-context guards. */
   heldSelectionIds?: string[];
   scaling?: Scaling;

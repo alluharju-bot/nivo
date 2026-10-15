@@ -4,6 +4,41 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.46.0 — geometrian muokkaus mallinäkymässä
+
+- Koko yksikkö-/CAD-testistö: **628 hyväksyttyä, 4 ohitettua**, 118 hyväksyttyä
+  testitiedostoa. Uudet mittamuutosten testit kattavat ankkuroinnin, vinon
+  piirtotason, ympyrän halkaisijan ja pursotuksen, reiän ja pyöristyssäteen
+  säilymisen, linkitykset, Holdin, epäselvän päädyn hylkäyksen, pintamateriaalit
+  sekä mittapisteiden viitteet toistuvissa muutoksissa.
+- Tuotantobuildista geometriatyötilan **23 selaintapausta sekä desktop- että
+  tablettiprofiilissa** eri ajoissa, lisäksi **24 nykyisten työkalujen
+  desktop-tapausta**. Paksuudettoman pinnan reuna siirtyy numerolla ja vedolla;
+  vain valittu geometria muuttuu. M/R/L, X/Y/Z, alue- ja Shift-valinta,
+  poimittu ankkuri, akselikahva, ulkopuolinen viite, ruudukon ohittava tarkka
+  Shift-viite, luonnoksen peruminen sekä yhteinen projektihistoria tarkistettu.
+- Uudet tapaukset tarkistavat myös työkaluvaihdon hyväksynnän/virheen,
+  ulkopuolisen Cut-leikkurin poiminnan ja leikkauksen perumisen, linkitetyt
+  muutokset ja lukitun kopion uniikiksi tekemisen, eksplisiittisen verkkokopion,
+  tallennuksen/uudelleenavauksen ja moduulin latausvirheen. Kamera säilyy
+  mittatyökalun ja geometriavalinnan välillä; näkymässä on yksi canvas.
+  Vedon aikana päämallin CAD-rakennuslaskuri ei kasva.
+- Nopea näppäinsyöttö paljasti asynkronisen fokusoinnin hukkaavan ensimmäisiä
+  merkkejä. Kentän ja tarvittaessa piilotetun paneelin aktivointi on nyt
+  synkroninen; −12 mm toimii molemmissa profiileissa. Keskeneräinen muutos
+  estää projektinvaihdon hävittämästä luonnosta, ja hyväksymisen jälkeen
+  uusi projekti tyhjentää geometriakontekstin.
+- Tavallinen osamuokkaus, kynällä tehtävä pintajako ja kumitus, pyöristetyn
+  levyn Push/Pull, Offset, tasopinnan kehän pursotus, skaalaus sekä Hold
+  läpäisivät aiemmat testinsä. Geometriatyötilan pageerror-tarkistukset läpäisty.
+- Desktopin ja 390 × 844 -puhelinleveyden kuvat tarkastettu. Puhelimen
+  työtilapalkki ja paneelin sulkeminen eivät peitä toisiaan. Tablettiprofiili
+  ei todista fyysisiä monikosketuseleitä tai Safarin toimintaa.
+- TypeScript, muotoilu, lisenssit ja `/nivo/`-tuotantobuild hyväksytty.
+  Viten aiemmat suurten pakettien ja materiaalimoduulin tuonnin huomautukset
+  säilyvät. Testit eivät takaa kaikkien kaarevien muotojen vapaata CAD-muokkausta
+  tai täyttä parametripiirteiden uudelleenlaskentaa; nämä rajat ovat roadmapissa.
+
 ## V0.45.0 — erillinen geometrian muokkaus
 
 - Koko yksikkötestistö: **618 hyväksyttyä, 4 ohitettua** testiä, 117 hyväksyttyä

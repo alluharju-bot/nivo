@@ -1,3 +1,4 @@
+import { changeDimension } from './editableDimensions';
 import { scaleBodies } from './scaling';
 import { prepareGeometry, commitGeometry } from './geometryEditing';
 import { sphereBody, bezierPath, knifeBodies } from './modeling';
@@ -46,6 +47,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
     try {
       await initialized;
       if (request.type === 'probe') reply.result = runProbe();
+      else if (request.type === 'change-dimension')
+        reply.result = changeDimension(request.body, request.key, request.value);
       else if (request.type === 'prepare-geometry') reply.result = prepareGeometry(request.body);
       else if (request.type === 'commit-geometry')
         reply.result = commitGeometry(request.body, request.points, request.meshCopy);

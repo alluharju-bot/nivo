@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react';
 import { Quaternion, Vector3 } from 'three';
-import { Move, RotateCw, Scaling, Undo2, Redo2, Check, X, Crosshair } from 'lucide-react';
-import { SelectionDialog } from './SelectionDialog';
-import { GeometryStage } from '../viewport/GeometryStage';
+import { Crosshair } from 'lucide-react';
+import type { GeometryStageProps } from '../viewport/GeometryStage';
 import {
   geometryMatrix,
   selectionCenter,
@@ -15,36 +22,47 @@ import { parseLength } from '../model/units';
 import type { Body, Vec3 } from '../model/project';
 import type { CadClient } from '../cad/client';
 
-const defaults = (operation: GeometryOperation) =>
-  operation === 'scale' ? ['100', '100', '100'] : ['0', '0', '0'];
-const identity: [number, number, number, number] = [0, 0, 0, 1];
-export function GeometryEditor({
-  body,
-  cad,
-  linkedCount,
-  lockedCopies,
-  busy,
-  error,
-  onCommit,
-  onClose,
-}: {
+export interface GeometrySession {
+  pending: boolean;
+  finish: () => Promise<boolean>;
+  cancel: () => boolean;
+}
+interface Props {
   body: Body;
   cad: CadClient;
   linkedCount: number;
   lockedCopies: number;
   busy: boolean;
   error: string;
+  selection: GeometrySelection;
+  operation: GeometryOperation;
+  keyboardInput: boolean;
+  onInput: () => void;
+  gridStep: number;
+  gridSnap: boolean;
+  session: MutableRefObject<GeometrySession | undefined>;
+  onStage: (props?: GeometryStageProps) => void;
   onCommit: (points: Vec3[], meshCopy: boolean, unique: boolean) => Promise<boolean>;
-  onClose: () => void;
-}) {
-  const [data, setData] = useState<EditableGeometry>();
+}
+const defaults = (operation: GeometryOperation) =>
+  operation === 'scale' ? ['100', '100', '100'] : ['0', '0', '0'];
+const identity: [number, number, number, number] = [0, 0, 0, 1];
+export function GeometryEditor(props: Props) {
+  const { body, cad, session, onStage } = props;
+  const [prepared, setPrepared] = useState<{
+    body: Body;
+    geometry: EditableGeometry;
+    serial: number;
+  }>();
   const [loadError, setLoadError] = useState('');
+  const remembered = useRef<Vec3[]>([]);
   useEffect(() => {
     let current = true;
+    setLoadError('');
     void cad
       .prepareGeometry(body)
-      .then((g) => {
-        if (current) setData(g);
+      .then((geometry) => {
+        if (current) setPrepared((old) => ({ body, geometry, serial: (old?.serial ?? 0) + 1 }));
       })
       .catch((e: Error) => {
         if (current) setLoadError(e.message);
@@ -53,28 +71,26 @@ export function GeometryEditor({
       current = false;
     };
   }, [body, cad]);
+  useEffect(
+    () => () => {
+      session.current = undefined;
+      onStage(undefined);
+    },
+    [session, onStage],
+  );
+  if (prepared?.body !== body)
+    return (
+      <section className="precision-settings" aria-label="Geometriamuutoksen asetukset">
+        <p role={loadError ? 'alert' : 'status'}>{loadError || 'Valmistellaan geometriaa…'}</p>
+      </section>
+    );
   return (
-    <SelectionDialog title="Geometrian muokkaus" onClose={onClose}>
-      {data ? (
-        <GeometryEditorReady
-          body={body}
-          geometry={data}
-          linkedCount={linkedCount}
-          lockedCopies={lockedCopies}
-          busy={busy}
-          error={error}
-          onCommit={onCommit}
-          onClose={onClose}
-        />
-      ) : (
-        <div className="geometry-editor-loading">
-          <p role={loadError ? 'alert' : 'status'}>
-            {loadError || 'Valmistellaan muokattavaa geometriaa…'}
-          </p>
-          <button onClick={onClose}>Sulje</button>
-        </div>
-      )}
-    </SelectionDialog>
+    <GeometryEditorReady
+      key={prepared.serial}
+      {...props}
+      geometry={prepared.geometry}
+      remembered={remembered}
+    />
   );
 }
 function GeometryEditorReady({
@@ -84,45 +100,54 @@ function GeometryEditorReady({
   lockedCopies,
   busy,
   error,
+  selection: mode,
+  operation,
+  keyboardInput,
+  onInput,
+  gridStep,
+  gridSnap,
+  session,
+  onStage,
   onCommit,
-  onClose,
-}: Omit<Parameters<typeof GeometryEditor>[0], 'cad'> & { geometry: EditableGeometry }) {
+  remembered,
+}: Props & { geometry: EditableGeometry; remembered: MutableRefObject<Vec3[]> }) {
   const meshCopy = !g.exact && body.feature.type !== 'mesh';
   const [copyAccepted, setCopyAccepted] = useState(false),
     [unique, setUnique] = useState(false);
-  const [history, setHistory] = useState<Vec3[][]>([g.points]),
-    [historyIndex, setHistoryIndex] = useState(0);
-  const [selected, setSelected] = useState<number[]>([]),
-    [mode, setMode] = useState<GeometrySelection>('points');
-  const [operation, setOperation] = useState<GeometryOperation>('move'),
-    [values, setValues] = useState<string[]>(defaults('move'));
-  const [axes, setAxes] = useState<[boolean, boolean, boolean]>([true, true, true]),
-    [uniform, setUniform] = useState(true);
-  const [local, setLocal] = useState(false),
-    [allEdges, setAllEdges] = useState(false),
-    [xray, setXray] = useState(false);
+  const [selected, setSelected] = useState<number[]>(() =>
+    g.points.flatMap((p, i) =>
+      remembered.current.some((q) => Math.hypot(...p.map((n, k) => n - q[k])) < 1e-6) ? [i] : [],
+    ),
+  );
+  const [values, setValues] = useState(defaults(operation));
+  const [axes, setAxes] = useState<[boolean, boolean, boolean]>([true, true, true]);
+  const [uniform, setUniform] = useState(true),
+    [local, setLocal] = useState(false),
+    [xray, setXray] = useState(false),
+    [allEdges, setAllEdges] = useState(false);
   const [customPivot, setCustomPivot] = useState<Vec3>(),
     [picking, setPicking] = useState<'pivot' | 'reference'>();
   const [drag, setDrag] = useState<Vec3[]>(),
     [stageError, setStageError] = useState('');
-  const [view, setView] = useState<{ id: number; kind: 'fit' | 'top' | 'front' | 'right' | 'iso' }>(
-    { id: 0, kind: 'fit' },
-  );
-  const [grid, setGrid] = useState(false);
-  const base = history[historyIndex];
+  const committing = useRef(false);
+  const [cancelToken, setCancelToken] = useState(0);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const base = g.points;
   const frame = local
     ? (body.textureFrame?.rotation ?? body.component?.rotation ?? identity)
     : identity;
   const pivot = customPivot ?? selectionCenter(base, selected);
+  const ready = !meshCopy || copyAccepted;
   const numeric = useMemo(() => {
     try {
       const v = values.map((s, i) => {
         if (!axes[i]) return operation === 'scale' ? 1 : 0;
         if (operation === 'move') return parseLength(s.trim() || '0', true, true);
-        const text = (operation === 'scale' && uniform ? values[0] : s)
-          .replace(',', '.')
-          .replace(/[°%]/g, '')
-          .trim();
+        const text =
+          (operation === 'scale' && uniform ? values[0] : s)
+            .replace(',', '.')
+            .replace(/[°%]/g, '')
+            .trim() || '0';
         if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) throw new Error('Anna mitat numeroina.');
         return Number(text) / (operation === 'scale' ? 100 : 1);
       }) as Vec3;
@@ -135,24 +160,159 @@ function GeometryEditorReady({
     }
   }, [base, selected, values, axes, operation, uniform, pivot.join(','), frame.join(',')]);
   const points = drag ?? numeric.points;
-  const changed = points.some((p, i) => p.some((n, k) => Math.abs(n - g.points[i][k]) > 1e-8));
-  const pending = points.some((p, i) => p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8));
-  const errorText = stageError || numeric.error || error;
-  const resetValues = () => {
+  const changed = points.some((p, i) => p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8));
+  const pending = changed || !!numeric.error;
+  const reset = () => {
+    setCancelToken((n) => n + 1);
     setValues(defaults(operation));
     setDrag(undefined);
-  };
-  const bake = (next = points) => {
-    if (next.some((p, i) => p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8))) {
-      const stack = [...history.slice(0, historyIndex + 1), next].slice(-31);
-      setHistory(stack);
-      setHistoryIndex(stack.length - 1);
-    }
-    resetValues();
     setStageError('');
+    setPicking(undefined);
   };
+  const cancel = () => {
+    if (picking) {
+      setPicking(undefined);
+      return true;
+    }
+    if (pending || stageError) {
+      reset();
+      return true;
+    }
+    if (selected.length) {
+      setSelected([]);
+      remembered.current = [];
+      return true;
+    }
+    return false;
+  };
+  const finish = async (next = points) => {
+    const hasChanges = next.some((p, i) => p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8));
+    if (numeric.error) return false;
+    if (!hasChanges) return true;
+    if (!ready || busy || committing.current || (lockedCopies && !unique && !meshCopy))
+      return false;
+    committing.current = true;
+    remembered.current = selected.map((i) => next[i]);
+    try {
+      return await onCommit(next, meshCopy, unique);
+    } finally {
+      committing.current = false;
+    }
+  };
+  const live = useRef({
+    finish,
+    cancel,
+    pending,
+    busy,
+    picking,
+    keyboardInput,
+    onInput,
+    selected,
+    axes,
+    values,
+    operation,
+    uniform,
+  });
+  live.current = {
+    finish,
+    cancel,
+    pending,
+    busy,
+    picking,
+    keyboardInput,
+    onInput,
+    selected,
+    axes,
+    values,
+    operation,
+    uniform,
+  };
+  useLayoutEffect(() => {
+    session.current = {
+      pending,
+      finish: () => live.current.finish(),
+      cancel: () => live.current.cancel(),
+    };
+    return () => {
+      session.current = undefined;
+    };
+  }, [session, pending]);
+  useEffect(() => {
+    reset();
+  }, [operation]);
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (live.current.busy || event.defaultPrevented) return;
+      const target = event.target as HTMLElement;
+      const text = target.closest('input,select,textarea,[contenteditable]');
+      const key = event.key.toLowerCase();
+      if (key === 'escape' && live.current.cancel()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      } else if (key === 'enter' && !text && !target.closest('button,a,summary')) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        void live.current.finish();
+      } else if ((event.ctrlKey || event.metaKey) && key === 'z' && !text && live.current.pending) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!event.shiftKey) live.current.cancel();
+      } else if (
+        !text &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        live.current.keyboardInput &&
+        /^[\d.,+\-]$/.test(key)
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const state = live.current;
+        if (!state.selected.length) {
+          setStageError('Valitse ensin piste, reuna tai pinta.');
+          return;
+        }
+        const active = state.axes.flatMap((on, i) => (on ? [i] : []));
+        const index =
+          state.operation === 'scale' && state.uniform
+            ? 0
+            : active.sort(
+                (a, b) => Math.abs(Number(state.values[b])) - Math.abs(Number(state.values[a])),
+              )[0];
+        if (index === undefined) return;
+        const value =
+          state.operation === 'move' && Number(state.values[index]) < 0 && /^[\d.,]$/.test(key)
+            ? `-${key}`
+            : key;
+        flushSync(() => {
+          state.onInput();
+          setCancelToken((n) => n + 1);
+          setDrag(undefined);
+          setValues((old) => old.map((v, i) => (i === index ? value : v)));
+        });
+        const input = inputRefs.current[index];
+        input?.focus();
+        input?.setSelectionRange(value.length, value.length);
+      } else if (
+        !text &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        ['x', 'y', 'z'].includes(key)
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setAxes([key === 'x', key === 'y', key === 'z']);
+      }
+    };
+    window.addEventListener('keydown', keydown, true);
+    return () => window.removeEventListener('keydown', keydown, true);
+  }, []);
   const select = (ids: number[], extend: boolean) => {
-    if (pending && !numeric.error) bake();
+    if (pending) {
+      setStageError('Hyväksy muutos Enterillä tai peru Escillä ennen valinnan vaihtamista.');
+      return;
+    }
     setSelected((old) =>
       extend
         ? ids.every((i) => old.includes(i))
@@ -161,39 +321,79 @@ function GeometryEditorReady({
         : ids,
     );
   };
-  const switchOperation = (next: GeometryOperation) => {
-    if (pending && !numeric.error) bake();
-    setOperation(next);
-    setValues(defaults(next));
-    setPicking(undefined);
-  };
-  const undo = () => {
-    if (pending) {
-      resetValues();
-      return;
-    }
-    setHistoryIndex((i) => Math.max(0, i - 1));
-    setStageError('');
-  };
-  const redo = () => {
-    resetValues();
-    setHistoryIndex((i) => Math.min(history.length - 1, i + 1));
-    setStageError('');
-  };
   const pick = (point: Vec3) => {
-    if (picking === 'pivot') {
-      if (pending && !numeric.error) bake();
-      setCustomPivot(point);
-    } else {
-      // Project the reference displacement onto the enabled axes in the chosen frame.
+    if (picking === 'pivot') setCustomPivot(point);
+    else {
       const delta = new Vector3(...point)
         .sub(new Vector3(...pivot))
         .applyQuaternion(new Quaternion(...frame).invert());
-      setOperation('move');
       setValues(delta.toArray().map((n, i) => (axes[i] ? String(n) : '0')));
     }
     setPicking(undefined);
   };
+  useLayoutEffect(() => {
+    onStage(
+      ready
+        ? {
+            bodyId: body.id,
+            cancelToken,
+            geometry: g,
+            points,
+            selected,
+            mode,
+            operation,
+            pivot,
+            frame,
+            axes,
+            xray,
+            allEdges,
+            picking,
+            snap: gridSnap ? gridStep : 0,
+            uniformScale: uniform,
+            disabled: busy,
+            onSelect: select,
+            onPick: pick,
+            onTransform: (next, complete) => {
+              setDrag(next);
+              if (operation === 'move') {
+                const index = next.findIndex((p, i) =>
+                  p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8),
+                );
+                const delta =
+                  index < 0
+                    ? new Vector3()
+                    : new Vector3(...next[index])
+                        .sub(new Vector3(...base[index]))
+                        .applyQuaternion(new Quaternion(...frame).invert());
+                setValues(delta.toArray().map((n) => String(Math.round(n * 1e6) / 1e6)));
+              }
+              if (complete) void live.current.finish(next);
+            },
+            onError: setStageError,
+          }
+        : undefined,
+    );
+  }, [
+    g,
+    points,
+    selected,
+    mode,
+    operation,
+    pivot.join(','),
+    frame.join(','),
+    axes,
+    xray,
+    allEdges,
+    picking,
+    gridSnap,
+    gridStep,
+    uniform,
+    busy,
+    ready,
+    pending,
+    cancelToken,
+  ]);
+  useLayoutEffect(() => () => onStage(undefined), [onStage]);
   const choosePlane = (axis: number, max: boolean) => {
     const inverse = new Quaternion(...frame).invert(),
       localPoints = base.map((p) => new Vector3(...p).applyQuaternion(inverse).toArray());
@@ -206,399 +406,239 @@ function GeometryEditorReady({
       false,
     );
   };
-  const accept = () => {
-    if (!busy && changed && !stageError && !numeric.error && (!lockedCopies || unique || meshCopy))
-      void onCommit(points, meshCopy, unique);
-  };
-  if (meshCopy && !copyAccepted)
+  if (!ready)
     return (
-      <div className="geometry-editor-loading">
+      <section className="precision-settings" aria-label="Geometriamuutoksen asetukset">
+        <h3>Kaarevan pinnan pistemuokkaus</h3>
         <p>
-          <strong>{body.name}</strong> sisältää kaarevia CAD-pintoja.
+          Vapaa pistemuokkaus tarvitsee verkkokopion. Alkuperäinen tarkka osa säilyy piilotettuna.
+          Verkkokopio tukee pistemuokkausta ja materiaaleja; CAD-pintatyökalut säilyvät
+          alkuperäisessä osassa.
         </p>
-        <p>
-          Vapaa pistemuokkaus tehdään erilliseen verkkokopioon. Alkuperäinen tarkka osa säilyy
-          piilotettuna. Verkkokopio tukee sijoittelua, materiaaleja ja STL-vientiä; tarkat
-          CAD-pintatyökalut säilyvät alkuperäisessä osassa.
-        </p>
-        <button className="button dark" onClick={() => setCopyAccepted(true)}>
+        <button className="button dark full" onClick={() => setCopyAccepted(true)}>
           Muokkaa verkkokopiota
         </button>
-        <button className="button subtle" onClick={onClose}>
-          Peruuta
-        </button>
-      </div>
+        <p className="muted">Voit käyttää muita työkaluja suoraan työkalupalkista.</p>
+      </section>
     );
   return (
-    <div
-      className="geometry-editor"
-      onKeyDown={(e) => {
-        if (busy) return;
-        if (e.key === 'Escape' && picking) {
-          e.preventDefault();
-          e.stopPropagation();
-          setPicking(undefined);
-          return;
-        }
-        if ((e.target as HTMLElement).closest('input,select,textarea')) return;
-        const key = e.key.toLowerCase();
-        if ((e.ctrlKey || e.metaKey) && key === 'z') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (e.shiftKey) redo();
-          else undo();
-        }
-        if (['m', 'r', 'l'].includes(key) && !e.ctrlKey && !e.metaKey) {
-          e.preventDefault();
-          switchOperation(
-            ({ m: 'move', r: 'rotate', l: 'scale' } as const)[key as 'm' | 'r' | 'l'],
-          );
-        }
-        if (['x', 'y', 'z'].includes(key) && !e.ctrlKey && !e.metaKey) {
-          e.preventDefault();
-          setAxes([key === 'x', key === 'y', key === 'z']);
-        }
-      }}
-    >
-      <header className="geometry-editor-heading">
-        <div>
-          <strong>{body.name}</strong>
-          <span>
-            {meshCopy ? 'Erillinen verkkokopio' : g.exact ? 'Tarkka CAD-osa' : 'Kolmiomalli'}
-          </span>
-        </div>
-        <button aria-label="Sulje geometrian muokkaus" onClick={onClose}>
-          <X size={18} />
-        </button>
+    <section className="precision-settings" aria-label="Geometriamuutoksen asetukset">
+      <header>
+        <span className="eyebrow">GEOMETRIA</span>
+        <h3>
+          {operation === 'move' ? 'Siirrä' : operation === 'rotate' ? 'Kierrä' : 'Skaalaa'} valintaa
+        </h3>
+        <strong role="status">Valittuna {selected.length} pistettä</strong>
       </header>
-      <div className="geometry-editor-toolbar">
-        <div className="mode-switch" aria-label="Geometrian valintatapa">
-          {(
-            [
-              ['points', 'Pisteet'],
-              ['edges', 'Reunat'],
-              ['faces', 'Pinnat'],
-            ] as const
-          ).map(([id, label]) => (
-            <button key={id} aria-pressed={mode === id} onClick={() => setMode(id)} disabled={busy}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="mode-switch" aria-label="Geometrian muutos">
-          {(
-            [
-              ['move', 'Siirrä', <Move size={16} />],
-              ['rotate', 'Kierrä', <RotateCw size={16} />],
-              ['scale', 'Skaalaa', <Scaling size={16} />],
-            ] as const
-          ).map(([id, label, icon]) => (
-            <button
-              key={id}
-              aria-pressed={operation === id}
-              onClick={() => switchOperation(id)}
-              disabled={busy}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="geometry-selection-actions">
         <button
-          aria-label="Peru geometriamuutos"
-          title="Peru muutos · Ctrl+Z"
-          disabled={busy || (!pending && !historyIndex)}
-          onClick={undo}
+          disabled={busy || pending}
+          onClick={() =>
+            select(
+              base.map((_, i) => i),
+              false,
+            )
+          }
         >
-          <Undo2 size={17} />
+          Kaikki
         </button>
         <button
-          aria-label="Palauta geometriamuutos"
-          disabled={busy || historyIndex === history.length - 1}
-          onClick={redo}
+          disabled={busy || !selected.length}
+          onClick={() => {
+            reset();
+            setSelected([]);
+          }}
         >
-          <Redo2 size={17} />
+          Tyhjennä
         </button>
       </div>
-      <div className="geometry-editor-content">
-        <div className="geometry-editor-viewport">
-          <GeometryStage
-            geometry={g}
-            points={points}
-            selected={selected}
-            mode={mode}
-            operation={operation}
-            pivot={pivot}
-            frame={frame}
-            axes={axes}
-            xray={xray}
-            allEdges={allEdges}
-            picking={picking}
-            snap={grid ? 1 : 0}
-            uniformScale={uniform}
-            view={view}
+      <div className="geometry-axis-buttons" aria-label="Muokattavat akselit">
+        {['X', 'Y', 'Z'].map((axis, i) => (
+          <button
+            key={axis}
+            data-axis={axis.toLowerCase()}
+            aria-pressed={axes[i]}
             disabled={busy}
-            onSelect={select}
-            onPick={pick}
-            onTransform={(next, complete) => (complete ? bake(next) : setDrag(next))}
-            onError={setStageError}
-          />
-          <div className="geometry-view-actions">
-            {(
-              [
-                ['iso', '3D'],
-                ['top', 'Ylhäältä'],
-                ['front', 'Edestä'],
-                ['right', 'Sivulta'],
-                ['fit', 'Sovita'],
-              ] as const
-            ).map(([kind, label]) => (
-              <button key={kind} onClick={() => setView({ id: view.id + 1, kind })}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="geometry-stage-help">
-            {picking === 'pivot'
-              ? 'Poimi kierron ja skaalauksen ankkuripiste.'
-              : picking === 'reference'
-                ? 'Poimi tavoitepiste. Siirtymä seuraa valittuja akseleita.'
-                : matchMedia('(pointer: coarse)').matches
-                  ? 'Napauta tai rajaa valinta · Kaksi sormea kiertää ja zoomaa'
-                  : 'Napsauta tai rajaa valinta · Shift lisää · Oikea painike kiertää'}
-          </p>
-        </div>
-        <aside
-          className="geometry-editor-settings"
-          inert={busy}
-          aria-label="Geometriamuutoksen asetukset"
-        >
-          <strong role="status">Valittuna {selected.length} pistettä</strong>
-          <div className="geometry-selection-actions">
-            <button
-              disabled={busy}
-              onClick={() =>
-                select(
-                  base.map((_, i) => i),
-                  false,
-                )
-              }
-            >
-              Kaikki
-            </button>
-            <button disabled={busy || !selected.length} onClick={() => select([], false)}>
-              Tyhjennä
-            </button>
-          </div>
-          {mode === 'edges' && (
-            <p className="muted">Tuplaklikkaa reunaa valitaksesi yhtenäisen reunalenkin.</p>
+            onClick={() =>
+              setAxes((old) => old.map((v, j) => (i === j ? !v : v)) as [boolean, boolean, boolean])
+            }
+          >
+            {axis}
+          </button>
+        ))}
+      </div>
+      <fieldset disabled={busy || !selected.length} className="geometry-numeric">
+        <legend>
+          {operation === 'move'
+            ? 'Siirtymä · mm'
+            : operation === 'rotate'
+              ? 'Kierto · °'
+              : 'Skaala · %'}
+        </legend>
+        {operation !== 'move' &&
+          selected.length === 1 &&
+          Math.hypot(...base[selected[0]].map((n, i) => n - pivot[i])) < 1e-8 && (
+            <p className="muted">Poimi ankkuri eri pisteeseen tai valitse useita pisteitä.</p>
           )}
-          <label className="checkbox-label">
-            <input type="checkbox" checked={xray} onChange={(e) => setXray(e.target.checked)} />
-            Valitse myös takana olevat pisteet
-          </label>
-          <div className="geometry-axis-buttons" aria-label="Muokattavat akselit">
-            {['X', 'Y', 'Z'].map((axis, i) => (
-              <button
-                key={axis}
-                data-axis={axis.toLowerCase()}
-                aria-pressed={axes[i]}
-                onClick={() =>
-                  setAxes(
-                    (old) => old.map((v, j) => (i === j ? !v : v)) as [boolean, boolean, boolean],
-                  )
-                }
-              >
-                {axis}
-              </button>
-            ))}
-          </div>
+        {operation === 'scale' && (
           <label className="checkbox-label">
             <input
               type="checkbox"
-              checked={local}
+              checked={uniform}
               onChange={(e) => {
-                if (pending && !numeric.error) bake();
-                setLocal(e.target.checked);
+                reset();
+                setUniform(e.target.checked);
               }}
             />
-            Osan omat akselit
+            Sama kerroin valituilla akseleilla
           </label>
-          <fieldset disabled={busy || !selected.length} className="geometry-numeric">
-            <legend>
-              {operation === 'move'
-                ? 'Siirtymä · mm'
-                : operation === 'rotate'
-                  ? 'Kierto · °'
-                  : 'Skaala · %'}
-            </legend>
-            {operation !== 'move' &&
-              selected.length === 1 &&
-              Math.hypot(...base[selected[0]].map((n, i) => n - pivot[i])) < 1e-8 && (
-                <p className="muted">Poimi ankkuri eri pisteeseen tai valitse useita pisteitä.</p>
-              )}
-            {operation === 'scale' && (
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={uniform}
-                  onChange={(e) => {
-                    if (pending && !numeric.error) bake();
-                    setUniform(e.target.checked);
-                  }}
-                />
-                Sama suhde valituille akseleille
-              </label>
-            )}
-            {(operation === 'scale' && uniform ? ['Skaala'] : ['X', 'Y', 'Z']).map((axis, i) => (
-              <label key={axis}>
-                <span>{axis}</span>
-                <input
-                  aria-label={`Geometrian ${operation === 'move' ? 'siirtymä' : operation === 'rotate' ? 'kierto' : 'skaala'} ${axis}`}
-                  inputMode="decimal"
-                  value={values[i]}
-                  disabled={axis !== 'Skaala' && !axes[i]}
-                  onChange={(e) => {
-                    const next = [...values];
-                    next[i] = e.target.value;
-                    setValues(next);
-                    setDrag(undefined);
-                    setStageError('');
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!numeric.error) bake();
-                    }
-                  }}
-                />
-              </label>
-            ))}
-            <button
-              className="button outlined full"
-              disabled={!pending || !!numeric.error}
-              onClick={() => bake()}
-            >
-              Toteuta muutos
-            </button>
-          </fieldset>
-          <div className="geometry-pivot-actions">
-            <button
-              disabled={!selected.length || busy}
-              aria-pressed={picking === 'pivot'}
-              onClick={() => {
-                if (pending && !numeric.error) bake();
-                setPicking(picking === 'pivot' ? undefined : 'pivot');
+        )}
+        {(operation === 'scale' && uniform ? ['Skaala'] : ['X', 'Y', 'Z']).map((axis, i) => (
+          <label key={axis}>
+            {axis}
+            <input
+              ref={(el) => {
+                inputRefs.current[i] = el;
               }}
-            >
-              <Crosshair size={15} />
-              Poimi ankkuri
-            </button>
-            <button
-              disabled={!selected.length || busy}
-              aria-pressed={picking === 'reference'}
-              onClick={() => {
-                if (pending && !numeric.error) bake();
-                setPicking(picking === 'reference' ? undefined : 'reference');
+              aria-label={`Geometrian ${operation === 'move' ? 'siirtymä' : operation === 'rotate' ? 'kierto' : 'skaala'} ${axis}`}
+              inputMode="decimal"
+              value={values[i]}
+              disabled={axis !== 'Skaala' && !axes[i]}
+              onChange={(e) => {
+                const next = [...values];
+                next[i] = e.target.value;
+                setValues(next);
+                setDrag(undefined);
+                setStageError('');
               }}
-            >
-              Poimi viite
-            </button>
-          </div>
-          {customPivot && (
-            <button
-              className="button subtle full"
-              onClick={() => {
-                if (pending && !numeric.error) bake();
-                setCustomPivot(undefined);
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void finish();
+                }
               }}
-            >
-              Ankkuri valinnan keskelle
-            </button>
-          )}
-          <details>
-            <summary>Valinta ja tarkkuus</summary>
-            <p className="muted">Valitse uloimman tason pisteet:</p>
-            <div className="geometry-plane-buttons">
-              {['X', 'Y', 'Z'].flatMap((a, i) =>
-                [false, true].map((max) => (
-                  <button
-                    key={`${a}${max}`}
-                    aria-label={`Valitse ${a}${max ? '+' : '−'} tason pisteet`}
-                    onClick={() => choosePlane(i, max)}
-                  >
-                    {a}
-                    {max ? '+' : '−'}
-                  </button>
-                )),
-              )}
-            </div>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={allEdges}
-                onChange={(e) => setAllEdges(e.target.checked)}
-              />
-              Näytä myös kolmioiden sisäreunat
-            </label>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={grid} onChange={(e) => setGrid(e.target.checked)} />
-              Siirron askel 1 mm
-            </label>
-            <small>
-              {g.points.length} pistettä · {g.triangles.length / 3} kolmiota. Kirjoitettu mitta
-              ohittaa askeleen.
-            </small>
-          </details>
-          {!meshCopy && linkedCount > 1 && (
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={unique}
-                onChange={(e) => setUnique(e.target.checked)}
-              />
-              Muokkaa vain tätä osaa · tee uniikki
-            </label>
-          )}
-          {!meshCopy && linkedCount > 1 && !unique && (
-            <p className="muted">Muutos jaetaan {linkedCount} linkitettyyn osaan.</p>
-          )}
-          {!!lockedCopies && !unique && !meshCopy && (
-            <p role="alert">
-              Linkitetyissä kopioissa on lukittuja osia. Tee tästä osasta uniikki tai peru ja
-              vapauta lukitukset.
-            </p>
-          )}
-        </aside>
-      </div>
-      <footer className="geometry-editor-footer">
-        <p role={errorText ? 'alert' : 'status'}>
-          {errorText ||
-            (busy
-              ? 'Tarkistetaan ja tallennetaan geometriaa…'
-              : changed
-                ? 'Esikatselu · alkuperäinen muuttuu vasta hyväksyttäessä.'
-                : 'Valitse pisteitä, reuna tai pinta ja vedä akselikahvasta tai kirjoita mitta.')}
-        </p>
+            />
+          </label>
+        ))}
         <button
-          className="button dark"
-          disabled={
-            busy ||
-            !changed ||
-            !!stageError ||
-            !!numeric.error ||
-            (!!lockedCopies && !unique && !meshCopy)
-          }
-          onClick={accept}
+          className="button dark full"
+          disabled={!changed || !!numeric.error || (!!lockedCopies && !unique && !meshCopy)}
+          onClick={() => void finish()}
         >
-          <Check size={16} />
-          {meshCopy ? 'Luo verkkokopio' : 'Hyväksy osaan'}
+          Toteuta muutos
         </button>
-        <button className="button subtle" onClick={onClose}>
-          Peru · Esc
+        {pending && (
+          <button className="button subtle full" onClick={reset}>
+            Peru muutos · Esc
+          </button>
+        )}
+      </fieldset>
+      <div className="geometry-pivot-actions">
+        <button
+          disabled={busy || pending || !selected.length}
+          aria-pressed={picking === 'pivot'}
+          onClick={() => setPicking(picking === 'pivot' ? undefined : 'pivot')}
+        >
+          <Crosshair size={15} />
+          Poimi ankkuri
         </button>
-      </footer>
-    </div>
+        <button
+          disabled={busy || pending || !selected.length || operation !== 'move'}
+          aria-pressed={picking === 'reference'}
+          onClick={() => setPicking(picking === 'reference' ? undefined : 'reference')}
+        >
+          <Crosshair size={15} />
+          Poimi viite
+        </button>
+      </div>
+      {picking && (
+        <p role="status">
+          {picking === 'pivot'
+            ? 'Poimi ankkuripiste mallista.'
+            : 'Poimi tavoitepiste mallista tai mittaviivasta. Siirtymä seuraa valittuja akseleita.'}
+        </p>
+      )}
+      {customPivot && (
+        <button
+          className="button subtle full"
+          disabled={pending || busy}
+          onClick={() => setCustomPivot(undefined)}
+        >
+          Ankkuri valinnan keskelle
+        </button>
+      )}
+      {(stageError || numeric.error || error) && (
+        <p role="alert">{stageError || numeric.error || error}</p>
+      )}
+      <details>
+        <summary>Valinta ja tarkkuus</summary>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={local}
+            disabled={pending || busy}
+            onChange={(e) => setLocal(e.target.checked)}
+          />
+          Osan omat akselit
+        </label>
+        <label className="checkbox-label">
+          <input type="checkbox" checked={xray} onChange={(e) => setXray(e.target.checked)} />
+          Valitse myös takana olevat pisteet
+        </label>
+        <div className="geometry-plane-buttons">
+          {['X', 'Y', 'Z'].flatMap((a, i) =>
+            [false, true].map((max) => (
+              <button
+                key={`${a}${max}`}
+                disabled={busy || pending}
+                aria-label={`Valitse ${a}${max ? '+' : '−'} tason pisteet`}
+                onClick={() => choosePlane(i, max)}
+              >
+                {a}
+                {max ? '+' : '−'}
+              </button>
+            )),
+          )}
+        </div>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={allEdges}
+            onChange={(e) => setAllEdges(e.target.checked)}
+          />
+          Näytä myös kolmioiden sisäreunat
+        </label>
+        <small>
+          {g.points.length} pistettä · {g.triangles.length / 3} kolmiota.{' '}
+          {gridSnap ? `Ruudukko ${gridStep} mm.` : 'Vapaa siirto.'} Kirjoitettu mitta ohittaa
+          ruudukon.
+        </small>
+      </details>
+      {!meshCopy && linkedCount > 1 && (
+        <>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={unique}
+              disabled={busy}
+              onChange={(e) => setUnique(e.target.checked)}
+            />
+            Muokkaa vain tätä osaa · tee uniikki
+          </label>
+          {!unique && <p className="muted">Muutos jaetaan {linkedCount} linkitettyyn osaan.</p>}
+        </>
+      )}
+      {!!lockedCopies && !unique && !meshCopy && (
+        <p role="alert">
+          Linkitetyissä kopioissa on lukittuja osia. Tee tästä osasta uniikki tai vapauta
+          lukitukset.
+        </p>
+      )}
+      <p className="muted">
+        Shift lisää valintaan. {mode === 'edges' ? 'Tuplaklikkaus valitsee reunalenkin. ' : ''}
+        Hyväksytyt muutokset löytyvät projektin historiasta.
+      </p>
+    </section>
   );
 }

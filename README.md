@@ -3,19 +3,30 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.45.0** lisää erillisen **Geometrian muokkaus** -työtilan.
-Valitse yksi osa → oikeasta paneelista **Geometrian muokkaus** (myös
-**Muodot**-valikossa ja toimintohaussa). Osan muokkaustilaan ei tarvitse ensin
-mennä; sama työkalu toimii myös sen sisältä. Valitse pisteitä, reunoja tai pintoja,
-siirrä, kierrä tai skaalaa valintaa kahvoilla tai mitoilla ja hyväksy osaan.
-Muut pisteet pysyvät paikallaan ja liittyvät pinnat mukautuvat mukana.
-Tavalliset Siirrä/Kierrä/Skaalaa säilyvät osakohtaisina.
+Versio **0.46.0** tuo geometrian muokkauksen samaan mallinnusnäkymään.
+Avaa osa ja valitse yläreunasta **Koko osa / Pisteet / Reunat / Pinnat**.
+Reunaan voi tarttua suoraan ja vetää sitä myös paksuudettomalla pinnalla.
+**M / R / L** siirtää, kiertää tai skaalaa valittua geometriaa. Liittyvät
+pinnat mukautuvat, muut pisteet pysyvät paikoillaan. Koko osa -valinta
+palauttaa tavallisen osakohtaisen käsittelyn.
 
-Suorareunainen tasopinnoista koostuva CAD-osa säilyy CAD-osana.
-Kaarevalle CAD-osalle tarjotaan erillistä verkkokopiota: alkuperäinen
-säilyy piilotettuna, eikä tarkkoja CAD-pintatyökaluja luvata verkkokopiolle.
-Hold, linkitetyt kopiot, uniikiksi tekeminen ja projektin Peru huomioidaan.
-[Työnkulku, rajat ja jatkokehitys](docs/roadmap.md#v0450--geometrian-muokkaus).
+Kamera, työkalupalkki ja projektin Peru/Palauta säilyvät yhteisinä.
+Shift lisää geometriaa valintaan; siirron aikana se poimii tarkan viitteen
+myös muista osista ja mittaviivoista. Tavalliseen pintatyökaluun voi vaihtaa
+suoraan. Kelvollinen keskeneräinen muutos hyväksytään ensin; virheellinen
+muutos jää korjattavaksi. **Valmis** sulkee työtilan.
+
+**Muokkaa mittoja** löytyy sekä normaalista osapaneelista että geometriatilasta.
+Perusmuodon leveys, syvyys, halkaisija ja paksuus säilyvät muokattavina.
+Tuetun CAD-osan ulkomitta muuttuu päätypintaa siirtämällä, jolloin esimerkiksi
+reikä ja pyöristyssäde säilyvät. Epäselvää päätypintaa ei päätellä väkisin.
+Tämä ei ole vielä kaikkien mallinnusvaiheiden parametrinen muokkaushistoria.
+
+Suorareunaiset tasopinnat palautetaan tarkaksi CAD:ksi. Kaarevan CAD-osan
+vapaa pistemuokkaus tarvitsee edelleen erikseen hyväksytyn verkkokopion;
+CAD-pintatyökalut säilyvät alkuperäisessä osassa. Hold, linkitykset,
+uniikiksi tekeminen ja mittapisteiden viitteet huomioidaan.
+[Työnkulku, rajat ja jatkokehitys](docs/roadmap.md#v0460--yhteinen-geometriatyötila).
 
 Versio **0.44.1** lisää **Omat osat → Tuo osia kirjastoon** -toiminnon.
 Valitse yksi tai useampi valmis .nivo-tiedosto ja lisää osat myöhemmin malliisi.

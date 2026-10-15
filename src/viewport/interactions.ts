@@ -5119,6 +5119,8 @@ export function installInteractions({
   window.addEventListener('keyup', keyup);
   window.addEventListener('blur', blur);
   return {
+    pickReferencePoint: (event: PointerEvent | MouseEvent) =>
+      referenceAt(event as PointerEvent)?.point,
     sync,
     movePreview,
     dispose() {

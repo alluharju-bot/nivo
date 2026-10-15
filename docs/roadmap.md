@@ -2,6 +2,43 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.46.0 — yhteinen geometriatyötila
+
+- Osan muokkauksessa **Koko osa / Pisteet / Reunat / Pinnat** erottaa
+  osan sijoittelun geometrian muuttamisesta. Valitulle osalle työtilan voi
+  avata myös suoraan **Geometria**-painikkeesta. Sama kamera ja WebGL-näkymä;
+  avaaminen ei muuta zoomia, ryhmää tai linkityksiä.
+- Pisteeseen, reunaan tai pintaan voi tarttua suoraan. Siirto valitsee yhden
+  akselin vetosuunnan mukaan; X/Y/Z lukitsee suunnan. Myös paksuudettoman
+  pinnan reuna liikkuu. Liittyvät pinnat mukautuvat ja epätasomainen pinta
+  rakentuu tasopaloiksi. M/R/L käyttää samaa työkalupalkkia.
+- Shift lisää valintaan. Vedon aikana Shift hakee tarkan viitteen yhteisellä
+  tartuntahaulla, myös muista osista, viivoista ja risteyksistä. Viite projisoidaan
+  siirtoakselille ja ohittaa ruudukon. Poimi ankkuri / Poimi viite säilyvät.
+  Numeerinen syöttö ja hiiriveto käyttävät samaa projektin ruudukkoasetusta;
+  kirjoitettu mitta ohittaa askeleen. Kierron 5° askel vapautuu Shiftillä.
+- Hyväksytty veto tai Enter muodostaa yhden **projektihistorian** toiminnon.
+  Erillinen 30 muutoksen paikallishistoria on poistettu. Esc peruu luonnoksen,
+  sitten tyhjentää valinnan ja lopuksi poistuu työtilasta. Työkalun vaihto
+  hyväksyy kelvollisen luonnoksen; virhe jättää sen korjattavaksi.
+- Kynä, mitat, muodot, Push/Pull, Offset, reunatyöstöt ja muut nykyiset työkalut
+  avautuvat samasta palkista työtilan aikana. Pistevalintaan voi palata yläpalkista.
+  Cut/Joinin kohde- ja työstöosat valitaan erikseen myös muista näkyvistä osista.
+  Piilossa tai Holdissa olevia osia ei ohiteta tämän takia.
+- **Muokkaa mittoja** samassa osapaneelissa molemmissa työtiloissa:
+  perusmuotojen mitat ja viimeisen reunatyöstön mitta. Ympyrän pursotus säilyttää
+  halkaisijan muokattavuuden. Tuettu CAD-ulkomitta käyttää yksiselitteistä
+  positiivisen suunnan päätypintaa ja nykyistä Push/Pullia; reiät ja säteet
+  säilyvät. Epäselvä pääty hylätään alkuperäistä muuttamatta.
+  Aloituskulma tai ympyrän keskipiste pysyy paikallaan; profiilimitat ovat
+  piirtotason suunnissa, yleisen CAD-osan ulkomitat maailman X/Y/Z-suunnissa.
+- Mittapisteiden vanhat viitteet ja materiaalien kiinnitys säilyvät perusmitan
+  muutoksessa. Profiilin uudet pisteavaimet erotetaan aiemman muodon avaimista,
+  jotta saman paikalliskoordinaatin uusi piste ei sekoitu vanhaan viitteeseen.
+- CAD/verkko-raja säilyy näkyvänä: kaareva CAD tarvitsee vapaaseen pistemuokkaukseen
+  hyväksytyn verkkokopion. Muutokset eivät luo täydellistä parametripiirrepuuta
+  eivätkä lisää verkkokopiolle kaikkia tarkkoja CAD-pintatyökaluja.
+
 ## V0.45.0 — geometrian muokkaus
 
 Erillinen, tarvittaessa avattava **Geometrian muokkaus** toimii suoraan
@@ -59,17 +96,25 @@ historiaa aiemman varapolun mukaisesti.
 
 ### Tarkkojen muotojen seuraavat vaiheet
 
-1. Reunojen jakaminen, pisteiden yhdistäminen, aukon täyttö ja kahden
-   reunalenkin yhdistäminen. Sovitetaan nykyisiin Kynä-, Offset-, Muotojen
-   läpi- ja pintapursotustoimintoihin. Nämä eivät vielä kuulu pistemuokkaukseen.
-2. Viitteet muista osista ja hallittu Shift-viite vedon aikana; projektin
-   taustageometrian näyttäminen tarvittaessa uudessa työtilassa.
-3. Kaarevien CAD-pintojen parametrinen muotoilu sekä monikuoristen osien
-   säilyttäminen ilman kolmiomalliksi muuttamista.
-4. Tulostustarkistus: avoimet/moninkertaiset reunat, pintojen suunta,
-   seinämäpaksuus ja sovitusvälykset. Nykyistä STL:n sulkeutumistarkistusta
-   laajennetaan; 3MF:n yksiköt ja osajako ovat jatkotyötä.
-5. Vapaa pehmennys ja subdivision vasta tämän vakaan perustan jälkeen.
+Yhteinen näkymä, valintakonteksti, projektihistoria, ulkopuoliset siirtoviitteet
+ja ensimmäiset jälkikäteen muutettavat mitat on toteutettu V0.46.0:ssa.
+Jatkokehitys säilyttää saman työkalulogiikan tavallisessa ja tarkassa muokkauksessa.
+
+1. **Peilaa** yhteiseksi työkaluksi: osa tai peilikopio maailman tasoon tai
+   poimittuun tasoon. Osageometrian peilaus ja puolikkaiden yhdistäminen ovat
+   erillinen vaihe. Tarkistetaan suunnat, materiaalit, mittaviitteet ja linkitykset.
+2. **Jälkikäteen muutettavat piirteet:** reiän paikka ja halkaisija, taskun syvyys,
+   aiemmat pyöristyskerrokset sekä riippuvien työvaiheiden uudelleenlaskenta.
+   V0.46:n perusmitat ja yksiselitteisen päädyn muutos eivät korvaa piirrepuuta.
+3. Reunojen jakaminen, pisteiden yhdistäminen, aukon täyttö ja reunalenkkien
+   yhdistäminen. Sovitetaan Kynä-, Offset-, Muotojen läpi- ja pursotustoimintoihin.
+4. Kaarevien CAD-pintojen vapaa muotoilu tarkkuuden säilyttäen; verkon omat
+   pinta- ja leikkaustyökalut. Verkkokopio ei vielä tue kaikkia CAD-työkaluja.
+   Myös monikuoristen osien tarkka uudelleenrakennus on jatkotyötä.
+5. Tulostustarkistukset: avoimet/moninkertaiset reunat, pintojen suunta,
+   seinämäpaksuus ja sovitusvälykset; 3MF:n yksiköt ja osajako.
+6. Fyysisen kosketuslaitteen eleet sekä Safari. Vapaa pehmennys ja subdivision
+   vasta vakaan, tarkasti mitoitettavan perustan jälkeen.
 
 ## V0.44.1 — omien valmiiden osien monituonti
 

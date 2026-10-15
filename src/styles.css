@@ -9078,3 +9078,198 @@ p {
     flex-basis: 100%;
   }
 }
+
+/* Precision editing uses the model's canvas, camera, tools and history. */
+.precision-bar,
+.precision-entry {
+  position: absolute;
+  z-index: 14;
+  top: calc(var(--view-toolbar-bottom, 45px) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid #7596a280;
+  border-radius: 12px;
+  background: #f6faf9ed;
+  box-shadow: 0 5px 22px #18354418;
+  backdrop-filter: blur(12px);
+}
+.precision-bar {
+  top: 72px;
+}
+.precision-entry > button {
+  border: 0;
+  background: transparent;
+  color: #315d6d;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.precision-title {
+  display: grid;
+  gap: 2px;
+  max-width: 190px;
+  padding: 2px 8px;
+}
+.precision-title > span {
+  color: #416a7c;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.precision-title strong {
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.precision-bar .mode-switch {
+  display: flex;
+}
+.precision-bar .mode-switch button,
+.precision-entry .mode-switch button {
+  padding: 6px 8px;
+  font-size: 12px;
+  min-height: 32px;
+  white-space: nowrap;
+}
+.precision-bar .mode-switch button[aria-pressed='true'] {
+  color: #224e62;
+  background: #dcebf0;
+  border-color: #5f899b;
+}
+.precision-done {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: #315f70;
+  color: white;
+}
+.precision-inspector {
+  border-left: 1px solid #b2c7ce;
+  background: #f7f9f9;
+}
+.precision-inspector[hidden] {
+  display: none;
+}
+.precision-settings {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 12px;
+}
+.precision-settings header {
+  display: grid;
+  gap: 5px;
+}
+.precision-settings h3 {
+  margin: 0;
+  font-size: 19px;
+  color: #244856;
+  font-weight: 550;
+}
+.precision-settings header strong {
+  color: #6c5848;
+  font-size: 12px;
+  font-weight: 500;
+}
+.precision-settings .eyebrow {
+  color: #527d8b;
+}
+.precision-settings p {
+  margin: 0;
+  line-height: 1.6;
+}
+.precision-settings [role='alert'] {
+  color: #963d25;
+  background: #fbeee6;
+  padding: 10px;
+  border-radius: 6px;
+}
+.precision-settings .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  line-height: 1.5;
+}
+.precision-settings .checkbox-label input {
+  width: auto;
+}
+.precision-settings details {
+  border-top: 1px solid #d8e0e1;
+  padding-top: 10px;
+}
+.precision-settings details > :not(summary) {
+  margin-top: 10px;
+}
+.precision-settings small {
+  display: block;
+  line-height: 1.5;
+  color: #657277;
+}
+@media (max-width: 700px) {
+  .precision-bar {
+    flex-wrap: wrap;
+    gap: 5px;
+    width: max-content;
+  }
+  .precision-title {
+    max-width: 170px;
+  }
+  .precision-bar .mode-switch {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  .precision-settings {
+    padding: 12px;
+    gap: 10px;
+  }
+}
+.body-dimensions form {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+}
+.body-dimensions form > label:not(.checkbox-label) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 95px;
+  align-items: center;
+  gap: 8px;
+}
+.body-dimensions small {
+  color: #7b8583;
+  font-size: 10px;
+}
+.body-dimensions input {
+  min-width: 0;
+  width: 100%;
+}
+.body-dimensions .checkbox-label input {
+  width: auto;
+}
+.precision-inspector > .body-dimensions {
+  margin: 0 18px 18px;
+  font-size: 12px;
+}
+.canvas-area.is-precision .canvas-topbar {
+  top: 14px;
+}
+.is-precision .model-stage::after {
+  border-color: #658c9c66;
+}
+.app-shell[data-compact='true'] .precision-bar {
+  top: 56px;
+  z-index: 26;
+  max-width: calc(100% - 16px);
+}
+.app-shell[data-compact='true'] .workspace > .precision-inspector {
+  top: 206px;
+}

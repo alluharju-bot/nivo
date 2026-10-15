@@ -1,3 +1,4 @@
+import { resizePrimitive } from '../model/editableDimensions';
 import { projectEdges } from './projection';
 import { drawingFrame, projectDrawingPoint } from '../model/drawingViews';
 import { cylindricalSurface, isPlanarFace, isLinearEdge } from './planarity';
@@ -39,9 +40,14 @@ import type { BodyMesh, DrawingView, Projection, ProbeResult } from './protocol'
 import { add, sub, unit, dot, scale } from '../model/geometry';
 import { faceBoundaries } from './boundaries';
 import { detailEdgeIndices } from './detailEdges';
-import { cadVertex, shapeVertexReferences } from './vertexReferences';
+import {
+  cadVertex,
+  shapeVertexReferences,
+  preservePrimitiveReferences,
+  profileReferenceKey,
+} from './vertexReferences';
 import type { TransformCache } from './buildCache';
-import { transferFaceMaterials } from './faceMaterials';
+import { transferFaceMaterials, primitiveFaceMaterials } from './faceMaterials';
 import { pushPullDetailedFace } from './detailedPushPull';
 
 export function exactBounds(shape: AnyShape): { min: Vec3; max: Vec3 } {
@@ -309,7 +315,7 @@ export function meshBody(
       key:
         body.feature.type === 'brep'
           ? `brep:${body.feature.topologyId}:${local.join(',')}`
-          : `profile:${local.join(',')}`,
+          : profileReferenceKey(body, local),
       local,
     };
   };
@@ -564,8 +570,8 @@ export function pushPullFace(
   cache?: TransformCache,
 ): Body {
   if (body.locked) throw new Error('Kappale on kiinnitetty. Vapauta se G-näppäimellä.');
-  if (!Number.isFinite(distance) || Math.abs(distance) < 0.1 || Math.abs(distance) > 100000)
-    throw new Error('Anna pinnan siirtymä väliltä −100 000…100 000 mm (vähintään 0,1 mm).');
+  if (!Number.isFinite(distance) || Math.abs(distance) < 1e-6 || Math.abs(distance) > 100000)
+    throw new Error('Anna nollasta poikkeava pinnan siirtymä väliltä −100 000…100 000 mm.');
   const shape = cache?.shape(body) ?? createShape(body);
   const faces = shapeFaces(shape);
   let prism: AnyShape | undefined, result: AnyShape | undefined;
@@ -594,6 +600,44 @@ export function pushPullFace(
           : undefined,
         feature: { ...body.feature, height },
       });
+    }
+    if (
+      body.feature.type === 'profile-extrusion' &&
+      !body.feature.outline &&
+      Math.abs(dot(target.normal, body.feature.frame.normal)) > 1 - 1e-8
+    ) {
+      const f = body.feature,
+        sign = f.distance < 0 ? -1 : 1;
+      const direction = dot(target.normal, f.frame.normal);
+      const movingBase = f.distance !== 0 && direction * sign < 0;
+      const nextDistance = f.distance === 0 ? distance * direction : f.distance + sign * distance;
+      if (f.distance !== 0 && nextDistance * sign < 0.1)
+        throw new Error('Pursotus poistaisi koko kappaleen.');
+      const base = movingBase
+        ? { ...body, origin: add(body.origin, scale(target.normal, distance)) }
+        : body;
+      const resized = resizePrimitive(base, 'distance', nextDistance);
+      if (resized) {
+        // Stable attachment origin belongs to the occurrence, not the moved cap.
+        if (body.component)
+          resized.component = {
+            ...body.component,
+            offset: sub(add(body.origin, body.component.offset), resized.origin),
+          };
+        if (body.textureFrame)
+          resized.textureFrame = {
+            ...body.textureFrame,
+            offset: sub(add(body.origin, body.textureFrame.offset), resized.origin),
+          };
+        const nextShape = createShape(resized);
+        try {
+          if (!shapeIsValid(nextShape)) throw new Error('Mitoista ei muodostu ehjää osaa.');
+          resized.faceMaterials = primitiveFaceMaterials(body, resized, shape, nextShape);
+          return preservePrimitiveReferences(body, resized, shape);
+        } finally {
+          nextShape.delete();
+        }
+      }
     }
     // Keep a box parametric so its semantic corner anchors survive all six face edits.
     if (

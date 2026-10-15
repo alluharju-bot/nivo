@@ -1,6 +1,40 @@
 import { cast, getOC, measureArea, type AnyShape, type Face, type Shape3D } from 'replicad';
-import type { Body } from '../model/project';
+import { featureIsSolid, type Body } from '../model/project';
+import { dot } from '../model/geometry';
 import { shapeFaces } from './topology';
+
+/** A primitive surface becomes two caps, never an arbitrarily painted side. */
+export function primitiveFaceMaterials(
+  body: Body,
+  next: Body,
+  source: AnyShape,
+  result: AnyShape,
+): Body['faceMaterials'] {
+  if (!body.faceMaterials || featureIsSolid(body.feature) === featureIsSolid(next.feature))
+    return body.faceMaterials;
+  const normal =
+    body.feature.type === 'profile-extrusion' ? body.feature.frame.normal : ([0, 0, 1] as const);
+  const faces = shapeFaces(featureIsSolid(next.feature) ? result : source);
+  try {
+    const caps = faces.flatMap((face, index) => {
+      if (face.geomType !== 'PLANE') return [];
+      const n = face.normalAt();
+      try {
+        return Math.abs(dot(n.toTuple(), [...normal])) > 1 - 1e-8 ? [index] : [];
+      } finally {
+        n.delete();
+      }
+    });
+    if (featureIsSolid(next.feature))
+      return body.faceMaterials[0]
+        ? Object.fromEntries(caps.map((i) => [i, body.faceMaterials![0]]))
+        : undefined;
+    const material = caps.map((i) => body.faceMaterials![i]).find(Boolean);
+    return material ? { 0: material } : undefined;
+  } finally {
+    faces.forEach((face) => face.delete());
+  }
+}
 
 /** Match actual surface overlap, never a stale face number after a topology edit. */
 export function transferFaceMaterials(

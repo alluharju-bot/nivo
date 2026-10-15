@@ -1,7 +1,46 @@
 import { shapeEdges, shapeFaces } from './topology';
 import type { AnyShape } from 'replicad';
 import { corners, featureIsSolid, type Body, type Vec3 } from '../model/project';
-import { sub } from '../model/geometry';
+import { add, sub } from '../model/geometry';
+import { resizedPrimitivePoint } from '../model/editableDimensions';
+import { referenceToken } from '../model/guides';
+
+export function profileReferenceKey(body: Body, local: Vec3) {
+  return `profile:${referenceToken(body)}:${local.map((n) => Math.round(n * 1e6) / 1e6).join(',')}`;
+}
+
+export function preservePrimitiveReferences(before: Body, after: Body, shape: AnyShape): Body {
+  const current = shapeVertexReferences(before, shape);
+  const refs = [
+    ...current,
+    // Saved projects predating topology-scoped profile keys still resolve.
+    ...(before.feature.type === 'profile-extrusion'
+      ? current.flatMap(({ point }) => {
+          const local = sub(point, before.origin);
+          return [
+            `profile:${local.join(',')}`,
+            `profile:${local.map((n) => Math.round(n * 1e6) / 1e6).join(',')}`,
+          ].map((key) => ({ key, point }));
+        })
+      : []),
+    ...Object.entries(before.vertexRefs ?? {}).map(([key, local]) => ({
+      key,
+      point: add(before.origin, local),
+    })),
+  ];
+  // Box corners already have semantic identities; don't override their future resolution.
+  return {
+    ...after,
+    vertexRefs: Object.fromEntries(
+      refs
+        .filter(({ key }) => !key.startsWith('corner:'))
+        .map(({ key, point }) => [
+          key,
+          sub(resizedPrimitivePoint(before, after, point), after.origin),
+        ]),
+    ),
+  };
+}
 
 /** Shared with the snap mesh: reference identity must not depend on tessellation. */
 export function cadVertex(body: Body, point: Vec3, boxCorners = corners(body)) {
@@ -21,7 +60,7 @@ export function cadVertex(body: Body, point: Vec3, boxCorners = corners(body)) {
   if (body.feature.type === 'planar-polygon')
     key = `point:${body.feature.points.findIndex((p) => p.every((n, i) => Math.abs(n - local[i]) < 1e-5))}`;
   if (body.feature.type === 'brep') key = `brep:${body.feature.topologyId}:${coordinateKey}`;
-  if (body.feature.type === 'profile-extrusion') key = `profile:${coordinateKey}`;
+  if (body.feature.type === 'profile-extrusion') key = profileReferenceKey(body, local);
   return { point, anchor: { bodyId: body.id, key, local } };
 }
 
@@ -58,7 +97,7 @@ export function shapeVertexReferences(body: Body, shape: AnyShape) {
           const key =
             body.feature.type === 'brep'
               ? `brep:${body.feature.topologyId}:${local.join(',')}`
-              : `profile:${local.join(',')}`;
+              : profileReferenceKey(body, local);
           vertices.set(key, { key, point });
         }
     } finally {

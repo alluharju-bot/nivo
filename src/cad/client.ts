@@ -19,6 +19,13 @@ import { translateMesh } from './translateMesh';
 import { requireMovable } from '../model/transforms';
 
 export class CadClient {
+  changeDimension(
+    body: Body,
+    key: import('../model/editableDimensions').DimensionKey,
+    value: number,
+  ) {
+    return this.request<Body>({ type: 'change-dimension', body, key, value });
+  }
   prepareGeometry(body: Body) {
     return this.request<import('../model/geometryEditing').EditableGeometry>({
       type: 'prepare-geometry',

@@ -93,6 +93,12 @@ import type { DrawingView } from '../model/drawingViews';
 export type { DrawingView } from '../model/drawingViews';
 export type CadRequest =
   | { type: 'prepare-geometry'; body: Body }
+  | {
+      type: 'change-dimension';
+      body: Body;
+      key: import('../model/editableDimensions').DimensionKey;
+      value: number;
+    }
   | { type: 'commit-geometry'; body: Body; points: Vec3[]; meshCopy: boolean }
   | { type: 'release-history' }
   | { type: 'import-step'; data: ArrayBuffer; name: string }
