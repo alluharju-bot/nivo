@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { findPreset, type Appearance } from '../model/materials';
+import { MaterialOptics } from './MaterialOptics';
 
 const finishes = [
   { id: 'matte', label: 'Matta', roughness: 1, clearcoat: 0 },
@@ -185,6 +186,12 @@ export function SurfaceFinish({
           Matta <span>Kiiltävä</span>
         </small>
       </label>
+      <MaterialOptics
+        key={appearance.preset}
+        appearance={appearance}
+        busy={busy}
+        onChange={onChange}
+      />
     </div>
   );
 }

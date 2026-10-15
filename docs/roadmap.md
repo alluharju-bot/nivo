@@ -2,6 +2,26 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.46.2 — geelit, aerogeeli ja muovit
+
+- 14 uutta visuaalista esiasetusta: kirkas, meripihkanvärinen ja maitomainen geeli,
+  sinertävä aerogeeli, kirkas/savu/huurrettu polykarbonaatti, PET, polypropeeni,
+  PE-HD, nailon PA, POM, TPU ja silikoni. Aiemmat ABS- ja akryylipinnat säilyvät.
+- Samat materiaalit maalaustyökalussa, osapaneelissa ja renderissä. **Läpäisy ja
+  sisäinen sävy** kokoaa läpäisyn, taittokertoimen ja paksuuteen sidotun sävyn
+  säädöt. Kiilto/pintakäsittely säätää myös pinnan huurrettavuutta. Omat optiset
+  säädöt voi palauttaa materiaalin oletuksiin muuttamatta muuta pintaa.
+- Absorptio käyttää projektin millimetrejä. Tarkentuva renderi laskee matkan
+  kappaleen sisällä; nopea esikatselu arvioi paksuuden osan pienimmästä mitasta.
+  Paksuudettomalla uudella materiaalipinnalla ei teeskennellä tilavuutta.
+  Vanhat materiaalit säilyttävät oletusulkonäkönsä.
+- Asetukset säilyvät osissa, pintamaalauksessa, omissa materiaaleissa ja
+  projektitiedostossa. Materiaalimuutos käyttää nykyistä geometriapuskureita
+  säästävää päivitystä. Uudet esiasetukset eivät lataa kuvia tai tilavuustekstuureja.
+- Aerogeeli on **visuaalinen pinta-arvio**, ei tilavuussirontaa laskeva malli.
+  Myös geeli ja silikonimateriaalit muuttavat ulkonäköä; ne eivät lisää
+  pehmeän kappaleen fysiikkaa. Esiasetukset eivät ole tuotekohtaisia mittausarvoja.
+
 ## V0.46.1 — työkalujen suunta ja kameran yhteistoiminta
 
 - Työkalupalkin kevyet **Piirrä / Muokkaa / Mittaa** -jaottelut säilyttävät
@@ -59,16 +79,91 @@ toteuta tätä vaatimusta. Ei merkitä nykyisen pistemuokkauksen ominaisuudeksi.
   taivuttaminen erotetaan toisistaan. Kulmien ylitykset ja päällekkäiset kopiot
   tarvitsevat selkeän esikatselun ja ratkaisun ennen hyväksyntää.
 
-### Backlog: läpikuultavat materiaalit ja toimintakokeilut
+### Backlog: materiaalikokeilut kokonaisuutena
 
-- Kirkas/samea polykarbonaatti, sävytetty geeli ja aerogeelimäinen visuaalinen
-  materiaali. Taittokerroin, paksuudesta riippuva absorptio ja sameus;
-  tilavuussironta erillisenä renderiputken kehityksenä.
-- Erillinen palautettava Kokeile-tila mekanismien liikkeelle ja myöhemmin
-  törmäyksille. Pehmeän kappaleen deformaatio oma vaativampi jatko.
-- Lujuuslaskenta ei kuulu visuaaliseen materiaalikirjastoon: tarvitsee erilliset
-  mekaaniset materiaaliominaisuudet, kuormat, kiinnitykset, liitokset, verkotuksen
-  ja validoidun laskennan. Ei luvata rakenteellista luotettavuutta animaatiolla.
+**Ensivaihe toteutettu V0.46.2:ssa:** geelit, aerogeelin pinta-arvio ja muovivalikoima;
+valon läpäisy, taittokerroin, sisäinen sävy ja sen syvyys sekä nykyinen pintakäsittely.
+Jatkotyöt tehdään saman materiaalivalikon ja maalaustyökalun sisällä.
+
+- Tilavuuden sisäinen sironta: aerogeelin sinertävä sameus ja vastavalon sävy,
+  geelin/silikonin maitomaisuus, vahamaiset ja muut puoliläpäisevät pinnat.
+  Pinnan karheus, absorptio ja sisäinen sironta ovat eri ilmiöitä. Tavoite on
+  uskottava sisäosa myös sileällä pinnalla; karheus ei yksin korvaa sirontaa.
+- Kirkkaat, sävytetyt ja huurteiset muovit; ohuet kalvot, paksut kiinteät osat ja
+  ontot kuoret. Käyttäjä valitsee ulkonäön nopeasti esiasetuksella, tarkemmat
+  säädöt avautuvat tarvittaessa. Myöhemmin tuotekohtaiset optiset tiedot erikseen.
+- Pinnoitteet ja sävytetty lakka pohjamateriaalin päällä: oma sävy, paksuus,
+  kiilto ja karheus niin, että puunsyy ja pohjan PBR-rakenne säilyvät.
+  Materiaalin väri, pinnoitteen väri ja läpäisevän valon sävy pysyvät erillisinä.
+- Kuplat, sisäiset sulkeumat ja kuituiset/huokoiset materiaalit myöhempinä
+  kokeiluina. Kokeillaan ensin kevyttä esitystapaa; tilavuustekstuurit ja
+  tarkka sironta vaativat erillisen suorituskykyarvion.
+- Omat esiasetukset ja materiaalivertailu samoilla muodoilla: ohut levy,
+  paksu kappale, kaareva pinta ja ontto kuori sekä suora-, sivu- ja vastavalo.
+  Tarkistetaan värintoisto, paksuuden vaikutus, rajapinnat, kohina ja näytemäärä.
+- Nopea esikatselu ja tarkentuva renderi käyttävät samoja arvoja. Esikatselun
+  rajat kerrotaan ymmärrettävästi. Testataan päällekkäiset läpäisevät osat,
+  peilit, LED-valot, pintakohtainen maalaus, kamera lähellä pintaa sekä muisti
+  ja vaste MacBookilla/tabletilla. Piilotettujen kokeilujen ei pidä kuormittaa näkymää.
+- Tallennus/pilvisynkronointi, Peru/Palauta, linkitetyt ja uniikit kopiot sekä
+  pintakohtaiset materiaalit kattavat myös jatkossa lisättävät ominaisuudet.
+
+### Backlog: lika, pöly ja materiaalikerrokset
+
+Kaksi samaan maalaustyönkulkuun kuuluvaa käyttötapaa, pohjamateriaalia hävittämättä:
+
+1. **Paikallinen merkki (decal):** tahra, pölyjälki, sormenjälki, vesijälki,
+   naarmu, tarra tai logo. Valitse valmis merkki tai oma läpinäkyvä kuva,
+   napsauta pintaa ja säädä kokoa, kiertoa, paikkaa ja voimakkuutta nykyisten
+   tekstuurikahvojen tapaan. Rajaus valittuun osaan/pintaan estää vuodon seinän
+   läpi tai naapuriosiin. Merkki kiinnittyy osan mukana, ja sen voi poistaa erikseen.
+2. **Pintakerros:** koko valitun osan tai pinnan pölyisyys, lika, kuluminen tai
+   kosteus. Määrä, mittakaava, sävy ja karheus; tarvittaessa oma normal-/bump-kartta
+   ja maski. Kerroksen järjestys, näkyvyys ja poisto ovat muokattavissa.
+
+Ensimmäiseen toteutukseen muutama neutraali pöly-/likavaihtoehto ja yksi
+muokattava kerros. Sen jälkeen useat kerrokset, maskin maalaaminen sekä
+automaattinen pöly ylöspäin oleville pinnoille ja kuluma reunoille. Pinnalla
+näkyvä pöly ja ilmassa leijuva sumu/pöly erotetaan toisistaan.
+
+Tekninen hyväksymisehto: samat jäljet nopeassa ja tarkentuvassa renderissä,
+ei päällekkäisten pintojen välkkymistä, alpha-reunat ja värinhallinta oikein.
+Arvioidaan materiaalikarttojen yhdistäminen ja välimuisti ennen uuden geometria-
+tason lisäämistä jokaiseen likajälkeen. Pelkkä esikatselun shader-muutos ei riitä.
+Kopioinnin, skaalauksen, UV-muutosten ja CAD-pintajaon vaikutus kiinnitykseen,
+valinta/Hold, historia, pilvitallennus ja tekstuurimuisti testataan yhdessä.
+
+### Backlog: mekanismien liike ja toimintakokeilut
+
+1. **Sarana ja liuku ensin.** Valitse osa tai kokoonpano sekä reuna, piste tai
+   akseli. Aseta sarana-akseli ja avautumisen suunta/asteet tai liukusuunta ja
+   matka millimetreinä. Ovet, kannet, laatikot ja kiskot toimivat samalla tavalla.
+   Määritä kiinteä ja liikkuva osa, lepoasento sekä liikerajat. Akselin valinnassa
+   käytetään nykyisiä tartuntoja ja Shift-viitettä.
+2. **Palautettava Kokeile-tila.** Liukusäädin, käsin veto, Toista/Tauko ja Palauta
+   lepoasentoon. Liike ei muuta valmistusmittoja, lähdegeometriaa eikä muodosta
+   historiaan tai pilveen muutosta joka kuvasta. Mekanismin määritys tallennetaan;
+   tilasta poistuminen palauttaa lähtöasennon. Ryhmät säilyvät järjestelynä,
+   kokoonpanot toiminnallisina kokonaisuuksina. Linkitettyjen osien geometria
+   pysyy yhteisenä, esiintymän kokeiluasento voi olla oma.
+3. **Liikkeiden yhdistäminen ja tilantarve.** Usean saranan/liukujohteen ketjut,
+   mekanismien yhtäaikainen esitys, liikeradan näyttäminen ja törmäysvaroitus.
+   Liikerajan tai törmäyksen rikkominen näkyy selvästi; sitä ei piiloteta.
+4. **Jäykkien kappaleiden fysiikka erillisenä jatkona.** Painovoima, massa,
+   kitka, kimmoisuus, tökkäys, pudotus/heitto ja törmäys. Yksinkertaiset
+   törmäyskappaleet pitävät kokeilun nopeana. CAD-geometria ja valmistustiedot
+   säilyvät ennallaan; simulaatio ei ole mittatarkka kuormitusanalyysi.
+5. **Pehmeän kappaleen kokeilu.** Geeli, kumi, taipuminen, venyminen ja palautuminen
+   vaativat verkotuksen, mekaaniset ominaisuudet ja numeerisen ratkaisun.
+   Rajattu, palautettava prototyyppi arvioidaan erikseen, tarvittaessa ensin
+   pelin/simulaation puolella. Visuaalinen geelimateriaali ei aktivoi fysiikkaa.
+
+**Kuormitus, jännitys ja lujuuslaskenta ovat erillinen tutkimuskokonaisuus.**
+Tarvitaan mekaaniset materiaaliarvot (esim. tiheys, kimmomoduuli, Poissonin luku,
+myötöraja), tuennat, kuormat, liitokset/kontaktit, verkotus, konvergenssin
+tarkistus ja validoitu ratkaisija. Visuaalinen animaatio ei osoita kantavuutta.
+Päätös varsinaisesta FEM-integraatiosta tehdään käyttötarpeen ja vertailutestien
+perusteella; sitä ei yhdistetä huomaamatta tavalliseen maalausvalikkoon.
 
 ## V0.46.0 — yhteinen geometriatyötila
 

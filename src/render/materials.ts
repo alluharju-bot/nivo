@@ -538,6 +538,16 @@ export function createMaterialLibrary(
         roughnessMap = null;
       }
       const finishRoughness = appearance.roughness ?? preset.roughness;
+      const attenuationDistance = appearance.attenuationDistance ?? preset.attenuationDistance ?? 0;
+      // Geometry and Beer–Lambert absorption use millimetres throughout Nivo.
+      // New optical presets use the part's narrowest extent as the raster estimate;
+      // the path tracer computes the actual distance between surface hits.
+      // Preserve the established preview for older materials without optical overrides.
+      const optical =
+        preset.ior !== undefined ||
+        appearance.ior !== undefined ||
+        appearance.attenuationDistance !== undefined;
+      const thickness = Math.min(body.feature.width, body.feature.depth, body.feature.height);
       const material = new THREE.MeshPhysicalMaterial({
         color: body.color,
         side: THREE.DoubleSide,
@@ -546,11 +556,11 @@ export function createMaterialLibrary(
         transmission: appearance.transmission ?? preset.transmission ?? 0,
         clearcoat: finishRoughness === 1 ? 0 : (appearance.clearcoat ?? preset.clearcoat ?? 0),
         clearcoatRoughness: finishRoughness,
-        thickness: Math.max(
-          1,
-          Math.min(body.feature.width, body.feature.depth, body.feature.height) * 0.1,
-        ),
-        ior: 1.5,
+        thickness: optical ? thickness : Math.max(1, thickness * 0.1),
+        ior: appearance.ior ?? preset.ior ?? 1.5,
+        attenuationColor: appearance.attenuationColor ?? preset.attenuationColor ?? '#ffffff',
+        attenuationDistance:
+          optical && thickness === 0 ? Infinity : attenuationDistance || Infinity,
         map,
         normalMap,
         roughnessMap,

@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.46.2** lisää geelit, aerogeelin pinta-arvion ja kymmenen uutta
+muovimateriaalia. Materiaalin **Läpäisy ja sisäinen sävy** -säädöt toimivat
+maalaustyökalussa, osapaneelissa ja renderissä. Sisäinen sävy voimistuu
+paksuuden mukana; aerogeelin tilavuussironta on jatkokehityksessä.
+
 Versio **0.46.1** korjaa ruudukkoa pienemmän liikkeen kirjoitussuunnan,
 kameran liikuttamisen keskeneräisen pursotuksen aikana ja leikatun sylinterin
 pituuden muuttamisen. Pintaan piirretty muoto leikkaa myös reiän pyöristyksen

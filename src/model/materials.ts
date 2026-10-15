@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { pbrSurfaces } from './pbrCatalog';
 import { collectionPaints, surfaceCollectionName, type SurfaceGroup } from './surfaceCollection';
+import { experimentalMaterials } from './experimentalMaterials';
 export const texturePlacementSchema = z.object({
   width: z.number().min(0.1).max(100000),
   height: z.number().min(0.1).max(100000),
@@ -32,6 +33,13 @@ export const appearanceSchema = z.object({
   roughness: z.number().min(0).max(1).optional(),
   metalness: z.number().min(0).max(1).optional(),
   transmission: z.number().min(0).max(1).optional(),
+  ior: z.number().min(1).max(2.333).optional(),
+  /** Millimetres; zero disables volume absorption without serializing Infinity. */
+  attenuationDistance: z.number().min(0).max(1_000_000).optional(),
+  attenuationColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
   clearcoat: z.number().min(0).max(1).optional(),
   emission: z
     .object({
@@ -81,6 +89,10 @@ export type MaterialPreset = {
   roughness: number;
   metalness: number;
   transmission?: number;
+  ior?: number;
+  attenuationDistance?: number;
+  attenuationColor?: string;
+  note?: string;
   clearcoat?: number;
   pbr?: string;
   grainAxis?: 'u' | 'v';
@@ -315,6 +327,7 @@ export const materialPresets: MaterialPreset[] = [
     metalness: 0,
     transmission: 0.8,
   },
+  ...experimentalMaterials,
   {
     id: 'granite',
     name: 'Graniitti',
