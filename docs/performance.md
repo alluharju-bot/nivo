@@ -1,5 +1,57 @@
 # Suorituskyky
 
+## V0.46.5 — vaaleiden pintojen venyneet valoläikät
+
+V0.46.4:n kohinanpoisto jätti vaaleisiin pintoihin venyviä läikkiä. Pienten
+rakeiden mittari parani, mutta ei tunnistanut tätä kuvanlaadun heikkenemistä.
+Korjaus tarkistetaan siksi myös kohinan suunnan, valaistuksen yksityiskohtien
+ja saman sisärenderin silmämääräisen vertailun kautta.
+
+- Vanha syvyysvertailu hylki saman vinon pinnan vierekkäisiä pikseleitä.
+  Puolitarkka logaritminen syvyys myös porrastui. Nyt ohjain tallentaa tarkan
+  lineaarisen katselusyvyyden ja suodatus vertaa pikselien kuulumista samaan
+  pintaan, ei pelkkää etäisyyttä kameraan. Materiaalin normaalikartta ei muuta
+  tätä geometrista tasotestiä.
+- Suodatus jatkuu viidessä mittakaavassa. Jäljellä oleva varianssi kulkee
+  välituloksen mukana: myöhemmät vaiheet eivät käsittele jo tasoittunutta
+  kuvaa yhtä kohinaisena kuin alkuperäistä. Tämä vähentää sekä pienistä
+  kirkkaista pisteistä syntyviä ryhmiä että oikeiden valokohtien pehmenemistä.
+- Puunsyyt, saumakohdat, pinnan normaalit ja geometrian rajat ohjaavat edelleen
+  suodatusta. Peilit ja lasi käyttävät vain varovaista ensimmäistä vaihetta.
+  Alkuperäinen läpinäkyvyys palautetaan lopputulokseen; raakaa näytekertymää
+  ei suodateta. Sama toteutus toimii näkymässä ja kuvatiedoston viennissä.
+- GPU-regressio: saman kohinan vaaka-/pystysuuntainen ero 80 asteen pinnalla
+  5,64 → 1,06 (tasainen olisi 1). Tulos vastaa suoraan näkyvän pinnan tulosta
+  sekä perspektiivissä että ortografisessa näkymässä. Pieni valoalue säilyttää
+  96,7 % ja terävä varjoraja 98,9 % kontrastistaan. Erillisten samanväristen
+  pintojen rajan virhe on alle 0,001 lineaarista väriarvoa.
+- Tavallisen korkean varianssin synteettisessä kokeessa RMSE 0,599 → 0,022;
+  keskimääräinen kirkkaussuhde 1,003. Harvinaisten osumien rasituskokeessa
+  RMSE 6,94 → 0,49 ja kirkkaussuhde 0,899. Jälkimmäinen paljastaa edelleen
+  suodatuksen harhan; kyse ei ole harhattomasta valaistusratkaisusta.
+- Kaksi välipuskuria kierrätetään. Tarkempi syvyysohjain lisää 8 tavua/pikseli
+  verrattuna V0.46.4:ään, enintään noin 24 MB esikatselun 3 MP rajalla.
+
+Peilien heijastuskohina ja vaikeiden epäsuorien valopolkujen näytteistys ovat
+edelleen jatkotyötä. Tämä korjaus ei lupaa kohinatonta kuvaa tietyllä näytemäärällä.
+
+Sisätilan varmennus: sama yksityisen 649 osan mallin paikallinen kopio,
+443 näkyvää osaa, allaskalusteen ja peilin kamera, Apple M1 Pro / 16 Gt,
+näkyvä Chromium / ANGLE Metal, 810 × 663 px. Aika 128 näytteeseen 146,5 s
+(V0.46.4: 145,8 s): tästä ajosta ei todeta näytenopeuden muutosta.
+11/70/128 näytteen kuvat tarkastettu; ensimmäinen pelkän suuntavirheen ja
+pienemmän suodatusalueen korjaus hylättiin, koska se jätti näkyvät valoläikät.
+Yksityinen malli ja renderit eivät kuulu julkaisuun.
+
+Ensimmäinen kuva 587 ms, kameran keskeytys ja uuden näkymän vaste 287 ms.
+Ei näytekertymän nollauksia eikä sivuvirheitä. Tuotantopaketin seitsemän
+selainregressiota läpäisty: käynnistys, kameran vaihto, karkean kuvan poistuminen,
+PNG-vienti, kuvan ilmeet, maalattu LED-pinta ja kolmen vientikierroksen muistien
+vapautuminen (tekstuurimäärät 14 / 14 / 14). Uudet pinnan-/valonlaatutestit ja
+aiemmat kohinanpoistotestit läpäisty Metalilla sekä SwiftShaderilla.
+645 yksikkötestiä läpäisty, viisi testiä ohitettu;
+TypeScript, tuotantobuild ja lisenssitarkistus läpäisty.
+
 ## V0.46.4 — toistuva raekuvio ja pienet sisävalot, 15.10.2026
 
 Yksityisen nykyisen pilvimallin paikallinen kopio: 649 osaa, 443 näkyvissä.
@@ -10,16 +62,16 @@ kameratiedostoa tai kuvia ei julkaista. Tämä malli on eri revisio kuin V0.42:n
 625 osan vertailu: niiden lukuja ei pidä verrata keskenään.
 
 | Sama nykyinen sisänäkymä, 128 näytettä | V0.46.3 | V0.46.4 |
-| ------------------------------------- | ------: | ------: |
-| Aika | 126,5 s | 145,8 s |
-| Valkoisen oven rakeisuusmittari | 19,37 | 3,92 |
-| Saman alueen keskimääräinen kirkkaus | 134,66 | 135,01 |
+| -------------------------------------- | ------: | ------: |
+| Aika                                   | 126,5 s | 145,8 s |
+| Valkoisen oven rakeisuusmittari        |   19,37 |    3,92 |
+| Saman alueen keskimääräinen kirkkaus   |  134,66 |  135,01 |
 
 Mittari on tekstuurittoman oven RGB-keskiarvon ja neljän naapuripikselin
 keskiarvon erotuksen keskihajonta, ei vertailurenderiin perustuva RMSE.
 Tällä alueella arvo pieneni noin 80 %, kirkkauden keskiarvo säilyi.
-Näytteiden laskenta oli noin 15 % hitaampaa; tämä on kuvanlaadun parannus,
-ei näytenopeuden parannus. 70 näytteellä uusi arvo oli 5,18. Myös edeltävän
+Näytteiden laskenta oli noin 15 % hitaampaa. Jälkikäteen havaittiin, että
+rakeisuusmittari ei tunnistanut uusia suuria valoläikkiä; niiden korjaus on V0.46.5:ssä. 70 näytteellä uusi arvo oli 5,18. Myös edeltävän
 päivän materiaalikoodilla ja vanhalla näytejonolla sama nykyinen malli jäi
 70 näytteellä rakeiseksi (20,17). Viimeisin kynä-/materiaalimuutos ei siis
 selitä yksin käyttäjän havaitsemaa eroa aiempaan hyvään kuvaan.
@@ -70,15 +122,15 @@ kameralla, materiaaleilla ja valaistuksella. Apple M1 Pro / 16 Gt, näkyvä
 Chromium 153 / ANGLE Metal; tuotantobuild, 810 × 663 pikselin kuva, DPR 1.
 Muita GPU-testejä ei ajettu samanaikaisesti. Projektia tai sen kuvia ei julkaista.
 
-| Allaskaluste, peili ja valkoinen ovi | V0.41.1 | V0.42.0 |
-| ---------------------------------- | ------: | ------: |
-| Näytteitä 60 sekunnissa | 89 | 69 |
-| Aika 500 näytteeseen | 334,2 s | 433,3 s |
-| Valkoisen oven rakeisuusmittari, 60 s | 37,12 | 11,82 |
-| Valkoisen oven rakeisuusmittari, 500 näytettä | 17,79 | 2,74 |
-| Saman oven keskimääräinen kirkkaus, 500 näytettä | 151,55 | 151,27 |
-| Valkoisen kalustepinnan rakeisuusmittari, 500 näytettä | 4,90 | 1,26 |
-| Kameran neljän syöteaskeleen käsittely testissä | 80 ms | 91 ms |
+| Allaskaluste, peili ja valkoinen ovi                   | V0.41.1 | V0.42.0 |
+| ------------------------------------------------------ | ------: | ------: |
+| Näytteitä 60 sekunnissa                                |      89 |      69 |
+| Aika 500 näytteeseen                                   | 334,2 s | 433,3 s |
+| Valkoisen oven rakeisuusmittari, 60 s                  |   37,12 |   11,82 |
+| Valkoisen oven rakeisuusmittari, 500 näytettä          |   17,79 |    2,74 |
+| Saman oven keskimääräinen kirkkaus, 500 näytettä       |  151,55 |  151,27 |
+| Valkoisen kalustepinnan rakeisuusmittari, 500 näytettä |    4,90 |    1,26 |
+| Kameran neljän syöteaskeleen käsittely testissä        |   80 ms |   91 ms |
 
 Rakeisuusmittari on tasaiselta, tekstuurittomalta maalipinnalta mitattu
 8-bittisen RGB-keskiarvon ja sen neljän naapuripikselin keskiarvon erotuksen

@@ -65,6 +65,8 @@ test('GPU denoising reduces bright and dark relative noise equally, preserves fi
   expect(stats.variance.filtered).toBeLessThan(stats.variance.prior * 0.85);
   expect(stats.variance.grainFiltered).toBeLessThan(stats.variance.grainRaw * 0.85);
   expect(stats.variance.error).toBe(0);
+  expect(stats.variance.opacityError).toBe(0);
+  expect(stats.rare.opacityError).toBe(0);
   expect(stats.variance.released).toBe(4);
   expect(Math.abs(stats.variance.brightnessRatio - 1)).toBeLessThan(0.03);
   expect(stats.rare.filtered).toBeLessThan(stats.rare.prior * 0.3);

@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 
-export type DenoiseGuides = { albedo: THREE.Texture; normal: THREE.Texture };
+export type DenoiseGuides = {
+  albedo: THREE.Texture;
+  /** View-space shading normal in RGB, linear view depth in metres in alpha. */
+  normal: THREE.Texture;
+  projectionInverse: THREE.Matrix4;
+};
 
 /** Raster guides preserve real texture/normal detail when smoothing stochastic
  * radiance. Built only after a camera/material/size change, never per sample.
@@ -8,6 +13,7 @@ export type DenoiseGuides = { albedo: THREE.Texture; normal: THREE.Texture };
 export function traceGuides() {
   let albedo: THREE.WebGLRenderTarget | undefined, normal: THREE.WebGLRenderTarget | undefined;
   let dirty = true;
+  const projectionInverse = new THREE.Matrix4();
   const materials = new Map<
     THREE.Material,
     { key: string; color: THREE.MeshBasicMaterial; normal: THREE.MeshNormalMaterial }
@@ -39,7 +45,8 @@ export function traceGuides() {
       height: number,
     ): DenoiseGuides {
       if (albedo?.width !== width || albedo?.height !== height) dirty = true;
-      if (!dirty && albedo && normal) return { albedo: albedo.texture, normal: normal.texture };
+      if (!dirty && albedo && normal)
+        return { albedo: albedo.texture, normal: normal.texture, projectionInverse };
       releaseTargets();
       const retired: { color: THREE.Material; normal: THREE.Material }[] = [];
       const active = new Set<THREE.Material>();
@@ -48,7 +55,9 @@ export function traceGuides() {
         magFilter: THREE.NearestFilter,
       });
       normal = new THREE.WebGLRenderTarget(width, height, {
-        type: THREE.HalfFloatType,
+        // Half-float log depth quantized sloping walls into visible bands. Keep
+        // precise linear depth for surface-plane rejection in the denoiser.
+        type: THREE.FloatType,
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
       });
@@ -108,14 +117,14 @@ export function traceGuides() {
         n.onBeforeCompile = (shader) => {
           shader.vertexShader = `varying float vGuideDepth;\n${shader.vertexShader}`.replace(
             '#include <project_vertex>',
-            '#include <project_vertex>\nvGuideDepth = log2(1.0 + max(0.0, -mvPosition.z));',
+            '#include <project_vertex>\nvGuideDepth = -mvPosition.z * 0.001;',
           );
           shader.fragmentShader = `varying float vGuideDepth;\n${shader.fragmentShader}`.replace(
             /}\s*$/,
             'gl_FragColor.a = vGuideDepth;\n}',
           );
         };
-        n.customProgramCacheKey = () => 'guide-depth';
+        n.customProgramCacheKey = () => 'guide-linear-depth';
         const result = { key, color, normal: n };
         materials.set(source, result);
         return result;
@@ -156,6 +165,7 @@ export function traceGuides() {
           renderer.setRenderTarget(mode === 'color' ? albedo : normal);
           renderer.render(scene, camera);
         }
+        projectionInverse.copy(camera.projectionMatrixInverse);
         dirty = false;
       } finally {
         saved.forEach(({ mesh, material }) => {
@@ -180,7 +190,7 @@ export function traceGuides() {
           pair.normal.dispose();
         });
       }
-      return { albedo: albedo.texture, normal: normal.texture };
+      return { albedo: albedo.texture, normal: normal.texture, projectionInverse };
     },
     reset: releaseTargets,
     clear: release,

@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.46.5** korjaa vaaleiden pintojen venyneitä valoläikkiä.
+Kohinanpoisto tunnistaa saman vinon pinnan ja seuraa jäljellä olevaa kohinaa
+vaiheittain. Se tasoittaa kirkkaita kohinaryhmiä säilyttäen puunsyyt, pintojen
+rajat ja pienet valokohdat. Korjaus toimii sekä renderinäkymässä että kuvan
+viennissä. Peiliheijastusten kohina tarvitsee edelleen jatkokehitystä.
+
 Versio **0.46.4** korjaa tarkentuvan renderin toistuvaa raekuviota ja
 pienten sisävalojen näytteistystä. Myös pyöreät LED-pinnat osallistuvat
 suoraan valonäytteistykseen. Kohinanpoisto käsittelee harvat kirkkaat osumat

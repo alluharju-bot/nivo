@@ -2,6 +2,22 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.46.5 — vaaleiden pintojen valoläikät
+
+- Kohinanpoiston tarkka lineaarinen syvyys ja pintatasotesti korjaavat vinon
+  pinnan suuntaan venyvät läikät. Sama pinta säilyy yhtenäisenä myös lähellä
+  sivuttaista katselukulmaa.
+- Viisi suodatusmittakaavaa seuraavat jäljellä olevaa varianssia kahdessa
+  kierrätettävässä välipuskurissa. Kirkkaat kohinaryhmät tasoittuvat ilman,
+  että myöhemmät vaiheet käyttävät yhä alkuperäisen kuvan korkeaa varianssia.
+- Oikeiden valokohtien, varjorajojen, pintojen rajojen, puunsyiden ja
+  läpinäkyvyyden säilymiselle on GPU-testit. Samat korjaukset näkymässä ja viennissä.
+- Yksityisen sisätilan saman kuvan vertailu; pelkkää rakeisuuden numeerista
+  vähenemistä ei enää tulkita kokonaiskuvan laadun paranemiseksi.
+
+Jatkoon: heijastusten kohina sekä peitossa olevien valojen tehokkaampi näytteistys.
+[Vertailu ja rajat](performance.md).
+
 ## V0.46.4 — renderin raekuvio ja pienten valojen näytteistys
 
 - Näytejono vaihtuu kirjaston 64 × 64 pikselin toistuvasta kohinalaatasta

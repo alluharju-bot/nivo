@@ -32,7 +32,11 @@ export function exerciseDenoise() {
     albedo.set([0.5, 0.5, 0.5, 1], i);
     normals.set([0.5, 0.5, 1, 8], i);
   }
-  const guides = { albedo: texture(albedo), normal: texture(normals) };
+  const guides = {
+    albedo: texture(albedo),
+    normal: texture(normals),
+    projectionInverse: new THREE.Matrix4(),
+  };
   const trials = [];
   const read = () => {
     const pixels = new Float32Array(size * size * 4);
@@ -233,10 +237,14 @@ export function exerciseVariance(rare = false) {
       const i = (y * size + x) * 4;
       const a = x < 32 ? 0.5 : x % 2 ? 0.6 : 0.4;
       albedo.set([a, a, a, rare ? 0.55 : 1], i);
-      normals.set([0.5, 0.5, 1, rare ? Math.round((10 + x * 0.004) * 128) / 128 : 8], i);
+      normals.set([0.5, 0.5, 1, 8], i);
       truth.set([a * 8, a * 6, a * 4, 1], i);
     }
-  const guides = { albedo: tex(albedo), normal: tex(normals) },
+  const guides = {
+      albedo: tex(albedo),
+      normal: tex(normals),
+      projectionInverse: new THREE.Matrix4(),
+    },
     map = tex(means);
   const copy = new THREE.MeshBasicMaterial({
     map,
@@ -295,6 +303,10 @@ export function exerciseVariance(rare = false) {
       brightnessRatio:
         filtered.reduce((sum, v, i) => sum + (i % 4 === 0 ? v : 0), 0) /
         truth.reduce((sum, v, i) => sum + (i % 4 === 0 ? v : 0), 0),
+      opacityError: filtered.reduce(
+        (max, value, i) => (i % 4 === 3 ? Math.max(max, Math.abs(value - 1)) : max),
+        0,
+      ),
       varianceMean,
       raw: error(means, true),
       prior: error(prior, true),
