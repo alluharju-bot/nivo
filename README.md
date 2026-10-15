@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.46.4** korjaa tarkentuvan renderin toistuvaa raekuviota ja
+pienten sisävalojen näytteistystä. Myös pyöreät LED-pinnat osallistuvat
+suoraan valonäytteistykseen. Kohinanpoisto käsittelee harvat kirkkaat osumat
+useassa mittakaavassa; materiaalien syyt, pinnan muodot ja reunat ohjaavat
+suodatusta. Korjaus koskee sekä näkymää että tarkkojen kuvien vientiä.
+Peilit ja koteloidut valot voivat edelleen tarvita enemmän näytteitä.
+
 Versio **0.46.3** korjaa kynän klikkaukset lähellä mallia: aloitus ja
 jatkopisteet käyttävät piirrettävää tasoa myös origon jäädessä kameran taakse.
 Ympyrän tarkka kaarireuna tunnistetaan osan pintaan kuuluvaksi myös

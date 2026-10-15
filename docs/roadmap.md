@@ -2,6 +2,29 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.46.4 — renderin raekuvio ja pienten valojen näytteistys
+
+- Näytejono vaihtuu kirjaston 64 × 64 pikselin toistuvasta kohinalaatasta
+  pikseli- ja heijastuskohtaisesti sekoitettuun Sobol-jonoon. GPU-regressio
+  toistaa vanhan kuvion ja varmistaa uuden jonon konvergenssin sekä keskiarvon.
+- Valonvalinta huomioi pistemäisen spotin keilan: voimakas mutta pinnasta pois
+  osoittava spotti ei enää vie lähes kaikkia näytteitä oikeasti valaisevalta LEDiltä.
+  Tasainen 10 % osuus säilyttää kaikkien valojen mahdollisuuden.
+- Kokonainen tasomainen pyöreä LED-pinta saa muotoaan vastaavat valonäytteet.
+  Renkaita, kaaren osia tai suljettua sylinteriä ei täytetä valaisevaksi kiekoksi.
+  Kallistus ja näkymän kopiointi säilyttävät ympyrän; sama energia lasketaan kerran.
+- Kohinanpoisto arvioi harvat kirkkaat osumat kaikissa kolmessa mittakaavassa.
+  Harvemman varianssiverkon väliin osunut pikseli ei jää ensimmäisen vaiheen
+  jälkeen koskemattomaksi. Albedo-, normaali- ja syvyysrajat suojaavat yksityiskohtia.
+  Peilien ja lasin suodatus säilyy varovaisena; raakakertymää ei suodateta.
+- Sama korjaus näkymässä ja kuvan viennissä. Yksi uusi RGBA16F-välipuskuri:
+  8 tavua/pikseli eli enintään noin 24 MB esikatselun 3 MP rajalla.
+
+Jatkoon: peilistä näkyvien yksityiskohtien kohinanpoisto, koteloitujen valojen
+näkyvyyden huomioiva valonvalinta sekä muut kuin kokonaiset tasomaiset valopinnat.
+Nämä korjaukset eivät lupaa täysin kohinatonta sisäkuvaa tietyllä näytemäärällä.
+[Vertailun rajat ja tulokset](performance.md).
+
 ## V0.46.3 — kynän aloitus ja ympyrän piirto­taso
 
 - Kynän pisteet hyväksytään sen omalta piirto­tasolta tai tarkasta

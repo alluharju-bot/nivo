@@ -203,9 +203,9 @@ export function exerciseGuidesAndLooks() {
   }
 }
 
-export function exerciseVariance() {
+export function exerciseVariance(rare = false) {
   const size = 64,
-    samples = 256;
+    samples = rare ? 70 : 256;
   const renderer = new THREE.WebGLRenderer();
   renderer.setSize(size, size);
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -232,8 +232,8 @@ export function exerciseVariance() {
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
       const a = x < 32 ? 0.5 : x % 2 ? 0.6 : 0.4;
-      albedo.set([a, a, a, 1], i);
-      normals.set([0.5, 0.5, 1, 8], i);
+      albedo.set([a, a, a, rare ? 0.55 : 1], i);
+      normals.set([0.5, 0.5, 1, rare ? Math.round((10 + x * 0.004) * 128) / 128 : 8], i);
       truth.set([a * 8, a * 6, a * 4, 1], i);
     }
   const guides = { albedo: tex(albedo), normal: tex(normals) },
@@ -268,7 +268,8 @@ export function exerciseVariance() {
       for (let i = 0; i < means.length; i += 4) {
         seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
         // High-variance but nonnegative indirect illumination.
-        const noise = seed / 4294967296 < 0.15 ? 1 / 0.15 : 0;
+        const probability = rare ? 0.005 : 0.15;
+        const noise = seed / 4294967296 < probability ? 1 / probability : 0;
         for (let c = 0; c < 3; c++) means[i + c] += (truth[i + c] * noise - means[i + c]) / n;
         means[i + 3] = 1;
       }
@@ -291,6 +292,9 @@ export function exerciseVariance() {
       moments.reduce((sum, v, i) => sum + (i % 4 === 1 ? v : 0), 0) / (size * size);
     const memory = renderer.info.memory.textures;
     const result = {
+      brightnessRatio:
+        filtered.reduce((sum, v, i) => sum + (i % 4 === 0 ? v : 0), 0) /
+        truth.reduce((sum, v, i) => sum + (i % 4 === 0 ? v : 0), 0),
       varianceMean,
       raw: error(means, true),
       prior: error(prior, true),

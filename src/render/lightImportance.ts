@@ -14,6 +14,15 @@ const helpers = /* glsl */ `
       float cosine = max(0.0, dot(normalize(offset), normalize(cross(light.u, light.v))));
       return power * max(light.area, 0.0) * cosine / max(distance2, light.area);
     }
+    // A powerful spotlight contributes nothing outside its cone. Ignoring
+    // this can spend nearly every sample on nearby ceiling spots while the
+    // wall's actual LED illumination receives only the uniform fallback.
+    // Match the pinned tracer's punctual spot falloff. Extended/IES lights
+    // keep the conservative distance estimate and every light keeps support.
+    if (light.type == SPOT_LIGHT_TYPE && light.radius == 0.0 && light.iesProfile == -1) {
+      vec3 normal = normalize(cross(light.u, light.v));
+      power *= getSpotAttenuation(light.coneCos, light.penumbraCos, dot(normalize(offset), normal));
+    }
     return power / pow(distance2, max(light.decay, 0.0) * 0.5);
   }
   float nivoLightTotal(sampler2D map, uint count, vec3 origin) {

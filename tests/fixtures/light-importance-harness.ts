@@ -3,7 +3,7 @@ import { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { configureEmitterSampling } from '../../src/render/emitterSampling';
 import { traceResources } from '../../src/render/traceResources';
 
-export async function exerciseLightImportance() {
+export async function exerciseLightImportance(spots = false) {
   const renderer = new THREE.WebGLRenderer();
   renderer.setSize(32, 32);
   const scene = new THREE.Scene();
@@ -19,9 +19,15 @@ export async function exerciseLightImportance() {
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld(true);
   for (let i = 0; i < 12; i++) {
-    const light = new THREE.RectAreaLight(0xffffff, 20, 0.2, 1.5);
+    const light =
+      spots && i
+        ? new THREE.SpotLight(0xffffff, 500, 0, Math.PI / 9, 0.35, 2)
+        : new THREE.RectAreaLight(0xffffff, 20, 0.2, 1.5);
     light.position.set(i ? i : 0, 0, 2);
-    if (i) light.rotation.y = Math.PI;
+    if (light instanceof THREE.SpotLight) {
+      light.target.position.set(i, 0, 5); // Points away from the visible surface.
+      scene.add(light.target);
+    } else if (i) light.rotation.y = Math.PI;
     scene.add(light);
   }
   const run = async (importance: boolean, samples: number) => {

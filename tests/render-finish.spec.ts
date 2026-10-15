@@ -36,6 +36,7 @@ test('GPU denoising reduces bright and dark relative noise equally, preserves fi
       noise: fixture.exerciseDenoise(),
       look: fixture.exerciseGuidesAndLooks(),
       variance: fixture.exerciseVariance(),
+      rare: fixture.exerciseVariance(true),
     };
   });
   console.log(JSON.stringify(stats));
@@ -64,6 +65,10 @@ test('GPU denoising reduces bright and dark relative noise equally, preserves fi
   expect(stats.variance.filtered).toBeLessThan(stats.variance.prior * 0.85);
   expect(stats.variance.grainFiltered).toBeLessThan(stats.variance.grainRaw * 0.85);
   expect(stats.variance.error).toBe(0);
-  expect(stats.variance.released).toBe(3);
+  expect(stats.variance.released).toBe(4);
+  expect(Math.abs(stats.variance.brightnessRatio - 1)).toBeLessThan(0.03);
+  expect(stats.rare.filtered).toBeLessThan(stats.rare.prior * 0.3);
+  expect(stats.rare.grainFiltered).toBeLessThan(stats.rare.grainRaw * 0.65);
+  expect(Math.abs(stats.rare.brightnessRatio - 1)).toBeLessThan(0.12);
   expect(errors).toEqual([]);
 });

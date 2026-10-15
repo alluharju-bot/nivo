@@ -30,6 +30,13 @@ export function configureEmitterSampling(tracer: WebGLPathTracer, importance = t
   // together. Each setDefine in the library's onBeforeRender otherwise launches
   // a separate compilation, including costly fog/DOF shaders we don't use.
   const uniforms = material.uniforms;
+  // The default stratified sampler repeats one 64 × 64 blue-noise tile and
+  // shares its scalar offset across every sampling dimension. Sheltered LED
+  // lighting exposes that fixed screen-space pattern as resolution increases.
+  // Use the library's per-pixel, per-bounce scrambled Sobol sequence instead:
+  // neighboring pixels have distinct streams and later samples refine them.
+  // Shared by interactive refinement and full-size image exports.
+  material.defines.RANDOM_TYPE = 1;
   material.defines.FEATURE_DOF = uniforms.physicalCamera.value.bokehSize === 0 ? 0 : 1;
   material.defines.FEATURE_BACKGROUND_MAP = uniforms.backgroundMap.value ? 1 : 0;
   material.defines.FEATURE_FOG = uniforms.materials.value.features.isUsed('FOG') ? 1 : 0;

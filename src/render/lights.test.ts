@@ -6,6 +6,32 @@ import { defaultAppearance } from '../model/materials';
 import { makeBody } from '../model/project';
 import { textureFrameMatrix } from './materials';
 
+it('samples circular LED faces, preserves their shape on clone and rejects rings and arcs', () => {
+  const body = { ...makeBody(120, 120, 0), appearance: defaultAppearance('led-neutral') };
+  const rotation = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.6, 0.4, 0.8));
+  const geometry = new THREE.CircleGeometry(60, 124)
+    .toNonIndexed()
+    .applyMatrix4(rotation)
+    .translate(10000, 3000, 2400);
+  const lights = createTraceLights(body, geometry);
+  expect(lights.children).toHaveLength(2);
+  for (const child of lights.clone().children) {
+    const light = child as THREE.RectAreaLight & { isCircular?: boolean };
+    expect(light.isCircular).toBe(true);
+    expect(light.width).toBeCloseTo(120, 2);
+    expect(light.height).toBeCloseTo(120, 2);
+    expect(light.position.distanceTo(new THREE.Vector3(10000, 3000, 2400))).toBeCloseTo(0.1, 2);
+  }
+  for (const invalid of [
+    new THREE.RingGeometry(1, 60, 124),
+    new THREE.CircleGeometry(60, 124, 0, Math.PI * 1.7),
+  ]) {
+    expect(createTraceLights(body, invalid).children).toHaveLength(0);
+    invalid.dispose();
+  }
+  geometry.dispose();
+});
+
 it('excludes switched-off studio panels from the trace light sampling budget', () => {
   const scene = new THREE.Scene(),
     panels = new THREE.Group();

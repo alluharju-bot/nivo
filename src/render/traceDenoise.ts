@@ -9,7 +9,11 @@ export const screenVertex =
  * and unlit surface. Independent raster guides protect real albedo, normal-map
  * relief and depth discontinuities. Never filter the accumulated radiance. */
 export function traceDenoise() {
-  let intermediate: THREE.WebGLRenderTarget | undefined;
+  let intermediate: [THREE.WebGLRenderTarget, THREE.WebGLRenderTarget] | undefined;
+  const clear = () => {
+    intermediate?.forEach((target) => target.dispose());
+    intermediate = undefined;
+  };
   const material = new THREE.ShaderMaterial({
     depthTest: false,
     depthWrite: false,
@@ -47,11 +51,13 @@ export function traceDenoise() {
         float v0 = useVariance ? texture2D(varianceMap, vUv).g : 0.0;
         // A rare bright event may land between the half-resolution temporal
         // representatives. Estimate its local variance too, only on matching
-        // material/normal/depth. Never interpret grain or a silhouette as noise.
-        if (useVariance && useGuides && confidence >= 0.4 && stepSize == 1.0) {
+        // material/normal/depth at EVERY scale: otherwise a spike missed by
+        // the half-resolution estimate is stranded after the first pass.
+        // Never interpret grain or a silhouette as noise.
+        if (useVariance && useGuides && confidence >= 0.4) {
           float sumY = 0.0, sumY2 = 0.0, sumW = 0.0;
           for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
-            vec2 uv = clamp(vUv + vec2(float(i), float(j)) * pixel, pixel * 0.5, vec2(1.0) - pixel * 0.5);
+            vec2 uv = clamp(vUv + vec2(float(i), float(j)) * pixel * stepSize, pixel * 0.5, vec2(1.0) - pixel * 0.5);
             vec4 a = texture2D(albedoMap, uv), n = texture2D(normalMap, uv);
             vec3 da = a.rgb - albedo.rgb, dn = n.rgb - normal.rgb;
             float w = exp(-dot(da, da) / 0.0018 - dot(dn, dn) / 0.008 - abs(n.a - normal.a) * 120.0);
@@ -70,8 +76,10 @@ export function traceDenoise() {
           float scale = max(max(y0, y1), 0.002);
           vec3 delta = (sampleColor.rgb - center.rgb) / scale;
           float v1 = useVariance ? texture2D(varianceMap, uv).g : 0.0;
+          float varianceScale = confidence >= 0.4 ? 8.0 : 3.0;
+          float varianceLimit = confidence >= 0.4 ? 1.5 : 0.5;
           float sigma2 = useVariance
-            ? clamp(3.0 * (v0 + v1) / (scale * scale), 0.0001, 0.5)
+            ? clamp(varianceScale * (v0 + v1) / (scale * scale), 0.0001, varianceLimit)
             : threshold * threshold;
           // First-surface guides cannot describe a mirror's reflected details.
           sigma2 *= mix(0.12, 1.0, confidence);
@@ -115,18 +123,27 @@ export function traceDenoise() {
       try {
         if (variance && guides) {
           const image = map.image as { width: number; height: number };
-          intermediate ??= new THREE.WebGLRenderTarget(image.width, image.height, {
-            type: THREE.HalfFloatType,
-            depthBuffer: false,
-          });
-          intermediate.setSize(image.width, image.height);
-          renderer.setRenderTarget(intermediate);
-          quad.render(renderer);
-          material.uniforms.map.value = intermediate.texture;
-          material.uniforms.stepSize.value = 2;
+          intermediate ??= [0, 1].map(
+            () =>
+              new THREE.WebGLRenderTarget(image.width, image.height, {
+                type: THREE.HalfFloatType,
+                depthBuffer: false,
+              }),
+          ) as [THREE.WebGLRenderTarget, THREE.WebGLRenderTarget];
+          // A third scale cleans sparse bright speckles that survive the small
+          // first footprint. Albedo/normal/depth boundaries still gate every
+          // tap, and mirrors/glass retain only the conservative first pass.
+          for (const [index, step] of [1, 2].entries()) {
+            const stage = intermediate[index];
+            stage.setSize(image.width, image.height);
+            material.uniforms.stepSize.value = step;
+            renderer.setRenderTarget(stage);
+            quad.render(renderer);
+            material.uniforms.map.value = stage.texture;
+          }
+          material.uniforms.stepSize.value = 4;
         } else {
-          intermediate?.dispose();
-          intermediate = undefined;
+          clear();
         }
         renderer.setRenderTarget(output);
         quad.render(renderer);
@@ -134,12 +151,9 @@ export function traceDenoise() {
         renderer.setRenderTarget(target);
       }
     },
-    clear() {
-      intermediate?.dispose();
-      intermediate = undefined;
-    },
+    clear,
     dispose() {
-      intermediate?.dispose();
+      clear();
       quad.dispose();
       material.dispose();
     },

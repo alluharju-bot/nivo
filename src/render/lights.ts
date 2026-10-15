@@ -2,6 +2,13 @@ import * as THREE from 'three';
 import type { Body } from '../model/project';
 import { defaultAppearance, emissionSettings } from '../model/materials';
 import { textureFrameMatrix } from './materials';
+import { emitterDisk } from './emitterDisk';
+
+/** The pinned tracer recognizes this marker. A subclass keeps it on scene
+ * clones without eagerly loading the path-tracing bundle into the preview. */
+class CircularTraceLight extends THREE.RectAreaLight {
+  readonly isCircular = true;
+}
 
 export const previewLightLimit = 8;
 
@@ -118,7 +125,7 @@ export function createPartLights(body: Body, geometry: THREE.BufferGeometry) {
   return group;
 }
 
-/** Rectangular LED faces participate in next-event estimation. Tiny emissive
+/** Rectangular and complete circular LED faces participate in next-event estimation. Tiny emissive
  * meshes alone are almost never found by diffuse rays in a sheltered recess. */
 export function createTraceLights(body: Body, geometry: THREE.BufferGeometry) {
   const group = new THREE.Group();
@@ -131,6 +138,22 @@ export function createTraceLights(body: Body, geometry: THREE.BufferGeometry) {
   if (!emission.enabled || emission.intensity <= 0 || emission.type !== 'surface') return group;
   const positions = geometry.getAttribute('position');
   if (!positions?.count || (geometry.index !== null && geometry.index.count < 3)) return group;
+  const disk = emitterDisk(geometry);
+  if (disk) {
+    for (const sign of [-1, 1]) {
+      const light = new CircularTraceLight(
+        emission.color,
+        emission.intensity,
+        disk.radius * 2,
+        disk.radius * 2,
+      );
+      const direction = disk.normal.clone().multiplyScalar(sign);
+      light.position.copy(disk.center).addScaledVector(direction, 0.1);
+      light.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
+      group.add(light);
+    }
+    return group;
+  }
   const inverse = textureFrameMatrix(body).invert();
   const box = new THREE.Box3(),
     point = new THREE.Vector3();

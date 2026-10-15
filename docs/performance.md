@@ -1,5 +1,68 @@
 # Suorituskyky
 
+## V0.46.4 — toistuva raekuvio ja pienet sisävalot, 15.10.2026
+
+Yksityisen nykyisen pilvimallin paikallinen kopio: 649 osaa, 443 näkyvissä.
+Sama allaskalusteen, peilin ja valkoisen oven kamera sekä materiaalit ja valot.
+Apple M1 Pro / 16 Gt, näkyvä Chromium / ANGLE Metal, 810 × 663 px, DPR 1.
+Kehityspalvelin; ajot peräkkäin, ei samanaikaisia GPU-testejä. Projektia,
+kameratiedostoa tai kuvia ei julkaista. Tämä malli on eri revisio kuin V0.42:n
+625 osan vertailu: niiden lukuja ei pidä verrata keskenään.
+
+| Sama nykyinen sisänäkymä, 128 näytettä | V0.46.3 | V0.46.4 |
+| ------------------------------------- | ------: | ------: |
+| Aika | 126,5 s | 145,8 s |
+| Valkoisen oven rakeisuusmittari | 19,37 | 3,92 |
+| Saman alueen keskimääräinen kirkkaus | 134,66 | 135,01 |
+
+Mittari on tekstuurittoman oven RGB-keskiarvon ja neljän naapuripikselin
+keskiarvon erotuksen keskihajonta, ei vertailurenderiin perustuva RMSE.
+Tällä alueella arvo pieneni noin 80 %, kirkkauden keskiarvo säilyi.
+Näytteiden laskenta oli noin 15 % hitaampaa; tämä on kuvanlaadun parannus,
+ei näytenopeuden parannus. 70 näytteellä uusi arvo oli 5,18. Myös edeltävän
+päivän materiaalikoodilla ja vanhalla näytejonolla sama nykyinen malli jäi
+70 näytteellä rakeiseksi (20,17). Viimeisin kynä-/materiaalimuutos ei siis
+selitä yksin käyttäjän havaitsemaa eroa aiempaan hyvään kuvaan.
+
+500 näytteeseen kului 566,3 s. Oven rakeisuusmittari pieneni edelleen arvoon
+1,99, keskimääräinen kirkkaus oli 138,55. Tämä pitkä ajo ei nollautunut eikä
+antanut sivuvirheitä. Peilin näkyvä kohina ei ole tällä korjauksella kokonaan
+ratkaistu. 500 näytteelle ei ajettu uutta saman mallin vanhan version verrokkia,
+joten siitä ei esitetä ennen/jälkeen-prosenttia.
+
+Todennetut syyt ja regressiot:
+
+- Vanhan 64 × 64 kohinalaatan siirtymäkorrelaatio oli GPU-kokeessa 1,0
+  vielä 16/64/256 näytteellä. Pikseli- ja heijastuskohtaisen Sobol-jonon
+  korrelaatio oli alle 0,01. Vakiointegraalin RMSE laski 0,364 → 0,090 → 0,022;
+  tämä eristetty koe ei tarkoita samaa kohinan vähenemää kokonaisessa sisätilassa.
+- Voimakkaat vastaanottavasta pinnasta pois osoittavat spotit kilpailivat
+  LED-pinnan näytteistä. 12 valon testissä keilan huomiointi laski 64 näytteen
+  RMSE:n 0,149:stä 0,012:een; tasainen valonvalinta oli 0,049.
+- Mallin viisi kokonaista pyöreää LED-pintaa eivät osallistuneet suoraan
+  valonäytteistykseen. Nyt ne saavat ympyrän muotoiset näytteet, eivät
+  ympäröivän neliön pinta-alaa. Erillinen energiavertailu tarkistaa, ettei
+  geometrinen emissio tule lasketuksi toiseen kertaan. Diffuusin vertailupinnan
+  koe käyttää matalaa valotehoa, jotta epäsuorien kirkkaiden osumien nykyinen
+  rajoitin ei vääristä BSDF-verrokkia. Riippumaton 4096 näytteen PCG-verrokki
+  poikkesi suoran näytteistyksen keskiarvosta noin 1 %.
+- Harvemman varianssiverkon väliin jääneet kirkkaat osumat estivät myöhemmän
+  kohinanpoiston. Paikallinen arvio tehdään nyt jokaisessa kolmessa mittakaavassa.
+  Albedo-, normaali- ja syvyysrajat säilyvät; peilit/lasit säilyttävät vanhan
+  kapean suodatuksen. Raakaa näytekertymää ei suodateta.
+
+Synteettinen tavallinen korkean varianssin testi: RMSE 0,599 → 0,040,
+keskimääräinen kirkkaussuhde 1,003. Vielä harvinaisempien osumien 70 näytteen
+rasitustestissä RMSE 6,94 → 0,97 ja kirkkaussuhde 0,918: suodatus on tarkoituksella
+näyttökuvan arvio eikä harhattomaksi todistettu ratkaisu. Puunsyiden kontrastille,
+muistipuskurien vapautumiselle ja valojen energialle on erilliset GPU-regressiot.
+Yksi uusi RGBA16F-välipuskuri maksaa 8 tavua/pikseli, esikatselussa enintään noin
+24 MB aiemman lisäksi. Kolmen renderi/vienti-kierroksen jälkeen vapautuneen
+esikatselun tekstuurimäärät olivat 14 / 14 / 14. Käynnistyminen levossa,
+kameran keskeytys, puumateriaalit ja maalatut LED-pinnat läpäisivät tuotantopaketin
+regressiot. Peiliheijastusten, kiiltävien pintojen ja koteloitujen
+LED-valojen kohina vaatii edelleen jatkokehitystä.
+
 ## V0.42.0 — valaistujen pintojen kohina, 14.10.2026
 
 Vertailu v0.41.1:een samalla yksityisen 625 osan projektin paikallisella kopiolla,

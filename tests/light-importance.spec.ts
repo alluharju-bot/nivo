@@ -37,3 +37,38 @@ test('LED light importance reduces variance without adding energy', async ({ pag
   expect(stats.error).toBe(0);
   expect(errors).toEqual([]);
 });
+
+test('spotlights outside their cone do not starve the visible LED of samples', async ({ page }) => {
+  const bundle = await build({
+    configFile: false,
+    logLevel: 'silent',
+    build: {
+      write: false,
+      lib: {
+        entry: resolve('tests/fixtures/light-importance-harness.ts'),
+        name: 'NivoLightTest',
+        formats: ['iife'],
+      },
+    },
+  });
+  const result = Array.isArray(bundle) ? bundle[0] : bundle;
+  if (!('output' in result)) throw new Error('Missing fixture');
+  const chunk = result.output.find((file) => file.type === 'chunk');
+  if (!chunk || chunk.type !== 'chunk') throw new Error('Missing fixture');
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('about:blank');
+  await page.addScriptTag({ content: chunk.code });
+  const stats = await page.evaluate(() =>
+    (
+      window as unknown as { NivoLightTest: typeof import('./fixtures/light-importance-harness') }
+    ).NivoLightTest.exerciseLightImportance(true),
+  );
+  console.log(JSON.stringify(stats));
+  expect(stats.weighted).toBeLessThan(stats.uniform * 0.6);
+  expect(Math.abs(stats.weightedMean / stats.referenceMean - 1)).toBeLessThan(0.05);
+  expect(stats.error).toBe(0);
+  expect(errors).toEqual([]);
+});
