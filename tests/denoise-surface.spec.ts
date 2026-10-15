@@ -47,3 +47,44 @@ test('grazing surfaces do not stretch denoised lighting in perspective or orthog
   expect(stats.shadowContrast).toBeGreaterThan(0.95);
   expect(errors).toEqual([]);
 });
+
+test('denoising retains texture and converged detail without abandoning noisy bump surfaces', async ({
+  page,
+}) => {
+  const bundle = await build({
+    configFile: false,
+    logLevel: 'silent',
+    build: {
+      write: false,
+      lib: {
+        entry: resolve('tests/fixtures/denoise-surface-harness.ts'),
+        name: 'SurfaceTest',
+        formats: ['iife'],
+      },
+    },
+  });
+  const result = Array.isArray(bundle) ? bundle[0] : bundle;
+  if (!('output' in result)) throw new Error('Missing fixture');
+  const chunk = result.output.find((f) => f.type === 'chunk');
+  if (!chunk || chunk.type !== 'chunk') throw new Error('Missing fixture');
+  await page.goto('about:blank');
+  await page.addScriptTag({ content: chunk.code });
+  const stats = await page.evaluate(() =>
+    (
+      window as unknown as {
+        SurfaceTest: typeof import('./fixtures/denoise-surface-harness');
+      }
+    ).SurfaceTest.exerciseDenoiseDetail(),
+  );
+  console.log(JSON.stringify(stats));
+  expect(stats.error).toBe(0);
+  for (const c of stats.cases) {
+    if (c.kind !== 'noisy-bump') {
+      expect(c.contrast, c.kind).toBeGreaterThan(0.85);
+      expect(c.contrast, c.kind).toBeLessThan(1.1);
+    }
+    expect(Math.abs(c.bias), c.kind).toBeLessThan(0.01);
+    expect(c.rmse, c.kind).toBeLessThan(0.025);
+    expect(c.alphaError, c.kind).toBeLessThan(0.001);
+  }
+});

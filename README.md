@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.46.7** korjaa tarkentuvan renderin pehmeitä ja rosoisia osien reunoja.
+Kameran näytteet pysyvät oman pikselin alueella, ja kohinanpoisto säilyttää
+vinojen reunojen pehmennyksen. Renderikuvan sovittaminen näyttöön ei enää sekoita
+eri tarkkuuksien reunoja. Myös hieno värikuvio ja jo tarkentuneet valoerot säilyvät
+paremmin. Sama korjaus toimii näkymässä ja kuvanviennissä. Valoläikkäkorjaus säilyy;
+heijastusten ja reunapikselien kohina voi edelleen tarvita lisää näytteitä.
+
 Versio **0.46.6** korjaa geometrian muokkauksen avaamisen pitkään auki olleessa
 välilehdessä. Työkalu latautuu sovelluksen mukana, joten päivityksen poistama
 vanha skriptitiedosto tai myöhemmin katkennut yhteys ei estä sen avaamista.

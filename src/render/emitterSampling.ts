@@ -26,6 +26,16 @@ export function configureEmitterSampling(tracer: WebGLPathTracer, importance = t
   material.fragmentShader = stableTraceNumerics(material.fragmentShader);
   if (importance) material.fragmentShader = importanceSampleLights(material.fragmentShader);
   material.fragmentShader = stableTraceSamples(material.fragmentShader);
+  // Integrate coverage within this pixel. The library's two-pixel-wide tent
+  // footprint softens fine cabinet gaps and silhouettes even after convergence.
+  const jitter =
+    'vec2 jitteredUv = vUv + vec2( tentFilter( ruv.x ) * ssd.x, tentFilter( ruv.y ) * ssd.y );';
+  if (material.fragmentShader.split(jitter).length !== 2)
+    throw new Error('Renderöinnin kameranäytteistyksen versio ei vastaa sovellusta.');
+  material.fragmentShader = material.fragmentShader.replace(
+    jitter,
+    'vec2 jitteredUv = vUv + (ruv - 0.5) * ssd;',
+  );
   // Call after setScene: initialize the three scene-dependent feature switches
   // together. Each setDefine in the library's onBeforeRender otherwise launches
   // a separate compilation, including costly fog/DOF shaders we don't use.

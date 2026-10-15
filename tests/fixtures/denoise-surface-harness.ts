@@ -160,3 +160,99 @@ export function exerciseSurfaceDenoise() {
     renderer.forceContextLoss();
   }
 }
+
+/** Texture must survive noisy illumination; converged light/relief must stop
+ * blurring. A noisy bump guide must not disable denoising of an entire wall. */
+export function exerciseDenoiseDetail() {
+  const size = 128,
+    renderer = new THREE.WebGLRenderer();
+  renderer.setSize(size, size);
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
+  const output = new THREE.WebGLRenderTarget(size, size, {
+    type: THREE.FloatType,
+    depthBuffer: false,
+  });
+  const denoise = traceDenoise();
+  const textures: THREE.Texture[] = [];
+  const texture = (data: Float32Array) => {
+    const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.FloatType);
+    t.needsUpdate = true;
+    textures.push(t);
+    return t;
+  };
+  const camera = new THREE.OrthographicCamera(-128, 128, 128, -128, 1, 20000);
+  const cases = [];
+  try {
+    for (const kind of ['texture', 'quiet-relief', 'quiet-light', 'noisy-bump'] as const) {
+      const raw = new Float32Array(size * size * 4),
+        albedo = raw.slice(),
+        normal = raw.slice(),
+        variance = raw.slice();
+      let seed = 827;
+      for (let y = 0; y < size; y++)
+        for (let x = 0; x < size; x++) {
+          const stripe = x % 8 < 4 ? -1 : 1,
+            i = (y * size + x) * 4;
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          const quiet = kind === 'quiet-light' || kind === 'quiet-relief';
+          const noise = quiet ? 0 : (seed / 4294967296 - 0.5) * 0.5;
+          const a = kind === 'texture' ? 0.5 + stripe * 0.025 : 0.5;
+          const light = quiet ? 1 + stripe * 0.05 : 1;
+          const angle =
+            kind === 'quiet-relief'
+              ? (stripe * Math.PI) / 90
+              : kind === 'noisy-bump'
+                ? (Math.sin(x * 13.37 + y * 41.71) * Math.PI) / 12
+                : 0;
+          raw.set([a * (light + noise), a * (light + noise), a * (light + noise), 0.7], i);
+          albedo.set([a, a, a, 0.85], i);
+          normal.set([0.5 + 0.5 * Math.sin(angle), 0.5, 0.5 + 0.5 * Math.cos(angle), 6], i);
+          variance.set([0, quiet ? 0 : (0.25 * 0.25) / 12, 0, 1], i);
+        }
+      denoise.draw(
+        renderer,
+        texture(raw),
+        512,
+        {
+          albedo: texture(albedo),
+          normal: texture(normal),
+          projectionInverse: camera.projectionMatrixInverse,
+        },
+        output,
+        texture(variance),
+      );
+      const pixels = raw.slice();
+      renderer.readRenderTargetPixels(output, 0, 0, size, size, pixels);
+      let contrast = 0,
+        bias = 0,
+        error = 0,
+        alphaError = 0,
+        n = 0;
+      for (let y = 24; y < size - 24; y++)
+        for (let x = 24; x < size - 24; x++) {
+          const stripe = x % 8 < 4 ? -1 : 1,
+            i = (y * size + x) * 4;
+          contrast += (pixels[i] - 0.5) * stripe;
+          bias += pixels[i] - 0.5;
+          error += (pixels[i] - (0.5 + (kind === 'noisy-bump' ? 0 : stripe * 0.025))) ** 2;
+          alphaError = Math.max(alphaError, Math.abs(pixels[i + 3] - 0.7));
+          n++;
+        }
+      cases.push({
+        kind,
+        contrast: contrast / n / 0.025,
+        bias: bias / n,
+        rmse: Math.sqrt(error / n),
+        alphaError,
+      });
+    }
+    return { cases, error: renderer.getContext().getError() };
+  } finally {
+    textures.forEach((t) => t.dispose());
+    output.dispose();
+    denoise.dispose();
+    renderer.dispose();
+    renderer.forceContextLoss();
+  }
+}

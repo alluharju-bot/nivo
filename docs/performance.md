@@ -1,5 +1,61 @@
 # Suorituskyky
 
+## V0.46.7 — osien reunat ja pintayksityiskohdat
+
+Reunojen pehmeys ja rosoisuus syntyivät eri vaiheissa. Kameran kahden pikselin
+levyinen näytejalanjälki levitti reunaa. Kohinanpoisto taas käsitteli osittain
+peittyvän reunapikselin yhden pinnan pikselinä ja rikkoi reunojen pehmennyksen.
+Viimeinen suodatusvaihe myös ajettiin suoraan näytön tarkkuudessa, vaikka
+valokertymä ja ohjainkuvat saattoivat olla eri kokoisia.
+
+- Kamera integroi peittävyyden yhden pikselin sisällä. Sobol-näytteistys ja
+  valojen tärkeysnäytteistys säilyvät.
+- Kohinanpoisto säilyttää pintojen rajalla alkuperäisen peittävyyden. Tason
+  suunta rekonstruoidaan saman pinnan puoleisista naapureista, ei etu- ja
+  taustapinnan välisestä syvyyshypystä. Myös kuvan ulkoreunat huomioidaan.
+- Kaikki viisi vaihetta käyttävät kertymän omaa pikseliruudukkoa. Vasta valmis
+  tulos sovitetaan näyttöön. Kaksi olemassa olevaa välipuskuria kiertävät;
+  lisänä on kevyt kuvan esitysvaihe, ei uutta kuvapuskuria.
+- Todellisen kamerashaderin vinon reunan koe, 256 näytettä: peittävyysvirhe
+  0,02679 → 0,00206; suodatuksen jälkeen 0,00214. Vertailu on 32 × 32
+  alipikselin pinta-alaintegraali. 1,5-kertaisen suurennuksen poikkeama saman
+  valmiin kuvan interpolaatiosta enintään 0,00109. Nämä ovat lineaaristen
+  väriarvojen testituloksia, eivät koko kuvan prosentuaalisia laatulukuja.
+- Karkean pinnan värikuvio erotetaan valaistuksesta ja palautetaan lopuksi.
+  Erittäin tumman värin jakaja on rajattu; peilien ja lasin varovainen käsittely
+  säilyy. Kohinaisen hienon värikuvion kontrasti 87,0 % → 91,4 %.
+- Vähäinen paikallinen vaihtelu tarvitsee tuekseen ajallista kohinanäyttöä:
+  jo tarkentunutta hienovaraista valaistusta ei suodateta uudelleen kohinana.
+  Kohinattoman valo-/reliefikuvion kontrasti säilyy 100,6-prosenttisena
+  (puolitarkan välipuskurin pieni pyöristysvirhe). Harvinaisten suurten
+  poikkeamien arvio säilyy, jotta kirkkaita pisteitä ei pääse läpi.
+- Kokeiltu tiukka normaaliohjaus hylättiin: se säilytti pienen kohinaisen
+  reliefin mutta jätti karheille seinille liikaa rakeita. Erillinen karhean
+  pinnan regressio varmistaa, ettei normaalikartta estä kohinanpoistoa.
+- Vinon pinnan kohinan suuntasuhde 1,06, erillisten pintojen rajavirhe alle
+  0,001. Harvinaisten kirkkaiden osumien RMSE 6,94 → 0,49 ja kirkkaussuhde
+  0,899; suodatus on edelleen harhainen eikä puuttuvaa valotietoa keksitä.
+
+Sama suodatin palvelee näkymää ja PNG-vientiä. Raakaa näytekertymää ei suodateta.
+Suojatuilla reunapikseleillä ja heijastuksissa voi olla yhä kohinaa; terävämpi
+reuna ei tarkoita kohinatonta kuvaa pienellä näytemäärällä.
+
+Sisätilan varmennus: sama yksityisen mallin 443 näkyvän osan näkymä,
+M1 Pro / Metal, 810 × 663 px. 11/70/128 näytteen kuvat tarkastettu.
+128 näytteeseen 146,8 s (V0.46.5: 146,5 s); näytenopeus pysyi tässä ajossa
+käytännössä ennallaan. Ensimmäinen kuva 632 ms, kameran vaste 252 ms,
+ei kertymän nollauksia tai sivuvirheitä. Mallia ja kuvia ei julkaista.
+
+Varmennus: 58 renderin yksikkötestiä ja viisi GPU-laatutestiä läpäisty.
+Tuotantopaketin viisi selainregressiota läpäisty: käynnistys/kamera, kertymän
+vaihto, pintamateriaalit, valopiikkien rajaus ja kuvanviennin muisti.
+Kolmen vientikierroksen jälkeen vapautunut tekstuurimäärä pysyi samana
+(14 / 14 / 14). TypeScript, tuotantobuild ja lisenssitarkistus läpäisty.
+
+Valaistuksen ja albedon erottamisen tausta:
+[SVGF, osa 4.1](https://research.nvidia.com/sites/default/files/pubs/2017-07_Spatiotemporal-Variance-Guided-Filtering%3A/svgf_preprint.pdf).
+Tämä on Nivon suodattimen korjaus, ei täydellinen SVGF-toteutus.
+
 ## V0.46.5 — vaaleiden pintojen venyneet valoläikät
 
 V0.46.4:n kohinanpoisto jätti vaaleisiin pintoihin venyviä läikkiä. Pienten

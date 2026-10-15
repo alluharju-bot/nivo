@@ -2,6 +2,48 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## Seuraava yöpassi — ennustettava geometrian muokkaus (16.10.2026)
+
+Järjestys: ensin renderin yksityiskohtien säilyminen ilman valoläikkiä, sitten
+tämä kovennus. Käyttäjän ympyrän pistesiirrossa vanhan kolmioverkon pitkät
+yhteydet venyttivät pintaa odottamattomasti. Nykyinen muokkaus säilyttää
+renderöintiä varten tehdyn kolmiojaon myös muodon muuttuessa.
+
+- Toistetaan ympyrän yksittäisen reunapisteen siirto tasossa ja pois tasosta,
+  koko kehän siirto/skaalaus, rengas sisäaukolla sekä sylinterin päätyreuna.
+  Tarkistetaan myös kovera rajaus ja peräkkäiset muutokset.
+- Tasopinnan rajaus ohjaa pintaa: sisäinen kolmiointi rakennetaan tarvittaessa
+  uudelleen, reiät ja tarkoitukselliset pintajaot säilyttäen. Sisäiset
+  kolmiointipisteet ja -saumat erotetaan käyttäjän muokattavista muotorajoista.
+- Kaarevan muodon paikallinen muotoilu tarvitsee hallitun vaikutusalueen.
+  Yksittäisen pisteen tarkka siirto ja pehmeä muotoilu ovat eri toimintoja;
+  pehmennys ei saa levitä aukon yli tai siirtää kiinnitettyä rajaa.
+- Esikatselu ja hyväksytty tulos vastaavat toisiaan. Reiät, materiaalit,
+  mitat, linkitys, Hold, Peru/Palauta sekä tallennus/uudelleenavaus tarkistetaan.
+- CAD:n tarkat ympyrät ja vapaa verkkopinta pidetään rehellisesti erillään:
+  verkkokopiota ei esitetä kaikkia CAD-työkaluja tukevana osana. Kaarevan CAD:n
+  tarkka aluejako ja säteittäinen muokkaus säilyvät omana jatkotyönään.
+
+Valmistumisen mittari on edellä kuvattujen muokkausten näkyvä ja toistettava
+toiminta, ei pelkkä teknisesti kelvollisen kolmioverkon hyväksyntä.
+
+## V0.46.7 — renderin selkeät reunat ja pintayksityiskohdat
+
+- Kameran näytteistys ei levitä osan reunaa viereisiin pikseleihin. Kohinanpoisto
+  säilyttää eri pintojen osittaisen peittävyyden reunapikseleissä. Geometrinen
+  tasotesti käyttää saman pinnan puoleista naapuripistettä, ei pintojen väliin
+  muodostuvaa kuvitteellista tasoa.
+- Kaikki suodatusvaiheet valmistuvat renderin omassa tarkkuudessa ennen kuvan
+  sovittamista näyttöön. Ohjainkuvia ei sekoiteta eri pikseliruudukon kanssa.
+- Karkean pinnan värikuvio erotetaan suodatettavasta valaistuksesta ja palautetaan
+  lopuksi. Jo tarkentunutta hienovaraista valaistusta ei käsitellä uudelleen
+  kohinana. Karheiden pintojen kohinanpoisto säilyy.
+- Vinon pinnan läikkäkorjaus ja harvinaisten kirkkaiden osumien käsittely
+  säilyvät. GPU-testit mittaavat todellisia kameranäytteitä, vinoa reunaa,
+  suurentamista, hienoja värikuvioita ja karheiden pintojen kohinaa.
+- Sama toiminta renderinäkymässä ja viennissä, ei uusia säätimiä tai puskureita.
+  Geometrian muokkauksen kovennus on kirjattu seuraavaksi yöpassiksi yllä.
+
 ## V0.46.6 — geometriatyökalun latausvarmuus
 
 - Geometrian muokkaus kuuluu sovelluksen alkulataukseen. Pages-päivityksen
