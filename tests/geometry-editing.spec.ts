@@ -4,7 +4,52 @@ import { makeBody, makeProfileBody, bounds, type Body } from '../src/model/proje
 import { sketchFrame } from '../src/model/sketch';
 import { asComponent } from '../src/model/components';
 import { panel, bar, open, projected } from './precision-helpers';
+import { meshBody } from '../src/exchange/mesh';
+import { editableGeometry, validateGeometry } from '../src/model/geometryEditing';
 const errors = new WeakMap<Page, string[]>();
+test('a circular rim supports a local lifted point and soft shaping, with undo and reload', async ({
+  page,
+}) => {
+  const body = makeProfileBody({ kind: 'circle', radius: 100 }, sketchFrame([0, 0, 0]), 0);
+  await ready(page, [body]);
+  await view(page, [body]);
+  await open(page, body, 'Pisteet');
+  await panel(page).getByRole('button', { name: 'Muokkaa verkkokopiota', exact: true }).click();
+  const p = await projected(page),
+    point = p(100, 0, 0);
+  await page.mouse.click(point.x, point.y);
+  await expect(panel(page).getByRole('status')).toContainText('1 pistettä');
+  const z = panel(page).getByRole('textbox', { name: 'Geometrian siirtymä Z', exact: true });
+  await z.fill('15');
+  await z.press('Enter');
+  await expect(z).toHaveValue('0');
+  const result = await save(page),
+    changed = result.bodies.find((b) => !b.hidden)!;
+  expect(changed.feature.type).toBe('mesh');
+  expect(changed.feature.height).toBeCloseTo(15, 4);
+  const g = editableGeometry(changed, meshBody(changed), false);
+  expect(() => validateGeometry(g, g.points)).not.toThrow();
+  const raised = g.points.findIndex((p) => p[2] > 14);
+  expect(g.triangles.filter((i) => i === raised).length).toBeLessThan(8);
+  await panel(page).getByText('Pehmeä muotoilu', { exact: true }).click();
+  await panel(page).getByRole('checkbox', { name: 'Vaikuta myös lähipisteisiin' }).check();
+  await panel(page).getByRole('textbox', { name: 'Muotoilun vaikutusetäisyys' }).fill('55 mm');
+  await z.fill('5');
+  await z.press('Enter');
+  await expect(z).toHaveValue('0');
+  const soft = await save(page),
+    softBody = soft.bodies.find((b) => !b.hidden)!;
+  expect(softBody.feature.height).toBeCloseTo(20, 4);
+  const gg = editableGeometry(softBody, meshBody(softBody), false);
+  expect(gg.points.filter((p) => p[2] > 0.1).length).toBeGreaterThan(1);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).bodies).toEqual(result.bodies);
+  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  expect((await save(page)).bodies).toEqual(soft.bodies);
+  await page.reload();
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '1');
+  expect((await save(page)).bodies).toEqual(soft.bodies);
+});
 test.beforeEach(({ page }) => {
   const list: string[] = [];
   errors.set(page, list);

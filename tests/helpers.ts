@@ -88,7 +88,11 @@ export async function save(page: Page): Promise<Project> {
 export async function editBody(page: Page, id: string) {
   const browser = page.getByRole('complementary', { name: 'Mallilista' });
   if ((await browser.count()) && (await browser.getAttribute('data-expanded')) === 'false')
-    await page.getByRole('button', { name: 'Näytä mallilista' }).click();
+    // The list also opens on hover; clicking its handle after that transition
+    // would target a control which is already covered by the open list.
+    await page.getByRole('button', { name: 'Näytä mallilista' }).focus();
+  if ((await browser.count()) && (await browser.getAttribute('data-expanded')) === 'false')
+    await page.getByRole('button', { name: 'Näytä mallilista' }).press('Enter');
   await page.getByTestId(`body-${id}`).click();
   await page.getByRole('button', { name: 'Muokkaa osaa', exact: true }).click();
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-editing-body', id);

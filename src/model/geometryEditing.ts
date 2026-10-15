@@ -23,6 +23,7 @@ export interface EditableGeometry {
   /** Maps the original render vertices to welded editing points, retaining UV seams. */
   vertexMap: number[];
   sourceTriangles: number[];
+  uv?: number[];
   patches: number[];
   groups: { start: number; count: number; face: number }[];
   exact: boolean;
@@ -75,6 +76,7 @@ export function editableGeometry(
     triangles,
     vertexMap,
     sourceTriangles: [...mesh.triangles],
+    uv: body.feature.type === 'mesh' ? body.feature.uv : undefined,
     patches,
     groups,
     exact,
@@ -82,7 +84,7 @@ export function editableGeometry(
   };
   // Imported meshes often have only one material group: select connected planar
   // patches, not the whole part just because its colour is shared.
-  if (body.feature.type === 'mesh') result.patches = planarPatches(result);
+  if (body.feature.type === 'mesh') result.patches = body.feature.patches ?? planarPatches(result);
   return result;
 }
 function normal(g: EditableGeometry, t: number) {
@@ -103,10 +105,7 @@ export function geometryEdges(g: EditableGeometry, all = false): EditingEdge[] {
   for (const edge of map.values()) edge.boundary = edge.triangles.length === 1;
   return [...map.values()].filter(
     (e) =>
-      all ||
-      e.triangles.length !== 2 ||
-      g.patches[e.triangles[0]] !== g.patches[e.triangles[1]] ||
-      dot(normal(g, e.triangles[0]), normal(g, e.triangles[1])) < 0.99999,
+      all || e.triangles.length !== 2 || g.patches[e.triangles[0]] !== g.patches[e.triangles[1]],
   );
 }
 function planarPatches(g: EditableGeometry) {
@@ -122,7 +121,14 @@ function planarPatches(g: EditableGeometry) {
   for (const e of geometryEdges(g, true))
     if (e.triangles.length === 2) {
       const [a, b] = e.triangles;
-      if (dot(normals[a], normals[b]) > 1 - 1e-7) parents[root(b)] = root(a);
+      const uvAt = (t: number, id: number) => {
+        const k = g.triangles.slice(t * 3, t * 3 + 3).indexOf(id),
+          v = g.sourceTriangles[t * 3 + k];
+        return g.uv?.slice(v * 2, v * 2 + 2).join(',');
+      };
+      const seam = g.uv && [e.a, e.b].some((id) => uvAt(a, id) !== uvAt(b, id));
+      if (!seam && g.patches[a] === g.patches[b] && dot(normals[a], normals[b]) > 1 - 1e-7)
+        parents[root(b)] = root(a);
     }
   return parents.map((_, i) => root(i));
 }
@@ -398,6 +404,7 @@ export function geometryMeshBody(body: Body, g: EditableGeometry, points: Vec3[]
         height: max[2] - min[2],
         vertices,
         triangles: g.sourceTriangles,
+        patches: g.patches,
         normals: Array.from(geo.getAttribute('normal').array),
         uv: oldMesh?.uv,
         groups: g.groups.map(({ start, count }) => ({ start, count })),

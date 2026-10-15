@@ -22,6 +22,7 @@ import { isLinearEdge, isPlanarFace } from './planarity';
 import { shapeEdges, shapeFaces } from './topology';
 import { shapeVertexReferences } from './vertexReferences';
 import { updatedQuantityBounds } from './quantityBounds';
+import { retessellateGeometry } from '../model/geometryRetessellation';
 
 export function prepareGeometry(body: Body): EditableGeometry {
   if (body.locked) throw new Error('Vapauta osan lukitus ennen geometrian muokkaamista.');
@@ -71,7 +72,8 @@ export function prepareGeometry(body: Body): EditableGeometry {
 /** Only acceptance rebuilds CAD; pointer previews remain independent of the main kernel/cache. */
 export function commitGeometry(body: Body, points: Vec3[], meshCopy = false): Body {
   if (body.locked) throw new Error('Vapauta osan lukitus ennen geometrian muokkaamista.');
-  const draft = prepareGeometry(body);
+  const original = prepareGeometry(body);
+  const draft = retessellateGeometry(original, points);
   validateGeometry(draft, points);
   if (!draft.exact) {
     if (body.feature.type !== 'mesh' && !meshCopy)

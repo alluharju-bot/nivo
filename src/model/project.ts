@@ -69,6 +69,7 @@ const meshFeature = z
     triangles: z.array(z.number().int().min(0)).min(3).max(1_500_000),
     normals: z.array(z.number().finite()).max(3_000_000).optional(),
     uv: z.array(z.number().finite()).max(2_000_000).optional(),
+    patches: z.array(z.number().int().min(0)).max(500_000).optional(),
     groups: z
       .array(z.object({ start: z.number().int().min(0), count: z.number().int().min(3) }))
       .max(1000)
@@ -89,6 +90,7 @@ const meshFeature = z
       f.triangles.some((i) => i >= count) ||
       (f.normals && f.normals.length !== f.vertices.length) ||
       (f.uv && f.uv.length !== count * 2) ||
+      (f.patches && f.patches.length !== f.triangles.length / 3) ||
       f.groups?.some(
         (g, i) =>
           g.start % 3 ||

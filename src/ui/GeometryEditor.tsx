@@ -13,7 +13,6 @@ import type { GeometryStageProps } from '../viewport/GeometryStage';
 import {
   geometryMatrix,
   selectionCenter,
-  transformGeometryPoints,
   type EditableGeometry,
   type GeometryOperation,
   type GeometrySelection,
@@ -21,6 +20,8 @@ import {
 import { parseLength } from '../model/units';
 import type { Body, Vec3 } from '../model/project';
 import type { CadClient } from '../cad/client';
+import { geometryInfluence, transformWithInfluence } from '../model/geometryInfluence';
+import { retessellateGeometry } from '../model/geometryRetessellation';
 
 export interface GeometrySession {
   pending: boolean;
@@ -47,6 +48,7 @@ interface Props {
 const defaults = (operation: GeometryOperation) =>
   operation === 'scale' ? ['100', '100', '100'] : ['0', '0', '0'];
 const identity: [number, number, number, number] = [0, 0, 0, 1];
+type ShapingPreferences = { soft: boolean; radius: string; pinBoundaries: boolean };
 export function GeometryEditor(props: Props) {
   const { body, cad, session, onStage } = props;
   const [prepared, setPrepared] = useState<{
@@ -56,6 +58,7 @@ export function GeometryEditor(props: Props) {
   }>();
   const [loadError, setLoadError] = useState('');
   const remembered = useRef<Vec3[]>([]);
+  const shaping = useRef<ShapingPreferences>({ soft: false, radius: '20', pinBoundaries: true });
   useEffect(() => {
     let current = true;
     setLoadError('');
@@ -90,6 +93,7 @@ export function GeometryEditor(props: Props) {
       {...props}
       geometry={prepared.geometry}
       remembered={remembered}
+      shaping={shaping}
     />
   );
 }
@@ -110,7 +114,12 @@ function GeometryEditorReady({
   onStage,
   onCommit,
   remembered,
-}: Props & { geometry: EditableGeometry; remembered: MutableRefObject<Vec3[]> }) {
+  shaping,
+}: Props & {
+  geometry: EditableGeometry;
+  remembered: MutableRefObject<Vec3[]>;
+  shaping: MutableRefObject<ShapingPreferences>;
+}) {
   const meshCopy = !g.exact && body.feature.type !== 'mesh';
   const [copyAccepted, setCopyAccepted] = useState(false),
     [unique, setUnique] = useState(false);
@@ -120,6 +129,24 @@ function GeometryEditorReady({
     ),
   );
   const [values, setValues] = useState(defaults(operation));
+  const [soft, setSoft] = useState(shaping.current.soft),
+    [radius, setRadius] = useState(shaping.current.radius),
+    [pinBoundaries, setPinBoundaries] = useState(shaping.current.pinBoundaries);
+  useEffect(() => {
+    shaping.current = { soft, radius, pinBoundaries };
+  }, [shaping, soft, radius, pinBoundaries]);
+  const shapingInput = useMemo(() => {
+    try {
+      return { radius: soft ? parseLength(radius, false, true) : 0, error: '' };
+    } catch (e) {
+      return { radius: 0, error: (e as Error).message };
+    }
+  }, [soft, radius]);
+  const softRadius = shapingInput.radius;
+  const influence = useMemo(
+    () => geometryInfluence(g, selected, softRadius, pinBoundaries),
+    [g, selected, softRadius, pinBoundaries],
+  );
   const [axes, setAxes] = useState<[boolean, boolean, boolean]>([true, true, true]);
   const [uniform, setUniform] = useState(true),
     [local, setLocal] = useState(false),
@@ -140,6 +167,7 @@ function GeometryEditorReady({
   const ready = !meshCopy || copyAccepted;
   const numeric = useMemo(() => {
     try {
+      if (shapingInput.error) throw new Error(shapingInput.error);
       const v = values.map((s, i) => {
         if (!axes[i]) return operation === 'scale' ? 1 : 0;
         if (operation === 'move') return parseLength(s.trim() || '0', true, true);
@@ -152,14 +180,32 @@ function GeometryEditorReady({
         return Number(text) / (operation === 'scale' ? 100 : 1);
       }) as Vec3;
       return {
-        points: transformGeometryPoints(base, selected, geometryMatrix(operation, v, pivot, frame)),
+        points: transformWithInfluence(base, influence, geometryMatrix(operation, v, pivot, frame)),
         error: '',
       };
     } catch (e) {
       return { points: base, error: (e as Error).message };
     }
-  }, [base, selected, values, axes, operation, uniform, pivot.join(','), frame.join(',')]);
+  }, [
+    base,
+    selected,
+    influence,
+    shapingInput.error,
+    values,
+    axes,
+    operation,
+    uniform,
+    pivot.join(','),
+    frame.join(','),
+  ]);
   const points = drag ?? numeric.points;
+  const topology = useMemo(() => {
+    try {
+      return { geometry: retessellateGeometry(g, points), error: '' };
+    } catch (e) {
+      return { geometry: g, error: (e as Error).message };
+    }
+  }, [g, points]);
   const changed = points.some((p, i) => p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8));
   const pending = changed || !!numeric.error;
   const reset = () => {
@@ -187,7 +233,7 @@ function GeometryEditorReady({
   };
   const finish = async (next = points) => {
     const hasChanges = next.some((p, i) => p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8));
-    if (numeric.error) return false;
+    if (numeric.error || topology.error) return false;
     if (!hasChanges) return true;
     if (!ready || busy || committing.current || (lockedCopies && !unique && !meshCopy))
       return false;
@@ -338,6 +384,10 @@ function GeometryEditorReady({
             bodyId: body.id,
             cancelToken,
             geometry: g,
+            topology: topology.geometry,
+            influence,
+            softRadius,
+            pinBoundaries,
             points,
             selected,
             mode,
@@ -356,11 +406,11 @@ function GeometryEditorReady({
             onTransform: (next, complete) => {
               setDrag(next);
               if (operation === 'move') {
-                const index = next.findIndex((p, i) =>
-                  p.some((n, k) => Math.abs(n - base[i][k]) > 1e-8),
+                const index = selected.find((i) =>
+                  next[i].some((n, k) => Math.abs(n - base[i][k]) > 1e-8),
                 );
                 const delta =
-                  index < 0
+                  index === undefined
                     ? new Vector3()
                     : new Vector3(...next[index])
                         .sub(new Vector3(...base[index]))
@@ -375,6 +425,10 @@ function GeometryEditorReady({
     );
   }, [
     g,
+    topology,
+    influence,
+    softRadius,
+    pinBoundaries,
     points,
     selected,
     mode,
@@ -523,7 +577,12 @@ function GeometryEditorReady({
         ))}
         <button
           className="button dark full"
-          disabled={!changed || !!numeric.error || (!!lockedCopies && !unique && !meshCopy)}
+          disabled={
+            !changed ||
+            !!numeric.error ||
+            !!topology.error ||
+            (!!lockedCopies && !unique && !meshCopy)
+          }
           onClick={() => void finish()}
         >
           Toteuta muutos
@@ -568,9 +627,47 @@ function GeometryEditorReady({
           Ankkuri valinnan keskelle
         </button>
       )}
-      {(stageError || numeric.error || error) && (
-        <p role="alert">{stageError || numeric.error || error}</p>
+      {(stageError || numeric.error || topology.error || error) && (
+        <p role="alert">{stageError || numeric.error || topology.error || error}</p>
       )}
+      <details open={soft || undefined}>
+        <summary>Pehmeä muotoilu</summary>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={soft}
+            disabled={busy || !!drag}
+            onChange={(e) => setSoft(e.target.checked)}
+          />
+          Vaikuta myös lähipisteisiin
+        </label>
+        {soft && (
+          <>
+            <label>
+              Vaikutusetäisyys · mm
+              <input
+                aria-label="Muotoilun vaikutusetäisyys"
+                inputMode="decimal"
+                value={radius}
+                disabled={busy || !!drag}
+                onChange={(e) => setRadius(e.target.value)}
+              />
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={pinBoundaries}
+                disabled={busy || !!drag}
+                onChange={(e) => setPinBoundaries(e.target.checked)}
+              />
+              Pidä muut reunalenkit paikallaan
+            </label>
+            <small>
+              Vaikutus kulkee pintaa pitkin. Oranssi näyttää valinnan, violetti sen vaikutusalueen.
+            </small>
+          </>
+        )}
+      </details>
       <details>
         <summary>Valinta ja tarkkuus</summary>
         <label className="checkbox-label">
@@ -607,7 +704,7 @@ function GeometryEditorReady({
             checked={allEdges}
             onChange={(e) => setAllEdges(e.target.checked)}
           />
-          Näytä myös kolmioiden sisäreunat
+          Näytä kolmiointi ja sisäpisteet
         </label>
         <small>
           {g.points.length} pistettä · {g.triangles.length / 3} kolmiota.{' '}

@@ -6,17 +6,21 @@ import {
   edgeLoop,
   geometryEdges,
   patchPoints,
-  transformGeometryPoints,
   type EditableGeometry,
   type GeometryOperation,
   type GeometrySelection,
 } from '../model/geometryEditing';
 import type { Vec3 } from '../model/project';
+import { geometryInfluence, transformWithInfluence } from '../model/geometryInfluence';
 
 export interface GeometryStageProps {
   bodyId: string;
   cancelToken: number;
   geometry: EditableGeometry;
+  topology: EditableGeometry;
+  influence: Float32Array;
+  softRadius: number;
+  pinBoundaries: boolean;
   points: Vec3[];
   selected: number[];
   mode: GeometrySelection;
@@ -59,6 +63,20 @@ export function installGeometryStage({
   world.add(scene);
   const g = current().geometry,
     geometry = new THREE.BufferGeometry();
+  let topology = current().topology;
+  const controlPoints = new Set(geometryEdges(g).flatMap((e) => [e.a, e.b]));
+  let influenceCache: { base: Vec3[]; key: string; weights: Float32Array } | undefined;
+  const applyTransform = (base: Vec3[], ids: number[], matrix: THREE.Matrix4) => {
+    const p = current(),
+      key = `${ids.join(',')}:${p.softRadius}:${p.pinBoundaries}`;
+    if (influenceCache?.base !== base || influenceCache.key !== key)
+      influenceCache = {
+        base,
+        key,
+        weights: geometryInfluence({ ...g, points: base }, ids, p.softRadius, p.pinBoundaries),
+      };
+    return transformWithInfluence(base, influenceCache.weights, matrix);
+  };
   geometry.setAttribute(
     'position',
     new THREE.Float32BufferAttribute(
@@ -66,7 +84,7 @@ export function installGeometryStage({
       3,
     ),
   );
-  geometry.setIndex(g.sourceTriangles);
+  geometry.setIndex(topology.sourceTriangles);
   geometry.computeVertexNormals();
   const surface = new THREE.Mesh(
     geometry,
@@ -226,6 +244,7 @@ export function installGeometryStage({
     let best = -1,
       score = Infinity;
     current().points.forEach((p, i) => {
+      if (!current().allEdges && !controlPoints.has(i) && !current().selected.includes(i)) return;
       const q = project(p);
       if (q.z < -1 || q.z > 1) return;
       const distance = Math.hypot(
@@ -289,7 +308,7 @@ export function installGeometryStage({
     const hit = ray.intersectObject(surface, false)[0];
     return hit?.faceIndex == null
       ? undefined
-      : { ids: patchPoints(g, hit.faceIndex), anchor: hit.point.toArray() };
+      : { ids: patchPoints(topology, hit.faceIndex), anchor: hit.point.toArray() };
   };
   const selectAt = (
     x: number,
@@ -319,7 +338,9 @@ export function installGeometryStage({
       rayAt(x, y);
       const hit = ray.intersectObject(surface, false)[0];
       p.onSelect(
-        hit?.faceIndex !== undefined && hit.faceIndex !== null ? patchPoints(g, hit.faceIndex) : [],
+        hit?.faceIndex !== undefined && hit.faceIndex !== null
+          ? patchPoints(topology, hit.faceIndex)
+          : [],
         extend,
       );
     }
@@ -351,9 +372,9 @@ export function installGeometryStage({
       rayAt(x, y);
       const hit = ray.intersectObject(surface, false)[0];
       if (hit?.faceIndex != null) {
-        const patch = g.patches[hit.faceIndex];
-        vertices = g.triangles.flatMap((v, i) =>
-          g.patches[Math.floor(i / 3)] === patch ? [p.points[v]] : [],
+        const patch = topology.patches[hit.faceIndex];
+        vertices = topology.triangles.flatMap((v, i) =>
+          topology.patches[Math.floor(i / 3)] === patch ? [p.points[v]] : [],
         );
       }
       object = hoverFace;
@@ -415,7 +436,7 @@ export function installGeometryStage({
     if (transform.dragging && dragBase && current().operation === 'move') {
       dragReference = event.shiftKey ? referenceAt(event) : undefined;
       if (dragReference)
-        current().onTransform(transformGeometryPoints(dragBase, dragIds, dragMatrix()), false);
+        current().onTransform(applyTransform(dragBase, dragIds, dragMatrix()), false);
     }
     if (!start && !event.buttons) {
       const p = pointer(event);
@@ -456,7 +477,7 @@ export function installGeometryStage({
         delta.setComponent(i, value);
       }
       delta.applyQuaternion(q);
-      grab.next = transformGeometryPoints(
+      grab.next = applyTransform(
         grab.base,
         grab.ids,
         new THREE.Matrix4().makeTranslation(...delta.toArray()),
@@ -492,6 +513,7 @@ export function installGeometryStage({
       box.hidden = true;
       const ids: number[] = [];
       current().points.forEach((point, i) => {
+        if (!current().allEdges && !controlPoints.has(i)) return;
         const v = project(point),
           x = ((v.x + 1) * canvas.clientWidth) / 2,
           y = ((1 - v.y) * canvas.clientHeight) / 2;
@@ -531,14 +553,23 @@ export function installGeometryStage({
     clearHover();
     const p = current(),
       selected = new Set(p.selected);
+    const indexChanged =
+      topology.sourceTriangles.length !== p.topology.sourceTriangles.length ||
+      topology.sourceTriangles.some((n, i) => n !== p.topology.sourceTriangles[i]);
+    topology = p.topology;
+    if (indexChanged) {
+      geometry.dispose();
+      geometry.setIndex(topology.sourceTriangles);
+    }
     const position = geometry.getAttribute('position') as THREE.BufferAttribute;
     g.vertexMap.forEach((index, i) => position.setXYZ(i, ...p.points[index]));
     position.needsUpdate = true;
     geometry.computeVertexNormals();
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
-    geometry.boundsTree?.refit();
-    edges = geometryEdges({ ...g, points: p.points }, p.allEdges);
+    if (indexChanged) geometry.boundsTree = new MeshBVH(geometry, { indirect: true });
+    else geometry.boundsTree?.refit();
+    edges = geometryEdges({ ...topology, points: p.points }, p.allEdges);
     lines.geometry.dispose();
     lines.geometry = new THREE.BufferGeometry().setFromPoints(
       edges.flatMap((e) => [
@@ -555,23 +586,29 @@ export function installGeometryStage({
       ]),
     );
     markers.geometry.dispose();
+    const shown = p.points.flatMap((_, i) =>
+      p.allEdges || controlPoints.has(i) || selected.has(i) ? [i] : [],
+    );
     markers.geometry = new THREE.BufferGeometry().setFromPoints(
-      p.points.map((point) => new THREE.Vector3(...point)),
+      shown.map((i) => new THREE.Vector3(...p.points[i])),
     );
     markers.geometry.setAttribute(
       'color',
       new THREE.Float32BufferAttribute(
-        p.points.flatMap((_, i) =>
-          new THREE.Color(selected.has(i) ? '#ef7b20' : '#2d655a').toArray(),
+        shown.flatMap((i) =>
+          (selected.has(i)
+            ? new THREE.Color('#ef7b20')
+            : new THREE.Color('#2d655a').lerp(new THREE.Color('#b851ba'), p.influence[i])
+          ).toArray(),
         ),
         3,
       ),
     );
     markers.material.depthTest = !p.xray;
     markers.visible = p.mode === 'points' || !!p.picking;
-    const selectedTriangles = g.triangles.filter((_, i) => {
+    const selectedTriangles = topology.triangles.filter((_, i) => {
       const start = Math.floor(i / 3) * 3;
-      return g.triangles.slice(start, start + 3).every((v) => selected.has(v));
+      return topology.triangles.slice(start, start + 3).every((v) => selected.has(v));
     });
     pickedFaces.geometry.dispose();
     pickedFaces.geometry = new THREE.BufferGeometry().setFromPoints(
@@ -667,13 +704,13 @@ export function installGeometryStage({
   };
   transform.addEventListener('objectChange', () => {
     if (!dragBase) return;
-    current().onTransform(transformGeometryPoints(dragBase, dragIds, dragMatrix()), false);
+    current().onTransform(applyTransform(dragBase, dragIds, dragMatrix()), false);
     invalidate();
   });
   transform.addEventListener('mouseUp', () => {
     if (!dragBase) return;
     handle.updateMatrixWorld();
-    const next = transformGeometryPoints(dragBase, dragIds, dragMatrix());
+    const next = applyTransform(dragBase, dragIds, dragMatrix());
     dragBase = undefined;
     current().onTransform(next, true);
     getControls().enabled = true;

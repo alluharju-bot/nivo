@@ -1,5 +1,78 @@
 # Suorituskyky
 
+## V0.47.0 — kiiltävien pintojen kohina ja geometriamuokkaus
+
+Kiiltävän laatan matala karheusarvo rajoitti aiemmin koko pinnan
+kohinanpoiston yhteen pieneen suodatusvaiheeseen. Perusvalaistus ja heijastus
+kertyvät nyt erikseen samoista valopoluista, samoin niiden varianssit.
+Lopullinen raakavalo säilyy; hajavalon osuus vähennetään siitä heijastusta
+käsiteltäessä. Värikuvio palautetaan perusvalaistukseen suodatuksen jälkeen.
+
+- GPU-koe kiiltävällä maalilla, kromilla ja läpinäkyvyyden varapolulla:
+  kanavat äärellisiä ja ei-negatiivisia; hajavalo ei ylitä kokonaisvaloa,
+  kromin hajavalo on nolla. Suodatuksen kirkkaus 99,8–100,0 % alkuperäisestä.
+- Heijastuksen ohjain jäljittää keskisäteen enintään kolmen kiiltävän
+  pinnan kautta ensimmäiseen karkeaan/diffuusiin pintaan. Materiaalitekstuurit
+  ja normaalikartat tulevat samasta BVH:sta ja materiaalitaulukosta kuin
+  varsinainen renderi. Ohjain lasketaan kerran näkymää kohden.
+- Kahden valokanavan synteettinen 64 näytteen GPU-koe: RMSE 0,1706 →
+  0,0337, kirkkaussuhde 1,0053, heijastuvan kuvion kontrasti 99,38 %.
+  Hajavalon yhden pikselin värikuvion kontrasti 99,69 %; tämä mitattiin
+  samalla kohinaisella heijastuksella värikuvion eristävästä vertailusta.
+  Luvut ovat testin lineaarisia väriarvoja, eivät yleinen kuvanlaatutakuu.
+- Kiiltävän pinnan jäljellä olevan heijastusvarianssin perusteella lasketaan korkeintaan
+  yksi lisäpolku pikselille kierrosta kohti. Päätös tehdään edellisen
+  valmistuneen kertymän perusteella, eikä nykyistä näytettä valikoida sen
+  kirkkauden tai osuman mukaan. Lisäpolulla on erillinen sekoitus;
+  Sobol-jonoa ei jaeta vain parillisiin/parittomiin indekseihin.
+- Lisänäytteistys kasvattaa yksittäisen kierroksen työtä. Näyttö ilmoittaa
+  edelleen kertymän kierrokset: osa pikseleistä voi sisältää enemmän
+  valopolkuja. Tavoite on pienempi kohina käyttökelpoisessa kuvassa,
+  ei suurempi näytelaskurin lukema sekunnissa.
+- Kaksi suodatinta käyttää samoja välipuskureita. Läpinäkymättömän
+  renderin käyttämättömät läpinäkyvyyspuskurit pysyvät 1 × 1 kokoisina;
+  varapolku varaa ne vasta tarvittaessa. Raakakertymä pysyy 32-bittisenä.
+  Esikatselun 3 MP ja kuvanviennin 12 MP rajat säilyvät.
+  Materiaaliluokitus pakataan varianssikuvaan, jotta vähintään 16 tekstuuria
+  tukeva WebGL2 riittää. Erillinen taustakuva käyttää viimeisen tekstuuripaikan;
+  silloin laskenta käyttää tavallista yhtä polkua ja samaa kanavakohtaista
+  kohinanpoistoa.
+- Kameran vaihto tyhjentää ohjaimet ja varianssit. Kolmen vientikierroksen
+  jälkeen vapautuneen esikatselun tekstuurimäärä pysyi 14 / 14 / 14.
+  Keskeytetyn shader-käännöksen resurssit vapautetaan käännöksen valmistuttua.
+  Kolmen välittömän peruutuksen GPU-regressio tarkistaa virheet ja vapautuvan muistin.
+
+Rajat: voimakkaasti kaarevan peilin keskisäde on vain likiarvo hajautuneen
+heijastuksen jalanjäljestä. Lasi ja ratkaisemattomat heijastusketjut säilyvät
+varovaisesti suodatettuina. Pintojen reunapikseleiden näytteitä säilytetään,
+joten niissä voi yhä olla kohinaa. Kohinanpoisto ja epäsuoran valon
+äärinäytteiden raja ovat harhaisia; täysin kohinatonta kuvaa tietyllä
+näytemäärällä ei luvata.
+
+Geometriamuokkaus käyttää rajoista uudelleen muodostettua kolmiointia sekä
+rajat säilyttäviä lävistäjien vaihtoja. Reiät ja kaikki ohjauspisteet
+varmennetaan. Esikatselu ja CAD-työntekijä käyttävät samaa algoritmia.
+Pehmeä muotoilu laskee vaikutuksen pintaverkon etäisyydestä binäärikeolla;
+valittu piste säilyttää täyden siirtymän ja muut reunalenkit voi kiinnittää.
+Kaareva CAD tarvitsee yhä erillisen verkkokopion. Jo kaarevan lähdepinnan
+kolmiointia ei automaattisesti rakenneta uudelleen.
+
+Sisätilan vertailu samalla 443 näkyvän osan yksityisellä mallilla,
+M1 Pro / Metal, 810 × 663 px: takaseinän kiiltävien laattojen ja peilin
+heijastuksen kohina väheni selvästi 70/128 näytteen kuvissa. Saumat ja
+puunsyyt säilyivät. 128 kierrosta vei 198,6 s (V0.46.7: 146,8 s),
+joten tämä on kuvanlaadun parannus lisälaskennalla, ei näytenopeuden parannus.
+Kameran vaste oli 242 ms; ei kertymän odottamattomia nollauksia tai sivuvirheitä.
+Reunapikseleissä, altaassa ja katossa on yhä näkyvää kohinaa tällä näytemäärällä.
+Lopullisen paketin erillisessä käynnistyskokeessa ensimmäinen renderikuva
+valmistui 341 ms ja kameran vaste oli 88 ms. Tämä ei mittaa tyhjän shader-
+välimuistin ensimmäistä käännöstä; se voi edelleen kestää sekunteja.
+
+Varmennus: 654 yksikkötestiä läpäisty, 5 ennestään ohitettua. Seitsemän GPU-
+laatutestiä ja tuotantobuildin 18 selainkoetta läpäisty, mukaan lukien
+ympyrän reunapiste, pehmeä muotoilu, historia, tallennus, linkitys ja Hold.
+Yksityisiä sisätilamalleja tai niiden kuvia ei julkaista.
+
 ## V0.46.7 — osien reunat ja pintayksityiskohdat
 
 Reunojen pehmeys ja rosoisuus syntyivät eri vaiheissa. Kameran kahden pikselin

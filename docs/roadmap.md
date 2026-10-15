@@ -2,30 +2,40 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
-## Seuraava yöpassi — ennustettava geometrian muokkaus (16.10.2026)
+## V0.47.0 — kiiltävät pinnat ja ennustettava geometrian muokkaus
 
-Järjestys: ensin renderin yksityiskohtien säilyminen ilman valoläikkiä, sitten
-tämä kovennus. Käyttäjän ympyrän pistesiirrossa vanhan kolmioverkon pitkät
-yhteydet venyttivät pintaa odottamattomasti. Nykyinen muokkaus säilyttää
-renderöintiä varten tehdyn kolmiojaon myös muodon muuttuessa.
+- Perusvalaistus erotetaan heijastuksesta samoista valopoluista. Kummankin
+  kohinanpoisto seuraa omaa varianssia; laatan kiilto ei enää estä sen
+  perusvalaistuksen puhdistamista. Heijastuvan pinnan väri, normaali ja
+  matka suojaavat heijastuksen yksityiskohtia. Lasi ja ratkaisemattomat
+  heijastusketjut käsitellään edelleen varovaisesti.
+- Kohinainen heijastus saa enintään yhden lisäpolun laskentakierrosta kohti.
+  Päätös perustuu valmistuneeseen historiaan. Raakakertymää ei suodateta,
+  eikä kirkasta näytettä hylätä sen arvon perusteella. Näkymä ja vienti
+  käyttävät samaa laskentaa; ulkonäköön ei lisätty uutta säädintä.
+- Tavallinen läpinäkymätön renderi ei varaa täysikokoisia läpinäkyvyyden
+  varapuskureita. Kameran vaihto tyhjentää kaikki uuden näkymän historiat.
+- Tasopinnan kolmiointi rakennetaan muodon rajauksesta uudelleen.
+  Koveruus, aukot, sisäiset ohjauspisteet ja tarkoitukselliset pintajaot
+  säilyvät. Nostetun reunapisteen vaikutusta paikallistetaan vaihtamalla
+  sisäisiä lävistäjiä. Sama kolmiointi näkyy esikatselussa ja hyväksyttäessä.
+- Verkkopinnan muotoilualueet säilyvät tallennuksessa. Sisäinen kolmiointi
+  ei ilmesty ylimääräisiksi muokattaviksi reunoiksi; sen voi edelleen näyttää
+  tarkkuusasetuksista. Eri pintamateriaalit ja UV-saumat eivät yhdisty.
+- **Pehmeä muotoilu** on valinnainen. Vaikutusetäisyys mitataan pintaverkkoa
+  pitkin, eikä vaikutus hyppää toiseen kuoreen tai aukon yli. Muut
+  reunalenkit voi pitää kiinni. Oranssi näyttää valinnan, violetti vaikutuksen.
+- Testattu: ympyrän piste tasossa/pois tasosta, koko kehä, rengasaukko,
+  sylinterin pääty, kovera rajaus, peräkkäiset muutokset, pintamateriaali,
+  mittatiedot, linkitys ja Hold sekä Peru/Palauta ja tallennus/uudelleenavaus.
+- Kaarevan CAD-osan vapaa pistemuokkaus tekee edelleen erikseen hyväksyttävän
+  verkkokopion ja säilyttää alkuperäisen. Olemassa olevaa kaarevaa lähdepintaa
+  ei tasoiteta tai muuteta automaattisesti uudeksi CAD-pinnaksi.
 
-- Toistetaan ympyrän yksittäisen reunapisteen siirto tasossa ja pois tasosta,
-  koko kehän siirto/skaalaus, rengas sisäaukolla sekä sylinterin päätyreuna.
-  Tarkistetaan myös kovera rajaus ja peräkkäiset muutokset.
-- Tasopinnan rajaus ohjaa pintaa: sisäinen kolmiointi rakennetaan tarvittaessa
-  uudelleen, reiät ja tarkoitukselliset pintajaot säilyttäen. Sisäiset
-  kolmiointipisteet ja -saumat erotetaan käyttäjän muokattavista muotorajoista.
-- Kaarevan muodon paikallinen muotoilu tarvitsee hallitun vaikutusalueen.
-  Yksittäisen pisteen tarkka siirto ja pehmeä muotoilu ovat eri toimintoja;
-  pehmennys ei saa levitä aukon yli tai siirtää kiinnitettyä rajaa.
-- Esikatselu ja hyväksytty tulos vastaavat toisiaan. Reiät, materiaalit,
-  mitat, linkitys, Hold, Peru/Palauta sekä tallennus/uudelleenavaus tarkistetaan.
-- CAD:n tarkat ympyrät ja vapaa verkkopinta pidetään rehellisesti erillään:
-  verkkokopiota ei esitetä kaikkia CAD-työkaluja tukevana osana. Kaarevan CAD:n
-  tarkka aluejako ja säteittäinen muokkaus säilyvät omana jatkotyönään.
-
-Valmistumisen mittari on edellä kuvattujen muokkausten näkyvä ja toistettava
-toiminta, ei pelkkä teknisesti kelvollisen kolmioverkon hyväksyntä.
+Jatkoon: kaarevan CAD:n tarkka aluejako ja säteittäinen muokkaus,
+laajasti taivutettujen verkkopintojen adaptiivinen uudelleenverkotus sekä
+lasi-/moniheijastusketjujen yksityiskohtien kohinanpoisto.
+[Laatu, suorituskyky ja rajat](performance.md).
 
 ## V0.46.7 — renderin selkeät reunat ja pintayksityiskohdat
 

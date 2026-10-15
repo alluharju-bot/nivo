@@ -3,6 +3,17 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.47.0** erottaa kiiltävän pinnan perusvalaistuksen ja heijastuksen
+kohinanpoistossa. Heijastuvan pinnan tiedot suojaavat yksityiskohtia, ja jäljellä
+oleva heijastuskohina saa kohdennettuja lisänäytteitä. Sama laskenta toimii
+renderinäkymässä ja kuvanviennissä. Aiempi terävien reunojen korjaus säilyy.
+
+Geometrian muokkaus rakentaa muutetun tasopinnan kolmioinnin uudelleen
+rajojen ja aukkojen perusteella. Ympyrän reunapisteen nosto ei enää levitä
+vanhaa kolmioiden viuhkaa koko pinnan yli. Valinnainen **Pehmeä muotoilu**
+vaikuttaa pintaa pitkin lähimpiin pisteisiin; tarkka pistesiirto on oletus.
+Pintajaot, materiaalit, historia ja verkkokopion selkeä erottelu säilyvät.
+
 Versio **0.46.7** korjaa tarkentuvan renderin pehmeitä ja rosoisia osien reunoja.
 Kameran näytteet pysyvät oman pikselin alueella, ja kohinanpoisto säilyttää
 vinojen reunojen pehmennyksen. Renderikuvan sovittaminen näyttöön ei enää sekoita
