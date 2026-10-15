@@ -4,6 +4,38 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.46.1 — suunnat, kamera ja leikatut kaarevat osat
+
+- Koko yksikkö-/CAD-testistö: **637 hyväksyttyä, 5 ohitettua**. Tämän jälkeen
+  lisätty vanhentuneen leikkausrajauksen irrotustesti läpäisi kaikki kuusi
+  leikkausprofiilin tapausta; viimeiset kameran ja pyöristysten tarkistukset
+  läpäisivät 20 tapausta. Kahvan ruutukoon kaksi testiä hyväksytty.
+- Yksityinen pilviprojekti tarkistettu paikallisena kopiona. Kaikkien neljän
+  osan tasopinnat: ±1 mm Push/Pull tuotti ehjän geometrian ja oikeansuuntaisen
+  tilavuusmuutoksen. Leikatulla sylinterillä testattiin lisäksi molemmat päät
+  ilman pyöristyksiä. Alkuperäisiä osia tai pilvitallennusta ei muutettu.
+- Synteettinen viidesti leikattu sylinteri, epätasainen skaalaus ja 55° kierto:
+  molemmat päädyt pitenevät/lyhenevät myös kahden reunakäsittelyn kanssa.
+  Käyrien parametrisaation vaihtuminen ei saa estää saman reunan tunnistusta.
+- Ympyrä pyöristetyn syvennyksen yli: läpileikkausta verrataan täyden leikkurin
+  boolean-tulokseen tilavuudella ja yhteisellä tilavuudella. Tallennus,
+  siirto, kierto, linkitetty kopio sekä yhdenmukainen/epätasainen skaalaus.
+  Outward-pursotus säilyttää alkuperäisen kappaleen; uuden pienemmän pintajaon
+  pursotus ei saa käyttää vanhaa suurta leikkuria.
+- Tuotantobuildin desktop-tarkistus: **44 hyväksyttyä, 2 kosketustestiä ohitettu**.
+  Kamera, geometriatyötila, ruudukkoa pienemmät suunnat, keskipistesuorakulmion
+  mitoitus, apuviivan viereisen pinnan valinta ja pyörityksen ankkurit/Shift.
+  Aiemman kehityspalvelinajon yksi katkennut apuviivatesti läpäisi tuotantoajon;
+  työkalutila oli nollautunut lähdekoodin kehitysaikaisessa uudelleenlatauksessa.
+- Tuotantobuild ja lisenssitarkistus hyväksytty. Gizmon ruutukoko tarkastettu
+  kuvasta; myös pienen osan aiempi 40 mm:n vähimmäissäde poistettu.
+- Lopullisen tuotantobuildin tablettiemulointi: **37 hyväksyttyä**. Mukana
+  samat kamera-/geometria-/suuntatestit sekä kosketusorbit ja nipistyszoom.
+- Rajat: aiemmin typistetystä leikkausmuodosta ei voi palauttaa kadonnutta
+  piirrosta automaattisesti. Pyöristysten jatkaminen vaatii edelleen
+  yksiselitteisen vastaavuuden; epäselvä muutos säilyttää alkuperäisen osan.
+  Uudet polkutoistot, geelimateriaalit ja fysiikka ovat backlogia.
+
 ## V0.46.0 — geometrian muokkaus mallinäkymässä
 
 - Koko yksikkö-/CAD-testistö: **628 hyväksyttyä, 4 ohitettua**, 118 hyväksyttyä

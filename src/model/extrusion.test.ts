@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { faceDepthSnap, pointDepthSnap } from './extrusion';
+import { faceDepthSnap, pointDepthSnap, snapExtrusionDistance } from './extrusion';
 import type { FaceTarget } from '../cad/protocol';
 import type { Vec3 } from './project';
+
+it('grid snapping never reverses an outward or inward extrusion on an off-grid thickness', () => {
+  for (const thickness of [0, 13, 18, 48, 73, 98]) {
+    expect(snapExtrusionDistance(1, thickness, 10, true)).toBeGreaterThanOrEqual(0);
+    expect(snapExtrusionDistance(-1, thickness, 10, true)).toBeLessThanOrEqual(0);
+    expect(snapExtrusionDistance(0, thickness, 10, true)).toBe(0);
+    expect(snapExtrusionDistance(1.76, thickness, 10, false)).toBe(1.76);
+    expect((thickness + snapExtrusionDistance(17, thickness, 10, true)) % 10).toBe(0);
+  }
+});
 
 describe('push/pull target references', () => {
   it('projects onto the source normal in all six directions, including negative and zero distances', () => {

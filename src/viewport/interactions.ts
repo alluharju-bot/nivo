@@ -33,7 +33,7 @@ import { isPointDimension, uid, axisIndex, type PointDimension } from '../model/
 import { anchorBodyId, pointDimensionGeometry } from '../model/dimensions';
 import { offsetDirection } from '../model/faceBoundary';
 import { dragSize, type SizeDrag } from '../model/sizeDrag';
-import { faceDepthSnap, pointDepthSnap } from '../model/extrusion';
+import { faceDepthSnap, pointDepthSnap, snapExtrusionDistance } from '../model/extrusion';
 import { formatLength } from '../model/units';
 import * as THREE from 'three';
 import type { BodyMesh, FaceTarget, BoundaryTarget } from '../cad/protocol';
@@ -81,6 +81,8 @@ import {
 } from '../model/snap';
 import { sketchFrame, toUV, fromUV, type SketchFrame } from '../model/sketch';
 import { rotationHandles } from '../model/rotationHandles';
+import { rotationRadius } from '../model/transforms';
+import { viewHandleRadius } from './handleSize';
 import { cross } from '../model/transforms';
 import { penAxisHint, penAngle, penAngleDirection } from '../model/penInput';
 import { surfaceIntersections } from './surfaceIntersections';
@@ -360,6 +362,8 @@ export function installInteractions({
         rotationFrame?: SketchFrame;
         adjacent?: BodyMesh['faces'];
         surfaceChosen?: boolean;
+        pointerOffset?: Vec3;
+        pointerStart?: [number, number];
       }
     | undefined;
   let selectionPointerInside = false;
@@ -374,6 +378,7 @@ export function installInteractions({
   let drawingPlane: SketchFrame | undefined;
   let drawingTarget: FaceTarget | undefined;
   let penPressPoint: Vec3 | undefined;
+  let penPointerOffset: Vec3 | undefined;
   type Drag = {
     start: Vec3;
     origin: Vec3;
@@ -392,6 +397,8 @@ export function installInteractions({
     movingIds?: string[];
     moveDirections?: Vec3[];
     moveDirection?: Vec3;
+    pointerOffset?: Vec3;
+    end?: Vec3;
   };
   let detailSession:
     | (SizeDrag & {
@@ -549,14 +556,16 @@ export function installInteractions({
     const values: number[] = [];
     for (const i of [0, 1] as const) {
       if (current().dimensionLocks?.has(i === 0 ? 'width' : 'depth')) continue;
+      const factor =
+        current().rectangleOrigin === 'center' && current().tool === 'rectangle' ? 2 : 1;
       const sign = Math.sign(unsnapped[i]) || 1;
-      const remembered = memoryValue(Math.abs(unsnapped[i]), (n) => {
+      const remembered = memoryValue(Math.abs(unsnapped[i]) * factor, (n) => {
         const uv: [number, number] = [...delta];
-        uv[i] = sign * n;
+        uv[i] = (sign * n) / factor;
         return fromUV(uv, relative);
       });
       if (remembered !== undefined) {
-        delta[i] = sign * remembered;
+        delta[i] = (sign * remembered) / factor;
         values.push(remembered);
       }
     }
@@ -2540,6 +2549,7 @@ export function installInteractions({
       show();
       return;
     }
+    let rawDistance = session.distance;
     if (shift) {
       const snap = depthTargetAt(event, session.target);
       // Searching is explicit: empty space or the source face leaves the last
@@ -2549,6 +2559,7 @@ export function installInteractions({
         return;
       }
       session.distance = snap.distance;
+      rawDistance = snap.distance;
     } else {
       clearDepthTarget();
       highlightFace(session.target);
@@ -2557,16 +2568,17 @@ export function installInteractions({
         session.baseDistance +
         (event.clientX - session.x) * session.dx +
         (event.clientY - session.y) * session.dy;
+      rawDistance = distance;
       const thickness = props.faceSpan?.depth ?? 0;
       session.distance =
         distance === session.baseDistance
           ? distance
-          : gridLength(thickness + distance, props.gridStep, props.gridSnap) - thickness;
+          : snapExtrusionDistance(distance, thickness, props.gridStep, props.gridSnap);
       props.onSnap(
         props.gridSnap ? `Kokonaismitta · ${props.gridStep} mm ruudukko` : 'Vapaa syvyys',
       );
     }
-    props.onGesture({ type: 'extrude', distance: session.distance });
+    props.onGesture({ type: 'extrude', distance: session.distance, rawDistance });
   };
   const snap = (raw: Vec3, plane: WorkPlane, anchor?: Vec3, inference?: Vec3) => {
     const props = current();
@@ -2671,6 +2683,7 @@ export function installInteractions({
       canvas.dataset.moveAxis = '';
       canvas.dataset.moveDirection = '';
       penPressPoint = undefined;
+      penPointerOffset = undefined;
       lastSnap = undefined;
       heldReference = undefined;
       acquired = undefined;
@@ -2718,6 +2731,7 @@ export function installInteractions({
       measureShiftPending = shift && !current().axis;
     }
     if (previousPenCount !== current().penPoints.length) {
+      penPointerOffset = undefined;
       if (previousPenCount > 0) penShiftPending = false;
       previousPenCount = current().penPoints.length;
       shiftDirection = undefined;
@@ -2727,6 +2741,10 @@ export function installInteractions({
       current().onConstraint(current().axis ? axisVector(current().axis!) : undefined);
     }
     if (previousAxis !== current().axis) {
+      penPointerOffset = undefined;
+      if (drag) drag.pointerOffset = undefined;
+      if (measureSession) measureSession.pointerOffset = undefined;
+      if (shapeSession) shapeSession.pointerOffset = undefined;
       previousAxis = current().axis;
       shiftDirection = undefined;
       penShiftPending = false;
@@ -2839,6 +2857,7 @@ export function installInteractions({
       let distance = turning
         ? Math.hypot(...sub(raw, start))
         : dot(sub(picked?.point ?? linePoint(event, start, direction), start), direction);
+      const rawPoint = add(start, scale(direction, distance));
       if (!picked && props.gridSnap)
         distance = Math.round(distance / props.gridStep) * props.gridStep;
       const point = add(start, scale(direction, distance));
@@ -2853,7 +2872,7 @@ export function installInteractions({
         referenceMarker.position.set(...picked.point);
         render();
       }
-      props.onPenHover(point);
+      props.onPenHover(point, rawPoint);
       lastPenPoint = point;
       return point;
     }
@@ -2897,6 +2916,9 @@ export function installInteractions({
       let point = picked
         ? projectOnLine(picked, start, direction)
         : linePoint(event, start, direction);
+      if (!picked && penPointerOffset)
+        point = add(point, scale(direction, dot(penPointerOffset, direction)));
+      const rawPoint = point;
       if (!picked && props.gridSnap)
         point = add(
           start,
@@ -2917,9 +2939,8 @@ export function installInteractions({
         referenceMarker.material.size = 16;
         render();
       }
-      if (!picked)
-        point = rememberLine(start, point, event, linePoint(event, start, direction), 'axis');
-      props.onPenHover(point);
+      if (!picked) point = rememberLine(start, point, event, rawPoint, 'axis');
+      props.onPenHover(point, rawPoint);
       lastPenPoint = point;
       return point;
     }
@@ -2927,23 +2948,29 @@ export function installInteractions({
     // Projection is only intentional while Shift or an explicit axis is held.
     if (found) {
       show(found);
-      props.onPenHover(found.point);
+      const raw =
+        Math.hypot(...sub(found.point, start)) < 1e-8 && frame
+          ? framePoint(event, frame)
+          : undefined;
+      props.onPenHover(found.point, raw ?? found.point);
       lastPenPoint = found.point;
       return found.point;
     }
     if (frame) {
-      const raw = framePoint(event, frame);
+      let raw = framePoint(event, frame);
       if (!raw) return;
+      if (penPointerOffset) raw = add(raw, penPointerOffset);
       const point = frameSnap(raw, frame, start, event);
-      props.onPenHover(point);
+      props.onPenHover(point, raw);
       lastPenPoint = point;
       return point;
     }
     const plane = workPlane();
-    const raw = planePoint(event, plane, start ?? [0, 0, 0]);
+    let raw = planePoint(event, plane, start ?? [0, 0, 0]);
     if (!raw) return;
+    if (penPointerOffset) raw = add(raw, penPointerOffset);
     const point = rememberLine(start, snap(raw, plane, undefined, start), event, raw);
-    props.onPenHover(point);
+    props.onPenHover(point, raw);
     lastPenPoint = point;
     return point;
   };
@@ -3027,9 +3054,14 @@ export function installInteractions({
         // the held direction is used; never attach the endpoint to the
         // off-axis source anchor or round its projected distance to the grid.
         const target = measureTargetAt(event, () => true);
-        const projected = target
+        let projected = target
           ? projectOnLine(target.point, start, direction)
           : linePoint(event, start, direction);
+        if (!target && measureSession.pointerOffset)
+          projected = add(
+            projected,
+            scale(direction, dot(measureSession.pointerOffset, direction)),
+          );
         const distance = dot(sub(projected, start), direction);
         let end = target
           ? projected
@@ -3071,15 +3103,37 @@ export function installInteractions({
     if (isEdge && !props.freeRotate) {
       const direction = existing?.direction ?? measureSession.direction;
       if (!direction) return;
+      const screenStart = measureSession.pointerStart;
       if (
         !axis &&
         !measureSession.surfaceChosen &&
-        drag &&
-        Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4
+        screenStart &&
+        Math.hypot(event.clientX - screenStart[0], event.clientY - screenStart[1]) > 4
       ) {
+        // Choose an edge's working face from the *unrounded screen motion*.
+        // Both adjacent faces are valid; the most camera-facing one alone
+        // cannot tell whether the user means across the top or down the side.
+        const adjacent = measureSession.adjacent ?? [];
+        const a = screen(start),
+          length = worldPerPixel(start) * 100;
+        const candidates = adjacent.map((face) => {
+          const b = screen(add(start, scale(unit(cross(direction, face.normal)), length)));
+          return [b.x - a.x, b.y - a.y] as [number, number];
+        });
+        const chosen = directionFromScreen(
+          [event.clientX - screenStart[0], event.clientY - screenStart[1]],
+          candidates,
+        );
+        if (chosen !== undefined) {
+          const face = adjacent[chosen];
+          measureSession.frame = sketchFrame(start, face.normal);
+          measureSession.plane = plane = normalPlane(face.normal);
+          measureSession.surfaceChosen = true;
+        }
         const hit = faceAt(event, true);
         const view = camera().getWorldDirection(new THREE.Vector3()).toArray() as Vec3;
         if (
+          !measureSession.surfaceChosen &&
           hit?.face.planar &&
           Math.abs(dot(hit.face.normal, view)) >=
             0.5 * Math.abs(dot(measureSession.frame?.normal ?? hit.face.normal, view)) &&
@@ -3099,6 +3153,13 @@ export function installInteractions({
       if (!raw) return;
       const normal =
         measureSession.frame?.normal ?? axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
+      if (measureSession.pointerOffset)
+        raw = add(
+          raw,
+          axis
+            ? scale(axis, dot(measureSession.pointerOffset, axis))
+            : measureSession.pointerOffset,
+        );
       // An offset guide already has a fixed plane/direction. Sample the visible
       // reference in 3D, then transfer only its offset into that plane. A floor
       // center must remain available when the source edge is on top of a wall.
@@ -3112,6 +3173,9 @@ export function installInteractions({
       else if (!axis && measureSession.frame) raw = frameSnap(raw, measureSession.frame);
       if (!axis && measureSession.frame && !target) snapKey = canvas.dataset.snapKey ?? '';
       let offset = axis ? sub(raw, start) : sub(raw, projectOnLine(raw, start, direction));
+      const rawOffset = axis
+        ? sub(unsnapped, start)
+        : sub(unsnapped, projectOnLine(unsnapped, start, direction));
       if (axis && props.gridSnap && !target)
         offset = scale(axis, Math.round(dot(offset, axis) / props.gridStep) * props.gridStep);
       let end = add(start, offset);
@@ -3137,6 +3201,7 @@ export function installInteractions({
         end = rememberLine(start, end, event, unsnapped, snapKey);
         offset = sub(end, start);
       }
+      measureSession.end = end;
       props.onGesture({
         type: 'measure',
         anchor: measureSession.anchor,
@@ -3145,6 +3210,12 @@ export function installInteractions({
         freeAngle: false,
         direction,
         offset,
+        offsetDirection:
+          Math.hypot(...offset) > 1e-8
+            ? unit(offset)
+            : Math.hypot(...rawOffset) > 1e-8
+              ? unit(rawOffset)
+              : undefined,
         edgeLength: measureSession.edgeLength,
       });
       return;
@@ -3157,7 +3228,7 @@ export function installInteractions({
           Math.abs(point[planeAxes[plane][2]] - start[planeAxes[plane][2]]) < 1e-5) &&
         (!axis || Math.hypot(...sub(point, projectOnLine(point, start, axis))) < 1e-5),
     );
-    const raw =
+    let raw =
       target?.point ??
       (axis && !isEdge
         ? linePoint(event, start, axis)
@@ -3165,6 +3236,11 @@ export function installInteractions({
           ? framePoint(event, measureSession.frame)
           : planePoint(event, plane, base));
     if (!raw) return;
+    if (!target && measureSession.pointerOffset)
+      raw = add(
+        raw,
+        axis ? scale(axis, dot(measureSession.pointerOffset, axis)) : measureSession.pointerOffset,
+      );
     const normal = axisVector((['x', 'y', 'z'] as const)[planeAxes[plane][2]]);
     let end =
       target?.point ??
@@ -3195,13 +3271,13 @@ export function installInteractions({
     if (!target && !props.freeRotate) end = rememberLine(from, end, event, raw);
     measureSession.end = end;
     const direction =
-      (!isEdge && axis) ||
-      (props.measureMode === 'free' ? unit(sub(end, from)) : undefined) ||
+      (!isEdge && axis && (dot(sub(raw, from), axis) < 0 ? scale(axis, -1) : axis)) ||
+      (props.measureMode === 'free' ? unit(sub(target ? end : raw, from)) : undefined) ||
       guideDirection(
         plane,
         angleBetween(
           from,
-          end,
+          target ? end : raw,
           plane,
           !!target || props.freeRotate || shift || props.measureMode === 'free',
         ),
@@ -3252,7 +3328,16 @@ export function installInteractions({
     const rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
-    return rotationHandles(rotation, current().bodies)
+    return rotationHandles(
+      rotation,
+      current().bodies,
+      viewHandleRadius(
+        camera(),
+        rotation.pivot,
+        canvas.clientHeight,
+        rotationRadius(current().bodies.filter((b) => rotation.ids.includes(b.id))),
+      ),
+    )
       .flatMap((handle) =>
         handle.points.slice(1).map((point, i) => {
           const a = screen(handle.points[i]),
@@ -3846,6 +3931,8 @@ export function installInteractions({
             frame,
             width: 0,
             depth: 0,
+            start,
+            end: start,
           });
           canvas.setPointerCapture(event.pointerId);
           canvas.focus({ preventScroll: true });
@@ -3941,6 +4028,7 @@ export function installInteractions({
         const parallelGuide =
           props.measureMode === 'guide' && guide && (guide.kind === 'line' || guide.kind === 'mid');
         measureSession = {
+          pointerStart: [event.clientX, event.clientY],
           anchor: picked?.anchor ?? {
             point: picked?.point ?? freeStart?.point ?? snap(point!, plane),
           },
@@ -4040,6 +4128,113 @@ export function installInteractions({
     }
   };
   let navigating = false;
+  const gestureCamera = camera().matrixWorld.clone();
+  const gestureProjection = camera().projectionMatrix.clone();
+  const rebaseCameraGesture = (event: PointerEvent, force = false) => {
+    const c = camera();
+    c.updateMatrixWorld();
+    if (
+      !force &&
+      gestureCamera.equals(c.matrixWorld) &&
+      gestureProjection.equals(c.projectionMatrix)
+    )
+      return false;
+    gestureCamera.copy(c.matrixWorld);
+    gestureProjection.copy(c.projectionMatrix);
+    const props = current();
+    let rebased = false;
+    if (extrudeSession) {
+      startExtrusion(extrudeSession.target, event, props.faceDistance);
+      rebased = true;
+    }
+    if (offsetSession) {
+      const { target, direction } = offsetSession;
+      const point = framePoint(event, sketchFrame(target.point, target.normal));
+      if (point)
+        offsetSession.initial = props.offsetDistance - dot(sub(point, target.point), direction);
+      rebased = true;
+    }
+    if (props.tool === 'move' && drag && !drag.selection) {
+      const direction = props.axis
+        ? axisVector(props.axis)
+        : (drag.moveDirection ?? shiftDirection);
+      const raw = direction
+        ? linePoint(event, drag.start, direction)
+        : planePoint(event, drag.plane, drag.start);
+      const end = props.preview
+        ? add(drag.start, sub(props.preview.origin, drag.origin))
+        : (drag.end ?? drag.start);
+      if (raw) drag.pointerOffset = sub(end, raw);
+      drag.screenX = event.clientX;
+      drag.screenY = event.clientY;
+      rebased = true;
+    }
+    if (shapeSession?.sketch && shapeSession.end) {
+      const point = framePoint(event, shapeSession.sketch);
+      if (point) shapeSession.pointerOffset = sub(shapeSession.end, point);
+      rebased = true;
+    }
+    if (measureSession) {
+      const start = resolveAnchor(props.bodies, measureSession.anchor);
+      const end = props.guidePreview ? guidePoints(props.bodies, props.guidePreview) : undefined;
+      const point =
+        start &&
+        (props.axis
+          ? linePoint(event, start, axisVector(props.axis))
+          : measureSession.frame
+            ? framePoint(event, measureSession.frame)
+            : planePoint(event, measureSession.plane, start));
+      const destination =
+        start && props.guidePreview?.offset
+          ? add(start, props.guidePreview.offset)
+          : (end?.[1] ?? measureSession.end);
+      if (point && destination) measureSession.pointerOffset = sub(destination, point);
+      rebased = true;
+    }
+    if (props.tool === 'pen' && props.penPoints.length && lastPenPoint && drawingPlane) {
+      const direction = props.axis ? axisVector(props.axis) : shiftDirection;
+      const point = direction
+        ? linePoint(event, props.penPoints.at(-1)!, direction)
+        : framePoint(event, drawingPlane);
+      if (point) penPointerOffset = sub(lastPenPoint, point);
+      rebased = true;
+    }
+    if (rotationDrag && props.rotation) {
+      const point = framePoint(event, sketchFrame(rotationDrag.pivot, rotationDrag.axis));
+      const reference = point && rotationDirection(point, rotationDrag.pivot, rotationDrag.axis);
+      if (reference) rotationDrag.reference = reference;
+      const radius = viewHandleRadius(
+        c,
+        rotationDrag.pivot,
+        canvas.clientHeight,
+        rotationRadius(props.bodies.filter((b) => props.rotation!.ids.includes(b.id))),
+      );
+      const onRing = add(rotationDrag.pivot, scale(rotationDrag.reference, radius));
+      const a = screen(onRing),
+        b = screen(add(onRing, scale(cross(rotationDrag.axis, rotationDrag.reference), radius)));
+      rotationDrag.pixelsPerRadian = Math.max(20, Math.hypot(b.x - a.x, b.y - a.y));
+      rotationDrag.tangentX = (b.x - a.x) / rotationDrag.pixelsPerRadian;
+      rotationDrag.tangentY = (b.y - a.y) / rotationDrag.pixelsPerRadian;
+      rotationDrag.edgeOn =
+        Math.abs(dot(raycaster.ray.direction.toArray() as Vec3, rotationDrag.axis)) < 0.08;
+      rotationDrag.initial = props.rotation.angle;
+      rotationDrag.last = rotationDrag.total = 0;
+      rotationDrag.x = event.clientX;
+      rotationDrag.y = event.clientY;
+      rebased = true;
+    }
+    if (scaleDrag && props.scaling) {
+      scaleDrag.initial = scalingFactor(props.scaling);
+      scaleDrag.x = event.clientX;
+      scaleDrag.y = event.clientY;
+      rebased = true;
+    }
+    if (rebased) {
+      lastSnap = undefined;
+      show();
+    }
+    return rebased;
+  };
   const move = (event: PointerEvent) => {
     selectionPointerInside = true;
     lastEvent = event;
@@ -4062,7 +4257,11 @@ export function installInteractions({
       }
       return;
     }
+    const resumed = navigating;
     navigating = false;
+    // Navigation only changes the camera. Resume from the current dimensions,
+    // never reinterpret the whole old mouse stroke in the new camera frame.
+    if (rebaseCameraGesture(event, resumed)) return;
     sync();
     if (drag && Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4)
       drag.moved = true;
@@ -4273,17 +4472,20 @@ export function installInteractions({
     if ((props.tool === 'rectangle' || props.tool === 'circle') && shapeSession?.sketch) {
       const sketch = shapeSession.sketch,
         start = shapeSession.start;
-      const raw = framePoint(event, sketch);
+      let raw = framePoint(event, sketch);
       if (!raw) return;
+      if (shapeSession.pointerOffset) raw = add(raw, shapeSession.pointerOffset);
       let end = frameSnap(raw, sketch, props.tool === 'rectangle' ? start : undefined, event);
       const relative = { ...sketch, origin: start };
       if (props.tool === 'rectangle') end = rememberRectangle(start, end, raw, sketch, event);
       let delta = toUV(end, relative);
+      shapeSession.end = end;
+      const centered = props.tool === 'rectangle' && props.rectangleOrigin === 'center';
       let width =
           props.tool === 'circle'
             ? 2 * (props.radialShape === 'ellipse' ? Math.abs(delta[0]) : Math.hypot(...delta))
-            : Math.abs(delta[0]),
-        depth = props.tool === 'circle' ? 2 * Math.abs(delta[1]) : Math.abs(delta[1]);
+            : Math.abs(delta[0]) * (centered ? 2 : 1),
+        depth = (props.tool === 'circle' || centered ? 2 : 1) * Math.abs(delta[1]);
       if (props.tool === 'circle' && props.gridSnap && canvas.dataset.snapKey === 'grid') {
         width = gridLength(width, props.gridStep);
         depth = gridLength(depth, props.gridStep);
@@ -4330,7 +4532,12 @@ export function installInteractions({
           ...sketch,
           origin:
             props.tool === 'rectangle'
-              ? fromUV([Math.min(0, delta[0]), Math.min(0, delta[1])], relative)
+              ? fromUV(
+                  centered
+                    ? [-width / 2, -depth / 2]
+                    : [Math.min(0, delta[0]), Math.min(0, delta[1])],
+                  relative,
+                )
               : start,
         },
         width,
@@ -4441,10 +4648,15 @@ export function installInteractions({
       if (!direction && props.moveMode !== 'free') return;
       canvas.dataset.moveAxis = activeAxis ?? (direction ? 'local' : 'free');
       canvas.dataset.moveDirection = direction ? JSON.stringify(direction) : '';
-      const raw = direction
+      let raw = direction
         ? linePoint(event, start, direction)
         : planePoint(event, drag.plane, start);
       if (!raw) return;
+      if (drag.pointerOffset)
+        raw = add(
+          raw,
+          direction ? scale(direction, dot(drag.pointerOffset, direction)) : drag.pointerOffset,
+        );
       // Use the visible surface center, not the solid's hidden volume center,
       // consistently with drawing, measurement and Push/Pull references.
       const target = moveSnapAt(event, false, { surfaceCenters: true });
@@ -4482,12 +4694,14 @@ export function installInteractions({
       show(indication, drag.plane, target);
       canvas.dataset.moveSnap = indication.key;
       canvas.dataset.moveEnd = JSON.stringify(end);
+      drag.end = end;
       showMoveAxis(direction, start, end);
       props.onGesture({
         type: 'move',
         axis: activeAxis,
         direction,
         bodyId: drag.bodyId,
+        rawDelta: sub(target && Math.hypot(...sub(end, start)) > 1e-8 ? end : raw, start),
         origin: add(drag.origin, sub(end, start)),
       });
       return;
@@ -4571,6 +4785,8 @@ export function installInteractions({
     showMoveAxis();
     const props = current(),
       active = drag;
+    rebaseCameraGesture(event, navigating);
+    navigating = false;
     if (dimensionPress && event.pointerId === dimensionPress.id) {
       const pressed = dimensionPress;
       dimensionPress = undefined;

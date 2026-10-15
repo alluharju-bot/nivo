@@ -3,6 +3,18 @@ import type { FaceTarget } from '../cad/protocol';
 import { dot, sub, unit } from './geometry';
 import type { Vec3 } from './project';
 
+/** Quantize the resulting size without reversing a sub-grid drag on an off-grid part. */
+export function snapExtrusionDistance(
+  distance: number,
+  thickness: number,
+  step: number,
+  enabled: boolean,
+) {
+  if (!enabled || !Number.isFinite(step) || step <= 0 || distance === 0) return distance;
+  const snapped = Math.round((thickness + distance) / step) * step - thickness;
+  return distance > 0 ? Math.max(0, snapped) : Math.min(0, snapped);
+}
+
 /** An anchor supplies its level on the extrusion axis, never a diagonal distance. */
 export function pointDepthSnap(source: FaceTarget, point: Vec3, bodyId?: string) {
   const distance = dot(sub(point, source.point), unit(source.normal));

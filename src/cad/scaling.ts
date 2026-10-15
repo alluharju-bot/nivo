@@ -1,3 +1,4 @@
+import { transformCutProfiles, transformCutProfilesAsync } from './cutProfiles';
 import { ZodError } from 'zod';
 import { deserializeShape } from 'replicad';
 import { bodySchema, projectValidationMessage, type Body, type Vec3 } from '../model/project';
@@ -122,6 +123,11 @@ export async function scaleBodies(
             (s) => s.scale(factors[0], pivot),
             levels.normal,
             factors[0],
+          );
+        if (uniform) transformCutProfiles(body, result.at(-1)!, (s) => s.scale(factors[0], pivot));
+        else
+          await transformCutProfilesAsync(body, result.at(-1)!, async (s) =>
+            deserializeShape((await affine!(s.serialize(), pivot, factors)).data),
           );
         if (cache && !previous?.mesh.curveStations) {
           // Uniform scaling keeps analytic surfaces; meshing its result is

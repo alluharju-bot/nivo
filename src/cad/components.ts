@@ -1,3 +1,4 @@
+import { transformCutProfiles } from './cutProfiles';
 import { Quaternion, Vector3 } from 'three';
 import { bodySchema, type Body, type Vec3 } from '../model/project';
 import { add, sub } from '../model/geometry';
@@ -148,6 +149,11 @@ export function instantiateComponents(
             },
             new Vector3(...levels.normal).applyQuaternion(q).toArray() as Vec3,
           );
+        transformCutProfiles(source, result, (s) => {
+          if (Math.abs(sin) > 1e-9)
+            s = s.rotate((angle * 180) / Math.PI, from, [q.x / sin, q.y / sin, q.z / sin]);
+          return s.translate(sub(to, from));
+        });
         cache?.prepare(result, placed);
         return result;
       } finally {

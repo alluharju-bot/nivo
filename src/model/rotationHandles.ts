@@ -3,8 +3,8 @@ import type { Rotation } from './transforms';
 import { rotationRadius } from './transforms';
 import { sketchFrame, fromUV } from './sketch';
 import { dot } from './geometry';
-export function rotationHandles(rotation: Rotation, bodies: Body[]) {
-  const radius = rotationRadius(bodies.filter((b) => rotation.ids.includes(b.id)));
+export function rotationHandles(rotation: Rotation, bodies: Body[], viewRadius?: number) {
+  const radius = viewRadius ?? rotationRadius(bodies.filter((b) => rotation.ids.includes(b.id)));
   const axes: { axis: Vec3; color: string; name: string }[] = [
     { axis: [1, 0, 0], color: '#c96562', name: 'X' },
     { axis: [0, 1, 0], color: '#4f9765', name: 'Y' },

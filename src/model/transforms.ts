@@ -45,7 +45,9 @@ export const bodiesCenter = (bodies: Body[]): Vec3 => {
 };
 export const rotationRadius = (bodies: Body[]) => {
   const { min, max } = bounds(bodies);
-  return Math.max(40, Math.hypot(...sub(max, min)) * 0.65);
+  // Screen-space sizing supplies the usable minimum; a 40 mm world minimum
+  // made the controls enormous beside small precision parts.
+  return Math.max(1e-3, Math.hypot(...sub(max, min)) * 0.65);
 };
 export const bodyVisible = (body: Body, groups: BodyGroup[]) =>
   !body.hidden && !groupAncestors(groups, body.groupId).some((g) => g.hidden);

@@ -38,6 +38,8 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { rotationHandles } from '../model/rotationHandles';
+import { rotationRadius } from '../model/transforms';
+import { viewHandleRadius } from './handleSize';
 import { createRotationGripResolver } from '../model/rotationGrip';
 import { rotatePoint } from '../model/transforms';
 import { dot, unit } from '../model/geometry';
@@ -139,6 +141,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   let editingGeometry: Props['geometryEditing'];
   let textureEditor: ReturnType<typeof installTextureEditing> | undefined;
   let reportedView: View | undefined;
+  let rotationRings: THREE.Group | undefined;
+  let rotationModelRadius = 1;
   const labels: { element: HTMLDivElement; point: THREE.Vector3; xray: boolean }[] = [];
   const extrusionLabels: typeof labels = [];
   let labelOccluded: ((point: THREE.Vector3) => boolean) | undefined;
@@ -182,6 +186,17 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const renderNow = () => {
     if (disposed || renderer.getContext().isContextLost()) return;
     textureEditor?.update();
+    const rotating = current().rotation;
+    if (rotationRings && rotating) {
+      const radius = viewHandleRadius(
+        camera,
+        rotating.pivot,
+        container.clientHeight,
+        rotationModelRadius,
+      );
+      rotationRings.scale.setScalar(radius);
+      renderer.domElement.dataset.rotationRadius = String(radius);
+    }
     // Keep useful depth precision at CAD scales instead of a fixed 1:10,000,000 range.
     const distance = camera.position.distanceTo(clippingSphere.center),
       extent = Math.max(clippingSphere.radius * 1.8, 100);
@@ -792,6 +807,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const scalePreview = scalingPreview(scene);
   const resolveRotationGrip = createRotationGripResolver();
   const preview = () => {
+    rotationRings = undefined;
     const scaling = current().scaling;
     scalePreview.update(scaling, current().bodies, bodyNodes);
     const rotation = current().rotation;
@@ -954,7 +970,17 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           );
         }
       }
-      for (const handle of rotationHandles(rotation, current().bodies)) {
+      rotationModelRadius = rotationRadius(
+        current().bodies.filter((b) => rotation.ids.includes(b.id)),
+      );
+      rotationRings = new THREE.Group();
+      rotationRings.position.set(...rotation.pivot);
+      ghost.add(rotationRings);
+      for (const handle of rotationHandles(
+        { ...rotation, pivot: [0, 0, 0] },
+        current().bodies,
+        1,
+      )) {
         const ring = new Line2(
           new LineGeometry().setPositions(handle.points.flat()),
           new LineMaterial({
@@ -968,7 +994,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           }),
         );
         ring.renderOrder = 96;
-        ghost.add(ring);
+        rotationRings.add(ring);
       }
       const grip = resolveRotationGrip(rotation, current().bodies, current().meshes),
         movingGrip = rotatePoint(grip, rotation.pivot, rotation.axis, rotation.angle);

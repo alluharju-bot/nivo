@@ -78,12 +78,20 @@ export function isLinearEdge(edge: Edge): boolean {
       const p = spline.Pole(i),
         v = sub([p.X(), p.Y(), p.Z()], start);
       p.delete();
-      if (
-        Math.hypot(...cross(v, direction)) > 1e-6 ||
-        dot(v, direction) < -1e-6 ||
-        dot(v, direction) > length + 1e-6
-      )
-        return false;
+      // A trimmed edge may use a longer underlying spline. Its poles need
+      // to be collinear, but need not lie between the trimmed endpoints.
+      if (Math.hypot(...cross(v, direction)) > 1e-6) return false;
+    }
+    let previous = -1e-6;
+    for (let i = 0; i <= 8; i++) {
+      const point = edge.pointAt(i / 8);
+      try {
+        const position = dot(sub(point.toTuple(), start), direction);
+        if (position < previous - 1e-6 || position > length + 1e-6) return false;
+        previous = position;
+      } finally {
+        point.delete();
+      }
     }
     return true;
   } finally {

@@ -2,6 +2,74 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.46.1 — työkalujen suunta ja kameran yhteistoiminta
+
+- Työkalupalkin kevyet **Piirrä / Muokkaa / Mittaa** -jaottelut säilyttävät
+  suorat työkalupainikkeet. Muotovalikko sijoittuu käytettävissä olevan tilan
+  mukaan myös siirretyssä palkissa.
+- **Suorakulmio keskeltä** pitää ensimmäisen pisteen keskipisteenä myös
+  mittoja kirjoitettaessa ja Tabilla vaihdettaessa. Mitat ovat kokonaismittoja.
+  Ympyrä, ellipsi, säännöllinen monikulmio ja pallo alkavat jo keskipisteestä.
+- Pursotuksen, siirron, kynän ja apuviivan kirjoitussuunnan tieto säilytetään
+  myös ruudukkoa pienemmästä liikkeestä. Ruudukko pyöristää mitan; se ei saa
+  vaihtaa liikkeen puolta. Myöskään esimerkiksi 13 mm:n osan ulospäin aloitettu
+  pursotus ei saa ensin pienentää osaa 10 mm:iin.
+- Kameraa voi liikuttaa kesken työkalun käytön muuttamatta luonnosta.
+  Pursotuksen ja siirron hiirilaskenta sidotaan uudelleen nykyiseen mittaan
+  kameran vaihduttua. Myös muotojen ja mittaviivojen vapaa asettelu säilyttää
+  keskeneräisen päätepisteen.
+- Zoom ja pan käyttävät osoitetun pinnan syvyyttä. Kameran lähelle jäänyt
+  vanha orbit-kohde ei saa tehdä huoneen navigoinnista millimetriluokan hidastelua.
+- Reunasta vedettävä apuviiva valitsee viereisistä pinnoista tason
+  alkuperäisen hiiriliikkeen mukaan ennen ruudukon pyöristystä. X/Y/Z säilyvät
+  nimenomaisina suunnan lukituksina.
+- Pyörityksen akselirenkaat skaalautuvat näkymään, tavallisesti 52–130 pikselin
+  säteelle. Piirto ja poiminta käyttävät samaa kokoa myös zoomattaessa.
+- Leikatun sylinterin päätyä voi jatkaa ja lyhentää. Tasaisesti pursotettu
+  poikkileikkaus tunnistetaan tilavuuden ja leikkausgeometrian vastaavuudella;
+  reikiä tai sivujen tarkoituksellisia jakoja ei korvata oletusmuodolla.
+  Päällekkäisten pyöristysten reunat kohdistetaan geometrian avulla.
+- Pintaan piirretyn muodon alkuperäinen rajaus säilyy, vaikka tasopinta
+  katkaisee sitä reiän tai pyöristyksen kohdalla. Sisäänpäin Push/Pull käyttää
+  koko leikkausprofiilia. Tieto säilyy tallennuksessa, kopioissa, kierrossa ja
+  skaalauksessa; muutettu tai poistettu pintajako irrottaa vanhan rajauksen.
+  Ulospäin pursotus käyttää edelleen valittua materiaalipintaa.
+  Vanhasta jo typistyneenä tallennetusta leikkauksesta puuttuvaa piirrosta ei
+  voi päätellä varmasti: se on piirrettävä uudelleen tai palautettava historiasta.
+
+### Seuraava tarkkuusmuokkauksen tarve: pinnan aluejako ja säteittäinen muokkaus
+
+Käyttäjän vahvistama esimerkki: Ø10 × 20 mm sylinteri, Ø3 mm:n syvennys
+1,76 mm syvänä. Jako 0,75 mm yläreunasta erottaa alemman 1,01 mm korkean
+rengasalueen, jonka ulkohalkaisijaa kasvatetaan. Ø3 mm:n sisäreikä, ylin
+0,75 mm ja muu sylinteri säilyvät. Tarvitaan tarkka kaarevan sivupinnan
+aluejako korkeudella ja valitun alueen säteittäinen muutos sekä siirtymäpinnat.
+Koko osan XY-skaalaus tai kaarevan CAD:n verkkokopion skaalaus ei yksin
+toteuta tätä vaatimusta. Ei merkitä nykyisen pistemuokkauksen ominaisuudeksi.
+
+### Backlog: toisto polkua ja pintaa pitkin
+
+- Valitaan toistettava osa, profiili tai työstö ja reitti: ympyräreuna,
+  reunaketju tai piirretty käyrä. Jako määrällä, välimatkalla tai suljetulla
+  ympyrällä asteilla. Suunta säilyy, seuraa reitin tangenttia tai pinnan normaalia.
+- Upotukset, reiät ja kohoumat samalla toimintaperiaatteella. Korurasian
+  reunakoristeista voi tuottaa sekä leikkurit että erilliset upotettavat osat.
+- Muokattava toistomäärä ja jako. Ensimmäinen kokonaisuus: reunat ja tasopinnat.
+  Kaarevan pinnan seuraaminen jatkona; muodon asettaminen ja pinnan mukaan
+  taivuttaminen erotetaan toisistaan. Kulmien ylitykset ja päällekkäiset kopiot
+  tarvitsevat selkeän esikatselun ja ratkaisun ennen hyväksyntää.
+
+### Backlog: läpikuultavat materiaalit ja toimintakokeilut
+
+- Kirkas/samea polykarbonaatti, sävytetty geeli ja aerogeelimäinen visuaalinen
+  materiaali. Taittokerroin, paksuudesta riippuva absorptio ja sameus;
+  tilavuussironta erillisenä renderiputken kehityksenä.
+- Erillinen palautettava Kokeile-tila mekanismien liikkeelle ja myöhemmin
+  törmäyksille. Pehmeän kappaleen deformaatio oma vaativampi jatko.
+- Lujuuslaskenta ei kuulu visuaaliseen materiaalikirjastoon: tarvitsee erilliset
+  mekaaniset materiaaliominaisuudet, kuormat, kiinnitykset, liitokset, verkotuksen
+  ja validoidun laskennan. Ei luvata rakenteellista luotettavuutta animaatiolla.
+
 ## V0.46.0 — yhteinen geometriatyötila
 
 - Osan muokkauksessa **Koko osa / Pisteet / Reunat / Pinnat** erottaa

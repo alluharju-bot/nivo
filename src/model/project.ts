@@ -136,6 +136,17 @@ const brepFeature = z.object({
   solid: z.boolean(),
   topologyId: id,
   surfaceLevels: surfaceLevelsSchema.optional(),
+  // Full sketch and its actual trimmed face, both in this feature's local frame.
+  // Retain the cutter across holes/roundovers, without attaching it to a stale face index.
+  cutProfiles: z
+    .array(
+      z.object({
+        face: z.string().min(1).max(16_000_000),
+        profile: z.string().min(1).max(16_000_000),
+      }),
+    )
+    .max(128)
+    .optional(),
 });
 const profileFeature = z
   .object({

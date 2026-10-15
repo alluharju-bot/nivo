@@ -140,6 +140,9 @@ export function installCameraNavigation(
 ) {
   controls.zoomToCursor = true;
   let focus: THREE.Vector3 | undefined;
+  let sceneFocus: THREE.Vector3 | undefined;
+  let sceneRadius = 1000;
+  let selectionKey = '';
   let orbit:
     | {
         pivot: THREE.Vector3;
@@ -194,15 +197,45 @@ export function installCameraNavigation(
     marker.hidden = Math.abs(screen.x) > 1 || Math.abs(screen.y) > 1 || Math.abs(screen.z) > 1;
     canvas.dataset.orbitPivot = JSON.stringify(pivot.toArray());
   };
-  const prepareZoom = () => {
-    if (focus) focusDepth(controls.object, controls.target, focus);
+  const prepareZoom = (pointer?: Pointer) => {
+    if (!controls.enabled) return;
+    const camera = controls.object;
+    const rect = canvas.getBoundingClientRect();
+    const hit =
+      pointer && rect.width && rect.height
+        ? orbitSurfacePoint(
+            camera,
+            new THREE.Vector2(
+              ((pointer.clientX - rect.left) / rect.width) * 2 - 1,
+              1 - ((pointer.clientY - rect.top) / rect.height) * 2,
+            ),
+            surfaces(),
+          )
+        : undefined;
+    // Pan and zoom need the depth under the cursor. A stale orbit target can
+    // end up two millimetres from the camera while the visible room is metres away.
+    if (hit) focusDepth(camera, controls.target, hit);
+    else if (focus) focusDepth(camera, controls.target, focus);
+    if (!hit && camera.position.distanceTo(controls.target) <= controls.minDistance * 1.01) {
+      if (sceneFocus) focusDepth(camera, controls.target, sceneFocus);
+      if (camera.position.distanceTo(controls.target) <= controls.minDistance * 1.01)
+        controls.target
+          .copy(camera.position)
+          .addScaledVector(
+            camera.getWorldDirection(new THREE.Vector3()),
+            Math.max(controls.minDistance * 2, sceneRadius),
+          );
+    }
   };
   const down = (event: PointerEvent) => {
     if (event.pointerType === 'touch') {
       touches.set(event.pointerId, event);
       clearOrbit();
       if (touches.size === 1 && controls.touches.ONE === THREE.TOUCH.ROTATE) beginOrbit(event);
-      if (touches.size === 2) prepareZoom();
+      if (touches.size === 2) {
+        const [a, b] = [...touches.values()];
+        prepareZoom({ clientX: (a.clientX + b.clientX) / 2, clientY: (a.clientY + b.clientY) / 2 });
+      }
       return;
     }
     const action = [
@@ -213,7 +246,10 @@ export function installCameraNavigation(
     const modified = event.ctrlKey || event.metaKey || event.shiftKey;
     if ((action === THREE.MOUSE.ROTATE && !modified) || (action === THREE.MOUSE.PAN && modified))
       beginOrbit(event);
-    else clearOrbit();
+    else {
+      clearOrbit();
+      if (action === THREE.MOUSE.PAN || action === THREE.MOUSE.ROTATE) prepareZoom(event);
+    }
   };
   const move = (event: PointerEvent) => {
     resumeRotation?.();
@@ -270,7 +306,22 @@ export function installCameraNavigation(
   return {
     sync(bodies: Body[], selectedIds: string[], editingBodyId?: string) {
       focus = selectionCenter(bodies, selectedIds, editingBodyId);
-      prepareZoom();
+      if (bodies.length) {
+        const box = bounds(bodies);
+        sceneFocus = new THREE.Vector3(...box.min)
+          .add(new THREE.Vector3(...box.max))
+          .multiplyScalar(0.5);
+        sceneRadius = Math.max(
+          2,
+          new THREE.Vector3(...box.min).distanceTo(new THREE.Vector3(...box.max)) / 2,
+        );
+      } else {
+        sceneFocus = undefined;
+        sceneRadius = 1000;
+      }
+      const key = editingBodyId ?? selectedIds.join('|');
+      if (key !== selectionKey && focus) focusDepth(controls.object, controls.target, focus);
+      selectionKey = key;
       canvas.dataset.cameraFocus = focus ? JSON.stringify(focus.toArray()) : '';
     },
     dispose() {

@@ -1,3 +1,4 @@
+import { attachCutProfile } from './cutProfiles';
 import {
   cast,
   getOC,
@@ -407,6 +408,7 @@ export function splitFace(
         (f) => f.planar && f.normal.every((n, i) => Math.abs(n - target.normal[i]) < 1e-5),
       );
       let selected: FaceRef | undefined;
+      const selectedIndices: number[] = [];
       for (const candidate of candidates) {
         const face = restoredFaces[candidate.index],
           intersection = new oc.BRepAlgoAPI_Common(face.wrapped, clipped.wrapped);
@@ -418,8 +420,8 @@ export function splitFace(
             own > 1e-6 &&
             Math.abs(measureArea(overlap as Shape3D) - own) < Math.max(1e-5, own * 1e-8)
           ) {
-            selected = candidate.ref;
-            break;
+            selected ??= candidate.ref;
+            selectedIndices.push(candidate.index);
           }
         } finally {
           overlap?.delete();
@@ -427,6 +429,11 @@ export function splitFace(
         }
       }
       if (!selected) throw new Error('Piirrettyä aluetta ei voitu tunnistaa. Muutos peruttiin.');
+      // The split face is necessarily clipped to existing material. Preserve
+      // the complete sketch for an inward cut across an existing hole/fillet.
+      if (measureArea(sketch as Shape3D) - area > Math.max(1e-5, area * 1e-8)) {
+        for (const index of selectedIndices) attachCutProfile(next, restoredFaces[index], sketch);
+      }
       cache?.prepare(next, restored, mesh);
       return { body: next, face: selected };
     } finally {

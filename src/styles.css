@@ -3519,6 +3519,37 @@ p {
 .rail-item {
   display: contents;
 }
+.rail-section {
+  width: 100%;
+  padding: 5px 0 2px;
+  margin-top: 3px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  color: #78847d;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  flex: 0 0 auto;
+}
+.shape-origin {
+  margin-bottom: 10px;
+}
+.shape-menu {
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+}
+.workspace:is([data-dock='top'], [data-dock='bottom']) .rail-section {
+  width: auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  border-top: 0;
+  border-left: 1px solid var(--line);
+  padding: 0 6px;
+  margin: 0 0 0 4px;
+  writing-mode: vertical-rl;
+  font-size: 9px;
+}
 .tool-button {
   position: relative;
   flex: 0 0 auto;

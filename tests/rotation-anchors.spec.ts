@@ -2,7 +2,6 @@ import { test, expect, type Page } from '@playwright/test';
 import { Camera, Vector3 } from 'three';
 import { makeBody, type Guide, type Vec3 } from '../src/model/project';
 import { ready, view, click, save } from './helpers';
-import { rotationRadius } from '../src/model/transforms';
 
 async function at(page: Page, point: Vec3) {
   const canvas = page.getByTestId('viewport'),
@@ -194,7 +193,7 @@ test('corner and center use their own attachment line even when dragging another
   await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,20,40]');
   await pivot(page, [0, 0, 0]);
   await expect(canvas).toHaveAttribute('data-rotation-grip', '[200,0,0]');
-  const radius = rotationRadius([body]),
+  const radius = Number(await canvas.getAttribute('data-rotation-radius')),
     start = await at(page, [radius * 0.6, 0, radius * 0.8]);
   await page.mouse.move(start.x, start.y);
   await expect(canvas).toHaveAttribute('data-rotation-handle', 'Y');

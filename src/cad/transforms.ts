@@ -1,3 +1,4 @@
+import { transformCutProfiles } from './cutProfiles';
 import { Quaternion, Vector3 } from 'three';
 import { bodySchema, type Body, type Vec3 } from '../model/project';
 import { add, sub, unit } from '../model/geometry';
@@ -117,6 +118,7 @@ export function rotateBodies(
           (s) => s.rotate(angle, pivot, direction),
           new Vector3(...levels.normal).applyQuaternion(q).toArray() as Vec3,
         );
+      transformCutProfiles(body, result, (s) => s.rotate(angle, pivot, direction));
       result.quantityBasis = transformQuantityBasis(
         body,
         result,

@@ -64,10 +64,10 @@ export interface CameraCommand {
 export type Gesture =
   | { type: 'profile'; frame: SketchFrame; width: number; depth: number; start?: Vec3; end?: Vec3 }
   | { type: 'rectangle'; origin: Vec3; start?: Vec3; width: number; depth: number }
-  | { type: 'extrude'; distance: number }
+  | { type: 'extrude'; distance: number; rawDistance?: number }
   | { type: 'offset'; distance: number }
   | { type: 'detail'; size: number }
-  | { type: 'move'; origin: Vec3; bodyId?: string; axis?: Axis; direction?: Vec3 }
+  | { type: 'move'; origin: Vec3; bodyId?: string; axis?: Axis; direction?: Vec3; rawDelta?: Vec3 }
   | {
       type: 'measure';
       anchor: Anchor;
@@ -77,6 +77,7 @@ export type Gesture =
       endAnchor?: Anchor;
       direction?: Vec3;
       offset?: Vec3;
+      offsetDirection?: Vec3;
       edgeLength?: number;
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
@@ -242,7 +243,7 @@ export interface ViewportProps {
   ) => void;
   onGesture: (gesture: Gesture) => void;
   onAccept: (continueMeasure?: boolean, pointerType?: string) => void;
-  onPenHover: (point?: Vec3) => void;
+  onPenHover: (point?: Vec3, rawPoint?: Vec3) => void;
   onSnap: (label: string) => void;
   onReference: (point?: ReferencePoint) => void;
   onReferencePicked: () => void;
@@ -254,6 +255,7 @@ export interface ViewportProps {
   onAxis: (axis?: Axis) => void;
   onConstraint: (direction?: Vec3) => void;
   radialShape: 'circle' | 'ellipse' | 'polygon';
+  rectangleOrigin?: 'corner' | 'center';
   sketchFrame?: SketchFrame;
   sketchTarget?: FaceTarget;
   onSketchPlane: (frame: SketchFrame, target?: FaceTarget) => void;

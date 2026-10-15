@@ -3,7 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.46.0** tuo geometrian muokkauksen samaan mallinnusnäkymään.
+Versio **0.46.1** korjaa ruudukkoa pienemmän liikkeen kirjoitussuunnan,
+kameran liikuttamisen keskeneräisen pursotuksen aikana ja leikatun sylinterin
+pituuden muuttamisen. Pintaan piirretty muoto leikkaa myös reiän pyöristyksen
+yli. Pyörityskahva mukautuu zoomiin. Muodoissa on **Suorakulmio keskeltä**,
+ja työkalupalkissa kevyet Piirrä / Muokkaa / Mittaa -ryhmittelyt.
+
+Versio **0.46.0** toi geometrian muokkauksen samaan mallinnusnäkymään.
 Avaa osa ja valitse yläreunasta **Koko osa / Pisteet / Reunat / Pinnat**.
 Reunaan voi tarttua suoraan ja vetää sitä myös paksuudettomalla pinnalla.
 **M / R / L** siirtää, kiertää tai skaalaa valittua geometriaa. Liittyvät

@@ -12,6 +12,7 @@ import {
   MoveHorizontal,
   MessageSquare,
   Scan,
+  Crosshair,
 } from 'lucide-react';
 import type { Tool } from '../viewport/Viewport';
 
@@ -73,7 +74,10 @@ export function ToolRail({
   tool: Tool;
   busy: boolean;
   onTool: (tool: Tool) => void;
-  onShape: (shape: 'rectangle' | 'circle' | 'ellipse' | 'polygon' | 'sphere' | 'bezier') => void;
+  onShape: (
+    shape:
+      'rectangle' | 'center-rectangle' | 'circle' | 'ellipse' | 'polygon' | 'sphere' | 'bezier',
+  ) => void;
   onCabinet: () => void;
   onThroughShapes: () => void;
   onSurfaceLevels: () => void;
@@ -94,11 +98,11 @@ export function ToolRail({
   const measureTrigger = useRef<HTMLButtonElement>(null);
   const measureList = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    const list = measureList.current,
-      trigger = measureTrigger.current;
-    if (!measureMenu || !list || !trigger) return;
+    const list = open ? menu.current : measureList.current;
+    const button = open ? trigger.current : measureTrigger.current;
+    if ((!open && !measureMenu) || !list || !button) return;
     const place = () => {
-      const rect = trigger.getBoundingClientRect();
+      const rect = button.getBoundingClientRect();
       const x =
         dock === 'left'
           ? rect.right + 8
@@ -122,7 +126,7 @@ export function ToolRail({
       observer.disconnect();
       window.removeEventListener('resize', place);
     };
-  }, [measureMenu, dock]);
+  }, [open, measureMenu, dock]);
   useEffect(() => {
     if (!open && !measureMenu) return;
     const activeMenu = open ? menu.current : measureList.current;
@@ -233,6 +237,21 @@ export function ToolRail({
           .filter((t) => !['rectangle', 'circle'].includes(t.id))
           .map((t) => (
             <div className="rail-item" key={t.id}>
+              {(
+                { pen: 'Piirrä', move: 'Muokkaa', measure: 'Mittaa' } as Partial<
+                  Record<Tool, string>
+                >
+              )[t.id] && (
+                <span className="rail-section" aria-hidden="true">
+                  {
+                    (
+                      { pen: 'Piirrä', move: 'Muokkaa', measure: 'Mittaa' } as Partial<
+                        Record<Tool, string>
+                      >
+                    )[t.id]
+                  }
+                </span>
+              )}
               {t.id === 'measure' ? (
                 <div className={`measure-tool ${tool === 'measure' ? 'active' : ''}`}>
                   <button
@@ -345,32 +364,7 @@ export function ToolRail({
           ref={menu}
           id="shape-menu"
           className="shape-menu"
-          style={
-            trigger.current
-              ? {
-                  position: 'fixed',
-                  left: Math.min(
-                    window.innerWidth - 220,
-                    Math.max(
-                      8,
-                      trigger.current.getBoundingClientRect().left +
-                        (dock === 'left' ? 70 : dock === 'right' ? -220 : 0),
-                    ),
-                  ),
-                  top: Math.max(
-                    8,
-                    Math.min(
-                      window.innerHeight - 410,
-                      Math.max(
-                        8,
-                        trigger.current.getBoundingClientRect().top +
-                          (dock === 'top' ? 64 : dock === 'bottom' ? -400 : 0),
-                      ),
-                    ),
-                  ),
-                }
-              : undefined
-          }
+          style={{ position: 'fixed' }}
           role="group"
           aria-label="Valitse muoto"
         >
@@ -378,6 +372,7 @@ export function ToolRail({
           {(
             [
               ['rectangle', 'Suorakulmio', <Square />, 'S'],
+              ['center-rectangle', 'Suorakulmio keskeltä', <Crosshair />, ''],
               ['circle', 'Ympyrä', <Circle />, 'C'],
               ['ellipse', 'Ellipsi', <CircleDashed />, ''],
               ['polygon', 'Monikulmio', <Pentagon />, ''],

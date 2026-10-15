@@ -1,4 +1,5 @@
-import { beforeAll, expect, it } from 'vitest';
+import { scaleBodies } from './scaling';
+import { beforeAll, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import init from 'replicad-opencascadejs';
 import { setOC } from 'replicad';
@@ -12,6 +13,10 @@ import { defaultAppearance } from '../model/materials';
 import { sketchFrame } from '../model/sketch';
 import { asComponent, synchronizeComponents } from '../model/components';
 import { instantiateComponents } from './components';
+
+vi.mock('brepjs-opencascade/src/brepjs_single.wasm?url', () => ({
+  default: `${process.cwd()}/node_modules/brepjs-opencascade/src/brepjs_single.wasm`,
+}));
 
 beforeAll(
   async () =>
@@ -342,3 +347,48 @@ it(
     expect(() => removeEdgeTreatment(holed)).toThrow('ei voitu erottaa');
   },
 );
+
+it('resizes both ends of a spline cylinder with five perimeter cuts before and after stacked rounds', async () => {
+  const base = makeProfileBody({ kind: 'circle', radius: 5 }, sketchFrame([0, 0, 0]), 12);
+  const cutters = Array.from({ length: 5 }, (_, i) => {
+    const angle = (2 * Math.PI * i) / 5;
+    return makeProfileBody(
+      { kind: 'circle', radius: 1 },
+      sketchFrame([5 * Math.cos(angle), 5 * Math.sin(angle), 0]),
+      12,
+    );
+  });
+  const cut = booleanBodies([base], cutters, 'cut')[0];
+  const [spline] = await scaleBodies([cut], [0, 0, 0], [1.1, 0.85, 1]);
+  const edges = inspect(spline)
+    .detailEdges!.filter((e) => e.lines.every((n, i) => i % 3 !== 2 || Math.abs(n - 12) < 1e-5))
+    .map((e) => e.index);
+  const first = detailEdges(spline, edges, 'fillet', 0.3);
+  const bottom = first.mesh
+    .detailEdges!.filter((e) => e.lines.every((n, i) => i % 3 !== 2 || Math.abs(n) < 1e-5))
+    .map((e) => e.index);
+  const second = detailEdges(first.body, [bottom[0]], 'fillet', 0.2).body;
+  for (const original of [spline, second]) {
+    const body = rotateBodies([original], [0, 0, 0], [0, 1, 0], 55)[0];
+    const before = JSON.stringify(body),
+      data = inspect(body);
+    const ends = data.faces.filter((f) => f.planar);
+    expect(ends).toHaveLength(2);
+    for (const face of ends)
+      for (const distance of [-1, 1]) {
+        const result = pushPullFace(body, face.ref, distance),
+          actual = inspect(result);
+        expect(actual.volume - data.volume).toBeGreaterThan(distance > 0 ? 0 : -1000);
+        if (distance < 0) expect(actual.volume).toBeLessThan(data.volume);
+        expect(actual.faces.length).toBe(data.faces.length);
+        const end = actual.faces.find(
+          (f) => f.planar && f.normal.every((n, i) => Math.abs(n - face.normal[i]) < 1e-5),
+        )!;
+        expect(
+          end.center.reduce((sum, n, i) => sum + (n - face.center[i]) * face.normal[i], 0),
+        ).toBeCloseTo(distance, 4);
+        expect(result.edgeTreatment?.previous?.length).toBe(body.edgeTreatment?.previous?.length);
+      }
+    expect(JSON.stringify(body)).toBe(before);
+  }
+}, 60000);

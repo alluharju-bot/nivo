@@ -1,3 +1,5 @@
+import { resizeProvenPrism } from './prismResize';
+import { transferCutProfiles, sketchCutPrism } from './cutProfiles';
 import { resizePrimitive } from '../model/editableDimensions';
 import { projectEdges } from './projection';
 import { drawingFrame, projectDrawingPoint } from '../model/drawingViews';
@@ -555,6 +557,7 @@ export function bodyFromShape(body: Body, shape: AnyShape, sources: Body[] = [bo
         data: local.serialize(),
         solid,
         topologyId: uid(),
+        cutProfiles: transferCutProfiles(sources, shape, origin),
       },
     });
     if (sources.length) result.quantityBasis = updatedQuantityBounds(body, result, shape);
@@ -666,12 +669,22 @@ export function pushPullFace(
     }
     const vector = new Vector(target.normal.map((n) => n * distance) as Vec3);
     try {
-      prism = basicFaceExtrusion(faces[target.index], vector);
+      prism =
+        sketchCutPrism(body, faces[target.index], target.normal, distance) ??
+        basicFaceExtrusion(faces[target.index], vector);
     } finally {
       vector.delete();
     }
     const solidFaces = solidFaceIds(shape);
-    result = faces.some((face) => !solidFaces.has(face.hashCode))
+    // Rebuilding a proven uniform BRep first keeps one continuous curved wall,
+    // instead of adding a seam or trimming the same spline again at every edit.
+    result =
+      body.feature.type === 'brep' &&
+      body.feature.solid &&
+      faces.every((face) => solidFaces.has(face.hashCode))
+        ? resizeProvenPrism(shape, faces[target.index], target.normal, target.center, distance)
+        : undefined;
+    result ??= faces.some((face) => !solidFaces.has(face.hashCode))
       ? extrudeSurfaceRegion(shape, faces, faces[target.index], prism, distance, solidFaces)
       : distance > 0
         ? shape.asShape3D().fuse(prism.asShape3D())

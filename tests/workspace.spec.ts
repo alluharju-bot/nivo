@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { bounds, freshProject, makeBody, type Body, type Project } from '../src/model/project';
-import { rotationRadius } from '../src/model/transforms';
 import { view } from './helpers';
 
 async function ready(page: Page, bodies: Body[]) {
@@ -195,7 +194,7 @@ test('rotation ring uses five-degree snapping and Shift allows a free angle', as
   await page.keyboard.press('r');
   // Explicitly fit, then use the lower arc so the tablet view cube cannot cover the handle.
   const point = await view(page, [body]);
-  const radius = rotationRadius([body]);
+  const radius = Number(await page.getByTestId('viewport').getAttribute('data-rotation-radius'));
   const a = point(
     60 + radius * Math.cos((-120 * Math.PI) / 180),
     30 + radius * Math.sin((-120 * Math.PI) / 180),

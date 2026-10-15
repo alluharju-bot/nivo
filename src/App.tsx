@@ -637,6 +637,8 @@ export default function App() {
   const [editNotice, setEditNotice] = useState<{ x?: number; y?: number }>();
   const gestureActive = useRef(false);
   const [shapeKind, setShapeKind] = useState<'circle' | 'ellipse' | 'polygon' | 'sphere'>('circle');
+  const [rectangleOrigin, setRectangleOrigin] = useState<'corner' | 'center'>('corner');
+  const moveRawDelta = useRef<Vec3>([0, 0, 0]);
   const [shapeSides, setShapeSides] = useState(6);
   const [shapePurpose, setShapePurpose] = useState<Body['purpose']>('model');
   const [shapeName, setShapeName] = useState('');
@@ -679,6 +681,7 @@ export default function App() {
     offset?: Vec3;
     xray?: boolean;
     edgeLength?: number;
+    offsetDirection?: Vec3;
   }>();
   const guideRef = useRef<typeof guideDraft>(undefined);
   const lockRef = useRef(new Set<string>());
@@ -1442,6 +1445,7 @@ export default function App() {
     setMoveInputAxis(undefined);
     setMoveDirection(undefined);
     moveTravelRef.current = undefined;
+    moveRawDelta.current = [0, 0, 0];
     setCopyMove(false);
     scalingRef.current = undefined;
     setScalingDraft(undefined);
@@ -2077,11 +2081,12 @@ export default function App() {
       // Typing an offset immediately after picking an edge must work even
       // while the pointer is still exactly on that edge (zero-length offset).
       const direction =
-        Math.hypot(...draft.offset) > 1e-8
+        draft.offsetDirection ??
+        (Math.hypot(...draft.offset) > 1e-8
           ? unit(draft.offset)
           : axis
             ? axisVector(axis)
-            : unit(cross(guidePlaneNormal(guide), guideVector(guide)));
+            : unit(cross(guidePlaneNormal(guide), guideVector(guide))));
       guide.offset = scaleVector(direction, parseLength(fieldsRef.current.offset, true, true));
     }
     return guide;
@@ -3056,14 +3061,14 @@ export default function App() {
       editor.setError((e as Error).message);
     }
   };
-  const penMove = (point?: Vec3) => {
+  const penMove = (point?: Vec3, rawPoint = point) => {
     penPointerRef.current = point;
     if (point && penRef.current.length) {
       const start = penRef.current.at(-1)!;
       if (!lockRef.current.has('length')) {
         penDirectionRef.current = penTravelDirection(
           start,
-          point,
+          Math.hypot(...sub(point, start)) > 1e-8 ? point : (rawPoint ?? point),
           constraintRef.current,
           penDirectionRef.current,
         );
@@ -3071,8 +3076,9 @@ export default function App() {
           length: inputNumber(Math.hypot(...sub(point, start))),
         });
         const delta = sub(point, start);
-        if (!lockRef.current.size && Math.hypot(...delta) > 1e-8) {
-          const index = delta.map(Math.abs).indexOf(Math.max(...delta.map(Math.abs)));
+        const travel = sub(rawPoint ?? point, start);
+        if (!lockRef.current.size && Math.hypot(...travel) > 1e-8) {
+          const index = travel.map(Math.abs).indexOf(Math.max(...travel.map(Math.abs)));
           setPenInputAxis((['x', 'y', 'z'] as const)[index]);
         }
         const patch: Partial<Fields> = {};
@@ -3120,7 +3126,12 @@ export default function App() {
         }
         frame = {
           ...frame,
-          origin: fromUV([delta[0] < 0 ? -w : 0, delta[1] < 0 ? -d : 0], relative),
+          origin: fromUV(
+            rectangleOrigin === 'center'
+              ? [-w / 2, -d / 2]
+              : [delta[0] < 0 ? -w : 0, delta[1] < 0 ? -d : 0],
+            relative,
+          ),
         };
       }
       shapeFrameRef.current = frame;
@@ -3146,7 +3157,8 @@ export default function App() {
       writeFields(patch);
     } else if (event.type === 'extrude') {
       if (!lockRef.current.has('height') && !lockRef.current.has('remaining')) {
-        if (Math.abs(event.distance) > 0.01) dragDirection.current = Math.sign(event.distance);
+        const travel = event.rawDistance ?? event.distance;
+        if (Math.abs(travel) > 1e-8) dragDirection.current = Math.sign(travel);
         extrusionModeRef.current = 'height';
         setExtrusionMode('height');
         writeFields({
@@ -3158,6 +3170,7 @@ export default function App() {
     } else if (event.type === 'offset') {
       if (!lockRef.current.has('offset')) writeFields({ offset: inputNumber(event.distance) });
     } else if (event.type === 'move') {
+      if (event.rawDelta) moveRawDelta.current = event.rawDelta;
       setMoveInputAxis(event.axis);
       const local = !event.axis && event.direction;
       setMoveDirection(local || undefined);
@@ -3165,11 +3178,11 @@ export default function App() {
       if (!source) return;
       if (local) {
         if (lockRef.current.has('length')) return;
-        const delta = sub(event.origin, source.origin),
+        const delta = event.rawDelta ?? sub(event.origin, source.origin),
           length = Math.hypot(...delta);
         if (length > 1e-8) moveTravelRef.current = scaleVector(delta, 1 / length);
         else moveTravelRef.current ??= local;
-        patch.length = inputNumber(length);
+        patch.length = inputNumber(Math.hypot(...sub(event.origin, source.origin)));
       } else if (lockRef.current.delete('length')) {
         setLocked(new Set(lockRef.current));
       }
@@ -3205,6 +3218,7 @@ export default function App() {
         endAnchor: measureMode === 'free' && !lockRef.current.size ? event.endAnchor : undefined,
         direction: lockRef.current.has('angle') ? guideRef.current?.direction : event.direction,
         offset: event.offset ?? guideRef.current?.offset,
+        offsetDirection: event.offsetDirection ?? guideRef.current?.offsetDirection,
         xray: guideRef.current?.xray,
         edgeLength: event.edgeLength,
       };
@@ -6289,7 +6303,10 @@ export default function App() {
         initialValue={
           tool === 'move' || tool === 'offset'
             ? (key, character) =>
-                /^[\d.,]$/.test(character) && Number(fieldsRef.current[key as keyof Fields]) < 0
+                /^[\d.,]$/.test(character) &&
+                (tool === 'move' && ['x', 'y', 'z'].includes(key)
+                  ? moveRawDelta.current[['x', 'y', 'z'].indexOf(key)] < 0
+                  : Number(fieldsRef.current[key as keyof Fields]) < 0)
                   ? `-${character}`
                   : character
             : undefined
@@ -6827,8 +6844,11 @@ export default function App() {
                   setShapeName(`Bézier ${project.bodies.length + 1}`);
                   return;
                 }
-                if (shape !== 'rectangle') setShapeKind(shape);
-                begin(shape === 'rectangle' ? 'rectangle' : 'circle');
+                const rectangle = shape === 'rectangle' || shape === 'center-rectangle';
+                if (rectangle)
+                  setRectangleOrigin(shape === 'center-rectangle' ? 'center' : 'corner');
+                else setShapeKind(shape);
+                begin(rectangle ? 'rectangle' : 'circle');
                 if (shape === 'sphere') setShapeName(`Pallo ${project.bodies.length + 1}`);
               }}
             />
@@ -7744,6 +7764,7 @@ export default function App() {
                 );
               }}
               radialShape={shapeKind === 'sphere' ? 'circle' : shapeKind}
+              rectangleOrigin={rectangleOrigin}
               recentMeasures={measureMemory.values}
               dimensionLocks={locked}
               onRememberMeasures={measureMemory.remember}
@@ -8893,6 +8914,22 @@ export default function App() {
                             </label>
                           </>
                         )}
+                      </div>
+                    )}
+                    {tool === 'rectangle' && (
+                      <div className="mode-switch shape-origin" aria-label="Suorakulmion aloitus">
+                        {(['corner', 'center'] as const).map((origin) => (
+                          <button
+                            key={origin}
+                            aria-pressed={rectangleOrigin === origin}
+                            onClick={() => {
+                              setRectangleOrigin(origin);
+                              begin('rectangle');
+                            }}
+                          >
+                            {origin === 'corner' ? 'Kulmasta' : 'Keskeltä'}
+                          </button>
+                        ))}
                       </div>
                     )}
                     {['rectangle', 'circle', 'pen'].includes(tool) && (
