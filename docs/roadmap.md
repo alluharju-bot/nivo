@@ -2,6 +2,21 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.47.6 — käynnistysviiveen jatkoselvitys
+
+- Käyttäjän RTX 2060 Super odottaa edelleen useita minuutteja. 0.47.5:n
+  korjaushypoteesi ei ratkaissut havaintoa. Tarvitaan kyseisen selaimen
+  renderiraportti: käytetty grafiikkapolku, alustuksen ja käännöksen ajat.
+- Ympäristö- ja paikallisten valojen yhteinen varjo-/materiaalilaskenta
+  kirjoitetaan shaderiin kerran. Lopputulos verrataan vanhan ohjelman
+  samoihin Sobol-näytteisiin pikseli kerrallaan, myös kromilla, lakalla,
+  läpinäkyvyydellä sekä eri valotyypeillä.
+- Valmistelumuutokset yhdistetään yhdeksi käännökseksi. Ylänäkymän
+  aloituksesta poistetaan ennen varsinaista mallia valmisteltu oletusohjelma.
+- Windowsin korjaus merkitään vahvistetuksi vasta käyttäjän koneelta
+  saadun uuden mittauksen perusteella. Materiaali- tai heijastusominaisuuksia
+  ei poisteta tämän kevennyksen yhteydessä.
+
 ## V0.47.5 — Windowsin hidas ensimmäinen näyte
 
 - Yhden osan pilvimalli käynnistyy Macilla nopeasti myös versiossa 0.47.4,

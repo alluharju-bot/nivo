@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.47.6** yhdistää renderiohjelman kahteen kertaan sisältämän varjo- ja
+materiaalilaskennan yhteiseksi laskentapoluksi. Valot, heijastukset ja
+läpinäkyvyys säilyvät: GPU-vertailussa vanhan ja uuden laskennan pikselit
+ovat samat. Kamera- ja materiaaliasetusten peräkkäiset muutokset valmistellaan
+yhtenä ohjelmana; ylänäkymä ei enää käännä ensin ylimääräistä oletusohjelmaa.
+Windowsin useiden minuuttien aloitusviive on käyttäjän mukaan yhä olemassa
+0.47.5:ssä. Sen korjaantumista ei ole vielä vahvistettu RTX-laitteella.
+
 Versio **0.47.5** poistaa renderin tekstuurihauista tarpeettoman pikselien
 välisen riippuvuuden. Windowsin shader-kääntäjä voi joutua sen takia
 avaamaan suuren sädepolkusilmukan, vaikka mallissa olisi vain yksi osa.

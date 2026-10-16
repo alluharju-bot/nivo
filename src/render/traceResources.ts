@@ -38,6 +38,7 @@ export function traceResources(
   const internal = tracer as unknown as Internals;
   const renderers = [internal._pathTracer, internal._lowResPathTracer];
   let compilationError: unknown;
+  let disposed = false;
   // compileAsync keeps a program reference while polling KHR completion. A
   // material can replace/dispose that program before the poll finishes. Guard
   // programs when compilation starts, not just the current material at dispose
@@ -55,38 +56,40 @@ export function traceResources(
   guardCompilations();
   for (const r of renderers) {
     const compile = r.compileMaterial.bind(r);
+    let queued: Promise<void> | undefined;
     r.compileMaterial = () => {
-      const finish = diagnostics?.compile(r.material.fragmentShader.length);
-      // The pinned library attaches only .then() to this promise. Catch here
-      // so a rejected compile cannot become an unhandled rejection while its
-      // isCompiling flag leaves the preview waiting forever.
-      // compileAsync otherwise prepares the canvas/sRGB/tone-mapped variant.
-      // Tracing actually draws into a linear float target: that mismatch caused
-      // a second, synchronous compilation on the very first sample, bypassing
-      // both the preparation status and its watchdog.
-      const renderer = internal._renderer;
-      const target = renderer.getRenderTarget();
-      const face = renderer.getActiveCubeFace(),
-        mip = renderer.getActiveMipmapLevel();
-      try {
-        renderer.setRenderTarget(r._primaryTarget);
-        return compile().then(
-          () => finish?.(),
-          (error: unknown) => {
-            compilationError =
-              error instanceof Error
-                ? error
-                : new Error(String(error ?? 'Renderiohjelman valmistelu epäonnistui.'));
-            finish?.((compilationError as Error).message);
-          },
-        );
-      } catch (error) {
-        finish?.(error instanceof Error ? error.message : String(error));
-        throw error;
-      } finally {
-        renderer.setRenderTarget(target, face, mip);
-        guardCompilations();
-      }
+      // Camera, atlas and feature switches can all change in one scene update.
+      // Compile their final state once; never submit intermediate programs to
+      // the driver. Changes during an actual compile still get a new promise.
+      queued ??= Promise.resolve().then(() => {
+        queued = undefined;
+        if (disposed) return;
+        const finish = diagnostics?.compile(r.material.fragmentShader.length);
+        const failed = (error: unknown) => {
+          compilationError =
+            error instanceof Error
+              ? error
+              : new Error(String(error ?? 'Renderiohjelman valmistelu epäonnistui.'));
+          finish?.((compilationError as Error).message);
+        };
+        // The pinned library attaches only .then(); handle synchronous and async
+        // failures here and report them from the preview/job's guarded loop.
+        // Compile the actual linear float target, not the canvas/sRGB variant.
+        const renderer = internal._renderer;
+        const target = renderer.getRenderTarget();
+        const face = renderer.getActiveCubeFace(),
+          mip = renderer.getActiveMipmapLevel();
+        try {
+          renderer.setRenderTarget(r._primaryTarget);
+          return compile().then(() => finish?.(), failed);
+        } catch (error) {
+          failed(error);
+        } finally {
+          renderer.setRenderTarget(target, face, mip);
+          guardCompilations();
+        }
+      });
+      return queued;
     };
   }
   // Three's WebGLArrayRenderTarget replaces its texture after construction;
@@ -116,7 +119,6 @@ export function traceResources(
   internal._lowResPathTracer.setCamera = (camera) => {
     internal._lowResPathTracer.camera = camera;
   };
-  let disposed = false;
   return {
     get compiling() {
       return !!internal._pathTracer._compilePromise;

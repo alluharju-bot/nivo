@@ -4,34 +4,39 @@ import { makeBody } from '../src/model/project';
 import { defaultAppearance } from '../src/model/materials';
 import { readFile } from 'node:fs/promises';
 
-test('a simple matte panel starts without compiling an unused reflection program', async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    const state = window as unknown as { traceShaderCount: number };
-    state.traceShaderCount = 0;
-    const link = WebGL2RenderingContext.prototype.linkProgram;
-    WebGL2RenderingContext.prototype.linkProgram = function (program) {
-      if (
-        (this.getAttachedShaders(program) ?? []).some((s) =>
-          this.getShaderSource(s)?.includes('traceScene'),
+for (const top of [false, true])
+  test(`a simple matte panel prepares only its final ${top ? 'orthographic' : 'perspective'} program`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const state = window as unknown as { traceShaderCount: number };
+      state.traceShaderCount = 0;
+      const link = WebGL2RenderingContext.prototype.linkProgram;
+      WebGL2RenderingContext.prototype.linkProgram = function (program) {
+        if (
+          (this.getAttachedShaders(program) ?? []).some((s) =>
+            this.getShaderSource(s)?.includes('traceScene'),
+          )
         )
-      )
-        state.traceShaderCount++;
-      link.call(this, program);
-    };
+          state.traceShaderCount++;
+        link.call(this, program);
+      };
+    });
+    await ready(page, [{ ...makeBody(265, 425, 6), appearance: defaultAppearance('paint-solid') }]);
+    if (top)
+      await page.getByRole('button', { name: 'Näkymä: Ylhäältä', exact: true }).press('Enter');
+    await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
+    await page.getByRole('button', { name: 'Kuva', exact: true }).click();
+    await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
+    await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
+      timeout: 45000,
+    });
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { traceShaderCount: number }).traceShaderCount,
+      ),
+    ).toBe(1);
   });
-  await ready(page, [{ ...makeBody(265, 425, 6), appearance: defaultAppearance('paint-solid') }]);
-  await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
-  await page.getByRole('button', { name: 'Kuva', exact: true }).click();
-  await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
-  await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
-    timeout: 45000,
-  });
-  expect(
-    await page.evaluate(() => (window as unknown as { traceShaderCount: number }).traceShaderCount),
-  ).toBe(1);
-});
 
 test('refinement starts at rest, automatically increases resolution, and recovers a cancelled camera drag', async ({
   page,

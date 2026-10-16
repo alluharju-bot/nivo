@@ -4,6 +4,33 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.47.6 — valmistelun rakenteelliset kevennykset
+
+- **70 renderin yksikkötestiä ja 15 eri desktop-selain-/GPU-testiä hyväksytty**.
+  Suoran valon uusi vertailu käyttää samoja Sobol-polkuja vanhan ohjelman
+  kanssa: kaikki kolme lineaarista HDR-kuvakanavaa ovat pikseliarvoiltaan
+  identtiset viidessä tapauksessa (maali, kromi, lakka/hohde/iridesenssi,
+  pelkkä ympäristövalo, pelkät muut valot). Mallissa on lisäksi lasinen
+  este sekä suunta-, piste-, spotti- ja aluevalo.
+- Käynnistystesti varmistaa yhden lopullisen ohjelman sekä perspektiivissä
+  että ylänäkymässä. Peruutus, GPU-palautuminen, PNG-vienti, muistin
+  vapautuminen ja diagnostiikan lataus hyväksytty. Estetyn käännöksen testin
+  kello asennetaan ennen renderisilmukkaa: kesken natiivin RAF-odotuksen
+  asennettu kello ei siirtänyt jo ajastettua kutsua virtuaaliaikaan.
+- Puun, kromin ja heijastuvan puun tarkkuuskokeet 64 / 256 / 1 024 /
+  4 096 näytteellä hyväksytty. Ei havaittua laadun heikkenemistä.
+- Yksityinen Valolevy, revisio 1, paikallinen näkyvä Google Chrome:
+  ensimmäinen havaittu kuva **3,2 s**, 8 näytettä **5,2 s**, yksi raskas
+  shader, ei sivuvirheitä tai GPU-yhteyden katkeamista. Aiemman version
+  erilainen välimuistitilanne estää nopeusvertailun. Windowsin minuuttiviive
+  ei toistu tällä laitteella eikä sen korjaantumista väitetä vahvistetuksi.
+- Geometria-testin geeli edessä, peilit takana, sama lähikamera kuin aiemmissa
+  vakauskokeissa: **64 näytettä / 222,1 s**, ensimmäinen havaittu kuva 2,0 s.
+  Ei sivuvirheitä tai GPU-yhteyden katkeamista. Kaksi raskasta ohjelmaa
+  (varsinainen renderi ja peilien kohinanpoiston apukuva) säilyvät käytössä.
+- TypeScript, build, muotoilu ja lisenssitarkistus hyväksytty. Yksityiset
+  mallit ja kuvat säilyvät paikallisina.
+
 ## V0.47.5 — Windowsin käynnistysviive ja diagnostiikka
 
 - Renderin **70 yksikkötestiä** ja tuotantobuildin **13 desktop-selain-/GPU-testiä

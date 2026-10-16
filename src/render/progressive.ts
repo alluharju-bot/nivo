@@ -446,13 +446,16 @@ export function progressiveRenderer(
             throw new Error(
               'Tämä selain tai näytönohjain ei tue tarkentuvaa renderöintiä. Nopea esikatselu toimii edelleen.',
             );
+          loading('initializing', 'Valmistellaan renderöinnin laskentaa…');
           initialize();
           enabled = true;
           paused = false;
           complete = false;
           // The camera can move while tracing is off or being prepared. Refresh
           // its uniforms without rebuilding the already prepared geometry.
-          tracer!.setCamera(camera);
+          // A dirty scene sets its camera during rebuild. Applying an orthographic
+          // camera before that compiled the unconfigured default material first.
+          if (!dirty) tracer!.setCamera(camera);
           reset('start');
           loop();
         } catch (e) {

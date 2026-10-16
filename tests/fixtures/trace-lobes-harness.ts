@@ -22,6 +22,9 @@ export async function cancelCompilation() {
           _pathTracer: { _compilePromise: Promise<unknown> | null };
         }
       )._pathTracer._compilePromise;
+      // Exercise both cancellation of the queued final state and disposal
+      // after the driver has already received a real compilation request.
+      if (i % 2) await Promise.resolve();
       resources.dispose();
       resources.dispose();
       await pending;

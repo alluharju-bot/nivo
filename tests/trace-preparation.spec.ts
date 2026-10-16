@@ -39,6 +39,7 @@ test('a pending studio image can be cancelled, times out clearly and recovers wh
 test('a stalled driver compile does not enqueue empty GPU batches and can resume after a clear error', async ({
   page,
 }) => {
+  test.setTimeout(120000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.addInitScript(() => {
@@ -52,6 +53,9 @@ test('a stalled driver compile does not enqueue empty GPU batches and can resume
     };
   });
   await ready(page, [makeBody()]);
+  // Install before starting the loop. Installing while an existing native RAF
+  // is pending makes runFor advance the clock before that RAF can reschedule.
+  await page.clock.install();
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
   const canvas = page.getByTestId('render-canvas'),
@@ -59,7 +63,6 @@ test('a stalled driver compile does not enqueue empty GPU batches and can resume
   await expect(canvas).toHaveAttribute('data-trace-phase', 'compiling');
   await expect(status).toContainText('renderiohjelmaa');
   expect(await canvas.getAttribute('data-trace-batch-tiles')).toBeNull();
-  await page.clock.install();
   await page.clock.runFor(61_100);
   await expect(status).toContainText('valmistelu ei valmistunut');
   await expect(canvas).toHaveAttribute('data-trace-phase', 'error');

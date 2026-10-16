@@ -5,6 +5,7 @@ import { stableTraceSamples } from './traceFireflies';
 import { importanceSampleLights } from './lightImportance';
 import { splitTraceLobes } from './traceLobes';
 import { traceSamplingShader } from './traceSampling';
+import { shareDirectLightEvaluation } from './traceDirectLight';
 
 /** Adapter for the pinned three-gpu-pathtracer 0.0.26 shader. The library samples
  * area lights with MIS, but adds mesh emission again when the same ray reaches
@@ -29,6 +30,7 @@ export function configureEmitterSampling(tracer: WebGLPathTracer, importance = t
   if (importance) material.fragmentShader = importanceSampleLights(material.fragmentShader);
   material.fragmentShader = stableTraceSamples(material.fragmentShader);
   material.fragmentShader = splitTraceLobes(material.fragmentShader);
+  material.fragmentShader = shareDirectLightEvaluation(material.fragmentShader, importance);
   material.fragmentShader = traceSamplingShader(material.fragmentShader);
   material.uniforms.nivoBackgroundColor = { value: new THREE.Color() };
   const background = (compile = true) => {

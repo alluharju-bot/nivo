@@ -1,5 +1,27 @@
 # Suorituskyky
 
+## V0.47.6 — renderiohjelman koko ja ylimääräiset käännökset
+
+Käyttäjän Windows/Chrome/RTX 2060 Super odottaa edelleen minuutteja
+versiossa 0.47.5. LOD-korjausta ei siten pidetä tämän ongelman ratkaisuna.
+Laitekohtainen käynnistysraportti on yhä tarpeen: Macin nopea käynnistyminen
+ei osoita Windowsin toimivuutta eikä GPU-mallin nimi yksin kerro selaimen
+tosiasiassa käyttämää grafiikkapolkua.
+
+Suoran valon funktiossa ympäristövalo ja muut valot sisälsivät erikseen
+saman varjosäteen, BSDF:n ja diffuusikanavan laskennan. Nyt ensin valitaan
+valonäyte ja yhteinen laskenta esiintyy shaderissa kerran. Satunnaisluvut,
+valinnan todennäköisyydet, MIS, läpäisyt ja kertolaskujen järjestys säilyvät.
+Testin kaikki lineaariset HDR-pikselit ja kolme kuvakanavaa ovat identtiset
+vanhan toteutuksen kanssa viidessä valaistus-/materiaalitapauksessa.
+
+Yhden synkronisen päivityksen kamera-, kuvataulukko- ja shader-asetukset
+valmistellaan vasta yhdessä mikrotehtävässä. Näin välivaiheiden ohjelmia
+ei lähetetä ajurille. Ylänäkymän alkukamera odottaa mallin valmistelua,
+jotta oletusmateriaalia ei käännetä ennen varsinaista materiaalia. Myös
+renderin alustuksella on oma vaihe diagnostiikassa. Nämä ovat todennettuja
+rakenteellisia kevennyksiä, eivät vielä Windowsilla mitattu nopeutus.
+
 ## V0.47.5 — käynnistyminen Windowsissa
 
 Käyttäjän yhden osan Valolevy-mallissa ensimmäinen näyte odottaa pitkään
