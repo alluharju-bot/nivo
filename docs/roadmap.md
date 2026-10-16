@@ -2,6 +2,28 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.47.5 — Windowsin hidas ensimmäinen näyte
+
+- Yhden osan pilvimalli käynnistyy Macilla nopeasti myös versiossa 0.47.4,
+  mutta käyttäjän Windows/RTX 2060 Super odottaa pitkään. Geometrian määrä
+  ei selitä havaintoa; Windowsin tarkkaa odotuskohtaa ei vielä ole mitattu.
+- Renderin materiaalien, ympäristövalon, IES-valoprofiilien ja Sobol-taulukon
+  tekstuurihaku käyttää eksplisiittistä LOD 0 -tasoa. Tekstuurit ovat tässä
+  putkessa yksitasoisia, joten johdannaisia ei tarvita. Tämä poistaa
+  Direct3D-kääntäjän ongelmallisen johdannaisriippuvuuden haarautuvista
+  sädepoluista. Valolaskenta, tekstuurikoko ja suodatus säilyvät.
+- Jos mallissa ei ole heijastusten apukuvaa tarvitsevia pintoja, sen
+  toinen BVH-ohjelma jätetään kokonaan valmistelematta. Valolevyn
+  mattamaali kuuluu tähän tapaukseen. Peilit ja kiiltävät pinnat sekä
+  karheus-/läpäisykarttojen mahdolliset vaihtelut huomioidaan.
+- Ladattava käynnistysraportti: vaiheiden ajat, ohjelman käännöksen kesto,
+  ensimmäisen kuvan lähetys, näytönohjain, selain, GPU-virheet ja rajattu
+  tekninen tila. Ei projektin nimeä, malligeometriaa, kameraa tai automaattista
+  lähetystä. Tallennettujen tapahtumien määrä on rajattu.
+- Seuraava laitevarmistus: Valolevy Windows/Chrome/RTX 2060 Super,
+  ensimmäinen käynnistys sekä saman näkymän uudelleenkäynnistys. Macin
+  onnistunutta ajoa ei pidetä todisteena Windowsin odotuksen poistumisesta.
+
 ## V0.47.4 — geelin ja peilien renderivakaus
 
 - Käyttäjän pilvimallin lähikuva geelin läpi peileihin toisti GPU-yhteyden

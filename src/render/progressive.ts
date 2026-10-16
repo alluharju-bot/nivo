@@ -15,6 +15,7 @@ import { gpuQueue } from './gpuQueue';
 import { isTraceEnvironment } from './environment';
 import { prepareTraceMaterials } from './traceMaterials';
 import { prepareWithin, traceWaitWatchdog } from './tracePreparation';
+import { traceDiagnostics } from './traceDiagnostics';
 
 export type TraceStatus = {
   state: 'off' | 'loading' | 'rendering' | 'paused' | 'complete' | 'error';
@@ -71,6 +72,21 @@ export function progressiveRenderer(
   let startup: Promise<void> | undefined;
   let preparation = new AbortController();
   const waiting = traceWaitWatchdog();
+  const diagnostics = traceDiagnostics();
+  const previousShaderError = renderer.debug.onShaderError;
+  const shaderError: NonNullable<typeof previousShaderError> = (gl, program, vertex, fragment) => {
+    const message = [
+      gl.getProgramInfoLog(program),
+      gl.getShaderInfoLog(vertex),
+      gl.getShaderInfoLog(fragment),
+    ]
+      .filter(Boolean)
+      .join('\n');
+    diagnostics.error(message);
+    if (previousShaderError) previousShaderError(gl, program, vertex, fragment);
+    else console.error('Nivo: renderiohjelman käännös epäonnistui', message);
+  };
+  renderer.debug.onShaderError = shaderError;
   let phase = '';
 
   let options = { ...traceDefaults };
@@ -82,6 +98,8 @@ export function progressiveRenderer(
       message,
     });
   const fail = (error: unknown) => {
+    diagnostics.stage('error');
+    diagnostics.error(error instanceof Error ? error.message : String(error));
     enabled = false;
     request++;
     preparation.abort();
@@ -98,6 +116,7 @@ export function progressiveRenderer(
     renderer.domElement.dataset.tracePhase = next;
     if (phase !== next) {
       phase = next;
+      if (!image.ready) diagnostics.stage(next);
       if (!image.ready) status('loading', message);
     }
   };
@@ -187,7 +206,7 @@ export function progressiveRenderer(
     if (tracer) return;
     environment = new GradientEquirectTexture(128);
     tracer = new WebGLPathTracer(renderer);
-    resources = traceResources(tracer);
+    resources = traceResources(tracer, diagnostics);
     tracer.renderToCanvas = false;
     renderer.domElement.dataset.tracePresentation = 'whole-frame';
     renderer.domElement.dataset.traceRefinement = 'retained-coarse';
@@ -305,6 +324,7 @@ export function progressiveRenderer(
           ) {
             image.capture(renderer, tracer.target, samples);
             present();
+            diagnostics.firstFrame();
             lastPresented = performance.now();
             renderer.domElement.dataset.tracePresentedSamples = String(samples);
             renderer.domElement.dataset.tracePhase = 'rendering';
@@ -408,6 +428,7 @@ export function progressiveRenderer(
       if (startup) return startup;
       preparation = new AbortController();
       const token = ++request;
+      diagnostics.start();
       phase = '';
       delete renderer.domElement.dataset.traceError;
       loading('assets', 'Ladataan materiaalikuvia ja ympäristövaloa…');
@@ -445,6 +466,7 @@ export function progressiveRenderer(
       return pending;
     },
     stop() {
+      diagnostics.stage('stopped');
       request++;
       preparation.abort();
       startup = undefined;
@@ -527,7 +549,12 @@ export function progressiveRenderer(
         ),
       );
     },
+    diagnostics() {
+      return diagnostics.report(renderer);
+    },
     dispose() {
+      if (renderer.debug.onShaderError === shaderError)
+        renderer.debug.onShaderError = previousShaderError;
       disposed = true;
       request++;
       preparation.abort();

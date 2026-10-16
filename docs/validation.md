@@ -4,6 +4,39 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.47.5 — Windowsin käynnistysviive ja diagnostiikka
+
+- Renderin **70 yksikkötestiä** ja tuotantobuildin **13 desktop-selain-/GPU-testiä
+  hyväksytty**. Raportin lataus testattu käyttöliittymästä: versio, GPU,
+  ensimmäinen kuva ja yksi valmistunut shader-käännös. Rajattu tapahtumamäärä,
+  keskeneräisen käännöksen aika, uuden yrityksen erottelu ja yksityisten
+  canvas-kenttien poissulkeminen tarkistettu.
+- Puun, kromin ja heijastuvan puun tarkkuusvertailut läpäisty 64 / 256 /
+  1 024 / 4 096 näytteellä. Implisiittisen LOD:n poistaminen ei muuta
+  valokanavien mitattua energiaa. Muistikoetta, perumista, kameraa,
+  PNG-vientiä ja valmistelun aikarajoja koskevat regressiot hyväksytty.
+- Käyttäjän **Valolevy**, pilvirevisio 1, yksi osa: paikallinen näkyvä
+  Google Chrome saavutti lopullisella toteutuksella 8 näytettä ilman
+  sivu-/GPU-virheitä. Ensimmäinen havaittu kuva 1,2 s, 8 näytettä 3,2 s.
+  Mattapintainen levy valmistelee nyt vain yhden raskaan ohjelman aiemman
+  kahden sijaan. Yksikkötesti varmistaa myös geelin takaisen peilin ja
+  karheus-/läpäisykarttojen tarvitseman apuohjelman säilymisen.
+  Edellinen 0.47.4 käynnistyi tällä Macilla jo 2,0 sekunnissa.
+  Pelkän LOD-korjauksen ensimmäinen uusi käännös kesti 4,2 s ensimmäiseen
+  kuvaan; näitä aikoja ei esitetä yleisenä nopeutumisvertailuna. Shader-välimuisti ja
+  eri ajurit estävät päätelmät Windowsin ajasta näiden lukujen perusteella.
+- Uusi sädeohjelma testattiin myös geelin ja sen takaisten peilien lähikuvassa:
+  **64 näytettä / 273,3 s**, ei GPU-yhteyden katkeamista tai sivuvirheitä.
+  LOD-korjaus ei palauta aiempaa GPU-jumia tässä kokeessa.
+- Rakennettu shader tarkistettu: sädepolussa ei ole implisiittisiä
+  `texture`/`texture2D`-hakuja tai pikselijohdannaisia. Materiaalien
+  atlas-suodatus, ympäristövalo, IES ja satunnaisnäytteet käyttävät samaa
+  yksitasoista dataa eksplisiittisellä LOD 0:lla. Windowsin kääntäjäongelma
+  on perusteltu korjaushypoteesi; **RTX 2060 Superin parannusta ei ole
+  vielä mitattu kyseisellä laitteella**.
+- TypeScript, tuotantobuild ja lisenssitarkistus hyväksytty.
+  Yksityiset projektit ja testikuvat säilyvät paikallisina.
+
 ## V0.47.4 — geelin ja peilien GPU-jumi
 
 - Käyttäjän pilviprojektin uusin kopio testattiin paikallisesti, geelikappale

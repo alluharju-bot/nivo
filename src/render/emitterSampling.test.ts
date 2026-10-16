@@ -27,6 +27,10 @@ it('integrates with the installed tracer shader and rejects incompatible upgrade
     (material as unknown as { onBeforeRender: () => void }).onBeforeRender();
     expect(compilations).toBe(1);
     expect(material.defines).toMatchObject({ FEATURE_DOF: 0, FEATURE_FOG: 0 });
+    // A divergent ray loop must not require quad derivatives for texture LOD.
+    // This includes environment, light-profile and Sobol lookups, not just PBR maps.
+    expect(material.fragmentShader).not.toMatch(/\b(?:texture2D|texture)\s*\(/);
+    expect(material.fragmentShader).toContain('textureLod(map, uv, 0.0)');
     material.fragmentShader = material.fragmentShader.replace(
       'int hitType = traceScene( ray, state.fogMaterial, surfaceHit );',
       'int hitType = traceSceneChanged();',

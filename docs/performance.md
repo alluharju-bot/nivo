@@ -1,5 +1,28 @@
 # Suorituskyky
 
+## V0.47.5 — käynnistyminen Windowsissa
+
+Käyttäjän yhden osan Valolevy-mallissa ensimmäinen näyte odottaa pitkään
+Windows/Chrome/RTX 2060 Superilla. Sama pilvitallennus käynnistyi M1 Prolla
+jo 0.47.4-versiossa noin kahdessa sekunnissa. Tämä ei ole osoitus Windowsin
+toimivuudesta, vaan eri kääntäjäpolkujen selvittämisen lähtökohta.
+
+Polunjäljittimen `texture`/`texture2D`-haut käyttivät implisiittisiä
+tekstuurijohdannaisia myös haarautuvien silmukoiden sisällä. Kaikissa näissä
+taulukoissa on vain yksi käytettävä taso. Versio 0.47.5 valitsee sen suoraan
+`textureLod(..., 0.0)`-haulla. Tavoite on välttää silmukoiden avaaminen
+johdannaisten laskemiseksi; tekstuurien kokoa ja suodatusta ei vaihdeta.
+Windowsin käännöspolun ongelmalle on vastaava
+[Chromiumin virheraportti](https://issues.chromium.org/issues/366375489).
+Yhteys käyttäjän oireeseen on perusteltu hypoteesi, ei RTX-laitteella
+varmistettu juurisyy. Uusi ladattava raportti erottaa materiaalien odotuksen,
+shader-käännöksen, GPU-odotuksen sekä ensimmäisen kuvan lähetysajan.
+
+Valolevyn mattamaalissa heijastusten apukuva olisi kokonaan tyhjä. Sen
+erillinen BVH-ohjelma jätetään nyt kääntämättä. Paikallinen selainkoe
+varmistaa ohjelmamäärän **2 → 1**. Peilit, kiiltävät pinnat ja karheus- tai
+läpäisykartan mahdolliset vaihtelut säilyttävät apuohjelman käytössä.
+
 ## V0.47.1 — materiaalien tarkkuus, reunat ja valojen eheys
 
 Puupalikan oikea 2K-tammi + normaali + karheus -koe osoitti kaksi eri

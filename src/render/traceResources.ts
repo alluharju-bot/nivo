@@ -3,6 +3,7 @@ import type { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { resetTraceMaterialIndices } from './traceMaterials';
 import { prepareLobeTargets } from './traceLobes';
 import { prepareTextureAtlas } from './traceTextureAtlas';
+import type { traceDiagnostics } from './traceDiagnostics';
 
 type TraceRenderer = {
   _primaryTarget: THREE.WebGLRenderTarget;
@@ -28,7 +29,10 @@ type Internals = {
 /** Pinned three-gpu-pathtracer 0.0.26 adapter. Its fullscreen targets don't
  * need depth, and its public dispose omits the low-resolution renderer and
  * material-owned textures. Never dispose the input scene's shared maps here. */
-export function traceResources(tracer: WebGLPathTracer) {
+export function traceResources(
+  tracer: WebGLPathTracer,
+  diagnostics?: ReturnType<typeof traceDiagnostics>,
+) {
   prepareLobeTargets(tracer);
   prepareTextureAtlas(tracer);
   const internal = tracer as unknown as Internals;
@@ -52,6 +56,7 @@ export function traceResources(tracer: WebGLPathTracer) {
   for (const r of renderers) {
     const compile = r.compileMaterial.bind(r);
     r.compileMaterial = () => {
+      const finish = diagnostics?.compile(r.material.fragmentShader.length);
       // The pinned library attaches only .then() to this promise. Catch here
       // so a rejected compile cannot become an unhandled rejection while its
       // isCompiling flag leaves the preview waiting forever.
@@ -65,12 +70,19 @@ export function traceResources(tracer: WebGLPathTracer) {
         mip = renderer.getActiveMipmapLevel();
       try {
         renderer.setRenderTarget(r._primaryTarget);
-        return compile().catch((error: unknown) => {
-          compilationError =
-            error instanceof Error
-              ? error
-              : new Error(String(error ?? 'Renderiohjelman valmistelu epäonnistui.'));
-        });
+        return compile().then(
+          () => finish?.(),
+          (error: unknown) => {
+            compilationError =
+              error instanceof Error
+                ? error
+                : new Error(String(error ?? 'Renderiohjelman valmistelu epäonnistui.'));
+            finish?.((compilationError as Error).message);
+          },
+        );
+      } catch (error) {
+        finish?.(error instanceof Error ? error.message : String(error));
+        throw error;
       } finally {
         renderer.setRenderTarget(target, face, mip);
         guardCompilations();

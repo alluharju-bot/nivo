@@ -3,6 +3,16 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.47.5** poistaa renderin tekstuurihauista tarpeettoman pikselien
+välisen riippuvuuden. Windowsin shader-kääntäjä voi joutua sen takia
+avaamaan suuren sädepolkusilmukan, vaikka mallissa olisi vain yksi osa.
+Materiaalien alkuperäinen tekstuuritaso ja suodatus säilyvät. Heijastusten
+apuohjelma jätetään valmistelematta, jos materiaalit eivät tarvitse sitä.
+Renderin
+**Kuva → Renderöinnin vianmääritys** antaa ladattavan raportin valmisteluajoista,
+selaimesta ja näytönohjaimesta. Raportti ei sisällä mallia eikä lähde
+automaattisesti verkkoon. Windowsin nopeutuminen vaatii vielä laitetestin.
+
 Versio **0.47.4** korjaa geelin ja peilien lähikuvassa toistettua GPU-jumia.
 Renderi laskee yhden sädepolun pikseliä kohti kerrallaan; ongelmallinen
 kiiltävien pintojen toinen laskenta saman shader-kutsun sisällä on poistettu.

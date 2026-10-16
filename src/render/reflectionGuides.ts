@@ -3,6 +3,23 @@ import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import type { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { screenVertex } from './traceDenoise';
 
+/** Match the first-surface early exits in the guide shader. Texture-modulated
+ * roughness/transmission are deliberately conservative: a map may contain a
+ * glossy or opaque region even when its material's scalar suggests otherwise. */
+export function needsReflectionGuides(scene: THREE.Scene) {
+  let needed = false;
+  scene.traverseVisible((object) => {
+    if (needed || !(object instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    needed = materials.some((material) => {
+      const m = material as THREE.MeshPhysicalMaterial;
+      if (!m.visible || ((m.transmission ?? 0) > 0.05 && !m.transmissionMap)) return false;
+      return typeof m.roughness !== 'number' || m.roughness < 0.4 || !!m.roughnessMap;
+    });
+  });
+  return needed;
+}
+
 /** Center-ray features beyond a glossy surface, using the very same BVH,
  * textures and normal maps as the integrator. Evaluated once per settled view.
  * Transmission, silhouettes and unresolved chains stay conservatively filtered. */
@@ -11,15 +28,18 @@ export function reflectionGuides() {
   let material: THREE.ShaderMaterial | undefined;
   let source: THREE.ShaderMaterial | undefined;
   let dirty = true;
+  let useful: boolean | undefined;
   const quad = new FullScreenQuad();
   const reset = () => {
     target?.dispose();
     target = undefined;
     dirty = true;
+    useful = undefined;
   };
   return {
     invalidate() {
       dirty = true;
+      useful = undefined;
     },
     ensure(renderer: THREE.WebGLRenderer, tracer: WebGLPathTracer, width: number, height: number) {
       const current = (tracer as unknown as { _pathTracer: { material: THREE.ShaderMaterial } })
@@ -29,7 +49,12 @@ export function reflectionGuides() {
         material = undefined;
         source = current;
         dirty = true;
+        useful = undefined;
       }
+      useful ??= !tracer.scene || needsReflectionGuides(tracer.scene);
+      // Matte-only scenes (including the user's single painted panel) have no
+      // useful reflected guide pixels. Avoid compiling a second full BVH shader.
+      if (!useful) return undefined;
       if (!material) {
         const shader = current.fragmentShader;
         const integrator = shader.indexOf('void nivoTracePath() {');

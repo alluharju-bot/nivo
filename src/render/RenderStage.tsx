@@ -1243,6 +1243,27 @@ export function RenderStage(props: Props) {
                       </p>
                     </>
                   )}
+                  <details>
+                    <summary>Renderöinnin vianmääritys</summary>
+                    <p className="muted">
+                      Lataa käynnistysajat ja näytönohjaimen tiedot ongelman selvittämistä varten.
+                      Raportti ei sisällä mallia eikä lähetä tietoja automaattisesti.
+                    </p>
+                    <button
+                      className="button subtle"
+                      onClick={() => {
+                        const report = api.current?.trace.diagnostics();
+                        if (report)
+                          downloadFile(
+                            JSON.stringify(report, null, 2),
+                            'nivo-renderin-tiedot.json',
+                            'application/json',
+                          );
+                      }}
+                    >
+                      Lataa renderin tiedot
+                    </button>
+                  </details>
                 </>
               )}
             </section>
