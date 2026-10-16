@@ -3,6 +3,17 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.47.1** korjaa renderin puutekstuurien pehmenemistä. Kohinanpoisto
+säilyttää saman pikselialueen syykuvion, jonka varsinainen renderi laskee.
+Materiaalikuvat pakataan eri kokoisina 128 MiB:n muistirajan sisään; tummat
+sävyt ja normaalikartat säilyvät aiempaa tarkempina. Heijastusten karheutta
+ei enää kasvateta laskennassa keinotekoisesti. Korjaus toimii näkymässä ja
+kuvanviennissä. Puuta, kromia ja heijastuvaa puupintaa verrataan automaattisessa
+GPU-testissä 4 096 näytteen raakakuvaan, ei pelkkään kuvan tasaisuuteen.
+Myös osien reunojen kohinaa käsitellään niiden todellisen peittävyyden avulla.
+Pintamaalaus ei enää monista spottivaloja, ja nopean esikatselun varjokarttojen
+tekstuurirajan ylitys on korjattu. [Mittaukset ja rajat](docs/performance.md).
+
 Versio **0.47.0** erottaa kiiltävän pinnan perusvalaistuksen ja heijastuksen
 kohinanpoistossa. Heijastuvan pinnan tiedot suojaavat yksityiskohtia, ja jäljellä
 oleva heijastuskohina saa kohdennettuja lisänäytteitä. Sama laskenta toimii

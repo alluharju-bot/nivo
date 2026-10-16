@@ -4,7 +4,8 @@ import { indirectSampleLimit } from './traceFireflies';
 
 /** The second attachment accumulates the first surface's diffuse contribution.
  * Beauty is unchanged; specular/transmission is its exact remainder. Both use
- * the same paths, PDFs, MIS weights, opacity and indirect firefly clamp. */
+ * the same paths, PDFs, MIS weights, opacity and indirect firefly clamp.
+ * The third attachment records first-hit geometry with matching pixel coverage. */
 export function splitTraceLobes(shader: string) {
   const main = 'void main() {';
   const direct =
@@ -20,6 +21,8 @@ export function splitTraceLobes(shader: string) {
     throw new Error('Renderöinnin valokanavien versio ei vastaa sovellusta.');
   shader = `
     layout(location = 1) out vec4 nivoDiffuseOutput;
+    layout(location = 2) out vec4 nivoCoverageOutput;
+    vec3 nivoCoverage;
     vec3 nivoDiffuseDirect, nivoDiffuseIndirect, nivoPathDiffuse, nivoDirectShare;
     int nivoSurfaceNumber;
     ${shader}`;
@@ -70,11 +73,20 @@ export function splitTraceLobes(shader: string) {
   return shader
     .replace(
       main,
-      `${main}\nnivoDiffuseDirect = nivoDiffuseIndirect = nivoPathDiffuse = vec3(0.0); nivoSurfaceNumber = 0;`,
+      `${main}\nnivoDiffuseDirect = nivoDiffuseIndirect = nivoPathDiffuse = nivoCoverage = vec3(0.0); nivoSurfaceNumber = 0;`,
     )
     .replace(
       scatter,
-      `${scatter}\nnivoSurfaceNumber++; if (nivoSurfaceNumber == 1) nivoPathDiffuse = nivoDiffuseFraction(-ray.direction, scatterRec.direction, surf, scatterRec.color);`,
+      `${scatter}
+      nivoSurfaceNumber++;
+      if (nivoSurfaceNumber == 1) {
+        nivoPathDiffuse = nivoDiffuseFraction(-ray.direction, scatterRec.direction, surf, scatterRec.color);
+        mat3 viewRotation = transpose(mat3(cameraWorldMatrix));
+        vec3 viewNormal = viewRotation * surf.faceNormal;
+        vec3 hit = ray.origin + ray.direction * surfaceHit.dist;
+        float viewDepth = -(viewRotation * (hit - cameraWorldMatrix[3].xyz)).z * 0.001;
+        nivoCoverage = vec3(viewNormal.xy, viewDepth);
+      }`,
     )
     .replace(contribution, (_, value: string) => {
       const share = value.includes('directLightContribution')
@@ -92,12 +104,13 @@ export function splitTraceLobes(shader: string) {
       `${finish}
       float lobeClamp = min(1.0, ${indirectSampleLimit.toFixed(1)} / max(max(nivoIndirect.r, max(nivoIndirect.g, nivoIndirect.b)), 1e-8));
       nivoDiffuseOutput = vec4(min(gl_FragColor.rgb, nivoDiffuseDirect + nivoDiffuseIndirect * lobeClamp), gl_FragColor.a);
+      nivoCoverageOutput = vec4(nivoCoverage, gl_FragColor.a);
     `,
     );
 }
 
 /** Preserve the library's float-blend fallback and transparent-background path.
- * Targets own both attachments; the library's dispose/reset handles them too. */
+ * Targets own all attachments; the library's dispose/reset handles them too. */
 export function prepareLobeTargets(tracer: WebGLPathTracer) {
   type Internal = {
     _primaryTarget: THREE.WebGLRenderTarget;
@@ -111,7 +124,7 @@ export function prepareLobeTargets(tracer: WebGLPathTracer) {
   const replace = (old: THREE.WebGLRenderTarget) => {
     const next = new THREE.WebGLRenderTarget(old.width, old.height, {
       type: THREE.FloatType,
-      count: 2,
+      count: 3,
       depthBuffer: false,
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
@@ -145,13 +158,17 @@ export function prepareLobeTargets(tracer: WebGLPathTracer) {
   );
   material.uniforms.diffuse1 = { value: null };
   material.uniforms.diffuse2 = { value: null };
+  material.uniforms.coverage1 = { value: null };
+  material.uniforms.coverage2 = { value: null };
   material.fragmentShader =
     source.slice(0, source.indexOf('void main() {')) +
     `
-    uniform sampler2D diffuse1, diffuse2;
+    uniform sampler2D diffuse1, diffuse2, coverage1, coverage2;
     layout(location = 1) out vec4 nivoDiffuseOutput;
+    layout(location = 2) out vec4 nivoCoverageOutput;
     void main() { ${body}
       ${body.replaceAll('target1', 'diffuse1').replaceAll('target2', 'diffuse2').replaceAll('gl_FragColor', 'nivoDiffuseOutput').replaceAll('color1', 'diffuseColor1').replaceAll('color2', 'diffuseColor2').replaceAll('invOpacity', 'diffuseInvOpacity').replaceAll('totalAlpha', 'diffuseTotalAlpha')}
+      ${body.replaceAll('target1', 'coverage1').replaceAll('target2', 'coverage2').replaceAll('gl_FragColor', 'nivoCoverageOutput').replaceAll('color1', 'coverageColor1').replaceAll('color2', 'coverageColor2').replaceAll('invOpacity', 'coverageInvOpacity').replaceAll('totalAlpha', 'coverageTotalAlpha')}
     }`;
   const render = quad.render.bind(quad);
   quad.render = (renderer) => {
@@ -162,6 +179,12 @@ export function prepareLobeTargets(tracer: WebGLPathTracer) {
     material.uniforms.diffuse2.value = targets.find(
       (t) => t.texture === material.uniforms.target2.value,
     )?.textures[1];
+    material.uniforms.coverage1.value = targets.find(
+      (t) => t.texture === material.uniforms.target1.value,
+    )?.textures[2];
+    material.uniforms.coverage2.value = targets.find(
+      (t) => t.texture === material.uniforms.target2.value,
+    )?.textures[2];
     render(renderer);
   };
   material.needsUpdate = true;

@@ -74,7 +74,7 @@ test('296 pine parts finish a stationary traced image with a three-layer atlas',
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
   const canvas = page.getByTestId('render-canvas');
   await expect(canvas).toHaveAttribute('data-trace-texture-layers', '3', { timeout: 120000 });
-  await expect(canvas).toHaveAttribute('data-trace-texture-bytes', String(3 * 1024 * 1024));
+  await expect(canvas).toHaveAttribute('data-trace-texture-bytes', String(6 * 1024 * 1024));
   await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
     timeout: 120000,
   });
@@ -104,7 +104,7 @@ test('unsupported material atlas returns to a visible preview with an explanatio
   await page.addInitScript(() => {
     const original = WebGL2RenderingContext.prototype.getParameter;
     WebGL2RenderingContext.prototype.getParameter = function (name: number) {
-      return name === this.MAX_ARRAY_TEXTURE_LAYERS ? 2 : original.call(this, name);
+      return name === this.MAX_FRAGMENT_UNIFORM_VECTORS ? 98 : original.call(this, name);
     };
   });
   await ready(page, [
@@ -117,9 +117,12 @@ test('unsupported material atlas returns to a visible preview with an explanatio
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
   await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
-  await expect(page.getByTestId('trace-status')).toContainText('3 eri materiaalikuvaa', {
-    timeout: 60000,
-  });
+  await expect(page.getByTestId('trace-status')).toContainText(
+    'näytönohjaimen tarkentuvan kuvan rajan',
+    {
+      timeout: 60000,
+    },
+  );
   const image = decode(
     Buffer.from(
       (

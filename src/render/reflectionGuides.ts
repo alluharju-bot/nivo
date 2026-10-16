@@ -85,6 +85,7 @@ export function reflectionGuides() {
         reset();
         target = new THREE.WebGLRenderTarget(width, height, {
           count: 2,
+          type: THREE.HalfFloatType,
           depthBuffer: false,
           minFilter: THREE.NearestFilter,
           magFilter: THREE.NearestFilter,

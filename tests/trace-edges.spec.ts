@@ -4,6 +4,11 @@ import { resolve } from 'node:path';
 test('camera coverage stays crisp and denoising preserves diagonal silhouette antialiasing', async ({
   page,
 }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' || message.text().includes('GL_INVALID'))
+      errors.push(message.text());
+  });
   const bundle = await build({
     configFile: false,
     logLevel: 'silent',
@@ -27,11 +32,14 @@ test('camera coverage stays crisp and denoising preserves diagonal silhouette an
     ).Edges.exerciseTraceEdges(),
   );
   console.log(JSON.stringify(results));
+  expect(errors).toEqual([]);
   const legacy = results[0],
     production = results[1];
   expect(production.rawError).toBeLessThan(legacy.rawError * 0.5);
   expect(production.filteredError).toBeLessThan(0.015);
   expect(production.filteredError).toBeLessThanOrEqual(production.rawError + 0.003);
+  const noisy = results[2];
+  expect(noisy.filteredError).toBeLessThan(noisy.rawError * 0.65);
   // Allow texture-filter interpolation rounding below one 8-bit step.
   for (const r of results) {
     expect(r.scaleError).toBeLessThan(0.003);

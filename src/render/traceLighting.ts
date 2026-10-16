@@ -57,6 +57,7 @@ export function traceLighting() {
         filter.draw(renderer, source.texture, samples, guides, output, variance[0].texture);
         return;
       }
+      if (guides) guides = { ...guides, coverage: source.textures[2] };
       filtered ??= [0, 1].map(
         () =>
           new THREE.WebGLRenderTarget(source.width, source.height, {

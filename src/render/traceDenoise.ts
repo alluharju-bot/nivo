@@ -34,6 +34,8 @@ export function traceDenoise() {
       reflectionAlbedo: { value: null },
       reflectionNormal: { value: null },
       useReflection: { value: false },
+      coverageMap: { value: null },
+      useCoverage: { value: false },
     },
     vertexShader: screenVertex,
     fragmentShader: /* glsl */ `
@@ -47,6 +49,8 @@ export function traceDenoise() {
       uniform int lobe;
       uniform sampler2D diffuseMap, reflectionAlbedo, reflectionNormal;
       uniform bool useReflection;
+      uniform sampler2D coverageMap;
+      uniform bool useCoverage;
       vec3 viewPosition(vec2 uv, float depth) {
         vec2 xy = uv * 2.0 - 1.0;
         vec4 a = projectionInverse * vec4(xy, -1.0, 1.0);
@@ -70,7 +74,8 @@ export function traceDenoise() {
         vec4 a = texture2D(albedoMap, uv);
         // Filter illumination, then restore the unfiltered surface texture.
         // The floor keeps dark paint/specular energy from amplifying noise.
-        return lobe != 2 && (lobe == 1 || a.a >= 0.4) ? max(a.rgb, vec3(0.04)) : vec3(1.0);
+        return lobe != 2 && (lobe == 1 || a.a >= 0.4)
+          ? max(a.rgb, vec3(lobe == 1 ? 0.0001 : 0.04)) : vec3(1.0);
       }
       vec4 colorAt(vec2 uv) {
         vec4 c = texture2D(map, uv);
@@ -84,6 +89,49 @@ export function traceDenoise() {
         // Convert radiance variance to the demodulated illumination domain.
         float factor = nivoLuminance(reflectance(uv));
         return texture2D(varianceMap, uv).g / (factor * factor);
+      }
+      // A pixel on a silhouette mixes two surfaces. Fit radiance against its
+      // ray-integrated geometry instead of treating it as one surface or
+      // bypassing denoising altogether. The intercept predicts this pixel's
+      // exact coverage; no edge dilation and no replacing AA by raster depth.
+      vec3 filterCoverage(vec2 pixel) {
+        vec3 feature = texture2D(coverageMap,vUv).rgb;
+        vec3 lo = feature, hi = feature;
+        for(int y=-2;y<=2;y++) for(int x=-2;x<=2;x++) {
+          vec2 uv = clamp(vUv+vec2(float(x),float(y))*pixel,pixel*0.5,1.0-pixel*0.5);
+          vec3 g=texture2D(coverageMap,uv).rgb;
+          lo=min(lo,g);hi=max(hi,g);
+        }
+        vec3 range=(hi-lo)*vec3(1.0,1.0,1.0/max(feature.z,0.1));
+        int axis=range.x>range.y?0:1;
+        if(range.z>range[axis]) axis=2;
+        float scale=max(hi[axis]-lo[axis],1e-8);
+        float wsum=0.0,gsum=0.0,g2sum=0.0,vs=0.0;
+        vec3 csum=vec3(0.0),c2sum=vec3(0.0),gcsum=vec3(0.0);
+        for(int y=-2;y<=2;y++) for(int x=-2;x<=2;x++) {
+          vec2 uv=clamp(vUv+vec2(float(x),float(y))*pixel,pixel*0.5,1.0-pixel*0.5);
+          float g=(texture2D(coverageMap,uv).rgb[axis]-feature[axis])/scale;
+          vec3 c=texture2D(map,uv).rgb;
+          if(lobe==2) c=max(vec3(0.0),c-texture2D(diffuseMap,uv).rgb);
+          float w=exp(-float(x*x+y*y)/4.0);
+          wsum+=w;gsum+=w*g;g2sum+=w*g*g;
+          csum+=w*c;c2sum+=w*c*c;gcsum+=w*g*c;
+          vs+=w*texture2D(varianceMap,uv).g;
+        }
+        vec3 mean=csum/wsum;
+        float gm=gsum/wsum,gv=max(0.0,g2sum/wsum-gm*gm);
+        vec3 covariance=gcsum/wsum-gm*mean;
+        vec3 slope=covariance/max(gv,1e-8);
+        vec3 predicted=mean-slope*gm;
+        vec3 residual=max(vec3(0.0),c2sum/wsum-mean*mean-covariance*slope);
+        // When temporal uncertainty vanishes, retain converged texture and
+        // lighting exactly. Residual detail not explained by the geometric
+        // boundary also reduces filtering instead of being erased.
+        float noise=vs/wsum;
+        float blend=clamp(noise/max(nivoLuminance(residual),1e-10),0.0,1.0);
+        vec3 original=texture2D(map,vUv).rgb;
+        if(lobe==2) original=max(vec3(0.0),original-texture2D(diffuseMap,vUv).rgb);
+        return max(vec3(0.0),mix(original,predicted,blend));
       }
       void main() {
         vec4 center = colorAt(vUv);
@@ -124,6 +172,8 @@ export function traceDenoise() {
           }
         }
         if (coverage) {
+          if(stepSize == 1.0 && useCoverage && useVariance)
+            center.rgb = filterCoverage(pixel) / reflectance(vUv);
           gl_FragColor = vec4(center.rgb, finalPass ? texture2D(originalMap, vUv).a : -1.0);
           if (finalPass) gl_FragColor.rgb *= reflectance(vUv);
           #include <tonemapping_fragment>
@@ -143,8 +193,8 @@ export function traceDenoise() {
         // Use neighboring estimates too: a single quiet pixel must not reject
         // all its noisy neighbors. Reflective surfaces keep a narrow footprint.
         float v0 = varianceAt(vUv, center);
-        // A rare bright event may land between the half-resolution temporal
-        // representatives. Estimate its local variance too, only on matching
+        // Temporal variance covers every pixel, pooled into 2×2 blocks. Bound
+        // a local spatial estimate by that evidence, only on matching
         // material/normal/depth on the first scale. Subsequent scales carry the
         // reduced variance in alpha instead of reusing the raw noisy estimate.
         // This prevents an early bright neighborhood being frozen as a blob.
@@ -165,9 +215,7 @@ export function traceDenoise() {
           // must not keep re-inflating variance forever. Neighboring temporal
           // evidence bounds the spatial fallback for rare unsampled spikes.
           float spatial = max(0.0, sumY2 / sumW - pow(sumY / sumW, 2.0));
-          float meanY = sumY / sumW;
-          bool sparseOutlier = spatial > max(meanY * meanY * 0.05, 1e-8);
-          v0 = max(v0, sparseOutlier ? spatial : min(spatial, 4.0 * sumVariance / sumW));
+          v0 = max(v0, min(spatial, 4.0 * sumVariance / sumW));
         }
         vec4 sum = vec4(0.0); float total = 0.0, varianceSum = 0.0;
         for (int y = -2; y <= 2; y++) for (int x = -2; x <= 2; x++) {
@@ -244,6 +292,8 @@ export function traceDenoise() {
       material.uniforms.lobe.value = lobe;
       material.uniforms.diffuseMap.value = diffuse ?? map;
       material.uniforms.useReflection.value = !!guides?.reflection;
+      material.uniforms.useCoverage.value = !!guides?.coverage;
+      material.uniforms.coverageMap.value = guides?.coverage ?? map;
       material.uniforms.reflectionAlbedo.value = guides?.reflection?.albedo ?? map;
       material.uniforms.reflectionNormal.value = guides?.reflection?.normal ?? map;
       material.uniforms.finalPass.value = false;

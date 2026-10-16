@@ -1,10 +1,34 @@
 import * as THREE from 'three';
 
+// Match the tracer's pixel footprint. Ordinary raster mipmaps are a wider,
+// approximate low-pass filter; restoring that blurred albedo after denoising
+// erased wood grain even when thousands of ray samples had resolved it.
+// Guides are built only once per view, so a small deterministic integration is
+// inexpensive compared with adding this work to every path-tracing sample.
+const guideSampling = /* glsl */ `
+  vec4 nivoGuideSample(sampler2D image, vec2 uv) {
+    vec2 dx = dFdx(uv), dy = dFdy(uv);
+    vec2 size = vec2(textureSize(image,0));
+    float footprint = max(length(dx * size), length(dy * size));
+    int count = int(clamp(ceil(footprint), 2.0, 8.0));
+    vec4 sum = vec4(0.0);
+    for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
+      if (x >= count || y >= count) continue;
+      vec2 offset = (vec2(float(x),float(y)) + 0.5) / float(count) - 0.5;
+      sum += textureLod(image, uv + offset.x * dx + offset.y * dy, 0.0);
+    }
+    return sum / float(count * count);
+  }
+`;
+
 export type DenoiseGuides = {
   albedo: THREE.Texture;
   /** View-space shading normal in RGB, linear view depth in metres in alpha. */
   normal: THREE.Texture;
   projectionInverse: THREE.Matrix4;
+  /** Ray-integrated geometric normal XY and view depth (metres). Matches the
+   * actual subpixel coverage, unlike the raster guide's centre sample. */
+  coverage?: THREE.Texture;
   reflection?: { albedo: THREE.Texture; normal: THREE.Texture };
 };
 
@@ -52,6 +76,9 @@ export function traceGuides() {
       const retired: { color: THREE.Material; normal: THREE.Material }[] = [];
       const active = new Set<THREE.Material>();
       albedo = new THREE.WebGLRenderTarget(width, height, {
+        // Linear RGBA8 collapsed dark wood/paint into a few bands. Demodulation
+        // must restore the actual albedo, including its small color differences.
+        type: THREE.HalfFloatType,
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
       });
@@ -100,12 +127,19 @@ export function traceGuides() {
         const confidence =
           (m.transmission ?? 0) > 0.05 ? 0 : Math.max(0.15, Math.min(1, m.roughness ?? 1));
         color.onBeforeCompile = (shader) => {
-          shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <dithering_fragment>',
-            `#include <dithering_fragment>\ngl_FragColor.a = ${confidence.toFixed(4)};`,
-          );
+          shader.fragmentShader =
+            guideSampling +
+            shader.fragmentShader
+              .replace(
+                '#include <map_fragment>',
+                '#ifdef USE_MAP\ndiffuseColor *= nivoGuideSample(map, vMapUv);\n#endif',
+              )
+              .replace(
+                '#include <dithering_fragment>',
+                `#include <dithering_fragment>\ngl_FragColor.a = ${confidence.toFixed(4)};`,
+              );
         };
-        color.customProgramCacheKey = () => `guide:${confidence.toFixed(4)}`;
+        color.customProgramCacheKey = () => `guide-footprint:${confidence.toFixed(4)}`;
         const n = new THREE.MeshNormalMaterial({
           side: m.side,
           flatShading: m.flatShading ?? false,
@@ -120,12 +154,18 @@ export function traceGuides() {
             '#include <project_vertex>',
             '#include <project_vertex>\nvGuideDepth = -mvPosition.z * 0.001;',
           );
-          shader.fragmentShader = `varying float vGuideDepth;\n${shader.fragmentShader}`.replace(
-            /}\s*$/,
-            'gl_FragColor.a = vGuideDepth;\n}',
-          );
+          shader.fragmentShader =
+            `${guideSampling}\nvarying float vGuideDepth;\n${shader.fragmentShader}`
+              .replace(
+                '#include <normal_fragment_maps>',
+                THREE.ShaderChunk.normal_fragment_maps.replaceAll(
+                  'texture2D( normalMap, vNormalMapUv )',
+                  'nivoGuideSample(normalMap, vNormalMapUv)',
+                ),
+              )
+              .replace(/}\s*$/, 'gl_FragColor.a = vGuideDepth;\n}');
         };
-        n.customProgramCacheKey = () => 'guide-linear-depth';
+        n.customProgramCacheKey = () => 'guide-linear-depth-footprint';
         const result = { key, color, normal: n };
         materials.set(source, result);
         return result;

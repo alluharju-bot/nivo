@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { build } from 'vite';
 import { resolve } from 'node:path';
-import type { exerciseTraceImage } from './fixtures/trace-image-harness';
+import type {
+  exerciseTraceImage,
+  exerciseTraceImageChannels,
+} from './fixtures/trace-image-harness';
 
 test('real GPU retains coarse radiance, fully retires it and clears it for a new camera', async ({
   page,
@@ -50,4 +53,29 @@ test('real GPU retains coarse radiance, fully retires it and clears it for a new
   expect(pixels.cleared).toEqual({ ready: false, weight: 0, textures: 1 });
   expect(pixels.afterReset.pixel).toEqual([0, 0, 255, 255]);
   for (const sample of Object.values(pixels)) if ('error' in sample) expect(sample.error).toBe(0);
+  const channels = await page.evaluate(() =>
+    (
+      window as unknown as {
+        NivoTraceImageTest: {
+          exerciseTraceImageChannels: typeof exerciseTraceImageChannels;
+        };
+      }
+    ).NivoTraceImageTest.exerciseTraceImageChannels(),
+  );
+  expect(channels.initial.channels).toEqual([
+    [1, 0, 0, 1],
+    [0.25, 0, 0, 1],
+    [0.25, -0.5, 1.25, 1],
+  ]);
+  expect(channels.first.weight).toBeGreaterThan(0.9);
+  expect(channels.first.channels[2]).toEqual([-0.5, 0.75, 6, 1]);
+  expect(channels.first.channels[1][0]).toBeCloseTo(channels.first.weight * 0.25, 6);
+  expect(channels.first.channels[1][2]).toBeCloseTo((1 - channels.first.weight) * 0.5, 6);
+  expect(channels.complete.channels).toEqual([
+    [0, 0, 1, 1],
+    [0, 0, 0.5, 1],
+    [-0.5, 0.75, 6, 1],
+  ]);
+  expect(channels.reset.channels).toEqual(channels.initial.channels);
+  for (const sample of Object.values(channels)) expect(sample.error).toBe(0);
 });

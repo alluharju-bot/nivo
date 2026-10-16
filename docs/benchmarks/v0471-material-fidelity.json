@@ -1,0 +1,288 @@
+{
+  "transfer": [
+    {
+      "material": "grain",
+      "count": 1,
+      "relativeError": 0.00028968323921416865,
+      "darkError": 6.389571353793144e-5,
+      "detail": 0.9994994200848136,
+      "atlasBytes": 8388608
+    },
+    {
+      "material": "grain",
+      "count": 39,
+      "relativeError": 0.00028968323921416865,
+      "darkError": 6.389571353793144e-5,
+      "detail": 0.9994994200848136,
+      "atlasBytes": 92274688
+    },
+    {
+      "material": "oak",
+      "count": 1,
+      "relativeError": 0.0002523891463278583,
+      "darkError": 0,
+      "detail": 0.9994079414276259,
+      "atlasBytes": 33554432
+    },
+    {
+      "material": "oak",
+      "count": 39,
+      "relativeError": 0.0002523891463278583,
+      "darkError": 0,
+      "detail": 0.9994079414276259,
+      "atlasBytes": 134217728
+    }
+  ],
+  "seams": [
+    {
+      "material": "grain",
+      "count": 1,
+      "relativeError": 0.001005220345087676,
+      "darkError": 0.0004897098988294601,
+      "detail": 0.9924226672166048,
+      "atlasBytes": 8388608
+    },
+    {
+      "material": "grain",
+      "count": 39,
+      "relativeError": 0.001010425710596814,
+      "darkError": 0,
+      "detail": 0.8863418254926629,
+      "atlasBytes": 92274688
+    },
+    {
+      "material": "oak",
+      "count": 1,
+      "relativeError": 0.00029302615740636816,
+      "darkError": 0,
+      "detail": 0.9978598142463674,
+      "atlasBytes": 33554432
+    },
+    {
+      "material": "oak",
+      "count": 39,
+      "relativeError": 0.001010425710596814,
+      "darkError": 0,
+      "detail": 0.8863418254926629,
+      "atlasBytes": 134217728
+    }
+  ],
+  "renders": [
+    {
+      "material": "oak",
+      "error": 0,
+      "fidelity": [
+        {
+          "rawError": 0.08540674558845708,
+          "rawDetail": 2.7257449038503587,
+          "filteredError": 0.012574190102939066,
+          "filteredDetail": 0.9794558386782818
+        },
+        {
+          "rawError": 0.038109922072767095,
+          "rawDetail": 1.3207528995552478,
+          "filteredError": 0.011880743948383326,
+          "filteredDetail": 0.9673510546219173
+        },
+        {
+          "rawError": 0.016363196105279112,
+          "rawDetail": 1.056625593020199,
+          "filteredError": 0.011702497308488066,
+          "filteredDetail": 0.9735148708375904
+        },
+        {
+          "rawError": 0,
+          "rawDetail": 1,
+          "filteredError": 0.011558440613301763,
+          "filteredDetail": 0.9763155790410173
+        }
+      ],
+      "checkpoints": [
+        {
+          "samples": 64,
+          "elapsed": 244,
+          "relativeChange": 0.05770038368127333
+        },
+        {
+          "samples": 256,
+          "elapsed": 742.2999997138977,
+          "relativeChange": 0.027331451498399262
+        },
+        {
+          "samples": 1024,
+          "elapsed": 2673.8999996185303,
+          "relativeChange": 0.014234283011132966
+        },
+        {
+          "samples": 4096,
+          "elapsed": 10291.5,
+          "relativeChange": 0.0087511276962614
+        }
+      ]
+    },
+    {
+      "material": "chrome",
+      "error": 0,
+      "fidelity": [
+        {
+          "rawError": 0.021538349306914874,
+          "rawDetail": 1.006740317060858,
+          "filteredError": 0.021335981739776123,
+          "filteredDetail": 1.0239557592156163
+        },
+        {
+          "rawError": 0.010016858763567454,
+          "rawDetail": 1.000541427460621,
+          "filteredError": 0.01045321782299583,
+          "filteredDetail": 1.0088320797518235
+        },
+        {
+          "rawError": 0.004305341523696608,
+          "rawDetail": 0.9994386007604509,
+          "filteredError": 0.004613397609896296,
+          "filteredDetail": 1.0020812823001821
+        },
+        {
+          "rawError": 0,
+          "rawDetail": 1,
+          "filteredError": 0.0007732223053558869,
+          "filteredDetail": 1.0002206591640035
+        }
+      ],
+      "checkpoints": [
+        {
+          "samples": 64,
+          "elapsed": 312.3999996185303,
+          "relativeChange": 0.007225177467231206
+        },
+        {
+          "samples": 256,
+          "elapsed": 1025.5,
+          "relativeChange": 0.0027971594306735446
+        },
+        {
+          "samples": 1024,
+          "elapsed": 3794.2999997138977,
+          "relativeChange": 0.0013458983545003068
+        },
+        {
+          "samples": 4096,
+          "elapsed": 14779.299999713898,
+          "relativeChange": 0.0007197311768137968
+        }
+      ]
+    },
+    {
+      "material": "chrome-reflection",
+      "error": 0,
+      "fidelity": [
+        {
+          "rawError": 0.04071354999808445,
+          "rawDetail": 1.031017317139516,
+          "filteredError": 0.030663028789508866,
+          "filteredDetail": 1.02377263047669
+        },
+        {
+          "rawError": 0.01779329517810059,
+          "rawDetail": 1.00609626184629,
+          "filteredError": 0.017302137251108542,
+          "filteredDetail": 1.006657736155014
+        },
+        {
+          "rawError": 0.007709940228458631,
+          "rawDetail": 1.0018011351136515,
+          "filteredError": 0.010788160118127117,
+          "filteredDetail": 1.0001079936571944
+        },
+        {
+          "rawError": 0,
+          "rawDetail": 1,
+          "filteredError": 0.00618529554051587,
+          "filteredDetail": 0.997853887190514
+        }
+      ],
+      "checkpoints": [
+        {
+          "samples": 64,
+          "elapsed": 310,
+          "relativeChange": 0.011162030853333695
+        },
+        {
+          "samples": 256,
+          "elapsed": 1070.5,
+          "relativeChange": 0.005460996301513404
+        },
+        {
+          "samples": 1024,
+          "elapsed": 4083.800000190735,
+          "relativeChange": 0.0032359060420436543
+        },
+        {
+          "samples": 4096,
+          "elapsed": 16056.60000038147,
+          "relativeChange": 0.0019892554395847073
+        }
+      ]
+    },
+    {
+      "material": "brushed-reflection",
+      "error": 0,
+      "fidelity": [
+        {
+          "rawError": 0.06215307707504508,
+          "rawDetail": 2.692162154283216,
+          "filteredError": 0.0356052728685373,
+          "filteredDetail": 1.2094882302016778
+        },
+        {
+          "rawError": 0.025633310339230792,
+          "rawDetail": 1.2932325274292658,
+          "filteredError": 0.019308457978611204,
+          "filteredDetail": 1.0524947889346659
+        },
+        {
+          "rawError": 0.010646775496381055,
+          "rawDetail": 1.0506342738030126,
+          "filteredError": 0.00995680586367334,
+          "filteredDetail": 1.0091350630855835
+        },
+        {
+          "rawError": 0,
+          "rawDetail": 1,
+          "filteredError": 0.004326483643194818,
+          "filteredDetail": 0.9917350103046957
+        }
+      ],
+      "checkpoints": [
+        {
+          "samples": 64,
+          "elapsed": 324.80000019073486,
+          "relativeChange": 0.026835996742061663
+        },
+        {
+          "samples": 256,
+          "elapsed": 1164.7000002861023,
+          "relativeChange": 0.010392326215614428
+        },
+        {
+          "samples": 1024,
+          "elapsed": 4469.200000286102,
+          "relativeChange": 0.004430184860081479
+        },
+        {
+          "samples": 4096,
+          "elapsed": 17472,
+          "relativeChange": 0.0020273928789469532
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "measurement": {
+    "imageSize": [256, 256],
+    "device": "Apple M1 Pro / Chromium / Metal",
+    "reference": "4096-sample unfiltered image of the same integrator; finite and not noise-free",
+    "detailMetric": "Ratio of squared adjacent-pixel differences (gradient energy); RMS contrast is its square root",
+    "sampleCheckpoints": [64, 256, 1024, 4096]
+  }
+}

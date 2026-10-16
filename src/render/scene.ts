@@ -14,7 +14,7 @@ import { createPartLights, createTraceLights, previewLightLimit } from './lights
 import { progressiveRenderer, type TraceStatus } from './progressive';
 import { imageLook } from './imageLook';
 import { mirrorBacking } from './mirror';
-import { faceMaterialGroups, renderFaceMaterials } from './faceMaterials';
+import { partEmitterGroups, renderFaceMaterials } from './faceMaterials';
 import { faceMaterialBody } from '../model/faceMaterials';
 import { captureRenderScene } from './snapshot';
 import {
@@ -23,14 +23,9 @@ import {
   materialUV,
   disposeMaterial,
   setMaterialColor,
+  bindPreviewShadowsOnce,
 } from './materials';
-import {
-  defaultAppearance,
-  emissionSettings,
-  type Appearance,
-  type TexturePlacement,
-  type TextureAsset,
-} from '../model/materials';
+import { type Appearance, type TexturePlacement, type TextureAsset } from '../model/materials';
 import { installCameraNavigation } from '../viewport/cameraNavigation';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -123,6 +118,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     new THREE.MeshStandardMaterial({ color: '#dce1dc', roughness: 0.95 }),
   );
   floor.receiveShadow = true;
+  bindPreviewShadowsOnce(floor.material);
   scene.add(floor);
   let disposed = false;
   let extent = 100,
@@ -155,31 +151,12 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     },
     look,
   );
-  // Upgrade only small palettes: the uniform texture atlas can preserve 2K
-  // only with <=8 layers. Large projects keep their lighter 1K source images.
-  const surfaceIds = new Set(
-    current().bodies.flatMap((body) => {
-      const appearances = [
-        body.appearance ?? defaultAppearance(body.material),
-        ...Object.values(body.faceMaterials ?? {}).map((m) => m.appearance),
-      ];
-      return appearances.map((a) => a.preset);
-    }),
-  );
-  const detailed = new Set(
-    surfaceIds.size <= 2
-      ? [...surfaceIds].flatMap((id) => {
-          const source = id?.replace('pbr-', '');
-          return ['coated_pine', 'oak_veneer_01', 'american_walnut_veneer'].includes(source)
-            ? [source]
-            : [];
-        })
-      : [],
-  );
+  // The trace atlas packs independent sizes and prioritizes color detail. A
+  // second material must not silently downgrade the same wood in this project.
   const library = createMaterialLibrary(() => {
     progressive.invalidate(false, true);
     draw();
-  }, detailed);
+  });
   let studioEnvironment: THREE.Texture | undefined;
   const environmentReady = loadStudioEnvironment()
     .then((texture) => {
@@ -194,6 +171,10 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         0,
         THREE.MathUtils.degToRad(current().settings.lightRotation ?? 0),
       );
+      // Populate Three's PMREM cache before a material draw. In r186 a nested
+      // environment conversion can restore a stale texture-unit cursor from
+      // the outer render, leaving too few bindings for this room's shadows.
+      renderer.compile(floor, camera, scene);
       canvas.dataset.environment = 'studio-hdri';
       progressive.lighting();
       draw();
@@ -345,17 +326,9 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       mesh.castShadow = materials.some((m) => m.transmission < 0.5);
       mesh.receiveShadow = true;
       model.add(mesh);
-      for (const range of faceMaterialGroups(geometry, body, data)) {
-        if (
-          !range.reflective ||
-          !emissionSettings(
-            range.source.appearance ?? defaultAppearance(range.source.material),
-            range.source.color,
-          ).enabled
-        )
-          continue;
+      for (const range of partEmitterGroups(geometry, body, data)) {
         const emitter = new THREE.BufferGeometry();
-        const indices = data.triangles.slice(range.start, range.start + range.count);
+        const indices = range.indices;
         emitter.setAttribute(
           'position',
           new THREE.Float32BufferAttribute(

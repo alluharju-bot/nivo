@@ -178,7 +178,9 @@ export function progressiveRenderer(
     tracer.renderDelay = 0;
     tracer.bounces = 16;
     tracer.transmissiveBounces = 12;
-    tracer.filterGlossyFactor = 0.25;
+    // Preserve the authored BRDF on later bounces too. Artificially increasing
+    // roughness blurs reflections permanently; more samples cannot undo it.
+    tracer.filterGlossyFactor = 0;
     tracer.textureSize.set(1024, 1024);
   };
   const loop = () => {

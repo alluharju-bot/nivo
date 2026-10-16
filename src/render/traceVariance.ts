@@ -3,7 +3,7 @@ import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { screenVertex } from './traceDenoise';
 
 /** Welford variance of the mean, reconstructed from consecutive radiance means.
- * One representative pixel per 2×2 block; two RG32F targets cost 4 bytes per
+ * Mean of every pixel in each 2×2 block; two RG32F targets cost 4 bytes per
  * full-resolution pixel (12 MB at the preview limit). No CPU readback and no
  * filtered/coarse colors in the estimator. Camera/size changes discard history. */
 export function traceVariance() {
@@ -35,13 +35,24 @@ export function traceVariance() {
       uniform float count;
       uniform bool continuing;
       void main() {
-        ivec2 p = ivec2(vUv * vec2(textureSize(map, 0)));
-        vec3 c = texelFetch(map, p, 0).rgb;
-        if (subtract) c = max(vec3(0.0), c - texelFetch(subtractMap, p, 0).rgb);
+        ivec2 size = textureSize(map, 0);
+        ivec2 p = ivec2(gl_FragCoord.xy) * 2;
+        vec3 c = vec3(0.0); float pixels = 0.0;
+        for (int y = 0; y < 2; y++) for (int x = 0; x < 2; x++) {
+          ivec2 q = p + ivec2(x,y);
+          if (any(greaterThanEqual(q,size))) continue;
+          vec3 value = texelFetch(map,q,0).rgb;
+          if (subtract) value = max(vec3(0.0), value - texelFetch(subtractMap,q,0).rgb);
+          c += value; pixels += 1.0;
+        }
+        c /= pixels;
         float mean = dot(c, vec3(0.2126, 0.7152, 0.0722));
         vec2 old = texture2D(history, vUv).rg;
         float delta = mean - abs(old.r);
-        float variance = continuing ? max(0.0, (count - 2.0) / count * old.g + delta * delta) : 0.0;
+        // Independent pixel streams: undo the variance reduction of their
+        // block mean. Every pixel contributes, so isolated noise is not missed
+        // and genuine spatial texture needn't be misclassified as variance.
+        float variance = continuing ? max(0.0, (count - 2.0) / count * old.g + pixels * delta * delta) : 0.0;
         float roughness = useGuide ? texture2D(guide,vUv).a : 1.0;
         float signedMean = subtract && (roughness < 0.14 || roughness >= 0.4) ? -max(mean,1e-10) : mean;
         gl_FragColor = vec4(signedMean, variance, 0.0, 1.0);

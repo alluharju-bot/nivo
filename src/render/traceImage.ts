@@ -23,6 +23,7 @@ export function traceImage() {
       coarseWeight: { value: 0 },
       diffuse: { value: null },
       coarseDiffuse: { value: null },
+      coverage: { value: null },
     },
     vertexShader:
       'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
@@ -32,10 +33,15 @@ export function traceImage() {
       uniform float coarseWeight;
       varying vec2 vUv;
       uniform sampler2D diffuse, coarseDiffuse;
+      uniform sampler2D coverage;
       layout(location = 1) out vec4 diffuseOutput;
+      layout(location = 2) out vec4 coverageOutput;
       void main() {
         gl_FragColor = mix(texture2D(map, vUv), texture2D(coarse, vUv), coarseWeight);
         diffuseOutput = mix(texture2D(diffuse, vUv), texture2D(coarseDiffuse, vUv), coarseWeight);
+        // Geometry coverage belongs to the current pixel footprint. Coarse
+        // radiance is only a transient display estimate, never guide history.
+        coverageOutput = texture2D(coverage, vUv);
       }`,
   });
   const display = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
@@ -78,6 +84,7 @@ export function traceImage() {
       copy.uniforms.diffuse.value = source.textures[1] ?? source.texture;
       copy.uniforms.coarseDiffuse.value =
         coarse?.textures[1] ?? source.textures[1] ?? source.texture;
+      copy.uniforms.coverage.value = source.textures[2] ?? source.texture;
       quad.material = copy;
       renderer.setRenderTarget(target);
       quad.render(renderer);

@@ -1,8 +1,49 @@
-# Validointi — 15.10.2026
+# Validointi — 16.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.47.1 — renderin materiaalit, reunat ja valot
+
+- Koko yksikkö-/CAD-testistö: **657 hyväksyttyä, 5 ennestään ohitettua**.
+  Materiaalikuvien pakkaus säilyttää erikokoiset lähteet ja 128 MiB:n rajan;
+  pintamaalaus ei monista tai siirrä spottivalon lähtöpistettä.
+- **10 GPU-testiä hyväksytty**: tammipinnan kartat, tumman kuvion kvantisointi,
+  kuvion toistosauma, kromi, heijastuva puu ja karheampi heijastus, vinot ja
+  kohinaiset reunat, valokanavat, näytteistys, äärinäytteet, valojen painotus,
+  heijastusten kohinanpoisto sekä kuvan ja peittävyyskanavan säilytys.
+  Materiaalikoe mittaa 64 / 256 / 1 024 / 4 096 näytettä suhteessa saman
+  laskennan äärelliseen 4 096 näytteen raakareferenssiin.
+- Reunojen harvojen valosädeosumien kokeessa virhe pieneni **77,8 %**.
+  Kohinattoman reunan pehmennys säilyi. Tekstuurin toistosauman testissä
+  laitteiston ja ohjelmallisen bilineaarisen suodatuksen painojen pyöristys
+  sallii enintään 0,2 % suhteellisen eron; varsinaisen kuvansiirron raja
+  on 0,1 %. Viereisen materiaalin vuotaminen ei ole sallittua.
+- Suljettu, vain yhdellä spotilla valaistu huone: keilan ulkopuolinen seinä
+  saa heijastunutta valoa. Tehon kaksinkertaistus kaksinkertaistaa lineaarisen
+  kirkkauden. Tuotannon äärinäytteiden rajan ja rajoittamattoman laskennan
+  vertailu tehty voimakkuuksilla 12 ja 100, 512 näytteellä.
+- Julkaistavan tuotantobuildin **10 selainkoetta hyväksytty**: 296 puuosaa,
+  materiaalin vaihto renderin aikana, ympäristövalon valmistuminen, useat
+  spotit + PBR + lasi, valaistuksen muokkaus ilman geometrian uudelleenrakennusta,
+  eri pintamateriaalien eheys, käynnistyminen, kamera sekä kuvanvienti.
+  Kolmen vientikierroksen jälkeen vapautuneen esikatselun tekstuurimäärä
+  pysyi **14 / 14 / 14**. Valotestissä tarkistetaan myös varjokarttojen
+  tekstuuriraja sekä WebGL-virheet.
+- Tuotantobuild, TypeScript ja lisenssitarkistus hyväksytty. Shaderin
+  keskeytys-/poistotarkistus kuuluu GPU-testeihin. Yksityiset projektit ja
+  renderikuvat säilyvät paikallisesti eivätkä sisälly julkaisuun.
+- Lopullinen yksityisen kylpyhuoneen testi: **11 / 70 / 128 / 256 näytettä**, sama
+  kamera ja 810 × 663 pikseliä. 256 kierrosta 376,9 s, kameran vaste 214 ms,
+  ei odottamattomia nollauksia tai sivuvirheitä. Karmit, saumat, levyjen reunat,
+  puunsyy ja peili tarkastettu kuvista. Kohinaa on edelleen vaikeissa heijastuksissa.
+- Rajat: tarkemmat materiaalit ja reunojen kertymä lisäävät GPU-muistia.
+  Vaikeissa peili-/lasiketjuissa on edelleen kohinaa. Valovoimakkuutta ei
+  ole kalibroitu lumeniksi; fotorealistista valotasoa ei todisteta pelkällä
+  näytemäärällä tai synteettisen huoneen testillä.
+  [Mittaukset ja muistirajat](performance.md),
+  [materiaalikokeen numerot](benchmarks/v0471-material-fidelity.json).
 
 ## V0.46.1 — suunnat, kamera ja leikatut kaarevat osat
 

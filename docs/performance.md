@@ -1,5 +1,104 @@
 # Suorituskyky
 
+## V0.47.1 — materiaalien tarkkuus, reunat ja valojen eheys
+
+Puupalikan oikea 2K-tammi + normaali + karheus -koe osoitti kaksi eri
+hävikkiä. Vanha kuvataulukko pienensi kaikki lähteet samaan tarkkuuteen,
+vaikka suuri osa muista kuvista oli pieniä. Lisäksi kohinanpoisto palautti
+värin rasterin mipmap-suodatetusta albedosta: puun hieno kuvio pysyi pehmeänä
+myös 4 096 näytteellä. Nämä eivät korjaantuneet odottamalla lisää näytteitä.
+
+Uusi kuvataulukko pakkaa eri kokoiset neliökuvat ilman reunusten hukkatilaa.
+Kuvion toistosauma suodatetaan oman kuvan pikseleistä, myös negatiivisilla
+UV-koordinaateilla. Sisäosa käyttää laitteiston bilineaarista suodatusta.
+Tekstuuriyksiköitä tarvitaan edelleen yksi, eikä 16 yksikön WebGL2-raja ylity.
+Lineaarinen RGBA16F välttää tumman sRGB-kuvan kvantisoinnin lineaariseksi RGBA8:ksi.
+Budjetti pysyy 128 MiB:ssa, mutta käytetty muisti voi kasvaa aiemmasta:
+kolmen 512 px kartan mäntymateriaali käyttää 6 MiB aiemman 3 MiB:n sijaan.
+Albedo-ohjainten lisämuisti on yhteensä 8 tavua/pikseli ensipinnan ja
+heijastuksen ohjaimissa. Reunojen uusi kertymä käyttää lisäksi 16 tavua/pikseli;
+esikatselun täydellisen kuvan kopio saman verran. Tarkkuuden vaihtuessa
+hetken säilyvä edellinen kuva on korkeintaan noin neljännes uuden koosta.
+Esikatselun 3 MP ja viennin 12 MP rajat säilyvät; tämä on laadun parannus
+lisämuistilla, eikä muistikuorma säily ennallaan. Vienti vapauttaa esikatselun
+kertymät ennen uuden laskennan aloittamista.
+
+Laatukoe on `tests/trace-fidelity.spec.ts`. Testi ajaa todellisen integraattorin,
+materiaalikartat ja kohinanpoiston samalla kameralla. Referenssi on 4 096
+näytteen **suodattamaton** kuva; sekin sisältää hieman kohinaa eikä ole
+riippumattoman renderimoottorin fyysinen referenssi. Kuvakoko on 256 × 256.
+Näytteet mitataan 64 / 256 / 1 024 / 4 096 kohdissa. Mukautuva lisäpolku ei
+ole tämän kontrolloidun kokeen käytössä; sovelluksessa se säilyy.
+
+| Tammipalikka, etupinnan vertailualue            | V0.47.0 | V0.47.1 |
+| ----------------------------------------------- | ------: | ------: |
+| Suodatetun 256 näytteen kuvan suhteellinen RMSE |  3,10 % |  1,19 % |
+| Hienon kuvion RMS-kontrasti, 256 näytettä       |  70,8 % |  98,4 % |
+| Hienon kuvion RMS-kontrasti, 4 096 näytettä     |  80,5 % |  98,8 % |
+
+Kontrasti tarkoittaa tässä vierekkäisten pikselien erotusten RMS-arvon suhdetta
+referenssiin yhdellä kiinteällä vertailualueella. Se ei ole prosentti kaikista
+kuvan yksityiskohdista. Raakakuvan kohina voi myös kasvattaa tätä lukua, joten
+testi vaatii samanaikaisesti pienen kuvavirheen. Kromin ja heijastuvan puun
+testit rajaavat sekä suodatuksen virhettä että menetettyä yksityiskohtaa.
+
+Erillinen tekstuurinsiirtokoe käyttää yhtä 2K-tammea ja 38 pienempää karttaa.
+Vanhan kuvataulukon suhteellinen virhe on 7,86 %, uuden 0,025 %.
+Yksityiskohtien erotusenergia on vastaavasti 22,8 % / 99,94 % lähdekuvasta.
+Tumman testikuvion suurin lineaarinen virhe pienenee noin 0,00339 → 0,000064.
+Nämä luvut koskevat materiaalikuvan siirtoa GPU:lle, eivät koko valaistun kuvan virhettä.
+
+Reunojen aikaisempi suojaus ohitti kohinanpoiston kokonaan syvyyshypyn lähellä.
+Se säilytti kohinattoman reunan mutta jätti oikean sisätilan saumoihin ja
+karmeihin raakakohinaa. Nyt kolmas kertymä tallentaa ensipinnan geometrisen
+normaalin ja syvyyden samoilla säteillä kuin valo. Paikallinen sovitus käyttää
+osittain peittyvän pikselin omaa peittävyyttä; se ei siirrä reunaa rasterin
+keskisäteen kohdalle. Reunojen myöhemmät laajat suodatusvaiheet ohitetaan.
+Ajallisen epävarmuuden pienentyessä myös sovituksen vaikutus pienenee.
+
+`trace-edges`-GPU-kokeessa harvoin osuvalla kirkkaalla valolla 256 näytteen
+reunavirhe pieneni 0,04428 → 0,00983 (77,8 %). Kohinattoman vinon reunan
+virhe säilyi noin 0,0021:ssa. Tämä on synteettisen testin tulos, ei lupaus
+kaikkien reunojen kohinattomuudesta. `trace-image` tarkistaa kaikkien kolmen
+kanavan kopioinnin, karkean kuvan poistumisen sekä kameran vaihdon.
+
+Valaistuksen erillinen `lighting-energy`-koe käyttää suljettua 2,4 m huonetta,
+yhtä spottia, 16 heijastusta ja 512 näytettä ilman ympäristövaloa. Keilan
+ulkopuolinen seinä on suoralla valolla musta; heijastuksilla sen keskimääräinen
+lineaarinen kirkkaus on 0,02223. Valotehon kaksinkertaistus kaksinkertaistaa
+tuloksen. Epäsuoran valon äärinäytteiden rajan poistaminen ei muuttanut tämän
+kokeen energiaa merkittävästi edes teholla 100. Tämä todistaa epäsuoran valon
+toiminnan testitilassa, ei kaikkien materiaalien tai kalusteiden fotometriaa.
+
+Pintamaalaus jakoi yhden spotin perusmateriaalin useaan piirtoalueeseen ja loi
+jokaisesta oman valon väärään lähtöpisteeseen. Alueet yhdistetään nyt saman
+spotin laskentaan. Erilliset LED-pinnat säilyvät erillisinä. Yksityisen huoneen
+viisi spottia tuottivat aiemmin kymmenen spottia; kaikki 14 LED-pinta-aluetta
+osallistuivat jo valonäytteistykseen. Esikatselussa Three r186:n varjokarttojen
+kaksinkertainen tekstuurisidonta ohitetaan ja ympäristökuvan muunnos valmistellaan
+ennen piirtoa. Näin valot ja PBR-kartat pysyvät 16 tekstuuriyksikön rajoissa.
+
+Valojen nykyinen voimakkuus on edelleen suhteellinen säätö, ei lumenia.
+Valolähteen koko, keilakulma, suunta ja ympäröivät materiaalit vaikuttavat
+tulokseen. Lumen-/lm/m-kalibrointi ja vertailu riippumattomaan moottoriin
+ovat jatkotyötä; huoneen realistista valaistustasoa ei ole vielä vahvistettu.
+
+Laatukorjaus ei lupaa nopeampaa renderöintiä. Tarkemmat kuvat käyttävät
+enemmän muistiliikennettä, ja keinotekoisen heijastuskarheuden poistaminen
+voi vaatia enemmän näytteitä. Ohjainten enintään 8 × 8 näytteistys tehdään
+vain kameran/pinnan vaihtuessa; lähellä pintaa käytetään pienempää näyteverkkoa.
+Raakakertymää ei suodateta. Vaikeiden heijastusketjujen, piilossa olevien
+valojen ja lasin konvergenssia täytyy edelleen mitata erikseen.
+
+Lopullinen yksityisen sisätilan tarkistus: 443 näkyvää osaa, 39 materiaalikuvaa,
+810 × 663 px, M1 Pro / Metal. 128 kierrosta valmistui 191,3 s ja 256 kierrosta
+376,9 s. Ensimmäinen kuva näkyi 281 ms ja kameran vaste oli 214 ms tässä
+lämpimän shader-välimuistin ajossa. Ei odottamattomia kertymän nollauksia
+tai sivuvirheitä. Puunsyyt säilyvät ja karmien/laattasaumojen reunakohina on
+aiempaa vähäisempää. Peilin heijastuksessa ja joissakin ohuissa saumoissa
+näkyy edelleen kohinaa; tämä 810 px:n vertailukuva ei ole korkean tarkkuuden
+lopullinen esittelyrenderi. Yksityistä mallia tai kuvia ei julkaista.
+
 ## V0.47.0 — kiiltävien pintojen kohina ja geometriamuokkaus
 
 Kiiltävän laatan matala karheusarvo rajoitti aiemmin koko pinnan

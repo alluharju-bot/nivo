@@ -2,13 +2,17 @@ import * as THREE from 'three';
 import type { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { resetTraceMaterialIndices } from './traceMaterials';
 import { prepareLobeTargets } from './traceLobes';
+import { prepareTextureAtlas } from './traceTextureAtlas';
 
 type TraceRenderer = {
   _primaryTarget: THREE.WebGLRenderTarget;
   _blendTargets: THREE.WebGLRenderTarget[];
   _blendQuad: { material: THREE.Material };
   _compilePromise: Promise<unknown> | null;
+  compileMaterial(): Promise<unknown>;
   material: THREE.ShaderMaterial;
+  camera: THREE.Camera | null;
+  setCamera(camera: THREE.Camera): void;
   setSize(width: number, height: number): void;
   dispose(): void;
 };
@@ -26,8 +30,32 @@ type Internals = {
  * material-owned textures. Never dispose the input scene's shared maps here. */
 export function traceResources(tracer: WebGLPathTracer) {
   prepareLobeTargets(tracer);
+  prepareTextureAtlas(tracer);
   const internal = tracer as unknown as Internals;
   const renderers = [internal._pathTracer, internal._lowResPathTracer];
+  // compileAsync keeps a program reference while polling KHR completion. A
+  // material can replace/dispose that program before the poll finishes. Guard
+  // programs when compilation starts, not just the current material at dispose
+  // time (which no longer owns earlier shader variants).
+  const guarded = new WeakSet<object>();
+  const guardCompilations = () => {
+    for (const program of internal._renderer.info.programs ?? []) {
+      if (guarded.has(program)) continue;
+      const p = program as unknown as { program?: WebGLProgram; isReady(): boolean };
+      const ready = p.isReady.bind(p);
+      p.isReady = () => !p.program || ready();
+      guarded.add(program);
+    }
+  };
+  guardCompilations();
+  for (const r of renderers) {
+    const compile = r.compileMaterial.bind(r);
+    r.compileMaterial = () => {
+      const pending = compile();
+      guardCompilations();
+      return pending;
+    };
+  }
   // Three's WebGLArrayRenderTarget replaces its texture after construction;
   // in this pinned version texture.renderTarget is null. Once uploaded, the
   // owning framebuffer is available in the renderer's texture properties.
@@ -50,6 +78,11 @@ export function traceResources(tracer: WebGLPathTracer) {
   // Nivo displays complete samples itself; the library's second tracer is unused.
   tracer.dynamicLowRes = false;
   tracer.synchronizeRenderSize = false;
+  // Nivo owns the coarse-to-fine preview. Switching projection must not launch
+  // an unused second tracer shader, especially while a previous view is closing.
+  internal._lowResPathTracer.setCamera = (camera) => {
+    internal._lowResPathTracer.camera = camera;
+  };
   let disposed = false;
   return {
     prepareScene() {
@@ -68,21 +101,7 @@ export function traceResources(tracer: WebGLPathTracer) {
       const pending = renderers.flatMap((r) => (r._compilePromise ? [r._compilePromise] : []));
       const release = () => {
         const materials = new Set(renderers.map((r) => r.material));
-        // compileAsync may still be polling an earlier camera/define variant.
-        // Three deletes its program on material disposal; mark that poll ready
-        // instead of querying a deleted WebGLProgram on the next timer tick.
-        for (const material of materials) {
-          type Program = { program?: WebGLProgram; isReady(): boolean };
-          const programs = (
-            internal._renderer.properties.get(material) as {
-              programs?: Map<string, Program>;
-            }
-          ).programs;
-          for (const program of programs?.values() ?? []) {
-            const ready = program.isReady.bind(program);
-            program.isReady = () => !program.program || ready();
-          }
-        }
+        guardCompilations();
         tracer.dispose();
         internal._lowResPathTracer.dispose();
         for (const r of renderers) r._blendQuad.material.dispose();

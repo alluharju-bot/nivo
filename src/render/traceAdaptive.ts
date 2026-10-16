@@ -42,11 +42,12 @@ export function adaptiveTraceSamples(shader: string) {
         nivoExtraStream = false;
         nivoTracePath();
         if(extra) {
-          vec4 beauty = gl_FragColor, diffuse = nivoDiffuseOutput;
+          vec4 beauty = gl_FragColor, diffuse = nivoDiffuseOutput, coverage = nivoCoverageOutput;
           nivoExtraStream = true;
           nivoTracePath();
           gl_FragColor = (gl_FragColor + beauty) * 0.5;
           nivoDiffuseOutput = (nivoDiffuseOutput + diffuse) * 0.5;
+          nivoCoverageOutput = (nivoCoverageOutput + coverage) * 0.5;
         }
       }`
   );

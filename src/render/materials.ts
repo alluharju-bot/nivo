@@ -14,6 +14,17 @@ import {
 } from '../model/materials';
 import type { Body } from '../model/project';
 
+/** Three r186 binds shadow samplers explicitly on every draw and then uploads
+ * the same arrays again with the material. Skip only the duplicate upload:
+ * otherwise eight shadow maps can exhaust a 16-unit GPU despite the shader
+ * itself fitting. The explicit per-draw bindings still track every light. */
+export function bindPreviewShadowsOnce(material: THREE.MeshStandardMaterial) {
+  material.onBeforeCompile = (shader) => {
+    for (const name of ['sunShadowMap', 'directionalShadowMap', 'spotShadowMap', 'pointShadowMap'])
+      if (shader.uniforms[name]) Object.assign(shader.uniforms[name], { needsUpdate: false });
+  };
+}
+
 /** Deterministic, offline patterns; the species have different grain and pore structure. */
 export function patternCanvas(preset: MaterialPreset) {
   if (preset.pattern === 'patina') return patinaCanvases(preset.seed).color;
@@ -246,7 +257,11 @@ function luminanceCanvas(image: HTMLImageElement | HTMLCanvasElement): HTMLCanva
 }
 export function createMaterialLibrary(
   draw: () => void,
-  detailSurfaces: ReadonlySet<string> = new Set(),
+  detailSurfaces: ReadonlySet<string> = new Set([
+    'coated_pine',
+    'oak_veneer_01',
+    'american_walnut_veneer',
+  ]),
 ) {
   const patterns = new Map<string, HTMLCanvasElement>(),
     images = new Map<string, HTMLImageElement>();
@@ -588,6 +603,7 @@ export function createMaterialLibrary(
       const emission = emissionSettings(appearance, body.color);
       material.emissive.set(emission.color);
       material.emissiveIntensity = emission.enabled ? emission.intensity : 0;
+      bindPreviewShadowsOnce(material);
       return material;
     },
     async ready() {

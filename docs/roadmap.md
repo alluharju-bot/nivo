@@ -2,6 +2,41 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.47.1 — materiaalien tarkkuus renderissä
+
+- Kohinanpoiston albedo- ja normaaliopasteet integroivat saman pikselialueen
+  kuin kameran säteet. Esikatselun leveä mipmap-suodatus ei enää korvaa
+  tarkentunutta puunsyykuviota pehmeämmällä versiolla. Ohjaimet lasketaan
+  kerran näkymän muuttuessa, eivät jokaisella näytteellä.
+- Materiaalikuvien eri tarkkuudet pakataan samaan kuvataulukkoon. Pieni kuva
+  ei varaa suuren kuvan tilaa, eikä koko projekti putoa yhteiseen 512 px
+  tarkkuuteen. Muistiraja on edelleen 128 MiB. Tarvittaessa datakuvien
+  tarkkuutta vähennetään ennen värikuvia. Laitteistorajat tarkistetaan.
+- Lineaarinen puoliliukutarkkuus säilyttää tumman puun/maalin sävyerot ja
+  normaalikarttojen pienet erot. Väriohjaimet ja heijastuksen väriohjain
+  käyttävät samaa aiempaa tarkempaa tallennusta.
+- Saatavilla olevat 2K-puupinnat latautuvat myös myöhemmin valittaessa;
+  projektin muiden materiaalien määrä ei enää vaihda lähdekuvaa pienemmäksi.
+- Kohinan arvio huomioi jokaisen 2 × 2 alueen pikselin. Pintakuvion oma
+  vaihtelu ei yksin ylläpidä voimakasta suodatusta loputtomasti.
+- Heijastuksen karheutta ei kasvateta keinotekoisesti myöhemmillä valopoluilla.
+  Sama materiaalikäsittely, suodatus ja valolaskenta ovat näkymässä ja viennissä.
+- Reunapikselin kohina käsitellään saman sädekertymän geometrisen peittävyyden
+  avulla. Suojattu reuna ei enää tarkoita täysin suodattamatonta kohinaa.
+  Reunan paikka ja jo tarkentuneet pienet yksityiskohdat säilytetään.
+- Pintamaalaus ei monista yhtä spottia eri lähtöpisteisiin. Esikatselun
+  varjokarttojen sidonta ja ympäristökuvan valmistelu pysyvät GPU:n rajoissa.
+- Suljetun huoneen GPU-koe tarkistaa epäsuoran valon, tehon kaksinkertaistuksen
+  ja äärinäytteiden rajan vaikutuksen erillään valotuksesta ja kohinanpoistosta.
+- Laatuportti: oikea tammitekstuuri kolmella PBR-kartalla, kiiltävä kromi,
+  kromista heijastuva puu ja karheampi metalli. Vertailut 64 / 256 / 1 024 /
+  4 096 näytteellä mittaavat virhettä sekä yksityiskohtien säilymistä.
+
+Jatkoon: heijastusten ja koteloitujen valojen näytteistyksen tehokkuus,
+valaisimien lumen-/lm/m-kalibrointi sekä riippumaton valonlaskennan vertailu.
+Pelkkä näyteluku tai kohinan väheneminen
+ei todista fotorealismia. [Mittaukset ja rajat](performance.md).
+
 ## V0.47.0 — kiiltävät pinnat ja ennustettava geometrian muokkaus
 
 - Perusvalaistus erotetaan heijastuksesta samoista valopoluista. Kummankin

@@ -27,9 +27,9 @@ export async function exerciseTraceEdges() {
       const i = (y * size + x) * 4;
       colors.set([0.5, 0.5, 0.5, 0.85], i);
       normals.set([0.5, 0.5, 1, boundary(x + 0.5, y + 0.5) > 0 ? 6 : 8], i);
-      variances.set([0, 0.01, 0, 1], i);
+      variances.set([0, 0.05, 0, 1], i);
     }
-  const guides = {
+  const guides: import('../../src/render/traceGuides').DenoiseGuides = {
     albedo: texture(colors),
     normal: texture(normals),
     projectionInverse: camera.projectionMatrixInverse,
@@ -43,7 +43,7 @@ export async function exerciseTraceEdges() {
   const denoise = traceDenoise(),
     results = [];
   try {
-    for (const mode of ['legacy', 'production'] as const) {
+    for (const mode of ['legacy', 'production', 'noisy'] as const) {
       renderer.setRenderTarget(null);
       const tracer = new WebGLPathTracer(renderer),
         resources = traceResources(tracer);
@@ -72,6 +72,8 @@ export async function exerciseTraceEdges() {
             sobolPixelIndex=(uint(gl_FragCoord.x)<<16)|uint(gl_FragCoord.y); sobolPathIndex=uint(seed);
             Ray ray=getCameraRay(); vec2 p=(ray.origin.xy+1.0)*48.0;
             float c=p.x-0.37*p.y-30.3>0.0?0.8:0.2;
+            nivoCoverageOutput=vec4(0.0,0.0,c>0.5?6.0:8.0,opacity);
+            ${mode === 'noisy' ? 'c *= rand(3) < 0.95 ? 0.0 : 20.0;' : ''}
             gl_FragColor=vec4(vec3(c),opacity); nivoDiffuseOutput=vec4(0.0,0.0,0.0,opacity);}`;
         material.needsUpdate = true;
         while (tracer.samples < 256) {
@@ -83,6 +85,7 @@ export async function exerciseTraceEdges() {
           filtered = colors.slice();
         renderer.readRenderTargetPixels(tracer.target, 0, 0, size, size, raw);
         errors.rawRead = renderer.getContext().getError();
+        guides.coverage = tracer.target.textures[2];
         denoise.draw(renderer, tracer.target.texture, 256, guides, output, variance);
         errors.filter = renderer.getContext().getError();
         renderer.readRenderTargetPixels(output, 0, 0, size, size, filtered);

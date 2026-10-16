@@ -118,7 +118,7 @@ export async function renderSnapshot(
     tracer.tiles.set(Math.ceil(width / 256), Math.ceil(height / 256));
     tracer.bounces = 16;
     tracer.transmissiveBounces = 12;
-    tracer.filterGlossyFactor = 0.25;
+    tracer.filterGlossyFactor = 0;
     tracer.renderScale = 1;
     tracer.minSamples = 1;
     tracer.fadeDuration = 0;

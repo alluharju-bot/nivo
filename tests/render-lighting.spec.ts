@@ -31,7 +31,12 @@ test('sun, PBR, glass and the full preview spotlight budget coexist', async ({ p
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(m.text());
+    if (
+      m.type() === 'error' ||
+      m.text().includes('texture units') ||
+      m.text().includes('GL_INVALID')
+    )
+      errors.push(m.text());
   });
   await ready(page, [
     ...cabinet,
@@ -60,6 +65,9 @@ test('sun, PBR, glass and the full preview spotlight budget coexist', async ({ p
   await expect(canvas).toHaveAttribute('data-spot-lights', '10');
   await expect(canvas).toHaveAttribute('data-environment', 'studio-hdri');
   await canvas.screenshot();
+  expect(
+    await canvas.evaluate((el) => (el as HTMLCanvasElement).getContext('webgl2')!.getError()),
+  ).toBe(0);
   expect(errors).toEqual([]);
 });
 
