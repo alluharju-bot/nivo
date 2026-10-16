@@ -2,6 +2,21 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.47.2 — luettavat dimensiot ja korostusmerkinnät
+
+- Mittateksti on oletuksena ruudun/paperin suuntainen. Merkintäkohtainen kierto
+  toimii mallissa, projektioissa, leikkauskuvissa ja viennissä.
+- Yhtenäinen mittaviiva, vinot päätemerkit, lyhyet ylitykset ja apuviivojen
+  katkotut keskiosat. Projektin asetuksista saa aiemman yhtenäisen tyylin.
+- Dimensiot voivat viitata lukittuihin osiin tallentamatta viitetietoja
+  itse osaan. Hold suojaa edelleen geometriaa, sijoittelua ja ulkoasua.
+- Huomautuksen kohdistusviivan väri on itsenäinen ja esikatselu näkyy myös
+  valittuna. Teksti-, kehys- ja väriasetuksia ei piiloteta pudotusosioon.
+- Korostussuorakulmio malliin ja mitta-arkille: läpinäkyvä sisus, värillinen
+  yhtenäinen/katko-/pistereuna, viivan paksuus ja valinnainen taustaväri.
+  Ei teksti- tai pinta-alapakkoa eikä muutoksia geometriaan. Mallin korostusta
+  voi vetää reunasta, piilottaa ja poistaa; sisus ei estä osien valitsemista.
+
 ## V0.47.1 — materiaalien tarkkuus renderissä
 
 - Kohinanpoiston albedo- ja normaaliopasteet integroivat saman pikselialueen

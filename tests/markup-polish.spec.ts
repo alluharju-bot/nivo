@@ -98,7 +98,7 @@ test('note placement and dragging focus text; leader and checkbox style remain i
   await expect(page.getByTestId('viewport')).toBeFocused();
   await page.getByRole('checkbox', { name: 'Näytä kohdistusviiva' }).uncheck();
   await expect(page.locator('.model-markups .note-leader')).toHaveCount(0);
-  await page.getByText('Tekstin ja kehyksen tyyli', { exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Tekstilaatikon muoto' })).toBeVisible();
   const bold = page.getByRole('checkbox', { name: 'Lihavoitu' });
   await bold.check();
   const box = (await bold.boundingBox())!,
@@ -195,6 +195,61 @@ test('color input previews 100 changes without commits, then saves once and one 
     body: JSON.stringify(metrics),
     contentType: 'application/json',
   });
+});
+
+test('note styles are immediately available and leader color previews independently with one undo', async ({
+  page,
+}, info) => {
+  const body = makeBody(1000, 800, 20);
+  const note = noteMarkupSchema.parse({
+    id: 'leader-note',
+    kind: 'note',
+    text: 'Kohdistusviivan väri',
+    color: '#fff2ce',
+    anchor: { point: [100, 100, 20] },
+    fallback: [100, 100, 20],
+    offset: [300, 200, 0],
+  });
+  await ready(page);
+  await page.getByTestId('project-file').setInputFiles({
+    name: 'note-style.nivo',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ ...freshProject(), bodies: [body], annotations: [note] })),
+  });
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '1');
+  await view(page, [body]);
+  await revealBrowser(page);
+  await page.getByRole('button', { name: 'Merkinnät 1', exact: true }).click();
+  await page.getByTestId('markup-row-leader-note').getByRole('button').first().click();
+  for (const name of ['Tekstilaatikon muoto', 'Huomautuksen tekstikoko'])
+    await expect(page.getByRole('combobox', { name })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Lihavoitu' })).toBeVisible();
+  const color = page.getByLabel('Kohdistusviivan väri', { exact: true });
+  const line = page.locator('.model-markups .note-leader');
+  await color.evaluate((node: HTMLInputElement) => {
+    node.value = '#a719bc';
+    node.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(line).toHaveAttribute('stroke', '#a719bc');
+  await expect(page.locator('.model-markups .markup-label text')).toHaveAttribute(
+    'fill',
+    note.textColor,
+  );
+  expect((await save(page)).annotations![0]).toEqual(note);
+  await color.dispatchEvent('change');
+  expect((await save(page)).annotations![0]).toMatchObject({ leaderColor: '#a719bc' });
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await expect(line).toHaveAttribute('stroke', note.textColor);
+  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await expect(line).toHaveAttribute('stroke', '#a719bc');
+  await page.getByTestId('markup-row-leader-note').getByRole('button').first().click();
+  await page.screenshot({ path: info.outputPath('note-styles-visible.png') });
+  await page.getByRole('button', { name: 'Mittakuva', exact: true }).click();
+  await expect(page.locator('.drawing-paper .note-leader')).toHaveAttribute('stroke', '#a719bc');
+  await page.getByRole('button', { name: 'Malli', exact: true }).click();
+  await expect(page.getByText('Tallessa selaimessa', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(line).toHaveAttribute('stroke', '#a719bc');
 });
 
 test('new part naming is optional, accepts Tab, and creates a group in one undoable edit', async ({

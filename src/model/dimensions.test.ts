@@ -36,9 +36,11 @@ describe('shared model dimensions', () => {
       viewBox: [0, -18, 300, 18] as [number, number, number, number],
     };
     const sheet = createSheet(project, projection, 'front', 5);
-    const heights = [...sheet.svg.matchAll(/<text [^>]*x="[^"]+" y="([^"]+)">300<\/text>/g)].map(
-      (m) => Number(m[1]),
-    );
+    const heights = [
+      ...sheet.svg.matchAll(
+        /class="dimension-label" transform="translate\([^ ]+ ([^)]+)\) rotate\(0\)"/g,
+      ),
+    ].map((m) => Number(m[1]));
     expect(heights).toHaveLength(5);
     expect(new Set(heights).size).toBe(5);
     expect(Math.max(...heights)).toBeLessThan(175);

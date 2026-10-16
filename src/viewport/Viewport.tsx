@@ -275,6 +275,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       current().dimensionDisplay,
       camera,
       current().selectedDimensionIds,
+      current().dimensionLineStyle,
     );
     modelDimensions.update(
       current().bodies,
@@ -284,6 +285,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       camera,
       current().groups,
       current().selectedDimensionIds,
+      current().dimensionLineStyle,
     );
     container
       .querySelectorAll<SVGGElement>('.model-dimensions [data-dimension]')
@@ -1956,7 +1958,12 @@ export function Viewport(props: Props) {
   );
   useEffect(
     () => api.current?.dimensionDisplay(),
-    [props.dimensions, props.dimensionDisplay, props.selectedDimensionIds],
+    [
+      props.dimensions,
+      props.dimensionDisplay,
+      props.selectedDimensionIds,
+      props.dimensionLineStyle,
+    ],
   );
   useEffect(
     () => api.current?.markupDisplay(),

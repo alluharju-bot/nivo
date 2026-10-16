@@ -2,7 +2,7 @@ import { useDrawingAnnotations } from './useDrawingAnnotations';
 import { drawingScope } from '../model/drawingAnnotations';
 import { Eye, EyeOff } from 'lucide-react';
 import { AnnotationProperties } from '../ui/AnnotationProperties';
-import { annotationText } from '../model/annotationStyle';
+import { annotationText, type AnnotationPatch } from '../model/annotationStyle';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import type { Project } from '../model/project';
 import { uid } from '../model/project';
@@ -47,7 +47,7 @@ export function SectionDrawing({
   const [selectedDimension, setSelectedDimension] = useState<string>();
   const [annotationFocus, setAnnotationFocus] = useState(0);
   const selectedAnnotation = section.dimensions.find((d) => d.id === selectedDimension);
-  const patchAnnotation = (id: string, patch: { label?: string; hidden?: boolean }) => {
+  const patchAnnotation = (id: string, patch: AnnotationPatch) => {
     if (busy) return;
     void onCommit(
       {
@@ -58,11 +58,13 @@ export function SectionDrawing({
             : s,
         ),
       },
-      patch.hidden === undefined
-        ? 'Merkinnän teksti muutettu.'
-        : patch.hidden
-          ? 'Leikkausmitta piilotettu.'
-          : 'Leikkausmitta palautettu näkyviin.',
+      patch.labelRotation !== undefined
+        ? 'Mittatekstin kierto muutettu.'
+        : patch.hidden === undefined
+          ? 'Merkinnän teksti muutettu.'
+          : patch.hidden
+            ? 'Leikkausmitta piilotettu.'
+            : 'Leikkausmitta palautettu näkyviin.',
     );
   };
   const removeDimension = (id: string) => {
@@ -494,6 +496,7 @@ export function SectionDrawing({
         {selectedAnnotation && (
           <AnnotationProperties
             annotation={selectedAnnotation}
+            rotatable
             value={
               validity.get(selectedAnnotation.id)
                 ? sectionDimensionGeometry(section, selectedAnnotation).value

@@ -1,3 +1,4 @@
+import { dimensionSvg, dimensionLabelBounds } from './dimensionGraphics';
 import { markupSvg } from '../viewport/markupSvg';
 import { markupPoints, markupLabel, markupLabelPosition } from '../model/markups';
 import { annotationText } from '../model/annotationStyle';
@@ -36,6 +37,9 @@ interface DimensionPlacement {
   y1: number;
   y2: number;
   lane: number;
+  rotation: number;
+  gap: number;
+  thickness: number;
 }
 /** Reuse lanes only for non-overlapping dimensions, including their printed text. */
 function dimensionLayout(project: Project, view: DrawingView, scale: number) {
@@ -65,8 +69,11 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
       y2 = Math.max(...pts.map((p) => p[1]));
     const lo = horizontal ? x1 : y1,
       hi = horizontal ? x2 : y2;
+    const label = annotationText(dimension, value, formatLength(value));
+    const rotation = dimension.labelRotation ?? 0;
+    const textBox = dimensionLabelBounds(label.length, rotation);
     const middle = (lo + hi) / 2,
-      textHalf = annotationText(dimension, value, formatLength(value)).length * 0.95;
+      textHalf = (horizontal ? textBox.width : textBox.height) / 2;
     const interval: [number, number] = [
       Math.min(lo, middle - textHalf) - 3,
       Math.max(hi, middle + textHalf) + 3,
@@ -85,7 +92,10 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
       bodyId: body.id,
       name: body.name,
       value,
-      label: annotationText(dimension, value, formatLength(value)),
+      label,
+      rotation,
+      gap: 0,
+      thickness: horizontal ? textBox.height : textBox.width,
       horizontal,
       x1,
       x2,
@@ -94,12 +104,19 @@ function dimensionLayout(project: Project, view: DrawingView, scale: number) {
       lane,
     });
   }
-  return {
-    rows,
-    orphanCount,
-    left: lanes[1].length ? 15 + (lanes[1].length - 1) * 7 : 0,
-    bottom: lanes[0].length ? 13 + (lanes[0].length - 1) * 7 : 0,
+  const extent = (horizontal: boolean) => {
+    const members = rows.filter((row) => row.horizontal === horizontal);
+    let outside = 3;
+    for (let lane = 0; lane < lanes[horizontal ? 0 : 1].length; lane++) {
+      const group = members.filter((row) => row.lane === lane);
+      const thickness = Math.max(...group.map((row) => row.thickness));
+      const gap = Math.max(9, outside + thickness / 2);
+      group.forEach((row) => (row.gap = gap));
+      outside = gap + thickness / 2 + 3;
+    }
+    return members.length ? outside : 0;
   };
+  return { rows, orphanCount, left: extent(false), bottom: extent(true) };
 }
 function annotationBounds(
   project: Project,
@@ -130,7 +147,7 @@ function annotationBounds(
   for (const m of project.settings.markupsHidden ? [] : (project.annotations ?? [])) {
     if (m.hidden) continue;
     if (
-      m.kind === 'area' &&
+      m.kind !== 'note' &&
       Math.abs(m.frame.normal.reduce((s, n, i) => s + n * drawingFrame(view).normal[i], 0)) < 1e-6
     )
       continue;
@@ -206,17 +223,20 @@ export function createSheet(
       y2 = d.y2 + ty;
     const label = escapeXml(d.label);
     const group = `<g data-dimension="${escapeXml(d.id)}" data-body="${escapeXml(d.bodyId)}" data-mm="${n(d.value)}"><title>${escapeXml(d.name)} · ${label} mm</title>`;
-    if (d.horizontal) {
-      const y = ty + (by + bh) / scale + 9 + d.lane * 7;
-      lines.push(
-        `${group}<path d="M${n(x1)} ${n(y2 + 1)}V${n(y + 2)} M${n(x2)} ${n(y2 + 1)}V${n(y + 2)} M${n(x1)} ${n(y)}H${n(x2)} M${n(x1 - 1)} ${n(y + 1.5)}l2 -3 M${n(x2 - 1)} ${n(y + 1.5)}l2 -3"/><text x="${n((x1 + x2) / 2)}" y="${n(y - 1.5)}">${label}</text></g>`,
-      );
-    } else {
-      const x = tx + bx / scale - 9 - d.lane * 7;
-      lines.push(
-        `${group}<path d="M${n(x1 - 1)} ${n(y1)}H${n(x - 2)} M${n(x1 - 1)} ${n(y2)}H${n(x - 2)} M${n(x)} ${n(y1)}V${n(y2)} M${n(x - 1.5)} ${n(y1 + 1)}l3 -2 M${n(x - 1.5)} ${n(y2 + 1)}l3 -2"/><text transform="translate(${n(x - 1.5)} ${n((y1 + y2) / 2)}) rotate(-90)">${label}</text></g>`,
-      );
-    }
+    const a = d.horizontal ? [x1, ty + (by + bh) / scale + d.gap] : [tx + bx / scale - d.gap, y1];
+    const b = d.horizontal ? [x2, a[1]] : [a[0], y2];
+    lines.push(
+      `${group}${dimensionSvg(
+        [x1, d.horizontal ? y2 : y1],
+        [d.horizontal ? x2 : x1, y2],
+        a,
+        b,
+        label,
+        d.label.length,
+        d.rotation,
+        project.settings.dimensionLineStyle,
+      )}</g>`,
+    );
   }
   for (const d of project.dimensions.filter(isPointDimension)) {
     if (
@@ -230,16 +250,18 @@ export function createSheet(
       const q = projectPoint(p, view);
       return [q[0] / scale + tx, q[1] / scale + ty];
     });
-    const dx = b[0] - a[0],
-      dy = b[1] - a[1],
-      length = Math.hypot(dx, dy),
-      nx = -dy / length,
-      ny = dx / length;
-    let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    if (angle > 90) angle -= 180;
-    if (angle < -90) angle += 180;
+    const label = annotationText(d, g.value, formatLength(g.value));
     lines.push(
-      `<g data-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}"><path d="M${n(start[0])} ${n(start[1])}L${n(a[0])} ${n(a[1])}L${n(b[0])} ${n(b[1])}L${n(end[0])} ${n(end[1])} M${n(a[0] - nx)} ${n(a[1] - ny)}l${n(nx * 2)} ${n(ny * 2)} M${n(b[0] - nx)} ${n(b[1] - ny)}l${n(nx * 2)} ${n(ny * 2)}"/><text transform="translate(${n((a[0] + b[0]) / 2)} ${n((a[1] + b[1]) / 2)}) rotate(${n(angle)})" dy="-1.5">${escapeXml(annotationText(d, g.value, formatLength(g.value)))}</text></g>`,
+      `<g data-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}">${dimensionSvg(
+        start,
+        end,
+        a,
+        b,
+        escapeXml(label),
+        label.length,
+        d.labelRotation,
+        project.settings.dimensionLineStyle,
+      )}</g>`,
     );
   }
   const paths = (list: string[]) => list.map((d) => `<path d="${escapeXml(d)}"/>`).join('');
@@ -257,7 +279,7 @@ export function createSheet(
     ${hidden ? `<g stroke="#7c8580" stroke-width="${0.18 * scale}" stroke-dasharray="${2 * scale} ${scale}">${paths(projection.hidden)}</g>` : ''}
     ${paths(projection.visible)}
   </g>${markupContent}
-  <g fill="none" stroke="#475a51" stroke-width="0.18">${lines.join('').replaceAll('<text ', '<text fill="#243630" stroke="none" font-family="Arial, sans-serif" font-size="3.2" text-anchor="middle" ')}</g>`;
+  <g fill="none" color="#243630" stroke="#475a51" stroke-width="0.25" stroke-linecap="round">${lines.join('')}</g>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210" role="img" aria-label="${viewLabels[view]}, mittakaava 1:${scale}">
   <rect width="297" height="210" fill="white"/>
   <g fill="none" stroke="#243630" stroke-width="0.2"><rect x="10" y="10" width="277" height="190"/><path d="M10 177H287 M205 177V200 M250 177V200"/></g>

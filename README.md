@@ -3,6 +3,16 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.47.2** selkeyttää mitoitusta ja huomautuksia. Mittateksti pysyy
+ruudulla vaakasuorassa ja sen kiertoa voi säätää valitun dimension paneelista.
+Uudessa viivatyylissä apuviivat ovat keskeltä katkotut ja päätemerkit vinot;
+alkuperäisen yhtenäisen tyylin voi valita asetuksista. Sama esitys toimii
+mittakuvissa sekä SVG- ja PDF-viennissä. Myös Hold-lukittuihin osiin voi mitata.
+Huomautuksen kohdistusviivalla on oma väri, ja teksti- sekä kehysasetukset
+ovat suoraan näkyvissä. **Huomautus → Korostussuorakulmio** rajaa alueen
+ilman tekstiä tai geometriaa; väri, viivatyyli, paksuus ja kevyt taustaväri
+ovat muokattavissa. Mittakuvan **Korosta alue** käyttää samoja valintoja.
+
 Versio **0.47.1** korjaa renderin puutekstuurien pehmenemistä. Kohinanpoisto
 säilyttää saman pikselialueen syykuvion, jonka varsinainen renderi laskee.
 Materiaalikuvat pakataan eri kokoisina 128 MiB:n muistirajan sisään; tummat

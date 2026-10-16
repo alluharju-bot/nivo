@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { drawingViews } from './drawingViews';
+import { highlightStyle } from './highlightStyle';
 
 const id = z.string().min(1).max(100);
 export const drawingScopeSchema = z.discriminatedUnion('kind', [
@@ -15,6 +16,7 @@ export const drawingPageSchema = z.discriminatedUnion('kind', [
 /** Page annotations use paper millimetres: notes keep a readable printed size at every scale. */
 export const drawingAnnotationSchema = z
   .object({
+    ...highlightStyle,
     id,
     page: drawingPageSchema,
     kind: z.enum(['note', 'highlight']),

@@ -159,6 +159,7 @@ export interface ViewportProps {
   groups: BodyGroup[];
   dimensions: Dimension[];
   dimensionDisplay: 'all' | 'selected' | 'hidden';
+  dimensionLineStyle?: import('../model/annotationStyle').DimensionLineStyle;
   meshes: BodyMesh[];
   selected?: string;
   selectedIds: string[];
@@ -200,13 +201,17 @@ export interface ViewportProps {
   faceDistance: number;
   extrusionLocked: boolean;
   faceSpan?: FaceSpan;
-  measureMode: 'guide' | 'free' | 'dimension' | 'area' | 'note';
+  measureMode: 'guide' | 'free' | 'dimension' | 'area' | 'note' | 'highlight';
   markups?: Markup[];
   markupBodies?: Body[];
   markupDraft?: Markup;
   selectedMarkupIds?: string[];
   markupStyle?: {
     area: Pick<AreaMarkup, 'name' | 'color'>;
+    highlight: Pick<
+      import('../model/project').HighlightMarkup,
+      'name' | 'color' | 'lineStyle' | 'lineWidth' | 'fillOpacity'
+    >;
     note: Pick<
       NoteMarkup,
       'text' | 'color' | 'textColor' | 'shape' | 'fontSize' | 'bold' | 'leader'

@@ -103,7 +103,7 @@ test('callouts anchor, edit, restyle, drag, hide and export without changing the
   const text = page.getByRole('textbox', { name: 'Huomautuksen teksti', exact: true });
   await text.fill('Lista <valkoinen>');
   await text.press('Enter');
-  await page.getByText('Tekstin ja kehyksen tyyli', { exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Tekstilaatikon muoto' })).toBeVisible();
   await page.getByRole('combobox', { name: 'Tekstilaatikon muoto' }).selectOption('square');
   await page.getByRole('combobox', { name: 'Huomautuksen tekstikoko' }).selectOption('20');
   const label = page.locator(`.model-markups [data-markup="${note.id}"] .markup-label`);

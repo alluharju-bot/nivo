@@ -2,7 +2,7 @@ import { useDrawingAnnotations } from './useDrawingAnnotations';
 import { drawingScope } from '../model/drawingAnnotations';
 import { drawingFrame } from '../model/drawingViews';
 import { AnnotationProperties } from '../ui/AnnotationProperties';
-import { annotationText } from '../model/annotationStyle';
+import { annotationText, type AnnotationPatch } from '../model/annotationStyle';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Download, Ruler, Trash2, X, Eye, EyeOff } from 'lucide-react';
 import type { CadClient } from '../cad/client';
@@ -71,18 +71,20 @@ export function DrawingWorkspace({
   const [selectedDimension, setSelectedDimension] = useState<string>();
   const [annotationFocus, setAnnotationFocus] = useState(0);
   const selectedAnnotation = project.dimensions.find((d) => d.id === selectedDimension);
-  const patchAnnotation = (id: string, patch: { label?: string; hidden?: boolean }) => {
+  const patchAnnotation = (id: string, patch: AnnotationPatch) => {
     if (busy) return;
     void onCommit(
       {
         ...project,
         dimensions: project.dimensions.map((d) => (d.id === id ? { ...d, ...patch } : d)),
       },
-      patch.hidden === undefined
-        ? 'Merkinnän teksti muutettu.'
-        : patch.hidden
-          ? 'Dimensio piilotettu.'
-          : 'Dimensio palautettu näkyviin.',
+      patch.labelRotation !== undefined
+        ? 'Mittatekstin kierto muutettu.'
+        : patch.hidden === undefined
+          ? 'Merkinnän teksti muutettu.'
+          : patch.hidden
+            ? 'Dimensio piilotettu.'
+            : 'Dimensio palautettu näkyviin.',
     );
   };
   const [direction, setDirection] = useState<DimensionDirection>('auto');
@@ -571,6 +573,7 @@ export function DrawingWorkspace({
         {selectedAnnotation && (
           <AnnotationProperties
             annotation={selectedAnnotation}
+            rotatable
             value={dimensionValue(project, selectedAnnotation)}
             busy={busy}
             focusKey={annotationFocus}

@@ -2,7 +2,7 @@ import type { ViewportProps } from './types';
 import {
   uid,
   type Markup,
-  type AreaMarkup,
+  type RegionMarkup,
   type NoteMarkup,
   type Anchor,
   type Vec3,
@@ -34,7 +34,7 @@ export function markupInteractions({
   viewNormal: () => Vec3;
 }) {
   let epoch = -1,
-    area: AreaMarkup | undefined,
+    area: RegionMarkup | undefined,
     corner: Vec3 | undefined,
     note: NoteMarkup | undefined,
     preview: Markup | undefined;
@@ -57,13 +57,13 @@ export function markupInteractions({
         x: number;
         y: number;
         stage: 'start' | 'end' | 'note' | 'drag';
-        source?: NoteMarkup;
+        source?: NoteMarkup | import('../model/project').HighlightMarkup;
         grab?: Vec3;
         frame?: SketchFrame;
       }
     | undefined;
   const active = () =>
-    current().tool === 'measure' && ['area', 'note'].includes(current().measureMode);
+    current().tool === 'measure' && ['area', 'note', 'highlight'].includes(current().measureMode);
   const sync = () => {
     if (epoch !== current().epoch) {
       discardQueued();
@@ -77,7 +77,11 @@ export function markupInteractions({
       automaticNormal = undefined;
       lastAxis = current().axis;
     }
-    if (lastAxis !== current().axis && active() && current().measureMode === 'area') {
+    if (
+      lastAxis !== current().axis &&
+      active() &&
+      ['area', 'highlight'].includes(current().measureMode)
+    ) {
       discardQueued();
       lastAxis = current().axis;
       if (area && pivot && automaticNormal) {
@@ -93,7 +97,8 @@ export function markupInteractions({
           base = toUV(pivot, before);
         area = reframeArea(area, normal, pivot);
         if (corner && uv) corner = fromUV([uv[0] - base[0], uv[1] - base[1]], area.frame);
-        const rotated = preview?.kind === 'area' ? reframeArea(preview, normal, pivot) : area;
+        const rotated =
+          preview && preview.kind !== 'note' ? reframeArea(preview, normal, pivot) : area;
         canvas.dataset.sketchPlane = JSON.stringify(normal);
         publish(rotated);
       }
@@ -103,8 +108,10 @@ export function markupInteractions({
   const publish = (m?: Markup) => {
     const previous = preview;
     if (
-      m?.kind === 'area' &&
-      previous?.kind === 'area' &&
+      m &&
+      m.kind !== 'note' &&
+      previous &&
+      previous.kind !== 'note' &&
       m.frame === previous.frame &&
       m.name === previous.name &&
       m.color === previous.color &&
@@ -131,12 +138,20 @@ export function markupInteractions({
         e.clientY <= box.bottom + 4
       )
         return current().markups?.find((m) => m.id === el.dataset.markup);
-      const path = el.querySelector<SVGPathElement>('.area-fill'),
+      const path = el.querySelector<SVGPathElement>(
+          el.dataset.kind === 'highlight' ? '.highlight-hit' : '.area-fill',
+        ),
         matrix = path?.getScreenCTM();
       if (
         path &&
         matrix &&
-        path.isPointInFill(new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse()))
+        (el.dataset.kind === 'highlight'
+          ? path.isPointInStroke(
+              new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse()),
+            )
+          : path.isPointInFill(
+              new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse()),
+            ))
       )
         return current().markups?.find((m) => m.id === el.dataset.markup);
     }
@@ -144,7 +159,17 @@ export function markupInteractions({
   const update = (e: PointerEvent) => {
     if (press?.stage === 'drag' && press.source && press.frame && press.grab) {
       const p = pointOnFrame(e, press.frame, false);
-      if (p) publish({ ...press.source, offset: add(press.source.offset, sub(p, press.grab)) });
+      if (p) {
+        const delta = sub(p, press.grab);
+        publish(
+          press.source.kind === 'note'
+            ? { ...press.source, offset: add(press.source.offset, delta) }
+            : {
+                ...press.source,
+                frame: { ...press.source.frame, origin: add(press.source.frame.origin, delta) },
+              },
+        );
+      }
       return;
     }
     if (note) {
@@ -166,26 +191,36 @@ export function markupInteractions({
       ];
       publish({
         ...area,
-        ...defaults().area,
+        ...defaults()[area.kind],
         rectangles:
           r[2] - r[0] >= 0.1 && r[3] - r[1] >= 0.1 ? [...area.rectangles, r] : area.rectangles,
       });
       return;
     }
     if (active()) {
-      if (current().measureMode === 'area') {
+      if (['area', 'highlight'].includes(current().measureMode)) {
         if (area) pointOnFrame(e, area.frame, true);
         else start(e);
       } else pick(e);
     }
   };
   const finishRect = () => {
-    if (preview?.kind === 'area' && area && preview.rectangles.length > area.rectangles.length) {
+    if (
+      preview &&
+      preview.kind !== 'note' &&
+      area &&
+      preview.rectangles.length > area.rectangles.length
+    ) {
       const r = preview.rectangles.at(-1)!;
       current().onRememberMeasures?.(r[2] - r[0], r[3] - r[1]);
       area = preview;
       corner = undefined;
       publish(area);
+      if (area.kind === 'highlight') {
+        current().onMarkupCommit?.(area);
+        area = undefined;
+        publish();
+      }
     }
   };
   const down = (e: PointerEvent) => {
@@ -201,11 +236,14 @@ export function markupInteractions({
     const found = current().tool === 'select' || candidate?.kind === 'note' ? candidate : undefined;
     if (found) {
       current().onMarkupSelect?.(found.id, e.shiftKey);
-      if (found.kind === 'note' && !e.shiftKey) {
-        const frame = sketchFrame(
-          notePosition(found, current().markupBodies ?? current().bodies),
-          viewNormal(),
-        );
+      if ((found.kind === 'note' || found.kind === 'highlight') && !e.shiftKey) {
+        const frame =
+          found.kind === 'highlight'
+            ? found.frame
+            : sketchFrame(
+                notePosition(found, current().markupBodies ?? current().bodies),
+                viewNormal(),
+              );
         press = {
           x: e.clientX,
           y: e.clientY,
@@ -222,7 +260,7 @@ export function markupInteractions({
     if (!active()) return false;
     canvas.focus({ preventScroll: true });
     canvas.setPointerCapture(e.pointerId);
-    if (current().measureMode === 'area') {
+    if (['area', 'highlight'].includes(current().measureMode)) {
       if (corner) {
         update(e);
         finishRect();
@@ -237,7 +275,8 @@ export function markupInteractions({
         p = area ? pointOnFrame(e, area.frame, true) : first?.point;
       if (!p) return true;
       if (!area) {
-        area = { id: uid(), kind: 'area', ...defaults().area, frame: first!.frame, rectangles: [] };
+        const kind = current().measureMode === 'highlight' ? 'highlight' : 'area';
+        area = { id: uid(), kind, ...defaults()[kind], frame: first!.frame, rectangles: [] };
         pivot = p;
         automaticNormal = first!.automaticNormal ?? first!.frame.normal;
       }
@@ -312,7 +351,7 @@ export function markupInteractions({
       const p = press;
       press = undefined;
       if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 4) {
-        if (p.stage === 'drag' && preview?.kind === 'note') {
+        if (p.stage === 'drag' && (preview?.kind === 'note' || preview?.kind === 'highlight')) {
           current().onMarkupCommit?.(preview, true);
           publish();
         } else if (p.stage === 'start') {
@@ -343,8 +382,8 @@ export function markupInteractions({
       }
       if (area) {
         finishRect();
-        if (area.rectangles.length) {
-          current().onMarkupCommit?.({ ...area, ...defaults().area });
+        if (area?.rectangles.length) {
+          current().onMarkupCommit?.({ ...area, ...defaults()[area.kind] });
           area = undefined;
           corner = undefined;
           publish();

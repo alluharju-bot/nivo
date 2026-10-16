@@ -6,12 +6,69 @@ import {
   parseProject,
   areaMarkupSchema,
   noteMarkupSchema,
+  highlightMarkupSchema,
 } from './project';
 import { referenceAnchor } from './guides';
 import { sketchFrame } from './sketch';
 import { markupSvg } from '../viewport/markupSvg';
 import { createSheet } from '../drawing/svg';
 import { shareProjectData } from './sharing';
+
+test('model highlights are geometry-free, transparent by default and keep border style in drawings', () => {
+  const highlight = highlightMarkupSchema.parse({
+    id: 'highlight',
+    kind: 'highlight',
+    name: 'Korostus',
+    color: '#8844cc',
+    frame: sketchFrame([0, 0, 20], [0, 0, 1]),
+    rectangles: [[0, 0, 500, 300]],
+    lineStyle: 'dotted',
+    lineWidth: 3,
+  });
+  const project = parseProject(JSON.stringify({ ...freshProject(), annotations: [highlight] }));
+  expect(project.annotations![0]).toEqual(highlight);
+  expect(project.bodies).toHaveLength(0);
+  const svg = markupSvg([highlight], [], ([x, y]) => [x, y, 0]);
+  expect(svg).toContain('fill-opacity="0"');
+  expect(svg).toContain('stroke-dasharray="1 4"');
+  expect(svg).not.toContain('<text');
+  expect(svg).not.toContain('area-fill');
+  const sheet = createSheet(
+    project,
+    { visible: [], hidden: [], viewBox: [0, 0, 500, 300] },
+    'top',
+    5,
+  );
+  expect(sheet.svg).toContain('class="highlight-outline"');
+  expect(sheet.svg).toContain('stroke-dasharray="0.25 1"');
+});
+
+test('leader color is independent of text and stays visible when selected and exported', () => {
+  const note = noteMarkupSchema.parse({
+    id: 'color-note',
+    kind: 'note',
+    text: 'Lista',
+    anchor: { point: [0, 0, 0] },
+    fallback: [0, 0, 0],
+    offset: [100, 100, 0],
+    color: '#fff2ce',
+    textColor: '#112233',
+    leaderColor: '#4477cc',
+  });
+  const source = { ...freshProject(), annotations: [note] };
+  expect(parseProject(JSON.stringify(source)).annotations![0]).toEqual(note);
+  for (const selected of [[], [note.id]]) {
+    const svg = markupSvg([note], [], (p) => p, selected);
+    expect(svg).toContain('class="note-leader" fill="none" stroke="#4477cc"');
+    expect(svg).toContain('fill="#112233"');
+  }
+  expect(markupSvg([{ ...note, leaderColor: undefined }], [], (p) => p)).toContain(
+    'class="note-leader" fill="none" stroke="#112233"',
+  );
+  expect(
+    createSheet(source, { visible: [], hidden: [], viewBox: [0, 0, 100, 100] }, 'top', 1).svg,
+  ).toContain('class="note-leader" fill="none" stroke="#4477cc"');
+});
 
 test('overlapping, duplicate and contained rectangles count once with no internal seam', () => {
   const rects: AreaRect[] = [

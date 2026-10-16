@@ -50,7 +50,7 @@ import { areaText, areaUnion, markupName } from './model/markups';
 import type { Markup, Project } from './model/project';
 import type { MeasureMode } from './ui/ToolRail';
 import { AnnotationProperties } from './ui/AnnotationProperties';
-import { annotationText } from './model/annotationStyle';
+import { annotationText, type AnnotationPatch } from './model/annotationStyle';
 import { singleOpening, type OpeningPattern } from './model/openingPattern';
 import { OpeningPatternFields } from './ui/OpeningPatternFields';
 import { profileCorners } from './model/profileCorners';
@@ -469,6 +469,13 @@ export default function App() {
   const markupStyle = useMemo(
     () => ({
       area: { name: areaName.trim() || 'Pinta-alue', color: areaColor },
+      highlight: {
+        name: 'Korostusalue',
+        color: '#b18b35',
+        lineStyle: 'solid' as const,
+        lineWidth: 2,
+        fillOpacity: 0,
+      },
       note: {
         text: noteText.trim() || 'Huomautus',
         leader: noteLeader,
@@ -492,7 +499,7 @@ export default function App() {
       (markupDraft && !(project.annotations ?? []).some((m) => m.id === markupDraft.id)
         ? ({
             ...markupDraft,
-            ...(markupDraft.kind === 'area' ? markupStyle.area : markupStyle.note),
+            ...markupStyle[markupDraft.kind],
           } as Markup)
         : markupDraft),
     [
@@ -679,7 +686,7 @@ export default function App() {
   const committing = useRef(false);
   const [selectedFace, setSelectedFace] = useState<FaceRef>();
   const [tool, setTool] = useState<Tool>('select');
-  const markupMode = tool === 'measure' && (measureMode === 'area' || measureMode === 'note');
+  const markupMode = tool === 'measure' && ['area', 'note', 'highlight'].includes(measureMode);
 
   const [renderOpen, setRenderOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
@@ -2280,6 +2287,9 @@ export default function App() {
         {
           ...project,
           bodies: project.bodies.map((b) => {
+            // A measurement owns its reference coordinates. Held parts must
+            // remain byte-for-byte unchanged, including their reference cache.
+            if (bodyLocked(b, project.groups)) return b;
             const anchors = [dimension.start, dimension.end].filter(
               (a) => 'bodyId' in a && a.bodyId === b.id && a.key.startsWith('reference:'),
             );
@@ -3330,7 +3340,7 @@ export default function App() {
   const patchAnnotation = (
     kind: 'dimensions' | 'guides',
     ids: string[],
-    patch: { label?: string; hidden?: boolean },
+    patch: AnnotationPatch,
   ) => {
     if (busy) return;
     const next = {
@@ -3339,11 +3349,13 @@ export default function App() {
     };
     void editor.transact(
       next,
-      patch.hidden === undefined
-        ? 'Merkinnän teksti muutettu.'
-        : patch.hidden
-          ? 'Merkintä piilotettu.'
-          : 'Merkintä palautettu näkyviin.',
+      patch.labelRotation !== undefined
+        ? 'Mittatekstin kierto muutettu.'
+        : patch.hidden === undefined
+          ? 'Merkinnän teksti muutettu.'
+          : patch.hidden
+            ? 'Merkintä piilotettu.'
+            : 'Merkintä palautettu näkyviin.',
     );
   };
   const selectDimension = (id: string, additive = false, editing = false) => {
@@ -3403,7 +3415,9 @@ export default function App() {
           ? 'Merkintä päivitetty.'
           : markup.kind === 'area'
             ? 'Pinta-alue yhdistetty ja tallennettu.'
-            : 'Huomautus tallennettu.',
+            : markup.kind === 'highlight'
+              ? 'Korostusalue tallennettu.'
+              : 'Huomautus tallennettu.',
       )
     ) {
       resetGesture();
@@ -6055,6 +6069,7 @@ export default function App() {
                 free: 'Vapaa mittaviiva',
                 area: 'Pinta-ala',
                 note: 'Huomautus',
+                highlight: 'Korostusalue',
               }[measureMode]
             : tool === 'boolean'
               ? booleanOperation === 'cut'
@@ -6156,21 +6171,23 @@ export default function App() {
                                   ? 'Valitse muokattavat kohdeosat.'
                                   : 'Valitse työstökappaleet ja hyväksy.'
                               : tool === 'measure'
-                                ? measureMode === 'area'
-                                  ? 'Piirrä suorakulmioita. Enter yhdistää pinta-alueen.'
-                                  : measureMode === 'note'
-                                    ? noteLeader
-                                      ? 'Poimi kohdepiste ja sijoita tekstilaatikko.'
-                                      : 'Napsauta tekstilaatikon paikka.'
-                                    : guidePointEdit
-                                      ? 'Aseta viivan pää. Muut viivat jäävät paikalleen.'
-                                      : measureMode === 'dimension'
-                                        ? 'Poimi kaksi pistettä ja sijoita mittaviiva sivulle.'
-                                        : measureMode === 'free'
-                                          ? 'Jatka pisteestä pisteeseen. Enter päättää ketjun.'
-                                          : guideDraft
-                                            ? 'Osoita etäisyys tai kirjoita mitta.'
-                                            : 'Tartu reunaan tai pisteeseen ja vedä apuviiva.'
+                                ? measureMode === 'highlight'
+                                  ? 'Korostusalue'
+                                  : measureMode === 'area'
+                                    ? 'Piirrä suorakulmioita. Enter yhdistää pinta-alueen.'
+                                    : measureMode === 'note'
+                                      ? noteLeader
+                                        ? 'Poimi kohdepiste ja sijoita tekstilaatikko.'
+                                        : 'Napsauta tekstilaatikon paikka.'
+                                      : guidePointEdit
+                                        ? 'Aseta viivan pää. Muut viivat jäävät paikalleen.'
+                                        : measureMode === 'dimension'
+                                          ? 'Poimi kaksi pistettä ja sijoita mittaviiva sivulle.'
+                                          : measureMode === 'free'
+                                            ? 'Jatka pisteestä pisteeseen. Enter päättää ketjun.'
+                                            : guideDraft
+                                              ? 'Osoita etäisyys tai kirjoita mitta.'
+                                              : 'Tartu reunaan tai pisteeseen ja vedä apuviiva.'
                                 : instructions[tool];
   const linkTarget =
     tool === 'knife' || (tool === 'circle' && shapeKind === 'sphere')
@@ -6695,6 +6712,29 @@ export default function App() {
                     </select>
                   </label>
                   <label>
+                    Dimensioiden viivatyyli
+                    <select
+                      aria-label="Dimensioiden viivatyyli"
+                      disabled={busy}
+                      value={project.settings.dimensionLineStyle ?? 'drafting'}
+                      onChange={(e) =>
+                        void editor.transact(
+                          {
+                            ...project,
+                            settings: {
+                              ...project.settings,
+                              dimensionLineStyle: e.target.value as 'drafting' | 'solid',
+                            },
+                          },
+                          'Dimensioiden viivatyyli muutettu.',
+                        )
+                      }
+                    >
+                      <option value="drafting">Katkotut apuviivat ja vinot päätemerkit</option>
+                      <option value="solid">Yhtenäiset viivat · alkuperäinen</option>
+                    </select>
+                  </label>
+                  <label>
                     <CommitCheckbox
                       label="Kaikki apuviivat x-ray"
                       disabled={busy}
@@ -7086,7 +7126,9 @@ export default function App() {
                             <small>
                               {m.kind === 'area'
                                 ? areaText(areaUnion(m.rectangles).area)
-                                : 'Tekstihuomautus'}
+                                : m.kind === 'highlight'
+                                  ? 'Korostusalue'
+                                  : 'Tekstihuomautus'}
                             </small>
                           </span>
                         </button>
@@ -7788,6 +7830,7 @@ export default function App() {
               onDimensionPreview={setDimensionDraft}
               onDimensionCommit={(d) => void commitDimension(d)}
               dimensionDisplay={project.settings.dimensionDisplay}
+              dimensionLineStyle={project.settings.dimensionLineStyle}
               moveMode={project.settings.moveMode ?? 'axis'}
               copyMove={copyMove}
               onCopyMove={changeCopyMove}
@@ -8441,6 +8484,23 @@ export default function App() {
                   className="markup-tool-panel"
                   aria-label={measureMode === 'area' ? 'Pinta-alatyökalu' : 'Huomautustyökalu'}
                 >
+                  {measureMode !== 'area' && (
+                    <label>
+                      Huomautuksen tyyppi
+                      <select
+                        aria-label="Huomautuksen tyyppi"
+                        value={measureMode}
+                        onChange={(e) => {
+                          resetGesture();
+                          setSelectedMarkupIds([]);
+                          setMeasureMode(e.target.value as MeasureMode);
+                        }}
+                      >
+                        <option value="note">Tekstilaatikko</option>
+                        <option value="highlight">Korostussuorakulmio</option>
+                      </select>
+                    </label>
+                  )}
                   {selectedMarkup && !markupDraft ? (
                     <MarkupProperties
                       key={selectedMarkup.id}
@@ -8453,6 +8513,11 @@ export default function App() {
                       }
                       onDelete={() => removeMarkup([selectedMarkup.id])}
                     />
+                  ) : measureMode === 'highlight' ? (
+                    <p>
+                      Vedä suorakulmio korostettavan alueen ympärille tai napsauta sen kaksi kulmaa.
+                      Säädä reunaa valmistumisen jälkeen.
+                    </p>
                   ) : (
                     <>
                       <label>
@@ -9117,6 +9182,7 @@ export default function App() {
                   </div>
                   <AnnotationProperties
                     annotation={(selectedDimension ?? selectedGuide)!}
+                    rotatable={!!selectedDimension}
                     value={
                       selectedDimension
                         ? dimensionValue(project, selectedDimension)
@@ -10344,11 +10410,13 @@ export default function App() {
               : renderOpen
                 ? 'Renderöinti · materiaalit ja valo · Esc palaa malliin'
                 : markupMode
-                  ? measureMode === 'area'
-                    ? 'Napsauta suorakulmioiden kulmat · Enter yhdistää · Esc peruu.'
-                    : noteLeader
-                      ? 'Napsauta kohdepiste ja tekstilaatikon paikka · Valitse-työkalulla voit siirtää laatikkoa.'
-                      : 'Napsauta tekstilaatikon paikka ja kirjoita huomautus.'
+                  ? measureMode === 'highlight'
+                    ? 'Korostusalue'
+                    : measureMode === 'area'
+                      ? 'Napsauta suorakulmioiden kulmat · Enter yhdistää · Esc peruu.'
+                      : noteLeader
+                        ? 'Napsauta kohdepiste ja tekstilaatikon paikka · Valitse-työkalulla voit siirtää laatikkoa.'
+                        : 'Napsauta tekstilaatikon paikka ja kirjoita huomautus.'
                   : editing || tool === 'navigate' || tool === 'boolean'
                     ? toolStep
                     : editor.message}

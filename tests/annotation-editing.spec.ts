@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ready, view, save } from './helpers';
 import { freshProject, makeBody, type Project } from '../src/model/project';
+import { readFile } from 'node:fs/promises';
 
 async function setup(page: Page) {
   const body = makeBody(600, 400, 20);
@@ -73,6 +74,57 @@ async function browserTab(page: Page, name: string) {
     .click();
 }
 
+test('dimension labels stay upright, rotate independently and keep their style on paper and reload', async ({
+  page,
+}, info) => {
+  const original = await setup(page);
+  const group = page.locator('.model-dimensions [data-dimension="extent"]');
+  const label = group.locator('.dimension-label');
+  await expect(label).toHaveAttribute('transform', /rotate\(0\)/);
+  await expect(group.locator('.dimension-extension')).toHaveAttribute('d', /M.+L/);
+  await labelClick(page, 'extent');
+  const angle = page.getByRole('spinbutton', { name: 'Mittatekstin kierto', exact: true });
+  await angle.fill('22.5');
+  await angle.press('Enter');
+  await expect(label).toHaveAttribute('transform', /rotate\(22.5\)/);
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await expect(label).toHaveAttribute('transform', /rotate\(0\)/);
+  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await page.getByLabel('Asetukset', { exact: true }).click();
+  await page.getByRole('combobox', { name: 'Dimensioiden viivatyyli' }).selectOption('solid');
+  await expect(group.locator('.dimension-extension')).toHaveAttribute('d', '');
+  await page.getByRole('combobox', { name: 'Dimensioiden viivatyyli' }).selectOption('drafting');
+  await page.getByLabel('Asetukset', { exact: true }).click();
+  await view(page, original.bodies, 'front');
+  await expect(label).toHaveAttribute('transform', /rotate\(22.5\)/);
+  await page.screenshot({ path: info.outputPath('dimension-rotated.png') });
+  await page.getByRole('button', { name: 'Mittakuva', exact: true }).click();
+  const printed = page.locator('.drawing-paper [data-dimension="extent"]');
+  await expect(printed.locator('.dimension-label')).toHaveAttribute('transform', /rotate\(22.5\)/);
+  await printed.locator('text').dblclick();
+  await angle.fill('0');
+  await angle.press('Enter');
+  await expect(printed.locator('.dimension-label')).toHaveAttribute('transform', /rotate\(0\)/);
+  await page.screenshot({ path: info.outputPath('dimension-print.png') });
+  const svgDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Vie SVG-mittakuva', exact: true }).click();
+  const svg = await readFile((await (await svgDownload).path())!, 'utf8');
+  expect(svg).toContain('class="dimension-extension"');
+  expect(svg).toContain('rotate(0)');
+  const pdfDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Vie PDF', exact: true }).click();
+  expect(await readFile((await (await pdfDownload).path())!, 'latin1')).toContain('%PDF-');
+  const saved = await save(page);
+  expect(saved.bodies).toEqual(original.bodies);
+  expect(saved.dimensions[0]).toEqual({ ...original.dimensions[0], labelRotation: 0 });
+  expect(saved.settings.dimensionLineStyle).toBe('drafting');
+  await page.getByRole('button', { name: 'Malli', exact: true }).click();
+  await expect(page.getByText('Tallessa selaimessa', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(label).toHaveAttribute('transform', /rotate\(0\)/);
+  await expect(group.locator('.dimension-extension')).toHaveAttribute('d', /M.+L/);
+});
+
 test('dimensions select in orange, edit text without moving geometry and support undo, multi-select and delete', async ({
   page,
 }, info) => {
@@ -80,7 +132,7 @@ test('dimensions select in orange, edit text without moving geometry and support
   await labelClick(page, 'extent');
   const extent = page.locator('.model-dimensions [data-dimension="extent"]');
   await expect(extent).toHaveClass(/is-selected/);
-  await expect(extent.locator('path:not(.dimension-hit)')).toHaveCSS('stroke', 'rgb(229, 120, 32)');
+  await expect(extent.locator('.dimension-line')).toHaveCSS('stroke', 'rgb(229, 120, 32)');
   await labelClick(page, 'points', true);
   const input = page.getByRole('textbox', { name: 'Merkinnän teksti', exact: true });
   await expect(input).toBeFocused();
@@ -196,7 +248,7 @@ test('dimension lines can be picked away from the label, dragged and restored wi
   page,
 }) => {
   const original = await setup(page);
-  const line = page.locator('.model-dimensions [data-dimension="points"] path:not(.dimension-hit)');
+  const line = page.locator('.model-dimensions [data-dimension="points"] .dimension-hit');
   const p = await line.evaluate((node) => {
     const path = node as SVGPathElement;
     const point = path.getPointAtLength(120).matrixTransform(path.getScreenCTM()!);
@@ -298,6 +350,10 @@ test('section dimensions also select, edit and hide without modifying the cut or
   await input.fill('Leikkaus {mitta} mm');
   await input.press('Enter');
   await expect(dimension.locator('text')).toHaveText('Leikkaus 600 mm');
+  const angle = page.getByRole('spinbutton', { name: 'Mittatekstin kierto' });
+  await angle.fill('-30');
+  await angle.press('Enter');
+  await expect(dimension.locator('.dimension-label')).toHaveAttribute('transform', /rotate\(-30\)/);
   const row = page.getByTestId('section-dimension-row-section-dim');
   await row.getByRole('button', { name: 'Piilota dimensio', exact: true }).click();
   await expect(dimension).toHaveCount(0);
@@ -309,6 +365,7 @@ test('section dimensions also select, edit and hide without modifying the cut or
   expect(saved.sections?.[0].dimensions[0]).toMatchObject({
     ...section.dimensions[0],
     label: 'Leikkaus {mitta} mm',
+    labelRotation: -30,
     hidden: false,
   });
 });

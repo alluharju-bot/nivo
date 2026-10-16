@@ -1,3 +1,4 @@
+import { HighlightStyleFields } from './HighlightStyleFields';
 import { useEffect, useRef, useState } from 'react';
 import { MarkupColor } from './MarkupColor';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
@@ -32,13 +33,13 @@ export function MarkupProperties({
       textInput.current?.select();
     }
   }, [focusRequest]);
-  const value = markup.kind === 'area' ? markup.name : markup.text;
+  const value = markup.kind !== 'note' ? markup.name : markup.text;
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [markup.id, value]);
   const withText = () =>
     ({
       ...markup,
-      ...(markup.kind === 'area' ? { name: text.trim() || value } : { text: text.trim() || value }),
+      ...(markup.kind !== 'note' ? { name: text.trim() || value } : { text: text.trim() || value }),
     }) as Markup;
   const commit = () => {
     if (text.trim() && text.trim() !== value) onChange(withText());
@@ -47,16 +48,28 @@ export function MarkupProperties({
   return (
     <section
       className="markup-properties"
-      aria-label={markup.kind === 'area' ? 'Pinta-alueen asetukset' : 'Huomautuksen asetukset'}
+      aria-label={
+        markup.kind === 'highlight'
+          ? 'Korostusalueen asetukset'
+          : markup.kind === 'area'
+            ? 'Pinta-alueen asetukset'
+            : 'Huomautuksen asetukset'
+      }
     >
-      <h2>{markup.kind === 'area' ? 'Pinta-alue' : 'Huomautus'}</h2>
+      <h2>
+        {markup.kind === 'highlight'
+          ? 'Korostusalue'
+          : markup.kind === 'area'
+            ? 'Pinta-alue'
+            : 'Huomautus'}
+      </h2>
       <label>
-        {markup.kind === 'area' ? 'Alueen nimi' : 'Huomautuksen teksti'}
+        {markup.kind !== 'note' ? 'Alueen nimi' : 'Huomautuksen teksti'}
         <textarea
           ref={textInput}
-          aria-label={markup.kind === 'area' ? 'Alueen nimi' : 'Huomautuksen teksti'}
-          rows={markup.kind === 'area' ? 1 : 4}
-          maxLength={markup.kind === 'area' ? 120 : 600}
+          aria-label={markup.kind !== 'note' ? 'Alueen nimi' : 'Huomautuksen teksti'}
+          rows={markup.kind !== 'note' ? 1 : 4}
+          maxLength={markup.kind !== 'note' ? 120 : 600}
           disabled={busy}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -83,18 +96,37 @@ export function MarkupProperties({
       {markup.kind === 'area' ? (
         <strong className="area-total">{areaText(areaUnion(markup.rectangles).area)}</strong>
       ) : (
-        <p className="muted">Vedä tekstilaatikkoa näkymässä. Shift + Enter lisää tekstirivin.</p>
+        markup.kind === 'note' && (
+          <p className="muted">Vedä tekstilaatikkoa näkymässä. Shift + Enter lisää tekstirivin.</p>
+        )
       )}
       <label>
-        {markup.kind === 'area' ? 'Alueen väri' : 'Laatikon väri'}
+        {markup.kind === 'highlight'
+          ? 'Reunan väri'
+          : markup.kind === 'area'
+            ? 'Alueen väri'
+            : 'Laatikon väri'}
         <MarkupColor
-          label={markup.kind === 'area' ? 'Alueen väri' : 'Laatikon väri'}
+          label={
+            markup.kind === 'highlight'
+              ? 'Reunan väri'
+              : markup.kind === 'area'
+                ? 'Alueen väri'
+                : 'Laatikon väri'
+          }
           value={markup.color}
           disabled={busy}
           onPreview={(color) => onPreview(color ? { ...withText(), color } : undefined)}
           onCommit={(color) => onChange({ ...withText(), color })}
         />
       </label>
+      {markup.kind === 'highlight' && (
+        <HighlightStyleFields
+          value={markup}
+          disabled={busy}
+          onChange={(patch) => onChange({ ...withText(), ...patch } as Markup)}
+        />
+      )}
       {markup.kind === 'note' && (
         <>
           <label className="checkbox-label">
@@ -107,8 +139,19 @@ export function MarkupProperties({
             />
             Näytä kohdistusviiva
           </label>
-          <details>
-            <summary>Tekstin ja kehyksen tyyli</summary>
+          <label>
+            Kohdistusviivan väri
+            <MarkupColor
+              label="Kohdistusviivan väri"
+              value={markup.leaderColor ?? markup.textColor}
+              disabled={busy}
+              onPreview={(leaderColor) =>
+                onPreview(leaderColor ? ({ ...withText(), leaderColor } as Markup) : undefined)
+              }
+              onCommit={(leaderColor) => onChange({ ...withText(), leaderColor } as Markup)}
+            />
+          </label>
+          <div className="note-style-fields">
             <label>
               Kehys
               <select
@@ -161,7 +204,7 @@ export function MarkupProperties({
               />
               Lihavoitu
             </label>
-          </details>
+          </div>
         </>
       )}
       <div className="annotation-buttons">

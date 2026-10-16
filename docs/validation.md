@@ -4,6 +4,28 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.47.2 — dimensiot, huomautukset ja korostusalueet
+
+- Koko yksikkö-/CAD-testistö: **662 hyväksyttyä, 5 ennestään ohitettua**.
+  Mittatekstin kierto, viivojen lyhyet ja pitkät apuviivat, tallennusmuoto,
+  vanhojen projektien oletukset ja yhteinen SVG-esitys tarkistettu.
+- Tuotantobuildin **27 desktop-selainkoetta ja 6 tablettikoetta hyväksytty**.
+  Dimensiot pysyvät ruudun suuntaisina kameraa käännettäessä; oma kierto ja
+  viivatyyli säilyvät tallennuksessa, projektiossa sekä leikkauskuvassa.
+  SVG:n sisältö ja PDF-tiedoston onnistunut lataus tarkistettu.
+- Lukitun osan pintaan ja ryhmästä periytyvän lukituksen kulmaan voi mitata.
+  Osien data ja lukitukset säilyvät täsmälleen ennallaan, myös perumisessa,
+  uudelleentekemisessä ja projektin uudelleenavauksessa.
+- Huomautuksen kaikki tyylikentät ovat heti näkyvissä. Kohdistusviivan oma
+  väri esikatsellaan myös valittuna; värin säätö muodostaa yhden historiatoimen.
+- Korostusalueen piirto, reunasta siirtäminen, piilottaminen, poistaminen,
+  väri, viivatyyli, taustaväri ja tallennus tarkistettu. Mallin korostus
+  näkyy projektiossa ja SVG-viennissä; mitta-arkin korostuksella on samat
+  tyylivalinnat. Peruminen ja värin esikatselu eivät muuta geometriaa.
+- TypeScript, tuotantobuild ja lisenssitarkistus hyväksytty. Mittatekstin,
+  uuden viivatyylin, korostuksen ja huomautuspaneelin kuvat tarkastettu.
+  Tämä versio ei muuta renderilaskentaa.
+
 ## V0.47.1 — renderin materiaalit, reunat ja valot
 
 - Koko yksikkö-/CAD-testistö: **657 hyväksyttyä, 5 ennestään ohitettua**.

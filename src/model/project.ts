@@ -6,7 +6,8 @@ import { surfaceLevelsSchema } from './surfaceLevels';
 import { renderViewSchema } from './renderViews';
 import { drawingSheetSchema } from './drawingSheets';
 import { modelDisplaySchema } from './display';
-import { annotationStyle } from './annotationStyle';
+import { annotationStyle, dimensionTextStyle, dimensionLineStyleSchema } from './annotationStyle';
+import { highlightStyle } from './highlightStyle';
 import { sectionSchema } from './sections';
 import { referenceImageSchema } from './referenceImages';
 import { appearanceSchema, assetSchema, customMaterialSchema } from './materials';
@@ -375,13 +376,28 @@ export const noteMarkupSchema = z.object({
   fontSize: z.number().int().min(10).max(28).default(14),
   bold: z.boolean().default(false),
   leader: z.boolean().optional(),
+  leaderColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
 });
-export const markupSchema = z.discriminatedUnion('kind', [areaMarkupSchema, noteMarkupSchema]);
+export const highlightMarkupSchema = areaMarkupSchema.extend({
+  kind: z.literal('highlight'),
+  ...highlightStyle,
+});
+export const markupSchema = z.discriminatedUnion('kind', [
+  areaMarkupSchema,
+  noteMarkupSchema,
+  highlightMarkupSchema,
+]);
 export type AreaMarkup = z.infer<typeof areaMarkupSchema>;
+export type HighlightMarkup = z.infer<typeof highlightMarkupSchema>;
+export type RegionMarkup = AreaMarkup | HighlightMarkup;
 export type NoteMarkup = z.infer<typeof noteMarkupSchema>;
 export type Markup = z.infer<typeof markupSchema>;
 const extentDimensionSchema = z.object({
   ...annotationStyle,
+  ...dimensionTextStyle,
   id,
   bodyId: id,
   axis: z.enum(['x', 'y', 'z']),
@@ -391,6 +407,7 @@ const extentDimensionSchema = z.object({
 });
 export const pointDimensionSchema = z.object({
   ...annotationStyle,
+  ...dimensionTextStyle,
   id,
   kind: z.literal('points'),
   start: anchorSchema,
@@ -413,6 +430,7 @@ export const dimensionTargetSchema = z.discriminatedUnion('kind', [
 ]);
 export const overallDimensionSchema = z.object({
   ...annotationStyle,
+  ...dimensionTextStyle,
   id,
   kind: z.literal('overall'),
   target: dimensionTargetSchema,
@@ -475,6 +493,7 @@ export const projectSchema = z
         axisStyle: z.enum(['subtle', 'strong']).default('subtle'),
         axisLabels: z.boolean().default(false),
         dimensionDisplay: z.enum(['all', 'selected', 'hidden']).default('all'),
+        dimensionLineStyle: dimensionLineStyleSchema.optional(),
         measurementsHidden: z.boolean().optional(),
         modelDisplay: modelDisplaySchema.optional(),
         render: z

@@ -18,7 +18,7 @@ import type { Tool } from '../viewport/Viewport';
 
 export type ToolItem = { id: Tool; label: string; icon: ReactNode; shortcut: string };
 export type ToolDock = 'left' | 'right' | 'top' | 'bottom';
-export type MeasureMode = 'guide' | 'free' | 'dimension' | 'area' | 'note';
+export type MeasureMode = 'guide' | 'free' | 'dimension' | 'area' | 'note' | 'highlight';
 const measureOptions = [
   {
     id: 'guide',
@@ -43,6 +43,12 @@ const measureOptions = [
     label: 'Pinta-ala',
     description: 'Suorakulmioista yhdistetty pinta-alue',
     icon: <Scan />,
+  },
+  {
+    id: 'highlight',
+    label: 'Korostusalue',
+    description: 'Rajaa alue ilman tekstiä tai geometriaa',
+    icon: <Square />,
   },
   {
     id: 'note',

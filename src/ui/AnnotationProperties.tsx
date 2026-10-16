@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { formatLength } from '../model/units';
+import type { AnnotationPatch } from '../model/annotationStyle';
 
 export function AnnotationProperties({
   annotation,
@@ -9,13 +10,15 @@ export function AnnotationProperties({
   onChange,
   onDelete,
   focusKey = 0,
+  rotatable = false,
 }: {
-  annotation: { id: string; label?: string; hidden?: boolean };
+  annotation: { id: string } & AnnotationPatch;
   value: number | null;
   busy: boolean;
-  onChange: (patch: { label?: string; hidden?: boolean }) => void;
+  onChange: (patch: AnnotationPatch) => void;
   onDelete: () => void;
   focusKey?: number;
+  rotatable?: boolean;
 }) {
   const [text, setText] = useState(annotation.label ?? '');
   const input = useRef<HTMLInputElement>(null);
@@ -64,6 +67,43 @@ export function AnnotationProperties({
         Todellinen mitta: {value === null ? 'Viite puuttuu' : `${formatLength(value)} mm`}. Teksti
         ei muuta geometriaa.
       </small>
+      {rotatable && (
+        <label>
+          Mittatekstin kierto (°)
+          <input
+            key={`${annotation.id}:${annotation.labelRotation ?? 0}`}
+            type="number"
+            aria-label="Mittatekstin kierto"
+            min={-360}
+            max={360}
+            step="any"
+            defaultValue={annotation.labelRotation ?? 0}
+            disabled={busy}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.value = String(annotation.labelRotation ?? 0);
+                e.currentTarget.blur();
+              }
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.blur();
+              }
+            }}
+            onBlur={(e) => {
+              const labelRotation = Number(e.target.value);
+              if (!Number.isFinite(labelRotation) || Math.abs(labelRotation) > 360) {
+                e.target.value = String(annotation.labelRotation ?? 0);
+                return;
+              }
+              if (labelRotation !== (annotation.labelRotation ?? 0)) onChange({ labelRotation });
+            }}
+          />
+          <span className="muted">0° pitää tekstin vaakasuorassa myös näkymää käännettäessä.</span>
+        </label>
+      )}
       <div className="annotation-buttons">
         <button
           disabled={busy}

@@ -1,3 +1,4 @@
+import { dimensionSvg, dimensionLabelBounds } from './dimensionGraphics';
 import { annotationText } from '../model/annotationStyle';
 import type { SectionResult } from '../cad/protocol';
 import type { Project } from '../model/project';
@@ -98,11 +99,21 @@ export function sectionSheet(
   for (const d of visibleDimensions) {
     const g = sectionDimensionGeometry(section, d);
     for (const p of [g.start, g.end, g.a, g.b]) {
-      minX = Math.min(minX, p[0] - 15 * scale);
-      maxX = Math.max(maxX, p[0] + 15 * scale);
-      minY = Math.min(minY, p[1] - 5 * scale);
-      maxY = Math.max(maxY, p[1] + 5 * scale);
+      minX = Math.min(minX, p[0] - 2 * scale);
+      maxX = Math.max(maxX, p[0] + 2 * scale);
+      minY = Math.min(minY, p[1] - 2 * scale);
+      maxY = Math.max(maxY, p[1] + 2 * scale);
     }
+    const label = valid.get(d.id)
+      ? annotationText(d, g.value, formatLength(g.value))
+      : 'Viite muuttunut';
+    const labelBox = dimensionLabelBounds(label.length, d.labelRotation ?? 0);
+    const cx = (g.a[0] + g.b[0]) / 2,
+      cy = (g.a[1] + g.b[1]) / 2;
+    minX = Math.min(minX, cx - (labelBox.width / 2 + 2) * scale);
+    maxX = Math.max(maxX, cx + (labelBox.width / 2 + 2) * scale);
+    minY = Math.min(minY, cy - (labelBox.height / 2 + 2) * scale);
+    maxY = Math.max(maxY, cy + (labelBox.height / 2 + 2) * scale);
   }
   const x = fixed?.x ?? area.x + area.width / 2 - (minX + maxX) / 2 / scale,
     y = fixed?.y ?? area.y + area.height / 2 - (minY + maxY) / 2 / scale;
@@ -118,7 +129,7 @@ export function sectionSheet(
         ]);
       const broken = !valid.get(d.id),
         label = broken ? 'Viite muuttunut' : annotationText(d, g.value, formatLength(g.value));
-      return `<g data-section-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}" fill="none" stroke="${broken ? '#ac382c' : '#344333'}" stroke-width="0.2"><path d="M${s}L${a}L${b}L${e}"/><path d="M${a[0] - 1} ${a[1] + 1}l2 -2 M${b[0] - 1} ${b[1] + 1}l2 -2"/><text x="${n((a[0] + b[0]) / 2)}" y="${n((a[1] + b[1]) / 2 - 1.5)}" text-anchor="middle" stroke="none" fill="${broken ? '#ac382c' : '#253222'}" font-size="3">${escapeXml(label)}</text></g>`;
+      return `<g data-section-dimension="${escapeXml(d.id)}" data-mm="${n(g.value)}" fill="none" color="${broken ? '#ac382c' : '#253222'}" stroke="${broken ? '#ac382c' : '#344333'}" stroke-width="0.25" stroke-linecap="round">${dimensionSvg(s, e, a, b, escapeXml(label), label.length, d.labelRotation, project.settings.dimensionLineStyle)}</g>`;
     })
     .join('');
   const content = `<defs><pattern id="section-hatch-${escapeXml(section.id)}" patternUnits="userSpaceOnUse" width="${2.5 * scale}" height="${2.5 * scale}"><path d="M0 ${2.5 * scale}L${2.5 * scale} 0" stroke="#786950" stroke-width="${0.15 * scale}"/></pattern></defs><g font-family="Arial, sans-serif"><g transform="translate(${n(x)} ${n(y)}) scale(${1 / scale})" fill="none" stroke="#354130" stroke-width="${0.22 * scale}" stroke-linejoin="round">${hidden ? `<g stroke="#929b8b" stroke-dasharray="${1.5 * scale} ${scale}">${paths(projection.hidden)}</g>` : ''}${paths(projection.visible)}${result.caps.map((c) => `<path data-section-body="${escapeXml(c.bodyId)}" d="${escapeXml(c.paths.join(' '))}" fill="url(#section-hatch-${escapeXml(section.id)})" fill-rule="evenodd" stroke-width="${0.45 * scale}"/>`).join('')}</g>${annotations}</g>`;

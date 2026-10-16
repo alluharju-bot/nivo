@@ -1,3 +1,4 @@
+import { highlightDash } from '../model/highlightStyle';
 import type { Body, Markup, Vec3 } from '../model/project';
 import { areaUnion, markupLabel, notePosition, noteTarget } from '../model/markups';
 import { fromUV } from '../model/sketch';
@@ -59,7 +60,7 @@ export function markupSvg(
         background = m.color,
         textColor = '#263c36',
         shape = 'rounded';
-      if (m.kind === 'area') {
+      if (m.kind !== 'note') {
         const union = areaUnion(m.rectangles),
           p = (u: number, v: number) => project(fromUV([u, v], m.frame));
         const points = union.cells.flatMap(([x, y, r, b]) => [p(x, y), p(r, y), p(r, b), p(x, b)]);
@@ -75,6 +76,17 @@ export function markupSvg(
           ) < 0.001
         )
           return '';
+        if (m.kind === 'highlight') {
+          const d = union.cells
+            .map(
+              ([x, y, r, b]) =>
+                `M${p(x, y).slice(0, 2).map(n)}L${p(r, y).slice(0, 2).map(n)}L${p(r, b).slice(0, 2).map(n)}L${p(x, b).slice(0, 2).map(n)}Z`,
+            )
+            .join('');
+          const dash = highlightDash(m.lineStyle, size),
+            width = (m.lineWidth ?? 2) * size;
+          return `<g data-markup="${esc(m.id)}" data-kind="highlight" data-selected="${chosen}" class="${chosen ? 'is-selected' : ''}">${chosen ? `<path fill="none" stroke="#e57820" stroke-opacity="0.35" stroke-width="${width + 4 * size}" d="${d}"/>` : ''}<path class="highlight-hit" fill="none" stroke="transparent" stroke-width="${14 * size}" d="${d}"/><path class="highlight-outline" fill="${m.color}" fill-opacity="${m.fillOpacity ?? 0}" stroke="${m.color}" stroke-width="${width}" stroke-linejoin="round" stroke-linecap="round" ${dash ? `stroke-dasharray="${dash}"` : ''} d="${d}"/></g>`;
+        }
         paths = `<path class="area-fill" fill="${m.color}" fill-opacity="${chosen ? 0.32 : 0.18}" stroke="none" d="${union.cells.map(([x, y, r, b]) => `M${p(x, y).slice(0, 2).map(n)}L${p(r, y).slice(0, 2).map(n)}L${p(r, b).slice(0, 2).map(n)}L${p(x, b).slice(0, 2).map(n)}Z`).join('')}"/><path fill="none" stroke="${stroke}" stroke-width="${(chosen ? 2.5 : 1.5) * size}" d="${union.edges.map(([x, y, r, b]) => `M${p(x, y).slice(0, 2).map(n)}L${p(r, b).slice(0, 2).map(n)}`).join('')}"/>`;
         at = p(...union.center);
         background = '#f7fbf7';
@@ -93,10 +105,12 @@ export function markupSvg(
         textColor = m.textColor;
         shape = m.shape;
         const orphan = !resolveAnchor(bodies, m.anchor);
+        const leaderColor = orphan ? '#b74434' : (m.leaderColor ?? textColor);
+        const leaderPath = `M${target.slice(0, 2).map(n)}L${at.slice(0, 2).map(n)}`;
         paths =
           m.leader === false
             ? ''
-            : `<path class="note-leader" fill="none" stroke="${orphan ? '#b74434' : chosen ? '#e57820' : textColor}" stroke-width="${1.5 * size}" ${orphan ? 'stroke-dasharray="4 3"' : ''} d="M${target.slice(0, 2).map(n)}L${at.slice(0, 2).map(n)}"/><circle cx="${n(target[0])}" cy="${n(target[1])}" r="${3 * size}" fill="${chosen ? '#e57820' : textColor}"/>`;
+            : `${chosen ? `<path class="note-selection" fill="none" stroke="#e57820" stroke-opacity="0.4" stroke-width="${5 * size}" d="${leaderPath}"/>` : ''}<path class="note-leader" fill="none" stroke="${leaderColor}" stroke-width="${1.5 * size}" ${orphan ? 'stroke-dasharray="4 3"' : ''} d="${leaderPath}"/><circle cx="${n(target[0])}" cy="${n(target[1])}" r="${3 * size}" fill="${leaderColor}" ${chosen ? `stroke="#e57820" stroke-width="${size}"` : ''}/>`;
       }
       const width = layout.width * size,
         height = layout.height * size;

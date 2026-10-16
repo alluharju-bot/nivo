@@ -1,3 +1,5 @@
+import { HighlightStyleFields } from '../ui/HighlightStyleFields';
+import { MarkupColor } from '../ui/MarkupColor';
 import {
   useEffect,
   useMemo,
@@ -175,6 +177,9 @@ export function useDrawingAnnotations({
           id: uid(),
           page,
           kind: mode!,
+          ...(mode === 'highlight'
+            ? { lineStyle: 'solid' as const, lineWidth: 2, fillOpacity: 0 }
+            : {}),
           x: p[0],
           y: p[1],
           width: mode === 'note' ? 60 : 4,
@@ -380,14 +385,12 @@ export function useDrawingAnnotations({
           <div className="paper-note-style">
             <label>
               Väri
-              <input
-                type="color"
-                aria-label="Arkkimerkinnän väri"
-                value={editing.color}
-                onChange={(e) => setDraft({ ...editing, color: e.target.value })}
-                onBlur={() => {
-                  if (draft) void save(draft);
-                }}
+              <MarkupColor
+                label="Arkkimerkinnän väri"
+                value={source?.color ?? editing.color}
+                disabled={busy}
+                onPreview={(color) => setDraft(color ? { ...editing, color } : undefined)}
+                onCommit={(color) => void save({ ...editing, color })}
               />
             </label>
             <label>
@@ -407,6 +410,18 @@ export function useDrawingAnnotations({
               />
             </label>
           </div>
+          {editing.kind === 'highlight' && (
+            <HighlightStyleFields
+              value={{
+                ...editing,
+                lineStyle: editing.lineStyle ?? 'dashed',
+                lineWidth: editing.lineWidth ?? 1,
+                fillOpacity: editing.fillOpacity ?? 0.15,
+              }}
+              disabled={busy}
+              onChange={(patch) => void save({ ...editing, ...patch })}
+            />
+          )}
           <button className="button subtle" onClick={() => void remove(editing.id)}>
             <Trash2 size={14} />
             Poista merkintä

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { annotationStyle } from './annotationStyle';
+import { annotationStyle, dimensionTextStyle } from './annotationStyle';
 import { frameSchema, type SketchFrame } from './sketch';
 import type { Body, Vec3 } from './project';
 import { add, dot, scale, sub } from './geometry';
@@ -20,6 +20,7 @@ export const sectionSchema = z.object({
     .array(
       z.object({
         ...annotationStyle,
+        ...dimensionTextStyle,
         id: z.string().min(1).max(100),
         start: anchor,
         end: anchor,

@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { isPointDimension, type Body, type Dimension, type Vec3 } from '../model/project';
 import { dimensionBodyIds, pointDimensionGeometry } from '../model/dimensions';
 import { formatLength } from '../model/units';
-import { annotationText } from '../model/annotationStyle';
+import { annotationText, type DimensionLineStyle } from '../model/annotationStyle';
+
+import { dimensionPaths } from '../drawing/dimensionGraphics';
 
 export function createPointDimensions(container: HTMLElement) {
   const ns = 'http://www.w3.org/2000/svg';
@@ -15,6 +17,7 @@ export function createPointDimensions(container: HTMLElement) {
     {
       node: SVGGElement;
       path: SVGPathElement;
+      extension: SVGPathElement;
       hit: SVGPathElement;
       label: SVGGElement;
       rect: SVGRectElement;
@@ -29,6 +32,7 @@ export function createPointDimensions(container: HTMLElement) {
       display: string,
       camera: THREE.Camera,
       selectedDimensions: string[] = [],
+      style: DimensionLineStyle = 'drafting',
     ) {
       const w = container.clientWidth,
         h = container.clientHeight;
@@ -58,17 +62,18 @@ export function createPointDimensions(container: HTMLElement) {
           entry = {
             node: document.createElementNS(ns, 'g'),
             path: document.createElementNS(ns, 'path'),
+            extension: document.createElementNS(ns, 'path'),
             hit: document.createElementNS(ns, 'path'),
             label: document.createElementNS(ns, 'g'),
             rect: document.createElementNS(ns, 'rect'),
             text: document.createElementNS(ns, 'text'),
           };
           entry.label.append(entry.rect, entry.text);
-          entry.node.append(entry.hit, entry.path, entry.label);
+          entry.node.append(entry.hit, entry.path, entry.extension, entry.label);
           svg.append(entry.node);
           entries.set(d.id, entry);
         }
-        const { node, path, hit, label, rect, text } = entry;
+        const { node, path, extension, hit, label, rect, text } = entry;
         node.dataset.testid = 'dimension-3d';
         node.dataset.dimension = d.id;
         node.dataset.mm = String(g.value);
@@ -84,19 +89,14 @@ export function createPointDimensions(container: HTMLElement) {
               g.value,
               `${d.axis === 'distance' ? '' : d.axis.toUpperCase() + ' · '}${formatLength(g.value)} mm`,
             );
-        const dx = b[0] - a[0],
-          dy = b[1] - a[1],
-          length = Math.hypot(dx, dy),
-          nx = (-dy / length) * 4,
-          ny = (dx / length) * 4;
-        path.setAttribute(
-          'd',
-          `M${start[0]} ${start[1]}L${a[0]} ${a[1]}L${b[0]} ${b[1]}L${end[0]} ${end[1]} M${a[0] - nx} ${a[1] - ny}l${2 * nx} ${2 * ny} M${b[0] - nx} ${b[1] - ny}l${2 * nx} ${2 * ny}`,
-        );
-        let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-        hit.setAttribute('d', path.getAttribute('d')!);
-        if (angle > 90) angle -= 180;
-        if (angle < -90) angle += 180;
+        const paths = dimensionPaths(start, end, a, b, style);
+        path.classList.add('dimension-line');
+        extension.classList.add('dimension-extension');
+        path.setAttribute('d', paths.solid);
+        extension.setAttribute('d', paths.dashed);
+        extension.setAttribute('stroke-dasharray', paths.dashArray);
+        hit.setAttribute('d', paths.hit);
+        const angle = d.labelRotation ?? 0;
         label.setAttribute(
           'transform',
           `translate(${(a[0] + b[0]) / 2} ${(a[1] + b[1]) / 2}) rotate(${angle})`,

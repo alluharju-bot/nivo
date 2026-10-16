@@ -1,4 +1,4 @@
-import type { AreaMarkup, Markup, NoteMarkup, Body, Vec3 } from './project';
+import type { AreaMarkup, RegionMarkup, Markup, NoteMarkup, Body, Vec3 } from './project';
 import { resolveAnchor } from './guides';
 import { add } from './geometry';
 import { fromUV, toUV, sketchFrame } from './sketch';
@@ -62,7 +62,7 @@ export function areaUnion(rectangles: AreaRect[]): AreaUnion {
 const areaFormatter = new Intl.NumberFormat('fi-FI', { maximumFractionDigits: 3 });
 export const areaText = (area: number) => `${areaFormatter.format(area / 1_000_000)} m²`;
 /** Rotate the unfinished area around its first picked corner without changing its union. */
-export function reframeArea(area: AreaMarkup, normal: Vec3, pivot: Vec3): AreaMarkup {
+export function reframeArea<T extends RegionMarkup>(area: T, normal: Vec3, pivot: Vec3): T {
   const uv = toUV(pivot, area.frame);
   return {
     ...area,
@@ -77,12 +77,13 @@ export function notePosition(note: NoteMarkup, bodies: Body[]) {
   return add(noteTarget(note, bodies), note.offset);
 }
 export function markupName(markup: Markup) {
-  return markup.kind === 'area' ? markup.name : markup.text.split('\n')[0] || 'Huomautus';
+  return markup.kind !== 'note' ? markup.name : markup.text.split('\n')[0] || 'Huomautus';
 }
 /** Shared label metrics keep screen labels and printable page bounds in agreement. */
 export function markupLabel(markup: Markup) {
-  const font = markup.kind === 'area' ? 14 : markup.fontSize;
-  const lines = (markup.kind === 'area' ? markup.name : markup.text)
+  const font = markup.kind !== 'note' ? 14 : markup.fontSize;
+  if (markup.kind === 'highlight') return { lines: [], width: 0, height: 0 };
+  const lines = (markup.kind !== 'note' ? markup.name : markup.text)
     .split('\n')
     .flatMap((line) => line.match(/.{1,38}(?:\s|$)|.{1,38}/g)?.map((s) => s.trim()) ?? ['']);
   if (markup.kind === 'area') lines.push(areaText(areaUnion(markup.rectangles).area));
@@ -93,7 +94,7 @@ export function markupLabel(markup: Markup) {
   };
 }
 export function markupLabelPosition(markup: Markup, bodies: Body[]) {
-  return markup.kind === 'area'
+  return markup.kind !== 'note'
     ? fromUV(areaUnion(markup.rectangles).center, markup.frame)
     : notePosition(markup, bodies);
 }
