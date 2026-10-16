@@ -48,9 +48,6 @@ export function traceImage() {
   const quad = new FullScreenQuad(copy);
   const denoise = traceLighting();
   return {
-    get noise() {
-      return denoise.noise;
-    },
     get size() {
       return target ? ([target.width, target.height] as const) : undefined;
     },

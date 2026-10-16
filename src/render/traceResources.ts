@@ -55,14 +55,26 @@ export function traceResources(tracer: WebGLPathTracer) {
       // The pinned library attaches only .then() to this promise. Catch here
       // so a rejected compile cannot become an unhandled rejection while its
       // isCompiling flag leaves the preview waiting forever.
-      const pending = compile().catch((error: unknown) => {
-        compilationError =
-          error instanceof Error
-            ? error
-            : new Error(String(error ?? 'Renderiohjelman valmistelu epäonnistui.'));
-      });
-      guardCompilations();
-      return pending;
+      // compileAsync otherwise prepares the canvas/sRGB/tone-mapped variant.
+      // Tracing actually draws into a linear float target: that mismatch caused
+      // a second, synchronous compilation on the very first sample, bypassing
+      // both the preparation status and its watchdog.
+      const renderer = internal._renderer;
+      const target = renderer.getRenderTarget();
+      const face = renderer.getActiveCubeFace(),
+        mip = renderer.getActiveMipmapLevel();
+      try {
+        renderer.setRenderTarget(r._primaryTarget);
+        return compile().catch((error: unknown) => {
+          compilationError =
+            error instanceof Error
+              ? error
+              : new Error(String(error ?? 'Renderiohjelman valmistelu epäonnistui.'));
+        });
+      } finally {
+        renderer.setRenderTarget(target, face, mip);
+        guardCompilations();
+      }
     };
   }
   // Three's WebGLArrayRenderTarget replaces its texture after construction;

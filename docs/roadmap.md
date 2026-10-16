@@ -2,6 +2,24 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.47.4 — geelin ja peilien renderivakaus
+
+- Käyttäjän pilvimallin lähikuva geelin läpi peileihin toisti GPU-yhteyden
+  katkeamisen. Myös ajuri raportoi `Caused GPU Hang Error`.
+- Poistetaan kiiltävien pikselien toinen sädepolku saman fragmenttikutsun
+  sisältä. Jokainen iteraatio laskee yhden itsenäisen Sobol-näytteen;
+  valo-/materiaalimalli, 16 heijastusta ja 12 läpäisyaskelta säilyvät.
+  Kiiltävä pinta voi tarvita aiempaa useamman iteraation samaan kohinatasoon,
+  mutta yksittäistä GPU-kutsua ei kuormiteta kahdella täydellä sädepolulla.
+- Shader esivalmistellaan lineaariseen liukulukukohteeseen, johon se myös
+  piirtää. Aiempi näytölle valmisteltu versio aiheutti toisen synkronisen
+  käännöksen ensimmäisessä näytteessä. Heijastusten apukuvasta poistetaan
+  käyttämätön täysi valolaskenta shader-lähteestä.
+- Jatkokehitys: mahdollinen lisänäytteistys toteutetaan erillisiin GPU-eriin,
+  joiden työmäärää voi rajata. Hyväksymistestiin geeli ja peilit lähikuvassa
+  sekä Windows/Chrome/NVIDIA. Sitä ei palauteta pelkän pienen laatikkotestin
+  perusteella. Käyttäjän RTX 2060 Super ei ole tässä testiympäristössä.
+
 ## V0.47.3 — renderin käynnistyksen odotukset
 
 - Materiaalien/ympäristön lataus, geometrian valmistelu, shaderin valmistelu ja

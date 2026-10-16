@@ -136,10 +136,6 @@ export function prepareLobeTargets(tracer: WebGLPathTracer) {
   internal._blendTargets = internal._blendTargets.map(replace);
   const reset = internal.reset.bind(internal);
   internal.reset = () => {
-    if (internal.material.uniforms.nivoAdaptive) {
-      internal.material.uniforms.nivoAdaptive.value = false;
-      internal.material.uniforms.nivoNoiseVariance.value = null;
-    }
     // Opaque float blending needs only the primary accumulator. The upstream
     // reset eagerly allocates both fallback targets even when never used.
     // Keep them at 1×1 until the alpha/float-blend fallback actually needs them.

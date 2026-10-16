@@ -32,6 +32,9 @@ export function reflectionGuides() {
       }
       if (!material) {
         const shader = current.fragmentShader;
+        const integrator = shader.indexOf('void nivoTracePath() {');
+        if (integrator < 0)
+          throw new Error('Renderöinnin heijastusohjeiden versio ei vastaa sovellusta.');
         material = new THREE.ShaderMaterial({
           uniforms: current.uniforms,
           defines: { ...current.defines, FEATURE_DOF: 0, FEATURE_FOG: 0 },
@@ -41,7 +44,9 @@ export function reflectionGuides() {
           toneMapped: false,
           fragmentShader:
             shader
-              .slice(0, shader.lastIndexOf('void main() {'))
+              // Only surface/BVH helpers are needed. Do not send the unused
+              // full lighting integrator through a second driver compilation.
+              .slice(0, integrator)
               .replace('vec2 jitteredUv = vUv + (ruv - 0.5) * ssd;', 'vec2 jitteredUv = vUv;') +
             /* glsl */ `
             void main() {

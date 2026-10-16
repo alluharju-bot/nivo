@@ -5,7 +5,6 @@ import { configureEmitterSampling } from '../../src/render/emitterSampling';
 import { traceLighting } from '../../src/render/traceLighting';
 import { traceGuides } from '../../src/render/traceGuides';
 import { reflectionGuides } from '../../src/render/reflectionGuides';
-import { setTraceNoise } from '../../src/render/traceAdaptive';
 
 /** Cancel during shader compilation, then reuse the same GPU context. */
 export async function cancelCompilation() {
@@ -74,23 +73,14 @@ export async function exerciseLobes() {
     reflected = reflectionGuides();
   const output = new THREE.WebGLRenderTarget(64, 64, { type: THREE.FloatType, depthBuffer: false });
   const results = [];
-  const noise = new THREE.DataTexture(
-    new Float32Array([1, 1, 0, 1]),
-    1,
-    1,
-    THREE.RGBAFormat,
-    THREE.FloatType,
-  );
-  noise.needsUpdate = true;
   try {
     tracer.setScene(scene, camera);
     configureEmitterSampling(tracer);
-    for (const [metal, alpha, adaptive, backgroundImage] of [
+    for (const [metal, alpha, backgroundImage] of [
       [false, false, false],
       [true, false, false],
       [false, true, false],
       [false, false, true],
-      [false, false, true, true],
     ]) {
       m.metalness = metal ? 1 : 0;
       m.roughness = metal ? 0.06 : 0.24;
@@ -106,10 +96,8 @@ export async function exerciseLobes() {
       lighting.clear();
       guides.clear();
       reflected.clear();
-      if (adaptive) setTraceNoise(tracer, noise, 8);
       while (tracer.samples < 32) {
         for (let i = 0; i < 4; i++) {
-          if (adaptive) setTraceNoise(tracer, noise, 8);
           tracer.renderSample();
           lighting.observe(renderer, tracer.target, tracer.samples);
         }
@@ -152,7 +140,6 @@ export async function exerciseLobes() {
       results.push({
         metal,
         alpha,
-        adaptive,
         backgroundImage: !!backgroundImage,
         fallback: internal.alpha,
         blendWidth: internal._blendTargets[0].width,
@@ -170,7 +157,6 @@ export async function exerciseLobes() {
     guides.dispose();
     reflected.dispose();
     output.dispose();
-    noise.dispose();
     m.dispose();
     mesh.geometry.dispose();
     scene.environment.dispose();

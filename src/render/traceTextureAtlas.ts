@@ -178,7 +178,7 @@ export function prepareTextureAtlas(tracer: WebGLPathTracer) {
         // First preparation compiles once in configureEmitterSampling, after
         // all scene-dependent defines are known. Later palette changes must
         // rebuild the array's uniform declaration before the next sample.
-        if (material.uniforms.nivoAdaptive) material.needsUpdate = true;
+        if (material.uniforms.nivoBackgroundColor) material.needsUpdate = true;
       }
       const plan = packedTexturePlan(
         textures.map(textureSpec),

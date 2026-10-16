@@ -4,7 +4,7 @@ import { stableTraceNumerics } from './traceNumerics';
 import { stableTraceSamples } from './traceFireflies';
 import { importanceSampleLights } from './lightImportance';
 import { splitTraceLobes } from './traceLobes';
-import { adaptiveTraceSamples } from './traceAdaptive';
+import { traceSamplingShader } from './traceSampling';
 
 /** Adapter for the pinned three-gpu-pathtracer 0.0.26 shader. The library samples
  * area lights with MIS, but adds mesh emission again when the same ray reaches
@@ -29,9 +29,7 @@ export function configureEmitterSampling(tracer: WebGLPathTracer, importance = t
   if (importance) material.fragmentShader = importanceSampleLights(material.fragmentShader);
   material.fragmentShader = stableTraceSamples(material.fragmentShader);
   material.fragmentShader = splitTraceLobes(material.fragmentShader);
-  material.fragmentShader = adaptiveTraceSamples(material.fragmentShader);
-  material.uniforms.nivoAdaptive = { value: false };
-  material.uniforms.nivoNoiseVariance = { value: null };
+  material.fragmentShader = traceSamplingShader(material.fragmentShader);
   material.uniforms.nivoBackgroundColor = { value: new THREE.Color() };
   const background = (compile = true) => {
     const color = tracer.scene?.background;
@@ -42,8 +40,7 @@ export function configureEmitterSampling(tracer: WebGLPathTracer, importance = t
       if (compile) material.needsUpdate = true;
     }
   };
-  // A solid background needs a vec3, not a texture unit. This leaves room for
-  // adaptive sampling on WebGL2 hardware with the minimum 16 texture units.
+  // A solid background needs a vec3, not a texture unit.
   background(false);
   const before = material.onBeforeRender.bind(material);
   material.onBeforeRender = (...args) => {

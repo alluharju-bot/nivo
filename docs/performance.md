@@ -101,6 +101,11 @@ lopullinen esittelyrenderi. Yksityistä mallia tai kuvia ei julkaista.
 
 ## V0.47.0 — kiiltävien pintojen kohina ja geometriamuokkaus
 
+Alla kuvattu mukautuva lisäpolku poistettiin versiossa **0.47.4**:
+geelin ja peilien lähikuva aiheutti GPU-jumin. Yksi kierros laskee nyt
+yhden sädepolun pikseliä kohti. Kanavien erottelu, heijastusten ohjaimet
+ja kohinanpoisto säilyvät; sama kohinataso voi vaatia useampia kierroksia.
+
 Kiiltävän laatan matala karheusarvo rajoitti aiemmin koko pinnan
 kohinanpoiston yhteen pieneen suodatusvaiheeseen. Perusvalaistus ja heijastus
 kertyvät nyt erikseen samoista valopoluista, samoin niiden varianssit.

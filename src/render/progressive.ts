@@ -9,7 +9,6 @@ import { traceResolutions } from './traceResolution';
 import { traceImage } from './traceImage';
 import { traceGuides } from './traceGuides';
 import { reflectionGuides } from './reflectionGuides';
-import { setTraceNoise } from './traceAdaptive';
 import type { ImageLook } from './imageLook';
 import { refinementSamples } from './traceRefinement';
 import { gpuQueue } from './gpuQueue';
@@ -294,7 +293,6 @@ export function progressiveRenderer(
         const samples = Math.floor(tracer.samples);
         if (samples > Math.floor(before)) {
           image.observe(renderer, tracer.target, samples);
-          setTraceNoise(tracer, image.noise, samples);
           // Denoising is a display cost, not a cost per path-tracing sample.
           // Keep the first, each refinement boundary and the final image exact.
           const boundary = samples === (resolution === 0 ? 4 : refinementSamples);

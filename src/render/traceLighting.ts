@@ -32,9 +32,6 @@ export function traceLighting() {
     material.uniforms.diffuse.value = material.uniforms.specular.value = null;
   };
   return {
-    get noise() {
-      return variance[2].texture;
-    },
     observe(
       renderer: THREE.WebGLRenderer,
       source: THREE.WebGLRenderTarget,

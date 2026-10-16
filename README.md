@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.47.4** korjaa geelin ja peilien lähikuvassa toistettua GPU-jumia.
+Renderi laskee yhden sädepolun pikseliä kohti kerrallaan; ongelmallinen
+kiiltävien pintojen toinen laskenta saman shader-kutsun sisällä on poistettu.
+Renderiohjelma esivalmistellaan oikealle kuvaformaatille, joten ensimmäinen
+näyte ei käynnistä uutta estävää shader-käännöstä. Materiaalit, heijastukset,
+taittuminen, kohinanpoisto ja kuvan lopullinen tarkkuus säilyvät.
+
 Versio **0.47.3** tarkentaa renderin käynnistystilaa ja rajaa jumittuneet odotukset.
 Materiaalien lataus, renderiohjelman valmistelu ja näytönohjaimen odotus näkyvät
 erikseen. Kesken olevan valmistelun voi perua; valmistelun aikana ei lähetetä
@@ -30,8 +37,9 @@ Pintamaalaus ei enää monista spottivaloja, ja nopean esikatselun varjokarttoje
 tekstuurirajan ylitys on korjattu. [Mittaukset ja rajat](docs/performance.md).
 
 Versio **0.47.0** erottaa kiiltävän pinnan perusvalaistuksen ja heijastuksen
-kohinanpoistossa. Heijastuvan pinnan tiedot suojaavat yksityiskohtia, ja jäljellä
-oleva heijastuskohina saa kohdennettuja lisänäytteitä. Sama laskenta toimii
+kohinanpoistossa. Heijastuvan pinnan tiedot suojaavat yksityiskohtia. Tässä
+versiossa lisätty toinen sädepolku poistettiin vakauden vuoksi versiossa 0.47.4.
+Sama laskenta toimii
 renderinäkymässä ja kuvanviennissä. Aiempi terävien reunojen korjaus säilyy.
 
 Geometrian muokkaus rakentaa muutetun tasopinnan kolmioinnin uudelleen

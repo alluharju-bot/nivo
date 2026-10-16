@@ -13,6 +13,19 @@ test('refinement starts at rest, automatically increases resolution, and recover
   test.setTimeout(180000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    const state = window as unknown as { traceProgramLinks: number };
+    state.traceProgramLinks = 0;
+    const original = WebGL2RenderingContext.prototype.linkProgram;
+    WebGL2RenderingContext.prototype.linkProgram = function (program) {
+      const sources = (this.getAttachedShaders(program) ?? []).map(
+        (shader) => this.getShaderSource(shader) ?? '',
+      );
+      if (sources.some((s) => s.slice(s.lastIndexOf('void main() {')).includes('nivoTracePath();')))
+        state.traceProgramLinks++;
+      original.call(this, program);
+    };
+  });
   await ready(page, [{ ...makeBody(400, 300, 40), appearance: defaultAppearance('pine') }]);
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   const canvas = page.getByTestId('render-canvas');
@@ -35,6 +48,13 @@ test('refinement starts at rest, automatically increases resolution, and recover
   await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
   const status = page.getByTestId('trace-status');
   await expect(status).toContainText('Tavoite saavutettu', { timeout: 120000 });
+  // Preparation must compile the actual float-target variant. Compiling for
+  // the canvas caused an unguarded second compile inside the first draw.
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { traceProgramLinks: number }).traceProgramLinks,
+    ),
+  ).toBe(1);
   await expect(canvas).toHaveAttribute('data-trace-opacity', '1');
   await expect(canvas).toHaveAttribute('data-trace-history-weight', '0');
   const transitions = await page.evaluate(

@@ -6,7 +6,6 @@ import { configureEmitterSampling } from './emitterSampling';
 import { gpuQueue } from './gpuQueue';
 import { traceLighting } from './traceLighting';
 import { reflectionGuides } from './reflectionGuides';
-import { setTraceNoise } from './traceAdaptive';
 import { traceGuides } from './traceGuides';
 import { imageLook } from './imageLook';
 import { traceResources } from './traceResources';
@@ -190,7 +189,6 @@ export async function renderSnapshot(
         if (samples > before) {
           const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
           denoise.observe(renderer, tracer.target, samples, guide.albedo);
-          setTraceNoise(tracer, denoise.noise, samples);
         }
         if (performance.now() - batchStart >= 6) break;
       }

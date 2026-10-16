@@ -4,6 +4,43 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.47.4 — geelin ja peilien GPU-jumi
+
+- Käyttäjän pilviprojektin uusin kopio testattiin paikallisesti, geelikappale
+  edessä ja peilit sen takana. Oletusyleiskuva ei toistanut ongelmaa, mutta
+  lähikuva katkaisi GPU-yhteyden. Ajuriloki raportoi myös
+  `Caused GPU Hang Error (kIOGPUCommandBufferCallbackErrorHang)`.
+- Pelkkä shader-kutsujen yhdistäminen silmukaksi tai pienempi 128 pikselin
+  laskentapala ei korjannut kaatumista. Samassa kuvakulmassa vain ylimääräisen
+  sädepolun poistaminen käytöstä mahdollisti 64 näytteen valmistumisen.
+- Lopullinen tuotantobuild, asennettu **Google Chrome**, näkyvä selain:
+  **64 näytettä / 278,6 s**, ensimmäinen kokonainen renderikuva **4,5 s**.
+  Canvas **1 150 × 903**, sama kamera koko ajon ajan. Ei sivuvirheitä,
+  GPU-yhteyden katkeamista tai ajurin jumivirhettä. Etukappale ja molemmat
+  peiliheijastukset tarkistettu kuvasta. Kyseessä on vakauskoe, ei väite
+  kohinattomasta lopputuloksesta tai kylmän shader-välimuistin nopeudesta.
+- Valmistelun shader-lähteen vertailu paljasti canvas- ja float-kuvakohteen
+  eron: ensimmäinen näyte käänsi aiemmin uuden ohjelman synkronisesti.
+  Korjattuna syntyy yksi varsinainen renderiohjelma sekä erillinen
+  heijastusten apuohjelma. Heijastusten apuohjelmasta poistettiin käyttämätön
+  täysi valolaskenta.
+- Renderin **66 yksikkötestiä hyväksytty**. TypeScript, tuotantobuild ja
+  lisenssitarkistus hyväksytty.
+- Tuotantobuildin **12 desktop-selain-/GPU-testiä hyväksytty**: käynnistyminen,
+  yksi varsinaisen renderiohjelman käännös, automaattinen tarkentuminen,
+  kameran peruttu veto, estetty valmistelu ja palautuminen, PNG-vienti,
+  näytejono, heijastusten kohinanpoisto sekä puun ja kromin tarkkuus
+  64 / 256 / 1 024 / 4 096 näytteellä. Kolmen vientikierroksen jälkeen
+  esikatselun tekstuurimäärä pysyi **14 / 14 / 14**. Valokanavien kirkkaus
+  säilyi testissä **99,82–100,02 %**, eikä alfa-/liukulukupolku tuottanut
+  virheellisiä arvoja.
+- Rajat: testi tehtiin M1 Prolla. Käyttäjän **RTX 2060 Super / Chrome** ei
+  ole käytettävissä tässä ympäristössä; sen käynnistysjumia ei väitetä
+  laitekohtaisesti todennetuksi korjatuksi. Yksi kierros sisältää nyt yhden
+  sädepolun: vaikeat kiiltävät pinnat voivat tarvita aiempaa enemmän kierroksia.
+  Materiaalimalli, valopolkujen pituudet, tekstuurit ja kohinanpoisto säilyvät.
+  Yksityinen malli ja testikuvat eivät sisälly julkaisuun.
+
 ## V0.47.3 — renderin jumittunut käynnistys
 
 - Renderin **66 yksikkötestiä hyväksytty**. Uudet tapaukset kattavat materiaalin
