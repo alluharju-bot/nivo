@@ -12,6 +12,7 @@ import {
 import type { ColorPreview } from '../model/colorPreview';
 import { createPartLights, createTraceLights, previewLightLimit } from './lights';
 import { progressiveRenderer, type TraceStatus } from './progressive';
+import { prepareWithin } from './tracePreparation';
 import { imageLook } from './imageLook';
 import { mirrorBacking } from './mirror';
 import { partEmitterGroups, renderFaceMaterials } from './faceMaterials';
@@ -121,6 +122,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   bindPreviewShadowsOnce(floor.material);
   scene.add(floor);
   let disposed = false;
+  const lifetime = new AbortController();
   let extent = 100,
     initialized = false;
   const look = imageLook(current().settings);
@@ -634,7 +636,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     },
     trace: progressive,
     capture: async () => {
-      await Promise.all([environmentReady, library.ready()]);
+      await prepareWithin(Promise.all([environmentReady, library.ready()]), lifetime.signal);
       if (disposed) throw new Error('Renderöintinäkymä suljettiin ennen kuvan aloitusta.');
       return captureRenderScene(
         scene,
@@ -687,7 +689,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       textureEditor.update();
     },
     async exportPNG(width: number) {
-      await Promise.all([environmentReady, library.ready()]);
+      await prepareWithin(Promise.all([environmentReady, library.ready()]), lifetime.signal);
       if (disposed) throw new Error('Renderöintinäkymä suljettiin ennen kuvan tallentamista.');
       const size = renderer.getSize(new THREE.Vector2()),
         pixelRatio = renderer.getPixelRatio();
@@ -712,6 +714,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
     },
     dispose() {
       disposed = true;
+      lifetime.abort();
       progressive.dispose();
       look.dispose();
       observer.disconnect();

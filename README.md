@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.47.3** tarkentaa renderin käynnistystilaa ja rajaa jumittuneet odotukset.
+Materiaalien lataus, renderiohjelman valmistelu ja näytönohjaimen odotus näkyvät
+erikseen. Kesken olevan valmistelun voi perua; valmistelun aikana ei lähetetä
+tyhjiä GPU-eriä. Tämä päivitys ei muuta valolaskentaa tai kuvanlaatua.
+
 Versio **0.47.2** selkeyttää mitoitusta ja huomautuksia. Mittateksti pysyy
 ruudulla vaakasuorassa ja sen kiertoa voi säätää valitun dimension paneelista.
 Uudessa viivatyylissä apuviivat ovat keskeltä katkotut ja päätemerkit vinot;

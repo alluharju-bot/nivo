@@ -4,6 +4,27 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.47.3 — renderin jumittunut käynnistys
+
+- Renderin **66 yksikkötestiä hyväksytty**. Uudet tapaukset kattavat materiaalin
+  aikarajan, myöhäisen virheen, perumisen, uuden yrityksen sekä shaderin/GPU:n
+  aktiivisen odotuksen. Taustavälilehden tai levon aikahyppy ei ole aktiivista
+  odotusta.
+- Tuotantobuildin **8 desktop-selainkoetta hyväksytty**. Tahallaan estetty
+  HDR-lataus voidaan perua ja uudelleen aloittaa; 30 s:n aikaraja antaa virheen
+  ja latauksen valmistuttua renderi saavuttaa tavoitteen. Shaderin valmistuminen
+  pidetään testissä estettynä: tyhjiä GPU-eriä ei lähetetä, aktiivisen odotuksen
+  aikaraja toimii ja valmistumisen salliminen palauttaa tarkennuksen.
+- Nykyinen kameran peruttu veto, automaattinen tarkentuminen, erillinen
+  PNG-renderi, renderin peruminen sekä WebGL-yhteyden palautuminen hyväksytty.
+  Kolmen vientikierroksen jälkeen esikatselun tekstuurimäärä pysyi **14 / 14 / 14**.
+- TypeScript, tuotantobuild ja lisenssitarkistus hyväksytty. Valolaskentaa,
+  näytteistystä, tekstuuritarkkuutta tai kohinanpoistoa ei muutettu.
+- Käyttäjän kolmen minuutin odotusta ja kaatumista ei saatu toistettua
+  paikallisella kylpyhuoneprojektin kopiolla. Puuttuvaan kaatumislokiin ei
+  perusteta väitettä tarkasta syystä. Aikaraja pysäyttää keskeneräisen
+  asynkronisen odotuksen; se ei voi keskeyttää ajurin sisällä estävää kutsua.
+
 ## V0.47.2 — dimensiot, huomautukset ja korostusalueet
 
 - Koko yksikkö-/CAD-testistö: **662 hyväksyttyä, 5 ennestään ohitettua**.

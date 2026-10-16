@@ -33,6 +33,7 @@ export function traceResources(tracer: WebGLPathTracer) {
   prepareTextureAtlas(tracer);
   const internal = tracer as unknown as Internals;
   const renderers = [internal._pathTracer, internal._lowResPathTracer];
+  let compilationError: unknown;
   // compileAsync keeps a program reference while polling KHR completion. A
   // material can replace/dispose that program before the poll finishes. Guard
   // programs when compilation starts, not just the current material at dispose
@@ -51,7 +52,15 @@ export function traceResources(tracer: WebGLPathTracer) {
   for (const r of renderers) {
     const compile = r.compileMaterial.bind(r);
     r.compileMaterial = () => {
-      const pending = compile();
+      // The pinned library attaches only .then() to this promise. Catch here
+      // so a rejected compile cannot become an unhandled rejection while its
+      // isCompiling flag leaves the preview waiting forever.
+      const pending = compile().catch((error: unknown) => {
+        compilationError =
+          error instanceof Error
+            ? error
+            : new Error(String(error ?? 'Renderiohjelman valmistelu epäonnistui.'));
+      });
       guardCompilations();
       return pending;
     };
@@ -85,6 +94,12 @@ export function traceResources(tracer: WebGLPathTracer) {
   };
   let disposed = false;
   return {
+    get compiling() {
+      return !!internal._pathTracer._compilePromise;
+    },
+    checkCompilation() {
+      if (compilationError) throw compilationError;
+    },
     prepareScene() {
       resetTraceMaterialIndices(internal._generator.geometry);
     },

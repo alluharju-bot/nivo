@@ -11,6 +11,7 @@ import { traceGuides } from './traceGuides';
 import { imageLook } from './imageLook';
 import { traceResources } from './traceResources';
 import { prepareTraceMaterials } from './traceMaterials';
+import { prepareWithin, traceWaitWatchdog } from './tracePreparation';
 
 export type RenderJobOptions = { width: number; samples: number; denoise?: boolean };
 export type RenderJobProgress = {
@@ -137,10 +138,13 @@ export async function renderSnapshot(
           if (value instanceof THREE.Texture && value.image instanceof HTMLImageElement)
             images.add(value.image);
     });
-    await Promise.all(
-      [...images].map((image) =>
-        image.complete && image.naturalWidth ? undefined : image.decode(),
+    await prepareWithin(
+      Promise.all(
+        [...images].map((image) =>
+          image.complete && image.naturalWidth ? undefined : image.decode(),
+        ),
       ),
+      signal,
     );
     check();
     disposeSnapshotGeometry = prepareTraceMaterials(snapshot.scene);
@@ -151,17 +155,30 @@ export async function renderSnapshot(
     checkTraceUpload(renderer);
     let lastReport = 0;
     let checkedFirstSample = false;
+    const waiting = traceWaitWatchdog();
     queue = gpuQueue(renderer.getContext() as WebGL2RenderingContext);
     while (tracer.samples < target) {
       await animationFrame(signal);
       check();
-      if (document.hidden) continue;
+      if (document.hidden) {
+        waiting.reset();
+        continue;
+      }
       if (renderer.getContext().isContextLost())
         throw new Error('Näytönohjaimen yhteys katkesi. Kokeile pienempää kuvakokoa.');
       // Do not let the refresh rate impose one animation frame per tiny tile.
       // Keep batches short and wait without blocking for the previous GPU batch
       // so a background export cannot build an unbounded command queue.
-      if (!queue.ready()) continue;
+      resources.checkCompilation();
+      if (!queue.ready()) {
+        waiting.check('gpu');
+        continue;
+      }
+      if (resources.compiling) {
+        waiting.check('compiling');
+        continue;
+      }
+      waiting.reset();
       const batchStart = performance.now();
       queue.begin();
       let submitted = 0;

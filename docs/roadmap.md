@@ -2,6 +2,21 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.47.3 — renderin käynnistyksen odotukset
+
+- Materiaalien/ympäristön lataus, geometrian valmistelu, shaderin valmistelu ja
+  ensimmäisen näytteen laskenta erotellaan käynnistystilassa.
+- Materiaalien latauksen aikaraja 30 s; aktiivisen shader-odotuksen 60 s ja
+  GPU-erän odotuksen 30 s. Piilotettu välilehti, lepo ja kameran liikuttaminen
+  eivät kerrytä GPU-odotusta. Virhe pysäyttää tarkennuksen.
+- Käynnistyspyynnöt yhdistetään, peruminen katkaisee odotuksen ja myöhässä
+  valmistuva vanha pyyntö ei käynnistä renderiä uudelleen.
+- Shaderin valmistelussa ei lähetetä tyhjiä laskentaeriä. Hylätty valmistelu
+  välittyy virheenä; kuvanvienti käyttää samoja odotusten rajoja.
+- Käyttäjän ilmoittamaa koko renderin kaatumista ei saatu toistettua paikallisella
+  kylpyhuonemallin kopiolla. Aikaraja ei voi keskeyttää JavaScriptin tai
+  näytönohjainajurin sisällä estävää kutsua; tarkka kaatumissyy jää avoimeksi.
+
 ## V0.47.2 — luettavat dimensiot ja korostusmerkinnät
 
 - Mittateksti on oletuksena ruudun/paperin suuntainen. Merkintäkohtainen kierto

@@ -15,6 +15,7 @@ import { refinementSamples } from './traceRefinement';
 import { gpuQueue } from './gpuQueue';
 import { isTraceEnvironment } from './environment';
 import { prepareTraceMaterials } from './traceMaterials';
+import { prepareWithin, traceWaitWatchdog } from './tracePreparation';
 
 export type TraceStatus = {
   state: 'off' | 'loading' | 'rendering' | 'paused' | 'complete' | 'error';
@@ -68,6 +69,10 @@ export function progressiveRenderer(
   let disposeSnapshotGeometry: (() => void) | undefined;
   let lightingDirty = false;
   let sceneBuilds = 0;
+  let startup: Promise<void> | undefined;
+  let preparation = new AbortController();
+  const waiting = traceWaitWatchdog();
+  let phase = '';
 
   let options = { ...traceDefaults };
   const status = (state: TraceStatus['state'], message?: string) =>
@@ -79,11 +84,23 @@ export function progressiveRenderer(
     });
   const fail = (error: unknown) => {
     enabled = false;
+    request++;
+    preparation.abort();
+    waiting.reset();
     queue.dispose();
     cancelAnimationFrame(frame);
-    renderer.setRenderTarget(null);
-    if (!renderer.getContext().isContextLost()) raster();
+    // Keep the last visible preview. Submitting another scene render to a
+    // driver that has just stopped responding only adds work to the stuck queue.
+    renderer.domElement.dataset.tracePhase = 'error';
+    renderer.domElement.dataset.traceError = error instanceof Error ? error.message : String(error);
     status('error', error instanceof Error ? error.message : String(error));
+  };
+  const loading = (next: string, message: string) => {
+    renderer.domElement.dataset.tracePhase = next;
+    if (phase !== next) {
+      phase = next;
+      if (!image.ready) status('loading', message);
+    }
   };
   const resolutions = () => {
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
@@ -186,24 +203,39 @@ export function progressiveRenderer(
   const loop = () => {
     if (disposed || !enabled || !tracer) return;
     frame = requestAnimationFrame(loop);
-    if (document.hidden || paused || complete) return;
+    if (document.hidden || paused || complete) {
+      waiting.reset();
+      return;
+    }
     // Never enqueue expensive GPU work while dragging or during a wheel burst.
     // Camera events draw the live raster scene; refinement resumes after settling.
-    if (interacting || performance.now() < settleAt) return;
+    if (interacting || performance.now() < settleAt) {
+      waiting.reset();
+      return;
+    }
     try {
       if (renderer.getContext().isContextLost())
         throw new Error(
           'Näytönohjaimen yhteys katkesi. Palauta 3D-näkymä tai käynnistä selain uudelleen.',
         );
-      if (!queue.ready()) return;
+      resources?.checkCompilation();
+      if (!queue.ready()) {
+        loading('gpu', 'Odotetaan näytönohjaimen laskentaa…');
+        waiting.check('gpu');
+        return;
+      }
       if (dirty) {
         if (!preparing) {
           preparing = true;
           const version = sceneVersion,
             token = request;
-          void ready()
+          loading('assets', 'Ladataan materiaalikuvia ja ympäristövaloa…');
+          void prepareWithin(ready(), preparation.signal)
             .then(() => {
-              if (!disposed && enabled && token === request && version === sceneVersion) rebuild();
+              if (!disposed && enabled && token === request && version === sceneVersion) {
+                loading('geometry', 'Valmistellaan mallin geometriaa ja materiaaleja…');
+                rebuild();
+              }
             })
             .catch((e) => {
               if (!disposed && enabled && token === request) fail(e);
@@ -221,7 +253,8 @@ export function progressiveRenderer(
         preparing = true;
         const token = request,
           version = sceneVersion;
-        void ready()
+        loading('assets', 'Ladataan materiaalikuvia…');
+        void prepareWithin(ready(), preparation.signal)
           .then(() => {
             if (disposed || !enabled || token !== request || version !== sceneVersion) return;
             configureTraceTextures(snapshot!, renderer, tracer!);
@@ -238,6 +271,14 @@ export function progressiveRenderer(
           });
         return;
       }
+      resources?.checkCompilation();
+      if (resources?.compiling) {
+        loading('compiling', 'Valmistellaan renderiohjelmaa näytönohjaimelle…');
+        waiting.check('compiling');
+        return;
+      }
+      waiting.reset();
+      loading('sampling', 'Lasketaan ensimmäistä näytettä…');
       if (needsSize) quality();
       // Use spare GPU capacity without tying every small tile to a screen
       // refresh. One bounded batch stays in flight, with at most 8 tiles. Stop
@@ -268,6 +309,7 @@ export function progressiveRenderer(
             present();
             lastPresented = performance.now();
             renderer.domElement.dataset.tracePresentedSamples = String(samples);
+            renderer.domElement.dataset.tracePhase = 'rendering';
             renderer.domElement.dataset.traceOpacity = '1';
             renderer.domElement.dataset.traceHistoryWeight = String(image.historyWeight);
             renderer.domElement.dataset.tracePresentedSize = renderer.domElement.dataset.traceSize;
@@ -316,6 +358,8 @@ export function progressiveRenderer(
     resolution = 0;
     needsSize = true;
     lastPresented = 0;
+    waiting.reset();
+    phase = '';
     image.clear();
     guides.reset();
     reflections.reset();
@@ -355,44 +399,58 @@ export function progressiveRenderer(
       paused = false;
       reset('restart');
     },
-    async start() {
+    start(): Promise<void> {
       if (enabled) {
         if (paused) {
           paused = false;
           status(complete ? 'complete' : tracer!.samples < 1 ? 'loading' : 'rendering');
         }
-        return;
+        return Promise.resolve();
       }
+      if (startup) return startup;
+      preparation = new AbortController();
       const token = ++request;
-      status('loading');
-      try {
-        await ready();
-        // Let React commit and the browser paint the preparation message before
-        // synchronous driver work. A resolved texture promise alone only yields
-        // to another microtask and can leave the old raster UI on screen.
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-        );
-        if (disposed || token !== request) return;
-        if (!renderer.extensions.has('EXT_color_buffer_float'))
-          throw new Error(
-            'Tämä selain tai näytönohjain ei tue tarkentuvaa renderöintiä. Nopea esikatselu toimii edelleen.',
+      phase = '';
+      delete renderer.domElement.dataset.traceError;
+      loading('assets', 'Ladataan materiaalikuvia ja ympäristövaloa…');
+      startup = (async () => {
+        try {
+          await prepareWithin(ready(), preparation.signal);
+          // Let React commit and the browser paint the preparation message before
+          // synchronous driver work. A resolved texture promise alone only yields
+          // to another microtask and can leave the old raster UI on screen.
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
           );
-        initialize();
-        enabled = true;
-        paused = false;
-        complete = false;
-        // The camera can move while tracing is off or being prepared. Refresh
-        // its uniforms without rebuilding the already prepared geometry.
-        tracer!.setCamera(camera);
-        reset('start');
-        loop();
-      } catch (e) {
-        if (!disposed && token === request) fail(e);
-      }
+          if (disposed || token !== request) return;
+          if (!renderer.extensions.has('EXT_color_buffer_float'))
+            throw new Error(
+              'Tämä selain tai näytönohjain ei tue tarkentuvaa renderöintiä. Nopea esikatselu toimii edelleen.',
+            );
+          initialize();
+          enabled = true;
+          paused = false;
+          complete = false;
+          // The camera can move while tracing is off or being prepared. Refresh
+          // its uniforms without rebuilding the already prepared geometry.
+          tracer!.setCamera(camera);
+          reset('start');
+          loop();
+        } catch (e) {
+          if (!disposed && token === request) fail(e);
+        }
+      })();
+      const pending = startup;
+      void pending.finally(() => {
+        if (startup === pending) startup = undefined;
+      });
+      return pending;
     },
     stop() {
       request++;
+      preparation.abort();
+      startup = undefined;
+      waiting.reset();
       enabled = false;
       paused = false;
       cancelAnimationFrame(frame);
@@ -401,6 +459,9 @@ export function progressiveRenderer(
     },
     release() {
       request++;
+      preparation.abort();
+      startup = undefined;
+      waiting.reset();
       enabled = false;
       paused = false;
       cancelAnimationFrame(frame);
@@ -471,6 +532,8 @@ export function progressiveRenderer(
     dispose() {
       disposed = true;
       request++;
+      preparation.abort();
+      waiting.reset();
       enabled = false;
       cancelAnimationFrame(frame);
       queue.dispose();
