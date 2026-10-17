@@ -1,3 +1,4 @@
+import { layerDomain } from './layers';
 import { setCameraLens, defaultFocalLength } from './cameraLens';
 import { installTextureEditing } from '../viewport/textureEditing';
 import { canUpdateSurfaces, surfaceKey, type RenderModel } from './sceneChanges';
@@ -280,7 +281,11 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         for (const material of existing) {
           const index = material.userData.facePaintIndex as number | undefined;
           const source = faceMaterialBody(body, index);
-          const surface = library.create(source, next.assets);
+          const surface = library.create(
+            source,
+            next.assets,
+            source.appearance?.layers?.length ? layerDomain(object.geometry) : undefined,
+          );
           const backing = material.userData.mirrorBacking;
           // Retain material identity: the trace snapshot shares these instances.
           disposeMaterial(material);
@@ -319,8 +324,14 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
       materialUV(geometry, body);
-      const materials = renderFaceMaterials(geometry, body, data, (source) =>
-        library.create(source, current().assets),
+      const materials = renderFaceMaterials(geometry, body, data, (source, range) =>
+        library.create(
+          source,
+          current().assets,
+          source.appearance?.layers?.length
+            ? layerDomain(geometry, range.start, range.count)
+            : undefined,
+        ),
       );
       const mesh = new THREE.Mesh(geometry, materials);
       mesh.userData.bodyId = body.id;

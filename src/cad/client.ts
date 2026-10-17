@@ -32,6 +32,12 @@ export class CadClient {
       body,
     });
   }
+  surfaceMesh(body: Body, tolerance = 0.15, angle = 0.1) {
+    return this.request<import('./protocol').BodyMesh>(
+      { type: 'surface-mesh', body, tolerance, angle },
+      120_000,
+    );
+  }
   commitGeometry(body: Body, points: Vec3[], meshCopy = false) {
     return this.request<Body>({ type: 'commit-geometry', body, points, meshCopy });
   }
@@ -217,6 +223,9 @@ export class CadClient {
   }
   mergePlanar(bodies: Body[]) {
     return this.request<Body>({ type: 'merge-planar', bodies });
+  }
+  sweep(path: Body, options: import('./sweep').SweepOptions) {
+    return this.request<EdgeDetailResult>({ type: 'sweep', path, options });
   }
   sphere(center: Vec3, radius: number, name: string) {
     return this.request<Body>({ type: 'sphere', center, radius, name });

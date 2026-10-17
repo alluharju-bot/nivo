@@ -2,6 +2,14 @@ import * as THREE from 'three';
 import { pbrMapUrl } from '../model/pbrCatalog';
 import { derivedCanvas, sourceSize } from './surfaceMaps';
 import { patinaCanvases } from './patina';
+import { facadeCanvases } from './facade';
+import {
+  createLayerComposer,
+  layerColorUpdates,
+  layerPlacementUpdates,
+  wearMapUrl,
+  type LayerDomain,
+} from './layers';
 import {
   appearancePreset,
   defaultAppearance,
@@ -226,6 +234,20 @@ export function setMaterialColor(
   color: THREE.ColorRepresentation,
   tintColor: THREE.ColorRepresentation = color,
 ) {
+  if (material.userData.layerColor && material.map) {
+    const tint = new THREE.Color(tintColor);
+    layerColorUpdates.get(material.map)?.(tint);
+    const shown = new THREE.Color(color);
+    material.color.setRGB(
+      ...(shown.toArray().map((n, i) => Math.min(3, n / Math.max(0.01, tint.toArray()[i]))) as [
+        number,
+        number,
+        number,
+      ]),
+    );
+    if (shown.equals(tint)) material.color.set(0xffffff);
+    return;
+  }
   material.color.set(color);
   if (material.map) colorTints.get(material.map)?.(new THREE.Color(tintColor));
 }
@@ -263,9 +285,11 @@ export function createMaterialLibrary(
     'american_walnut_veneer',
   ]),
 ) {
+  const layers = createLayerComposer(() => scheduleDraw(), texturePlacement);
   const patterns = new Map<string, HTMLCanvasElement>(),
     images = new Map<string, HTMLImageElement>();
   const patinas = new Map<string, ReturnType<typeof patinaCanvases>>();
+  const facades = new Map<string, ReturnType<typeof facadeCanvases>>();
   const normals = new Map<string, HTMLCanvasElement>(),
     roughness = new Map<string, HTMLCanvasElement>();
   const sources = new WeakMap<object, THREE.Source<CanvasImageSource>>();
@@ -358,10 +382,10 @@ export function createMaterialLibrary(
       activeDerived.clear();
     },
     endFrame() {
-      for (const cache of [normals, roughness])
+      for (const cache of [normals, roughness, facades])
         for (const key of cache.keys()) if (!activeDerived.has(key)) cache.delete(key);
     },
-    create(body: Body, assets: Record<string, TextureAsset> = {}) {
+    create(body: Body, assets: Record<string, TextureAsset> = {}, domain?: LayerDomain) {
       const appearance = body.appearance ?? defaultAppearance(body.material),
         preset = appearancePreset(appearance);
       const placement = appearance.texture;
@@ -389,6 +413,7 @@ export function createMaterialLibrary(
       let map: THREE.Texture | null = null,
         pattern: HTMLCanvasElement | undefined;
       let patina: ReturnType<typeof patinaCanvases> | undefined;
+      let facade: ReturnType<typeof facadeCanvases> | undefined;
       const imageMap = (
         id: string | undefined,
         color = false,
@@ -417,7 +442,15 @@ export function createMaterialLibrary(
                   id === appearance.maps?.normal ||
                   id.endsWith('/normal.jpg'),
               );
-        const result = texture(initial, color, placement);
+        const channel =
+          !color &&
+          (['normal', 'bump', 'roughness', 'metalness', 'ao'] as const).find(
+            (key) => appearance.maps?.[key] === id,
+          );
+        const mapPlacement = channel && appearance.mapPlacements?.[channel];
+        const result = texture(initial, color, mapPlacement || placement);
+        result.userData.imageIdentity = sourceFor(image).uuid;
+        if (mapPlacement) result.userData.independentPlacement = mapPlacement;
         const sourceKey = JSON.stringify([
           id,
           derived,
@@ -477,7 +510,19 @@ export function createMaterialLibrary(
       };
       if (appearance.assetId) map = imageMap(appearance.assetId, true);
       else if (preset.pbr) map = imageMap(`builtin:${pbrMapUrl(preset.pbr, 'color')}`, true);
-      else if (preset.pattern === 'patina') {
+      else if (
+        appearance.procedural &&
+        (preset.pattern === 'concrete' || preset.pattern === 'plaster')
+      ) {
+        const key = JSON.stringify([preset.pattern, appearance.procedural, physical.depth]);
+        activeDerived.add(key);
+        facade = facades.get(key);
+        if (!facade) {
+          facade = facadeCanvases(appearance.procedural, preset.pattern, physical.depth);
+          facades.set(key, facade);
+        }
+        map = texture(facade.color, true, placement);
+      } else if (preset.pattern === 'patina') {
         patina = patinas.get(preset.id);
         if (!patina) {
           patina = patinaCanvases(preset.seed);
@@ -523,6 +568,14 @@ export function createMaterialLibrary(
           ? imageMap(appearance.maps.normal)
           : imageMap(appearance.maps?.bump, false, 'normal', appearance.bumpDepth === undefined);
         roughnessMap = imageMap(appearance.maps?.roughness);
+        if (facade) {
+          if (!normalMap) {
+            const size = appearance.procedural!.detailSize;
+            normalMap = texture(facade.normal, false, { ...placement, width: size, height: size });
+            normalMap.userData.fixedRepeat = size;
+          }
+          roughnessMap ??= texture(facade.roughness, false, placement);
+        }
         if (patina) roughnessMap ??= texture(patina.roughness, false, placement);
         // A custom color image must not inherit an unrelated built-in relief.
         if (preset.pbr && !appearance.assetId) {
@@ -548,7 +601,7 @@ export function createMaterialLibrary(
       const strength = surfaceStrength(appearance);
       // An explicit finish overrides the roughness texture. Multiplying a matte
       // finish by a dark map silently reintroduced gloss. Keep color and relief.
-      if (appearance.roughness !== undefined && roughnessMap) {
+      if (appearance.roughness !== undefined && roughnessMap && !appearance.atlasMaps) {
         roughnessMap.dispose();
         roughnessMap = null;
       }
@@ -569,8 +622,13 @@ export function createMaterialLibrary(
         roughness: finishRoughness,
         metalness: appearance.metalness ?? preset.metalness,
         transmission: appearance.transmission ?? preset.transmission ?? 0,
-        clearcoat: finishRoughness === 1 ? 0 : (appearance.clearcoat ?? preset.clearcoat ?? 0),
-        clearcoatRoughness: finishRoughness,
+        clearcoat:
+          finishRoughness === 1 && !appearance.atlasMaps
+            ? 0
+            : (appearance.clearcoat ?? preset.clearcoat ?? 0),
+        clearcoatRoughness: appearance.atlasMaps
+          ? (appearance.atlasCoatRoughness ?? finishRoughness)
+          : finishRoughness,
         thickness: optical ? thickness : Math.max(1, thickness * 0.1),
         ior: appearance.ior ?? preset.ior ?? 1.5,
         attenuationColor: appearance.attenuationColor ?? preset.attenuationColor ?? '#ffffff',
@@ -579,6 +637,7 @@ export function createMaterialLibrary(
         map,
         normalMap,
         roughnessMap,
+        aoMap: imageMap(appearance.maps?.ao),
         normalScale: new THREE.Vector2(
           strength,
           appearance.maps?.normal && appearance.normalFormat === 'directx' ? -strength : strength,
@@ -604,19 +663,49 @@ export function createMaterialLibrary(
       material.emissive.set(emission.color);
       material.emissiveIntensity = emission.enabled ? emission.intensity : 0;
       bindPreviewShadowsOnce(material);
+      if (appearance.layers?.some((layer) => layer.enabled && layer.amount > 0)) {
+        const masks: Partial<
+          Record<'scratches' | 'fingerprints', { mask: THREE.Texture; normal: THREE.Texture }>
+        > = {};
+        for (const layer of appearance.layers) {
+          if (
+            !layer.enabled ||
+            layer.amount === 0 ||
+            (layer.kind !== 'scratches' && layer.kind !== 'fingerprints') ||
+            masks[layer.kind]
+          )
+            continue;
+          const mask = imageMap(`builtin:${wearMapUrl(layer.kind, 'mask')}`)!;
+          const normal = imageMap(`builtin:${wearMapUrl(layer.kind, 'normal')}`)!;
+          for (const texture of [mask, normal]) {
+            texture.repeat.set(1, 1);
+            texture.offset.set(0, 0);
+            texture.rotation = 0;
+            texture.updateMatrix();
+          }
+          masks[layer.kind] = { mask, normal };
+        }
+        const baseMap = material.map;
+        layers.apply(material, appearance, domain, masks, Promise.all([...pending]), (color) => {
+          if (baseMap) colorTints.get(baseMap)?.(color);
+        });
+      }
       return material;
     },
     async ready() {
       await Promise.all([...pending]);
+      await layers.ready();
       if ([...activeImages.values()].some((image) => failed.has(image)))
         throw new Error('Materiaalin kuvaa ei voitu lukea. Tuo kyseinen kuva uudelleen.');
     },
     dispose() {
       disposed = true;
+      layers.dispose();
       if (redraw) cancelAnimationFrame(redraw);
       placeholders.clear();
       patterns.clear();
       patinas.clear();
+      facades.clear();
       images.clear();
       normals.clear();
       roughness.clear();
@@ -632,8 +721,23 @@ export function updateMaterialPlacement(
   material: THREE.MeshPhysicalMaterial,
   placement: TexturePlacement,
 ) {
+  if (material.userData.layerColor && material.map) {
+    layerPlacementUpdates.get(material.map)?.(placement);
+    return;
+  }
   for (const value of Object.values(material))
-    if (value instanceof THREE.Texture) texturePlacement(value, placement);
+    if (value instanceof THREE.Texture)
+      texturePlacement(
+        value,
+        value.userData.independentPlacement ??
+          (value.userData.fixedRepeat
+            ? {
+                ...placement,
+                width: value.userData.fixedRepeat,
+                height: value.userData.fixedRepeat,
+              }
+            : placement),
+      );
   const physical = material.userData.physicalSurface;
   if (physical)
     material.normalScale.set(

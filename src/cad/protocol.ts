@@ -95,6 +95,7 @@ import type { DrawingView } from '../model/drawingViews';
 export type { DrawingView } from '../model/drawingViews';
 export type CadRequest =
   | { type: 'prepare-geometry'; body: Body }
+  | { type: 'surface-mesh'; body: Body; tolerance: number; angle: number }
   | {
       type: 'change-dimension';
       body: Body;
@@ -113,6 +114,7 @@ export type CadRequest =
       existing?: Body;
     }
   | { type: 'scale'; bodies: Body[]; pivot: Vec3; factors: Vec3 }
+  | { type: 'sweep'; path: Body; options: import('./sweep').SweepOptions }
   | { type: 'sphere'; center: Vec3; radius: number; name: string }
   | {
       type: 'bezier';
@@ -185,6 +187,7 @@ export interface CadReply {
     | import('./penRegions').PenRegions
     | SectionResult
     | BodyMesh[]
+    | BodyMesh
     | Projection
     | ProbeResult
     | Body

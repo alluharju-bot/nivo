@@ -1,3 +1,4 @@
+import { sweepPath } from './sweep';
 import { changeDimension } from './editableDimensions';
 import { scaleBodies } from './scaling';
 import { prepareGeometry, commitGeometry } from './geometryEditing';
@@ -28,7 +29,7 @@ import { rotateBodies } from './transforms';
 import { detailEdges, removeEdgeTreatment } from './details';
 import { instantiateComponents } from './components';
 import { addSurfaceRegions, removeSurfaceFaces } from './surfaces';
-import { readStep, writeStep, printMeshes } from './exchange';
+import { readStep, writeStep, printMeshes, surfaceMesh } from './exchange';
 
 const initialized = initOpenCascade({ locateFile: () => wasmUrl }).then(setOC);
 const cache = new CadBuildCache();
@@ -50,6 +51,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
       else if (request.type === 'change-dimension')
         reply.result = changeDimension(request.body, request.key, request.value);
       else if (request.type === 'prepare-geometry') reply.result = prepareGeometry(request.body);
+      else if (request.type === 'surface-mesh')
+        reply.result = surfaceMesh(request.body, request.tolerance, request.angle);
       else if (request.type === 'commit-geometry')
         reply.result = commitGeometry(request.body, request.points, request.meshCopy);
       else if (request.type === 'release-history') {
@@ -78,7 +81,8 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
           .map((entry) => entry.mesh);
         syncedBodies = new Map(ordered.map((body) => [body.id, body]));
         sentMeshes = new Map(entries.map((entry) => [entry.mesh.id, entry.mesh]));
-      } else if (request.type === 'sphere')
+      } else if (request.type === 'sweep') reply.result = sweepPath(request.path, request.options);
+      else if (request.type === 'sphere')
         reply.result = sphereBody(request.center, request.radius, request.name);
       else if (request.type === 'bezier')
         reply.result = bezierPath(
@@ -124,9 +128,19 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
           cache,
         );
       else if (request.type === 'face-span')
-        reply.result = measureFaceSpan(request.body, request.face, request.point, cache);
+        reply.result =
+          request.body.feature.type === 'mesh'
+            ? (await import('../model/meshPushPull')).meshFaceSpan(request.body, request.face)
+            : measureFaceSpan(request.body, request.face, request.point, cache);
       else if (request.type === 'push-pull')
-        reply.result = pushPullFace(request.body, request.face, request.distance, cache);
+        reply.result =
+          request.body.feature.type === 'mesh'
+            ? (await import('../model/meshPushPull')).pushPullMesh(
+                request.body,
+                request.face,
+                request.distance,
+              )
+            : pushPullFace(request.body, request.face, request.distance, cache);
       else if (request.type === 'boolean')
         reply.result = booleanBodies(request.targets, request.tools, request.operation);
       else if (request.type === 'merge-planar') reply.result = mergePlanarBodies(request.bodies);

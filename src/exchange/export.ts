@@ -1,7 +1,6 @@
-import { BufferGeometry, Float32BufferAttribute, Group, Mesh } from 'three';
 import type { BodyMesh } from '../cad/protocol';
 import type { Body, Project } from '../model/project';
-import { renderFaceMaterials } from '../render/faceMaterials';
+import { exportScene, type GlbOptions } from './exportScene';
 
 export type ExportMesh = Pick<BodyMesh, 'id' | 'vertices' | 'triangles'>;
 export function stlBinary(meshes: ExportMesh[], bed = false): ArrayBuffer {
@@ -54,45 +53,87 @@ export async function glbExport(
   bodies: Body[],
   meshes: BodyMesh[],
   assets: Project['assets'],
+  options: GlbOptions = {},
 ): Promise<ArrayBuffer> {
+  return (await exportGlbLevel(bodies, meshes, assets, options)).buffer;
+}
+async function exportGlbLevel(
+  bodies: Body[],
+  meshes: BodyMesh[],
+  assets: Project['assets'],
+  options: GlbOptions,
+) {
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
-  const { createMaterialLibrary, materialUV, disposeMaterial } =
-    await import('../render/materials');
-  const library = createMaterialLibrary(() => {});
-  library.beginFrame();
-  const root = new Group();
+  const scene = await exportScene(bodies, meshes, assets, options);
   try {
-    const byId = new Map(meshes.map((m) => [m.id, m]));
-    for (const body of bodies) {
-      const data = byId.get(body.id);
-      if (!data?.triangles.length) continue;
-      const geometry = new BufferGeometry();
-      geometry.setAttribute('position', new Float32BufferAttribute(data.vertices, 3));
-      geometry.setAttribute('normal', new Float32BufferAttribute(data.normals, 3));
-      geometry.setIndex(data.triangles);
-      materialUV(geometry, body);
-      const material = renderFaceMaterials(geometry, body, data, (source) =>
-        library.create(source, assets),
-      );
-      const mesh = new Mesh(geometry, material);
-      mesh.name = body.name;
-      root.add(mesh);
-    }
-    library.endFrame();
-    await library.ready();
-    root.rotation.x = -Math.PI / 2;
-    root.scale.setScalar(0.001);
-    root.updateMatrixWorld(true);
-    return (await new GLTFExporter().parseAsync(root, { binary: true })) as ArrayBuffer;
+    const buffer = (await new GLTFExporter().parseAsync(scene.root, {
+      binary: true,
+      maxTextureSize: options.maxTextureSize ?? Infinity,
+    })) as ArrayBuffer;
+    return { buffer, ...scene.stats };
   } finally {
-    library.dispose();
-    root.traverse((object) => {
-      if (object instanceof Mesh) {
-        object.geometry.dispose();
-        (Array.isArray(object.material) ? object.material : [object.material]).forEach(
-          disposeMaterial,
-        );
-      }
+    scene.release();
+  }
+}
+/** Independent, portable GLBs. The consuming application chooses LOD distances;
+ * core glTF has no automatic distance-switching convention. */
+export async function glbLodPackage(
+  bodies: Body[],
+  meshes: BodyMesh[],
+  assets: Project['assets'],
+  instances: boolean,
+  progress: (message: string) => void,
+) {
+  const { zip, strToU8 } = await import('fflate');
+  const files: Record<string, Uint8Array> = {},
+    levels = [];
+  for (const [level, ratio, error, maxTextureSize] of [
+    [0, 1, 0, 2048],
+    [1, 0.5, 0.001, 1024],
+    [2, 0.2, 0.005, 512],
+  ]) {
+    progress(`Valmistellaan LOD ${level + 1}/3…`);
+    const result = await exportGlbLevel(bodies, meshes, assets, {
+      instances,
+      ratio,
+      error,
+      maxTextureSize,
+    });
+    const file = `LOD${level}.glb`;
+    files[file] = new Uint8Array(result.buffer);
+    levels.push({
+      file,
+      targetTriangleRatio: ratio,
+      maxRelativeError: error,
+      maxTextureSize,
+      ...Object.fromEntries(Object.entries(result).filter(([key]) => key !== 'buffer')),
+      bytes: result.buffer.byteLength,
     });
   }
+  files['manifest.json'] = strToU8(
+    JSON.stringify(
+      {
+        version: 1,
+        units: 'metres',
+        up: 'Y',
+        instancing: instances ? 'EXT_mesh_gpu_instancing' : 'shared glTF meshes',
+        levels,
+        notes:
+          'Separate LOD files. Configure distance switching in the destination application. Ratios are targets; boundaries and material seams limit simplification. Source project is unchanged.',
+      },
+      null,
+      2,
+    ),
+  );
+  files['LUE-MINUT.txt'] = strToU8(
+    'LOD0 = lähelle, LOD1 = keskietäisyydelle, LOD2 = kauas.\nAseta etäisyydet kohdeohjelmassa. Älä näytä kaikkia versioita päällekkäin.\nAukot ja materiaalirajat säilytetään, joten kevyt malli ei välttämättä kevene tavoiteprosenttiin.\nToteutuneet kolmiomäärät ja tiedostokoot ovat manifest.json-tiedostossa.\n' +
+      (instances
+        ? 'GPU-instanssit edellyttävät EXT_mesh_gpu_instancing-tukea.\n'
+        : 'Kopiot viittaavat samaan geometriaan, mutta säilyvät erillisinä objekteina.\n'),
+  );
+  return new Promise<Uint8Array<ArrayBuffer>>((resolve, reject) =>
+    zip(files, { level: 0 }, (error, data) =>
+      error ? reject(error) : resolve(new Uint8Array(data)),
+    ),
+  );
 }

@@ -4,9 +4,9 @@ import { dimensionValue } from '../model/project';
 import { beforeAll, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import init from 'replicad-opencascadejs';
-import { setOC } from 'replicad';
+import { setOC, makeCompound, makePolygon, measureArea } from 'replicad';
 import { makeBody, freshProject, parseProject, type Body } from '../model/project';
-import { createShape, meshBody } from './kernel';
+import { createShape, meshBody, bodyFromShape, solidVolume, solidFaceIds } from './kernel';
 import { sphereBody, bezierPath, knifeBodies, type KnifeRay } from './modeling';
 import { splitWithPath } from './paths';
 
@@ -239,4 +239,50 @@ it('analytic curved knife also follows perspective projection without planar fac
     Math.abs(cut.bodies.reduce((sum, b) => sum + mesh(b).volume, 0) - 120000000) / 120000000,
   ).toBeLessThan(1e-7);
   expect(mesh(cut.bodies[0]).faces.filter((f) => !f.planar)).toHaveLength(1);
+});
+
+it('freehand knife measures only closed solids and retains loose sketch surfaces', () => {
+  const original = makeBody(600, 400, 100, [0, 0, 300]);
+  const solid = createShape(original);
+  const sheet = makePolygon([
+    [0, 0, 2000],
+    [600, 0, 2000],
+    [600, 400, 2000],
+    [0, 400, 2000],
+  ]);
+  const compound = makeCompound([solid.clone(), sheet.clone()]);
+  try {
+    const source = bodyFromShape(original, compound, []);
+    const rays = Array.from({ length: 17 }, (_, i) =>
+      ray(-60 + i * 45, 180 + Math.sin(i * 0.7) * 45),
+    );
+    // Extend the viewing ray far enough above both the sheet and the volume.
+    rays.forEach((r) => (r.origin[2] = 3000));
+    const result = knifeBodies([source], rays);
+    expect(result.affected).toEqual([source.id]);
+    let volume = 0,
+      area = 0;
+    for (const body of result.bodies) {
+      const shape = createShape(body);
+      try {
+        volume += solidVolume(shape);
+        const ids = solidFaceIds(shape),
+          faces = shape.faces;
+        try {
+          for (const face of faces) if (!ids.has(face.hashCode)) area += measureArea(face);
+        } finally {
+          faces.forEach((face) => face.delete());
+        }
+      } finally {
+        shape.delete();
+      }
+    }
+    expect(volume).toBeCloseTo(24000000, 2);
+    expect(area).toBeCloseTo(240000, 2);
+    expect(result.bodies.some((b) => b.name.endsWith('pinnat'))).toBe(true);
+  } finally {
+    compound.delete();
+    solid.delete();
+    sheet.delete();
+  }
 });

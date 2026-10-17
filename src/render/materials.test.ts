@@ -66,6 +66,22 @@ it('keeps millimeter offsets independent of rotation and per-object texture scal
   a.dispose();
   b.dispose();
 });
+it('keeps an atlas material coating independent of its absolute roughness-map multiplier', () => {
+  const library = createMaterialLibrary(() => {});
+  const appearance = {
+    ...defaultAppearance('paint-solid'),
+    atlasMaps: true,
+    roughness: 1,
+    clearcoat: 0.35,
+    atlasCoatRoughness: 0.2,
+  };
+  const material = library.create({ ...makeBody(), appearance });
+  expect(material.clearcoat).toBe(0.35);
+  expect(material.clearcoatRoughness).toBe(0.2);
+  expect(appearanceSchema.parse(appearance)).toEqual(appearance);
+  material.dispose();
+  library.dispose();
+});
 it('ships distinct presets and rejects a missing imported image', () => {
   expect(new Set(materialPresets.map((p) => p.id)).size).toBe(materialPresets.length);
   expect(

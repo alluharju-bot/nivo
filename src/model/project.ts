@@ -303,6 +303,19 @@ export const bodySchema = z.object({
     .optional(),
   localMaterial: z.boolean().optional(),
   localTexture: z.boolean().optional(),
+  surfaceWorkflow: z
+    .object({
+      sourceId: id,
+      sourceStamp: z.string().max(32),
+      uvAtlas: z.boolean(),
+      baked: z.boolean().optional(),
+      mask: z.array(z.number().min(0).max(1)).max(65000).optional(),
+      loops: z
+        .array(z.array(z.number().int().min(0).max(64999)).max(65000))
+        .max(16)
+        .optional(),
+    })
+    .optional(),
   locked: z.boolean().default(false),
   hidden: z.boolean().default(false),
   groupId: id.optional(),

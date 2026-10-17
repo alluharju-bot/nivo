@@ -9,12 +9,14 @@ import {
   cast,
   getOC,
   measureVolume,
+  makeCompound,
   type AnyShape,
 } from 'replicad';
-import { bodyFromShape, createShape, shapeIsValid } from './kernel';
+import { bodyFromShape, createShape, shapeIsValid, solidFaceIds } from './kernel';
 import { makeBody, uid, featureIsSolid, corners, type Body, type Vec3 } from '../model/project';
 import { add, sub, scale, dot, unit } from '../model/geometry';
 import { cross } from '../model/transforms';
+import { shapeFaces } from './topology';
 import { throughPoints } from '../model/bezier';
 
 /** Keep the control arrays and builders scoped; only the returned CAD edge owns geometry. */
@@ -240,26 +242,48 @@ export function knifeBodies(targets: Body[], rays: KnifeRay[], curveNormal?: Vec
             bodies.push(source);
             continue;
           }
-          const before = measureVolume(shape.asShape3D()),
-            total = solids.reduce((sum, s) => sum + measureVolume(s), 0);
-          if (!shapeIsValid(result) || Math.abs(before - total) > Math.max(1e-4, before * 1e-7))
+          const before = originalSolids.reduce((sum, solid) => sum + measureVolume(solid), 0),
+            total = solids.reduce((sum, solid) => sum + measureVolume(solid), 0);
+          if (
+            !shapeIsValid(result) ||
+            Math.abs(before - total) > Math.max(1e-4, Math.abs(before) * 1e-7)
+          )
             throw new Error('Veitsen leikkaus ei säilyttänyt ehjiä osia. Muutos peruttiin.');
           solids.sort((a, b) => measureVolume(b) - measureVolume(a));
           replacements[source.id] = [];
-          for (let j = 0; j < solids.length; j++) {
-            const next = bodyFromShape(
-              {
-                ...source,
-                id: j ? uid() : source.id,
-                name: `${source.name.slice(0, 110)} · ${j + 1}`,
-                component: undefined,
-              },
-              solids[j],
-              [source],
-            );
-            bodies.push(next);
-            pieces.push(next.id);
-            replacements[source.id].push(next.id);
+          // Surface regions can coexist with closed volumes. Keep the split surface
+          // fragments as a separate editable part instead of silently dropping them.
+          const solidFaces = solidFaceIds(result);
+          const resultFaces = shapeFaces(result);
+          let surfaces: AnyShape | undefined;
+          try {
+            const loose = resultFaces.filter((face) => !solidFaces.has(face.hashCode));
+            if (loose.length) surfaces = makeCompound(loose.map((face) => face.clone()));
+          } finally {
+            resultFaces.forEach((face) => face.delete());
+          }
+          const parts: AnyShape[] = [...solids, ...(surfaces ? [surfaces] : [])];
+          try {
+            for (let j = 0; j < parts.length; j++) {
+              const next = bodyFromShape(
+                {
+                  ...source,
+                  id: j ? uid() : source.id,
+                  name:
+                    j === solids.length
+                      ? `${source.name.slice(0, 110)} · pinnat`
+                      : `${source.name.slice(0, 110)} · ${j + 1}`,
+                  component: undefined,
+                },
+                parts[j],
+                [source],
+              );
+              bodies.push(next);
+              pieces.push(next.id);
+              replacements[source.id].push(next.id);
+            }
+          } finally {
+            surfaces?.delete();
           }
           affected.push(source.id);
         } finally {

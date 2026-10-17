@@ -466,8 +466,8 @@ function GeometryEditorReady({
         <h3>Kaarevan pinnan pistemuokkaus</h3>
         <p>
           Vapaa pistemuokkaus tarvitsee verkkokopion. Alkuperäinen tarkka osa säilyy piilotettuna.
-          Verkkokopio tukee pistemuokkausta ja materiaaleja; CAD-pintatyökalut säilyvät
-          alkuperäisessä osassa.
+          Verkkokopio tukee pistemuokkausta, materiaaleja ja suljetun osan tasopintojen push/pullia.
+          Muut CAD-pintatyökalut säilyvät alkuperäisessä osassa.
         </p>
         <button className="button dark full" onClick={() => setCopyAccepted(true)}>
           Muokkaa verkkokopiota

@@ -1,9 +1,14 @@
+import { radialPolygon, facetedSphere } from './model/roundPrimitives';
+import { SweepPanel } from './ui/SweepPanel';
+import { SurfaceLayersPanel } from './ui/SurfaceLayersPanel';
+import { changeSurfaceLayers, newSurfaceLayer, type SurfaceLayer } from './model/surfaceLayers';
 import { BodyDimensions } from './ui/BodyDimensions';
 import type { DimensionKey } from './model/editableDimensions';
 import type { GeometryStageProps } from './viewport/GeometryStage';
 import type { GeometrySelection } from './model/geometryEditing';
 // Keep the core editor loaded: a deploy can remove old lazy chunk URLs while modeling.
 import { GeometryEditor, type GeometrySession } from './ui/GeometryEditor';
+import SurfaceWorkspace from './surface/SurfaceWorkspace';
 import { useTreeExpansion } from './ui/useTreeExpansion';
 import { setGroupHold, setSelectionHold } from './model/groups';
 import { useCloud } from './cloud/useCloud';
@@ -64,6 +69,7 @@ import {
   displayLabels,
   displayModes,
   setModelDisplay,
+  setGhostOpacity,
   type DisplayMode,
 } from './model/display';
 import { DisplayControls } from './ui/DisplayControls';
@@ -533,12 +539,15 @@ export default function App() {
   const [knifeCommand, setKnifeCommand] = useState<{ id: number; action: 'finish' | 'clear' }>();
   const [penMode, setPenMode] = useState<'line' | 'bezier'>('line');
   const [bezierStyle, setBezierStyle] = useState<'smooth' | 'bezier'>('smooth');
+  const [sweepOpen, setSweepOpen] = useState(false);
   const [loftOpen, setLoftOpen] = useState(false);
   const [surfaceLevelsOpen, setSurfaceLevelsOpen] = useState(false);
+  const LoftPanel = sweepOpen ? SweepPanel : ThroughShapesPanel;
   const [geometryBodyId, setGeometryBodyId] = useState<string>();
   const geometryBody = project.bodies.find((b) => b.id === geometryBodyId);
   const [geometrySelection, setGeometrySelection] = useState<GeometrySelection>('points');
   const [geometryStage, setGeometryStage] = useState<GeometryStageProps>();
+  const [surfaceSource, setSurfaceSource] = useState<{ body: Body; projectId: string }>();
   const geometrySession = useRef<GeometrySession | undefined>(undefined);
   const [geometryNextTool, setGeometryNextTool] = useState<Tool>();
   const [geometryClosing, setGeometryClosing] = useState(false);
@@ -637,6 +646,7 @@ export default function App() {
   const [rectangleOrigin, setRectangleOrigin] = useState<'corner' | 'center'>('corner');
   const moveRawDelta = useRef<Vec3>([0, 0, 0]);
   const [shapeSides, setShapeSides] = useState(6);
+  const [roundSides, setRoundSides] = useState<number>();
   const [shapePurpose, setShapePurpose] = useState<Body['purpose']>('model');
   const [shapeName, setShapeName] = useState('');
   const [booleanOperation, setBooleanOperation] = useState<BooleanOperation>('cut');
@@ -744,7 +754,10 @@ export default function App() {
   });
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
-  const [paintMode, setPaintMode] = useState<'paint' | 'texture'>('paint');
+  const [paintMode, setPaintMode] = useState<'paint' | 'texture' | 'layers'>('paint');
+  const [layerKind, setLayerKind] = useState<SurfaceLayer['kind']>('dust');
+  const [layerTarget, setLayerTarget] = useState<{ id: string; face?: number }>();
+  const [layerPlacing, setLayerPlacing] = useState<false | 'new' | string>(false);
   const [paintScope, setPaintScope] = useState<PaintScope>('body');
   const [paintPick, setPaintPick] = useState(false);
   const [sampledBrush, setSampledBrush] = useState(false);
@@ -819,13 +832,19 @@ export default function App() {
       setCapturingModel(false);
     }
   };
+  const displayIds = editingBodyId ? [editingBodyId] : selectedIds;
+  const [displayPreview, setDisplayPreview] = useState<Project['settings']['modelDisplay']>();
+  useEffect(() => {
+    setDisplayPreview(undefined);
+  }, [project.settings.modelDisplay, displayIds.join(',')]);
   const changeDisplay = (value: DisplayMode) => {
     if (busy) return;
-    const next = setModelDisplay(project, value, selectedIds);
+    const next = setModelDisplay(project, value, displayIds);
+    setDisplayPreview(undefined);
     if (next !== project)
       void editor.transact(
         next,
-        `${displayLabels[value]} · ${selectedIds.length ? `${selectedIds.length} valittua osaa` : 'koko näkymä'}.`,
+        `${displayLabels[value]} · ${displayIds.length ? `${displayIds.length} valittua osaa` : 'koko näkymä'}.`,
       );
   };
   const [fields, setFields] = useState<Fields>(defaults);
@@ -1050,16 +1069,23 @@ export default function App() {
     const toolbar = document.querySelector<HTMLElement>('.canvas-topbar');
     const host = toolbar?.closest<HTMLElement>('.canvas-area');
     if (!toolbar || !host) return;
+    const opacity = toolbar.querySelector<HTMLElement>('.display-opacity');
     const positionOverlays = () =>
       host.style.setProperty(
         '--view-toolbar-bottom',
-        `${toolbar.offsetTop + toolbar.offsetHeight}px`,
+        `${Math.max(
+          toolbar.offsetTop + toolbar.offsetHeight,
+          opacity?.getClientRects().length
+            ? opacity.getBoundingClientRect().bottom - host.getBoundingClientRect().top
+            : 0,
+        )}px`,
       );
     positionOverlays();
     const observer = new ResizeObserver(positionOverlays);
     observer.observe(toolbar);
+    if (opacity) observer.observe(opacity);
     return () => observer.disconnect();
-  }, [mode, editingBodyId, openedAssembly]);
+  }, [mode, editingBodyId, openedAssembly, project.settings.modelDisplay, selectedIds]);
   const moveHoveredIds = useMemo(() => {
     if (tool !== 'move' || !moveHovered) return [];
     const target = visibleBodies.find((b) => b.id === moveHovered);
@@ -1522,7 +1548,13 @@ export default function App() {
         const candidate = project.bodies.find((b) => b.id === id);
         if (candidate && !featureIsSolid(candidate.feature))
           setLoftIds((ids) =>
-            ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id],
+            sweepOpen
+              ? ids[0] === id
+                ? []
+                : [id]
+              : ids.includes(id)
+                ? ids.filter((value) => value !== id)
+                : [...ids, id],
           );
         else editor.setMessage('Valitse viiva tai tasomuoto pintatyökalun profiiliksi.');
       }
@@ -1817,6 +1849,8 @@ export default function App() {
     }
     setLoftOpen(false);
     setSurfaceLevelsOpen(false);
+    setSweepOpen(false);
+    setLayerPlacing(false);
     setLevelEditingId(undefined);
     setLoftPreview(undefined);
     if (next !== 'select' && next !== 'navigate') activityHistory.prepare(actionContext);
@@ -1960,17 +1994,19 @@ export default function App() {
         distance = parseLength(fields.thickness, true, true);
       if (tool === 'circle') {
         const profile: Profile =
-          shapeKind === 'circle' || shapeKind === 'sphere'
-            ? { kind: 'circle', radius: width / 2 }
-            : shapeKind === 'ellipse'
-              ? { kind: 'ellipse', radiusX: width / 2, radiusY: depth / 2 }
-              : {
-                  kind: 'polygon',
-                  points: Array.from({ length: shapeSides }, (_, i) => [
-                    (width / 2) * Math.cos((i / shapeSides) * Math.PI * 2),
-                    (width / 2) * Math.sin((i / shapeSides) * Math.PI * 2),
-                  ]),
-                };
+          roundSides !== undefined && (shapeKind === 'circle' || shapeKind === 'ellipse')
+            ? radialPolygon(width / 2, (shapeKind === 'ellipse' ? depth : width) / 2, roundSides)
+            : shapeKind === 'circle' || shapeKind === 'sphere'
+              ? { kind: 'circle', radius: width / 2 }
+              : shapeKind === 'ellipse'
+                ? { kind: 'ellipse', radiusX: width / 2, radiusY: depth / 2 }
+                : {
+                    kind: 'polygon',
+                    points: Array.from({ length: shapeSides }, (_, i) => [
+                      (width / 2) * Math.cos((i / shapeSides) * Math.PI * 2),
+                      (width / 2) * Math.sin((i / shapeSides) * Math.PI * 2),
+                    ]),
+                  };
         return {
           ...makeProfileBody(profile, frame, distance, shapeName || 'Muoto', shapePurpose),
           id: draftId,
@@ -2044,6 +2080,7 @@ export default function App() {
     shapeFrame,
     shapeKind,
     shapeSides,
+    roundSides,
     shapePurpose,
     shapeName,
   ]);
@@ -2862,11 +2899,18 @@ export default function App() {
           if (
             await editor.transact(async () => {
               const sphere = {
-                ...(await editor.cad.sphere(
-                  center,
-                  radius,
-                  shapeName || `Pallo ${project.bodies.length + 1}`,
-                )),
+                ...(roundSides === undefined
+                  ? await editor.cad.sphere(
+                      center,
+                      radius,
+                      shapeName || `Pallo ${project.bodies.length + 1}`,
+                    )
+                  : facetedSphere(
+                      center,
+                      radius,
+                      roundSides,
+                      shapeName || `Pallo ${project.bodies.length + 1}`,
+                    )),
                 groupId: openedAssembly,
                 purpose: shapePurpose,
               };
@@ -4407,6 +4451,7 @@ export default function App() {
     const keydown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
+        surfaceSource ||
         cabinetOpen ||
         actionMenu ||
         revisionsOpen ||
@@ -4483,6 +4528,11 @@ export default function App() {
           event.preventDefault();
           clearLocks();
           setConstraintReset((v) => v + 1);
+          return;
+        }
+        if (!renderOpen && tool === 'paint' && layerPlacing) {
+          event.preventDefault();
+          setLayerPlacing(false);
           return;
         }
         if (!renderOpen && tool === 'paint' && paintPick) {
@@ -4727,15 +4777,12 @@ export default function App() {
         }
         if (loftOpen) {
           if (surfaceLevelsOpen && levelEditingId) return;
-          setLoftIds((old) => [
-            ...new Set([
-              ...old,
-              ...range.filter((id) => {
-                const b = project.bodies.find((b) => b.id === id);
-                return b && !featureIsSolid(b.feature);
-              }),
-            ]),
-          ]);
+          setLoftIds((old) => {
+            const eligible = range.filter((id) =>
+              project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
+            );
+            return sweepOpen ? eligible.slice(0, 1) : [...new Set([...old, ...eligible])];
+          });
           return;
         }
         if (tool === 'boolean') {
@@ -4900,7 +4947,96 @@ export default function App() {
         ? `${ids.length} osan materiaali päivitetty.`
         : 'Pinnan materiaali päivitetty.',
     );
-  const paintBody = (id: string, face: number) => {
+  const layerBody = project.bodies.find(
+    (b) => b.id === (layerTarget && selectedIdSet.has(layerTarget.id) ? layerTarget.id : selected),
+  );
+  const layerFace = layerBody?.id === layerTarget?.id ? layerTarget?.face : undefined;
+  const layerSurface = layerBody && faceMaterialBody(layerBody, layerFace);
+  const shownLayers = layerSurface?.appearance?.layers ?? [];
+  const layerIds =
+    layerFace === undefined && layerBody && selectedIdSet.has(layerBody.id)
+      ? selectedIds
+      : layerBody
+        ? [layerBody.id]
+        : [];
+  const updateLayers = (
+    change: (layers: SurfaceLayer[]) => SurfaceLayer[],
+    label: string,
+    ids = layerIds,
+    face = layerFace,
+  ) => {
+    if (busy || !ids.length) return;
+    const bodies = project.bodies.map((b) => {
+      if (!ids.includes(b.id)) return b;
+      return {
+        ...changeSurfaceLayers(
+          b,
+          (layers) => {
+            const next = change(layers);
+            if (next.length > 8)
+              throw new Error('Pinnalle mahtuu kahdeksan kerrosta. Poista ensin jokin nykyisistä.');
+            return next;
+          },
+          face,
+        ),
+        localMaterial: !paintLinked,
+      };
+    });
+    return editor.transact({ ...project, bodies }, label);
+  };
+  const addLayer = () => {
+    const layer = newSurfaceLayer(layerKind);
+    try {
+      void updateLayers((layers) => [...layers, layer], 'Pintakerros lisätty.');
+    } catch (error) {
+      editor.setError((error as Error).message);
+    }
+  };
+  const paintBody = (id: string, face: number, uv?: [number, number]) => {
+    if (paintMode === 'layers' && !paintPick) {
+      if (
+        busy ||
+        !inAssembly(project, id, openedAssembly) ||
+        (editingBodyId && id !== editingBodyId)
+      )
+        return;
+      if (layerPlacing) {
+        const target = editor.meshes.find((m) => m.id === id)?.faces.find((f) => f.index === face);
+        if (!uv || !target?.planar) {
+          editor.setMessage(
+            'Paikallinen jälki tarvitsee tässä versiossa tasopinnan. Koko pinnan kerrokset toimivat myös kaarevilla pinnoilla.',
+          );
+          return;
+        }
+        if (layerPlacing !== 'new' && (id !== layerBody?.id || face !== layerFace)) {
+          editor.setMessage('Valitse uusi paikka samalta pinnalta.');
+          return;
+        }
+        const layer = { ...newSurfaceLayer(layerKind), center: uv };
+        try {
+          void updateLayers(
+            (layers) =>
+              layerPlacing === 'new'
+                ? [...layers, layer]
+                : layers.map((l) => (l.id === layerPlacing ? { ...l, center: uv } : l)),
+            layerPlacing === 'new' ? 'Paikallinen pintajälki lisätty.' : 'Pintajälki siirretty.',
+            [id],
+            face,
+          );
+        } catch (error) {
+          editor.setError((error as Error).message);
+        }
+        setLayerPlacing(false);
+        setPaintScope('face');
+        select(id);
+        setLayerTarget({ id, face });
+        return;
+      }
+      if (!selectedIdSet.has(id)) select(id);
+      setLayerTarget({ id, face: paintScope === 'face' ? face : undefined });
+      return;
+    }
+
     if (paintPick) {
       const source = project.bodies.find((b) => b.id === id);
       if (!source) return;
@@ -5708,6 +5844,24 @@ export default function App() {
     setRenderOpen(false);
     setPanelOpen(true);
   };
+  const openSurfaceWorkspace = () => {
+    const target = geometryBody ?? geometryTarget;
+    if (!target || busy) return;
+    if (bodyLocked(target, project.groups)) {
+      editor.setError('Vapauta osan tai ryhmän lukitus ennen muokkaamista.');
+      return;
+    }
+    if (geometrySession.current?.pending) {
+      editor.setError('Hyväksy tai peru keskeneräinen geometriamuutos ennen työversion avaamista.');
+      return;
+    }
+    resetGesture();
+    setGeometryBodyId(undefined);
+    setGeometryStage(undefined);
+    setTool('select');
+    setActionMenu(undefined);
+    setSurfaceSource({ body: target, projectId: project.id });
+  };
   const closeGeometryEditing = async () => {
     if (busy) return;
     if (geometrySession.current?.pending && !(await geometrySession.current.finish())) return;
@@ -6095,13 +6249,17 @@ export default function App() {
           : targetName;
   const toolStep =
     tool === 'paint'
-      ? paintMode === 'texture'
-        ? 'Napsauta teksturoitua osaa ja vedä kuviota tai kahvaa.'
-        : paintPick
-          ? 'Napsauta pintaa poimiaksesi sen materiaalin. Esc peruuttaa pipetin.'
-          : paintScope === 'face'
-            ? 'Valitse materiaali ja napsauta maalattavaa pintaa.'
-            : 'Valitse materiaali ja napsauta maalattavaa osaa.'
+      ? paintMode === 'layers'
+        ? layerPlacing
+          ? 'Napsauta tasopintaa jäljen asettamiseksi. Esc peruu.'
+          : 'Napsauta osaa tai pintaa muokataksesi sen pintakerroksia.'
+        : paintMode === 'texture'
+          ? 'Napsauta teksturoitua osaa ja vedä kuviota tai kahvaa.'
+          : paintPick
+            ? 'Napsauta pintaa poimiaksesi sen materiaalin. Esc peruuttaa pipetin.'
+            : paintScope === 'face'
+              ? 'Valitse materiaali ja napsauta maalattavaa pintaa.'
+              : 'Valitse materiaali ja napsauta maalattavaa osaa.'
       : tool === 'move'
         ? selectedIds.length
           ? 'Tartu valinnan korostettuun pisteeseen ja vedä.'
@@ -6854,6 +7012,22 @@ export default function App() {
               }}
               onGeometryEditing={() => openGeometryEditing()}
               onSurfaceLevels={openSurfaceLevels}
+              onSweep={() => {
+                begin('select');
+                resetGesture();
+                setEditingBodyId(undefined);
+                setSurfaceMode('new');
+                setPanelOpen(true);
+                setLoftIds(
+                  selectedIds
+                    .filter((id) =>
+                      project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
+                    )
+                    .slice(0, 1),
+                );
+                setSweepOpen(true);
+                setLoftOpen(true);
+              }}
               onThroughShapes={() => {
                 begin('select');
                 resetGesture();
@@ -6920,10 +7094,25 @@ export default function App() {
           >
             <DisplayControls
               display={project.settings.modelDisplay}
-              ids={selectedIds}
+              ids={displayIds}
               bodyIds={project.bodies.map((b) => b.id)}
               disabled={busy}
               onChange={changeDisplay}
+              onOpacityPreview={(opacity) =>
+                setDisplayPreview(
+                  opacity === undefined
+                    ? undefined
+                    : setGhostOpacity(project, opacity, displayIds).settings.modelDisplay,
+                )
+              }
+              onOpacity={(opacity) => {
+                const next = setGhostOpacity(project, opacity, displayIds);
+                if (next !== project)
+                  void editor
+                    .transact(next, 'Mallinnusnäkymän läpinäkyvyys muutettu.')
+                    .finally(() => setDisplayPreview(undefined));
+                else setDisplayPreview(undefined);
+              }}
               onOverview={() => changeView('iso', true)}
               onCapture={() => void saveModelImage()}
               capturing={capturingModel}
@@ -7347,6 +7536,9 @@ export default function App() {
                   <Check size={16} />
                   Valmis
                 </button>
+                <button disabled={busy} onClick={openSurfaceWorkspace}>
+                  Verkko ja pinta
+                </button>
               </div>
             ) : (
               geometryTarget &&
@@ -7374,12 +7566,20 @@ export default function App() {
                       ))}
                     </div>
                   ) : (
-                    <button
-                      disabled={busy || bodyLocked(geometryTarget, project.groups)}
-                      onClick={() => openGeometryEditing()}
-                    >
-                      Geometria
-                    </button>
+                    <div className="mode-switch">
+                      <button
+                        disabled={busy || bodyLocked(geometryTarget, project.groups)}
+                        onClick={() => openGeometryEditing()}
+                      >
+                        Geometria
+                      </button>
+                      <button
+                        disabled={busy || bodyLocked(geometryTarget, project.groups)}
+                        onClick={openSurfaceWorkspace}
+                      >
+                        Verkko ja pinta
+                      </button>
+                    </div>
                   )}
                 </div>
               )
@@ -7471,7 +7671,7 @@ export default function App() {
               onCameraView={setView}
               onCameraProjection={setProjection}
               constraintReset={constraintReset}
-              modelDisplay={project.settings.modelDisplay}
+              modelDisplay={displayPreview ?? project.settings.modelDisplay}
               knifeMode={knifeMode}
               knifeCommand={knifeCommand}
               onKnife={(rays, normal) => void applyKnife(rays, normal)}
@@ -7565,7 +7765,7 @@ export default function App() {
               scopeIds={scopeIds}
               onPaint={paintBody}
               paintPick={paintPick}
-              paintScope={paintMode === 'paint' ? paintScope : 'body'}
+              paintScope={paintMode === 'texture' ? 'body' : layerPlacing ? 'face' : paintScope}
               editingTexture={busy ? undefined : activeTexture}
               colorPreview={colorPreview}
               onTexture={previewTexture}
@@ -7710,11 +7910,10 @@ export default function App() {
               onSelectMany={(ids, additive, guideIds = [], dimensionIds = [], markupIds = []) => {
                 if (loftOpen) {
                   if (surfaceLevelsOpen && levelEditingId) return;
-                  setLoftIds(
-                    [...new Set([...(additive ? loftIds : []), ...ids])].filter((id) =>
-                      project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
-                    ),
+                  const eligible = [...new Set([...(additive ? loftIds : []), ...ids])].filter(
+                    (id) => project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
                   );
+                  setLoftIds(sweepOpen ? eligible.slice(0, 1) : eligible);
                   return;
                 }
                 if (tool === 'boolean') {
@@ -7801,6 +8000,7 @@ export default function App() {
               dimensionLocks={locked}
               onRememberMeasures={measureMemory.remember}
               spherePreview={tool === 'circle' && shapeKind === 'sphere'}
+              sphereSegments={roundSides}
               sketchFrame={shapeFrame}
               sketchTarget={sketchTarget}
               booleanTargets={booleanTargets}
@@ -8228,7 +8428,7 @@ export default function App() {
                 }}
               />
             ) : (
-              <ThroughShapesPanel
+              <LoftPanel
                 onHelp={() => setHelp(true)}
                 bodies={project.bodies}
                 ids={loftIds}
@@ -8254,7 +8454,9 @@ export default function App() {
                         next,
                       ],
                     },
-                    `Muotojen läpi · ${ids.length} profiilia. Lähtömuodot säilyvät mallilistassa.`,
+                    sweepOpen
+                      ? 'Polkua pitkin · kappale luotu. Lähtöpolku säilyy mallilistassa.'
+                      : `Muotojen läpi · ${ids.length} profiilia. Lähtömuodot säilyvät mallilistassa.`,
                   );
                   if (ok) {
                     setLoftOpen(false);
@@ -8408,7 +8610,10 @@ export default function App() {
                   <div className="material-tool-tabs" role="group" aria-label="Maalauksen työkalut">
                     <button
                       aria-pressed={paintMode === 'paint'}
-                      onClick={() => setPaintMode('paint')}
+                      onClick={() => {
+                        setPaintMode('paint');
+                        setLayerPlacing(false);
+                      }}
                     >
                       Maalaa
                     </button>
@@ -8416,13 +8621,73 @@ export default function App() {
                       aria-pressed={paintMode === 'texture'}
                       onClick={() => {
                         setPaintMode('texture');
+                        setLayerPlacing(false);
                         setPaintPick(false);
                       }}
                     >
                       Tekstuurin asettelu
                     </button>
+                    <button
+                      aria-pressed={paintMode === 'layers'}
+                      onClick={() => {
+                        setPaintMode('layers');
+                        setPaintPick(false);
+                        setLayerTarget(undefined);
+                      }}
+                    >
+                      Pintakerrokset
+                    </button>
                   </div>
-                  {paintMode === 'paint' ? (
+                  {paintMode === 'layers' ? (
+                    <SurfaceLayersPanel
+                      name={
+                        layerBody && (paintScope === 'body' || layerFace !== undefined)
+                          ? `${layerBody.name}${layerFace !== undefined ? ' · pinta' : ''}`
+                          : undefined
+                      }
+                      layers={shownLayers}
+                      kind={layerKind}
+                      onKind={setLayerKind}
+                      scope={paintScope}
+                      onScope={(scope) => {
+                        setPaintScope(scope);
+                        setLayerPlacing(false);
+                        setLayerTarget(undefined);
+                      }}
+                      busy={busy || !!movementBlocked}
+                      count={layerIds.length}
+                      linked={paintLinked}
+                      onLinked={setPaintLinked}
+                      placing={!!layerPlacing}
+                      onAdd={addLayer}
+                      onPlace={() => setLayerPlacing(layerPlacing ? false : 'new')}
+                      onMove={setLayerPlacing}
+                      onChange={(id, patch) =>
+                        void updateLayers(
+                          (layers) => layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+                          'Pintakerros päivitetty.',
+                        )
+                      }
+                      onDelete={(id) =>
+                        void updateLayers(
+                          (layers) => layers.filter((l) => l.id !== id),
+                          'Pintakerros poistettu.',
+                        )
+                      }
+                      onOrder={(id, offset) =>
+                        void updateLayers((layers) => {
+                          const index = layers.findIndex((l) => l.id === id),
+                            next = [...layers];
+                          if (index >= 0 && index + offset >= 0 && index + offset < next.length)
+                            [next[index], next[index + offset]] = [
+                              next[index + offset],
+                              next[index],
+                            ];
+                          return next;
+                        }, 'Pintakerrosten järjestys muutettu.')
+                      }
+                    />
+                  ) : paintMode === 'paint' ? (
                     <PaintPanel
                       {...brush}
                       picking={paintPick}
@@ -9002,6 +9267,8 @@ export default function App() {
                         editingBodyName={editingBody?.name}
                         sides={shapeSides}
                         onSides={setShapeSides}
+                        roundSides={roundSides}
+                        onRoundSides={setRoundSides}
                         frameLabel={
                           sketchTarget
                             ? `Pinta: ${project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name}`
@@ -9424,6 +9691,15 @@ export default function App() {
                       Geometrian muokkaus
                     </button>
                   )}
+                  {geometryTarget && (
+                    <button
+                      className="button subtle full"
+                      disabled={busy || bodyLocked(geometryTarget, project.groups)}
+                      onClick={openSurfaceWorkspace}
+                    >
+                      Verkko ja pinta
+                    </button>
+                  )}
                   {canDivideSurface && surfaceActions}
                   {body?.feature.type === 'brep' &&
                     body.feature.surfaceLevels &&
@@ -9711,6 +9987,12 @@ export default function App() {
                         assets={project.assets}
                         materials={project.materials}
                         busy={busy || !!movementBlocked}
+                        onLayers={() => {
+                          begin('paint');
+                          setPaintMode('layers');
+                          setPaintPick(false);
+                          setLayerTarget(undefined);
+                        }}
                         onChange={(...args) =>
                           changeAppearance(selectedIds.length ? selectedIds : [body.id], ...args)
                         }
@@ -10311,6 +10593,55 @@ export default function App() {
             setTab('objects');
             changeView('iso', true);
             return true;
+          }}
+        />
+      )}
+
+      {surfaceSource && (
+        <SurfaceWorkspace
+          body={surfaceSource.body}
+          project={project}
+          meshes={editor.meshes}
+          cad={editor.cad}
+          onClose={() => setSurfaceSource(undefined)}
+          onSave={async ({ body: next, assets, replacing, hideOriginal }) => {
+            const source = project.bodies.find((b) => b.id === surfaceSource.body.id);
+            if (
+              !source ||
+              project.id !== surfaceSource.projectId ||
+              JSON.stringify(source) !== JSON.stringify(surfaceSource.body)
+            ) {
+              editor.setError(
+                'Alkuperäinen osa on muuttunut. Avaa työversio uudelleen ennen tallentamista.',
+              );
+              return false;
+            }
+            requireMovable([source], project.groups);
+            activityHistory.prepare(actionContext);
+            const ok = await editor.transact(
+              {
+                ...project,
+                assets: { ...project.assets, ...assets },
+                bodies: replacing
+                  ? project.bodies.map((b) => (b.id === source.id ? next : b))
+                  : [
+                      ...project.bodies.map((b) =>
+                        b.id === source.id && hideOriginal ? { ...b, hidden: true } : b,
+                      ),
+                      next,
+                    ],
+              },
+              `Verkko ja pinta · ${next.name}`,
+            );
+            if (ok) {
+              setEditingBodyId(undefined);
+              setSurfaceMode('new');
+              setSelected(next.id);
+              setSelectedIds([next.id]);
+              setSelectedFace(undefined);
+              setPanelOpen(true);
+            }
+            return ok;
           }}
         />
       )}

@@ -1,6 +1,26 @@
 import { exportSTEP, importSTEP, type AnyShape } from 'replicad';
-import { bodyFromShape, createShape, shapeIsValid } from './kernel';
+import { bodyFromShape, createShape, shapeIsValid, meshBody } from './kernel';
+import { meshBody as importedMesh } from '../exchange/mesh';
 import { makeBody, type Body } from '../model/project';
+
+export function surfaceMesh(body: Body, tolerance: number, angle: number) {
+  if (
+    !Number.isFinite(tolerance) ||
+    tolerance < 0.02 ||
+    tolerance > 20 ||
+    !Number.isFinite(angle) ||
+    angle < 0.05 ||
+    angle > 1
+  )
+    throw new Error('Verkkotarkkuus ei ole sallituissa rajoissa.');
+  if (body.feature.type === 'mesh') return importedMesh(body);
+  const shape = createShape(body);
+  try {
+    return meshBody(body, shape, shape.mesh({ tolerance, angularTolerance: angle }));
+  } finally {
+    shape.delete();
+  }
+}
 
 export async function readStep(data: ArrayBuffer, name: string): Promise<Body[]> {
   const shape = await importSTEP(new Blob([data]));

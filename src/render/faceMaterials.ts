@@ -23,12 +23,12 @@ export function renderFaceMaterials(
   geometry: THREE.BufferGeometry,
   body: Body,
   data: BodyMesh,
-  create: (source: Body) => THREE.MeshPhysicalMaterial,
+  create: (source: Body, range: { start: number; count: number }) => THREE.MeshPhysicalMaterial,
 ) {
   geometry.clearGroups();
   return faceMaterialGroups(geometry, body, data).map((range, index) => {
     geometry.addGroup(range.start, range.count, index);
-    const material = create(range.source);
+    const material = create(range.source, range);
     if (!range.reflective) mirrorBacking(material);
     material.userData.facePaintIndex = range.paintIndex;
     material.userData.surfaceColor = range.source.color;

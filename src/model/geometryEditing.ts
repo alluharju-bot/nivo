@@ -182,6 +182,32 @@ export function edgeLoop(edges: EditingEdge[], chosen: number, positions?: Vec3[
   walk(first.b, first.a);
   return [...points];
 }
+/** A circular rim is one editing edge, not dozens of tessellation fragments.
+ * Open chains and sharp polygon corners keep the ordinary segment selection. */
+export function curvedEdgeSelection(edges: EditingEdge[], chosen: number, positions: Vec3[]) {
+  const edge = edges[chosen];
+  if (!edge) return [];
+  const loop = edgeLoop(edges, chosen, positions);
+  if (loop.length < 8) return [edge.a, edge.b];
+  const ids = new Set(loop),
+    neighbors = new Map<number, number[]>();
+  for (const e of edges)
+    if (ids.has(e.a) && ids.has(e.b)) {
+      neighbors.set(e.a, [...(neighbors.get(e.a) ?? []), e.b]);
+      neighbors.set(e.b, [...(neighbors.get(e.b) ?? []), e.a]);
+    }
+  const smooth = loop.every((id) => {
+    const adjacent = neighbors.get(id);
+    return (
+      adjacent?.length === 2 &&
+      dot(
+        unit(sub(positions[id], positions[adjacent[0]])),
+        unit(sub(positions[adjacent[1]], positions[id])),
+      ) > 0.7
+    );
+  });
+  return smooth ? loop : [edge.a, edge.b];
+}
 export function selectionCenter(points: Vec3[], ids: number[]): Vec3 {
   if (!ids.length) return [0, 0, 0];
   const box = new Box3().setFromPoints(ids.map((i) => new Vector3(...points[i])));
@@ -263,7 +289,9 @@ export function validateGeometry(g: EditableGeometry, points: Vec3[]) {
   geometry.setIndex(g.triangles);
   const a = new ExtendedTriangle(),
     b = new ExtendedTriangle(),
-    box = new Box3();
+    box = new Box3(),
+    shrunkA = new Box3(),
+    shrunkB = new Box3();
   try {
     const bvh = new MeshBVH(geometry, { indirect: true });
     let checks = 0;
@@ -280,6 +308,7 @@ export function validateGeometry(g: EditableGeometry, points: Vec3[]) {
       a.b.lerp(center, 1e-7);
       a.c.lerp(center, 1e-7);
       a.needsUpdate = true;
+      shrunkA.setFromPoints([a.a, a.b, a.c]);
       const crossed = bvh.shapecast({
         intersectsBounds: (b) => b.intersectsBox(box),
         intersectsTriangle: (triangle, index) => {
@@ -310,7 +339,10 @@ export function validateGeometry(g: EditableGeometry, points: Vec3[]) {
           b.b.lerp(center, 1e-7);
           b.c.lerp(center, 1e-7);
           b.needsUpdate = true;
-          return a.intersectsTriangle(b);
+          // SAT near a shared corner can report overlap after a tiny shrink.
+          // Disjoint shrunken bounds are an exact early-out, not a tolerance bypass.
+          shrunkB.setFromPoints([b.a, b.b, b.c]);
+          return shrunkA.intersectsBox(shrunkB) && a.intersectsTriangle(b);
         },
       });
       if (crossed)

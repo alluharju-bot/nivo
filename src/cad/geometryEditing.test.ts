@@ -12,12 +12,15 @@ import {
   geometryEdges,
   patchPoints,
   edgeLoop,
+  curvedEdgeSelection,
   geometryMeshBody,
   validateGeometry,
 } from '../model/geometryEditing';
 import { defaultAppearance } from '../model/materials';
 import { rotateBodies } from './transforms';
 import { offsetFace, booleanBodies } from './operations';
+import { pushPullMesh, meshFaceSpan } from '../model/meshPushPull';
+import { meshBody as importedMeshBody, meshClosure } from '../exchange/mesh';
 
 beforeAll(
   async () =>
@@ -59,6 +62,43 @@ it('moves two corners to form a planar slope, preserves anchors and remains edit
   expect(shapeInfo(pulled).volume).toBeGreaterThan(info.volume);
   const inset = offsetFace(changed, bottom.ref, 2);
   expect(shapeInfo(inset.body).volume).toBeCloseTo(info.volume, 3);
+});
+it('keeps a symmetric polygon edge deformation symmetric through CAD acceptance and another edit', () => {
+  let body = makeProfileBody(
+    {
+      kind: 'polygon',
+      points: [
+        [-300, 0],
+        [-125, 175],
+        [125, 175],
+        [300, 0],
+        [150, -370],
+        [-150, -370],
+      ],
+    },
+    sketchFrame([0, 0, 0]),
+    250,
+  );
+  for (const target of [210, 190, 250]) {
+    const g = prepareGeometry(body);
+    const points = g.points.map(
+      (p) => [p[0], p[1], p[1] < -369 && p[2] > 1 ? target : p[2]] as [number, number, number],
+    );
+    const next = commitGeometry(body, points);
+    const info = shapeInfo(next);
+    expect(next.feature.type === 'brep' && next.feature.solid).toBe(true);
+    const top = info.mesh.faces.filter((f) => f.normal[2] > 0.9);
+    // Deliberate patch boundaries survive later edits, even when flattened.
+    expect(top).toHaveLength(2);
+    for (const face of top) expect(face.normal[0]).toBeCloseTo(0, 6);
+    const accepted = prepareGeometry(next);
+    expect(() => validateGeometry(accepted, accepted.points)).not.toThrow();
+    for (const p of accepted.points)
+      expect(
+        accepted.points.some((q) => Math.hypot(q[0] + p[0], q[1] - p[1], q[2] - p[2]) < 1e-4),
+      ).toBe(true);
+    body = next;
+  }
 });
 it('scales only a selected face about its centre and keeps its paint on the moved face', () => {
   const body = { ...makeBody(100, 80, 60), faceMaterials: {} };
@@ -120,6 +160,52 @@ it('requires an explicit separate mesh for curved CAD and supports boundary-loop
   expect(result.feature.type).toBe('mesh');
   expect(result.feature.width).toBeCloseTo(30, 1);
   expect(circle.feature.width).toBe(60);
+});
+it('selects a cylinder rim and continues push/pull after scaling its top face', () => {
+  const cylinder = makeProfileBody(
+    { kind: 'circle', radius: 30 },
+    sketchFrame([500, -300, 50]),
+    60,
+  );
+  const g = prepareGeometry(cylinder),
+    edges = geometryEdges(g);
+  const rim = edges.findIndex((e) =>
+    [e.a, e.b].every((i) => Math.abs(g.points[i][2] - 110) < 1e-4),
+  );
+  expect(rim).toBeGreaterThanOrEqual(0);
+  const loop = edgeLoop(edges, rim, g.points);
+  expect(curvedEdgeSelection(edges, rim, g.points).sort()).toEqual([...loop].sort());
+  expect(loop.length).toBeGreaterThan(12);
+  expect(loop.every((i) => Math.abs(g.points[i][2] - 110) < 1e-4)).toBe(true);
+  const ids = g.points.flatMap((p, i) => (Math.abs(p[2] - 110) < 1e-4 ? [i] : []));
+  const points = transformGeometryPoints(
+    g.points,
+    ids,
+    geometryMatrix('scale', [1.5, 1.5, 1], [500, -300, 110]),
+  );
+  const mesh = commitGeometry(cylinder, points, true),
+    before = importedMeshBody(mesh);
+  const top = before.faces.find((f) => f.planar && f.normal[2] > 0.99)!;
+  expect(top).toBeDefined();
+  expect(meshFaceSpan(mesh, top.ref).depth).toBeCloseTo(60, 4);
+  const taller = pushPullMesh(mesh, top.ref, 20),
+    after = importedMeshBody(taller);
+  expect(taller.feature.height).toBeCloseTo(80, 4);
+  expect(taller.feature.width).toBeCloseTo(mesh.feature.width, 4);
+  expect(after.volume).toBeGreaterThan(before.volume);
+  expect(meshClosure(after.vertices, after.triangles).closed).toBe(true);
+  const restored = pushPullMesh(taller, top.ref, -20);
+  expect(restored.feature.height).toBeCloseTo(60, 4);
+  expect(importedMeshBody(restored).volume).toBeCloseTo(before.volume, 1);
+  expect(() => pushPullMesh(taller, top.ref, -100)).toThrow();
+  expect(() => pushPullMesh({ ...mesh, locked: true }, top.ref, 10)).toThrow('lukitus');
+});
+it('does not turn a straight box edge or sharp square outline into a full ring selection', () => {
+  for (const height of [0, 50]) {
+    const g = prepareGeometry(makeBody(100, 80, height));
+    const edges = geometryEdges(g);
+    expect(curvedEdgeSelection(edges, 0, g.points)).toHaveLength(2);
+  }
 });
 it('rejects locked, collapsed and self intersecting edits without mutating the original', () => {
   const body = makeBody(100, 80, 60),

@@ -8,7 +8,7 @@ import { formatLength } from '../model/units';
 import type { CadClient } from '../cad/client';
 import type { BodyMesh } from '../cad/protocol';
 import { importDefaults, importMeshFiles, type ImportOptions } from '../exchange/import';
-import { glbExport, stlBinary, type ExportMesh } from '../exchange/export';
+import { glbExport, glbLodPackage, stlBinary, type ExportMesh } from '../exchange/export';
 import { meshClosure } from '../exchange/mesh';
 import { downloadFile, safeFilename } from '../storage/projects';
 
@@ -153,6 +153,9 @@ export function ExportDialog({
   const [tolerance, setTolerance] = useState(0.05),
     [bed, setBed] = useState(true);
   const [allowOpen, setAllowOpen] = useState(false);
+  const [instances, setInstances] = useState(false),
+    [lods, setLods] = useState(false);
+  const [progress, setProgress] = useState('');
   const [working, setWorking] = useState(false),
     [error, setError] = useState('');
   const selected = new Set(ids);
@@ -180,11 +183,18 @@ export function ExportDialog({
           'application/step',
         );
       } else if (format === 'glb') {
-        downloadFile(
-          await glbExport(bodies, meshes, project.assets),
-          `${safeFilename(project.name)}.glb`,
-          'model/gltf-binary',
-        );
+        if (lods)
+          downloadFile(
+            await glbLodPackage(bodies, meshes, project.assets, instances, setProgress),
+            `${safeFilename(project.name)}-LOD.zip`,
+            'application/zip',
+          );
+        else
+          downloadFile(
+            await glbExport(bodies, meshes, project.assets, { instances }),
+            `${safeFilename(project.name)}.glb`,
+            'model/gltf-binary',
+          );
       } else {
         const meshIds = new Set(bodies.filter((b) => b.feature.type === 'mesh').map((b) => b.id));
         const cadBodies = bodies.filter((b) => b.feature.type !== 'mesh');
@@ -207,6 +217,7 @@ export function ExportDialog({
       setError((e as Error).message);
     } finally {
       setWorking(false);
+      setProgress('');
     }
   };
   return (
@@ -296,6 +307,43 @@ export function ExportDialog({
       {format === 'step' && (
         <p className="muted">Osat säilyvät erillisinä tarkkoina CAD-kappaleina.</p>
       )}
+      {format === 'glb' && (
+        <>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={lods}
+              disabled={working}
+              onChange={(e) => setLods(e.target.checked)}
+            />
+            Etäisyysversiot · LOD-paketti
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={instances}
+              disabled={working}
+              onChange={(e) => setInstances(e.target.checked)}
+            />
+            GPU-instanssit toistuville osille
+          </label>
+          <p className="muted">
+            Materiaalit ja identtiset geometriat jaetaan automaattisesti. Alkuperäinen malli säilyy.
+          </p>
+          {lods && (
+            <p className="muted">
+              ZIP sisältää kolme GLB-versiota ja toteutuneet kolmiomäärät. Aseta vaihtumisetäisyydet
+              kohdeohjelmassa. Aukot ja materiaalirajat rajoittavat kevennystä.
+            </p>
+          )}
+          {instances && (
+            <p className="muted">
+              Edellyttää kohdeohjelman EXT_mesh_gpu_instancing-tukea. Osien nimet säilyvät
+              instanssien lisätiedoissa.
+            </p>
+          )}
+        </>
+      )}
       <div className="dialog-actions">
         <button
           className="button dark"
@@ -303,7 +351,7 @@ export function ExportDialog({
           onClick={() => void download()}
         >
           <Download size={16} />
-          {working ? 'Valmistellaan tiedostoa…' : 'Lataa tiedosto'}
+          {working ? progress || 'Valmistellaan tiedostoa…' : 'Lataa tiedosto'}
         </button>
         <button disabled={working} onClick={onClose}>
           Sulje

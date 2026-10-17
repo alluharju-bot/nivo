@@ -217,3 +217,51 @@ test('Shift push/pull references a ghost corner at an exact non-grid height', as
   expect(result.bodies[0].feature.height).toBe(72.625);
   expect(result.bodies[1]).toEqual(target);
 });
+
+test('ghost opacity previews live, saves one drag and preserves the underlying material', async ({
+  page,
+}, info) => {
+  const a = makeBody(600, 20, 600, [0, 0, 0], 'Etupinta'),
+    b = makeBody(300, 40, 300, [100, 80, 100], 'Takana');
+  await ready(page, [a, b]);
+  await view(page, [a, b], 'front');
+  await revealBrowser(page);
+  await page.getByTestId(`body-${a.id}`).click();
+  await displayButton(page, 'Ghost').click();
+  const before = await save(page),
+    builds = await page.getByTestId('viewport').getAttribute('data-geometry-builds');
+  const slider = page.getByRole('slider', { name: 'Mallinnusnäkymän läpinäkyvyys' }),
+    box = (await slider.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2, { steps: 8 });
+  const preview = JSON.parse(
+    (await page.getByTestId('viewport').getAttribute('data-ghost-opacities'))!,
+  );
+  expect(preview[a.id]).toBeGreaterThan(0.4);
+  expect(preview[a.id]).toBeLessThan(0.8);
+  await page.mouse.up();
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-geometry-builds', builds!);
+  const saved = await save(page);
+  expect(saved.bodies).toEqual([a, b]);
+  expect(saved.settings.modelDisplay!.ghostOpacities![a.id]).toBe(preview[a.id]);
+  expect(saved.settings.modelDisplay!.overrides[b.id]).toBeUndefined();
+  const opacityBox = (await page.locator('.display-opacity').boundingBox())!;
+  const handle = page.getByRole('button', { name: 'Näytä mallilista', exact: true });
+  if (await handle.isVisible())
+    expect((await handle.boundingBox())!.y).toBeGreaterThanOrEqual(
+      opacityBox.y + opacityBox.height,
+    );
+  else
+    expect(
+      (await page.getByRole('complementary', { name: 'Mallilista' }).boundingBox())!.y,
+    ).toBeGreaterThanOrEqual(opacityBox.y + opacityBox.height);
+  await page.screenshot({ path: info.outputPath('adjustable-ghost.png') });
+  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  expect((await save(page)).settings.modelDisplay).toEqual(before.settings.modelDisplay);
+  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  expect((await save(page)).settings.modelDisplay).toEqual(saved.settings.modelDisplay);
+  await page.reload();
+  await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '2');
+  expect((await save(page)).settings.modelDisplay).toEqual(saved.settings.modelDisplay);
+});

@@ -126,6 +126,7 @@ test('four bottle side curves form a preview and capped body through the real UI
     .filter((b) => b.curve)
     .map((b) => ({ ...b, hidden: false, groupId: undefined }));
   await ready(page, sides);
+  const before = (await save(page)).bodies;
   await shape(page, 'Muotojen läpi');
   await page.getByRole('combobox', { name: 'Pinnan rakennustapa' }).selectOption('sides');
   for (const body of sides)
@@ -142,7 +143,7 @@ test('four bottle side curves form a preview and capped body through the real UI
     result.bodies.at(-1)!.feature.type === 'brep' && result.bodies.at(-1)!.feature.height,
   ).toBeCloseTo(265, 4);
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
-  expect((await save(page)).bodies).toEqual(sides);
+  expect((await save(page)).bodies).toEqual(before);
 });
 
 test('pointed cone rejects zero height and cancels safely after preview', async ({ page }) => {

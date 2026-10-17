@@ -118,7 +118,7 @@ export interface ViewportProps {
   scopeIds?: string[];
   paintScope?: 'body' | 'face';
   paintPick?: boolean;
-  onPaint: (id: string, face: number) => void;
+  onPaint: (id: string, face: number, uv?: [number, number]) => void;
   onContextMenu: (target: {
     x: number;
     y: number;
@@ -231,6 +231,7 @@ export interface ViewportProps {
   penMode: 'line' | 'bezier';
   bezierStyle: 'smooth' | 'bezier';
   spherePreview: boolean;
+  sphereSegments?: number;
   penPoints: Vec3[];
   penRotation?: import('../model/penInput').PenRotation;
   onPenAngle: (angle: number) => void;

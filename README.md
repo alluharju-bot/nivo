@@ -3,6 +3,64 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.50.0** lisää **P → Pintakerrokset**: pölyn, naarmut, sormenjäljet
+ja vesijäljet pohjamateriaalin päälle. Lisää kerros koko osalle tai pinnalle,
+tai aseta paikallinen jälki napsauttamalla tasopintaa. Kokoa, kiertoa,
+voimakkuutta ja sävyä voi muuttaa; kerroksen voi piilottaa tai poistaa.
+Kerrokset näkyvät myös renderissä ja GLB-viennissä. Paikallinen jälki on tässä
+versiossa rajattu tasopintoihin; koko pinnan kerros toimii myös kaarevilla pinnoilla.
+Veitsi käsittelee nyt sekakappaleen suljetut tilavuudet ja paksuudettomat pinnat
+niin, ettei kelvollinen vapaa viilto peruunnu väärään tilavuusvertailuun.
+
+**Muodot → Polkua pitkin** luo viivasta tai Bézier-käyrästä putken, johdon,
+kanavan tai listan. Valitse pyöreä tai suorakulmainen profiili ja haluttaessa
+seinämä. Lähtöpolku säilyy ja valmis osa on itsenäinen. Ympyrän, ellipsin
+ja pallon **Pinnan tarkkuus** tarjoaa nyt 3–128 sivua myös suoraan tavallisessa
+muototyökalussa. Tarkka kaareva CAD-muoto pysyy oletuksena; sivumäärä tekee
+ympyrästä aidon monikulmion ja pallosta kolmioverkon.
+
+Valitse osa ja **Ghost** näkymäpalkista: **Läpinäkyvyys**-liukusäädin
+näyttää pohjakuvan mallin läpi. Reunat ja tartunta säilyvät. Säätö koskee
+valittuja osia tai muokkaustilassa aktiivista osaa; ilman valintaa koko
+näkymää. Materiaalit ja renderöinti eivät muutu. **Solid** palauttaa pinnat.
+
+Versio **0.49.0** lisää **Julkisivut**-materiaalit: betonin sekä hienon ja karkean
+rappauksen. Laaja sävykuvio, pieni fyysinen normal-rakenne ja karheus toimivat
+mallissa, renderissä ja GLB-viennissä. Myös aiemmille betoni-, kipsi- ja
+tasoitepinnoille voi kytkeä **Pinnan rakenne · PBR → Laaja pintakuvio**.
+Vanhojen mallien ulkonäkö ei vaihdu automaattisesti.
+
+GLB-vienti jakaa identtiset geometriat ja materiaalit. Valinnaiset GPU-instanssit
+sekä kolmen etäisyysversion **LOD-paketti** löytyvät **Vie 3D-malli → GLB**.
+Paketin raportti kertoo toteutuneet kolmiomäärät; etäisyydet asetetaan
+kohdeohjelmassa. Sylinterin tasainen pääty säilyy push/pull-muokattavana myös
+geometriamuokkauksen skaalaamisen jälkeen, ja pyöreä reunasilmukka valitaan
+yhdellä napsautuksella. [Materiaalien ja viennin ohje](docs/julkisivut-ja-glb.fi.md).
+
+Versio **0.48.2** korjaa geometriamuokkauksen symmetristen monikulmioiden
+kolmioinnin. Symmetrisen reunan laskeminen muodostaa symmetrisen pinnan
+myös käännetyssä kappaleessa. Tahalliset epäsymmetriset pisteiden siirrot
+säilyvät vapaina. Esikatselu ja hyväksytty CAD-osa käyttävät samaa laskentaa.
+
+Versio **0.48.1** koventaa Verkko ja pinta -työnkulun. Uusi leikkaussilmukka
+jää oranssiksi valinnaksi ja sitä voi heti siirtää, kiertää tai skaalata
+kahvoilla tai tarkoin mitoin. Suojausmaski rajaa muotoilua ja maalausta;
+sivellin huomioi pintojen yhteyden ja näkyvyyden. Verkon eheys tarkistetaan
+taustalla ennen geometriamuutoksen hyväksymistä. Keskeneräinen työ varmistetaan
+paikallisesti ja tarjotaan palautettavaksi samaa osaa avattaessa.
+[Ohje ja testimallit](docs/verkko-ja-pinta.fi.md).
+
+Versio **0.48.0** lisää yleisen **Verkko ja pinta** -työnkulun. Valitse yksi osa
+ja avaa toiminto näkymän yläreunasta tai ominaisuuspaneelista. Erillisessä
+työversiossa voi säätää verkkotiheyttä, luoda ympyrän/sylinterin/pallon
+valitulla sivumäärällä, lisätä leikkaussilmukoita, peilata ja muotoilla
+siveltimellä. Automaattinen UV-kartta, värin/karheuden/metallisuuden maalaus
+sekä normal-, AO- ja materiaalikarttojen bake kuuluvat samaan näkymään.
+Alkuperäinen osa säilyy; hyväksytty työ tallentuu yhdeksi projektihistorian
+toiminnoksi. Kartat tallentuvat projektiin ja GLB-vientiin, ja niitä voi
+ladata myös PNG-kuvina. Tämä on kolmioverkon työnkulku: CAD-pintatyökalut
+ovat edelleen käytettävissä alkuperäiseen tarkkaan osaan.
+
 Versio **0.47.6** yhdistää renderiohjelman kahteen kertaan sisältämän varjo- ja
 materiaalilaskennan yhteiseksi laskentapoluksi. Valot, heijastukset ja
 läpinäkyvyys säilyvät: GPU-vertailussa vanhan ja uuden laskennan pikselit

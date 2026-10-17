@@ -3644,7 +3644,7 @@ export function installInteractions({
     if (props.tool === 'paint') {
       const picked = faceAt(event);
       if (picked && (props.paintPick || !editBlocked(event, picked.target.bodyId)))
-        props.onPaint(picked.target.bodyId, picked.face.index);
+        props.onPaint(picked.target.bodyId, picked.face.index, picked.hit.uv?.toArray());
       return;
     }
     if (
@@ -4288,7 +4288,10 @@ export function installInteractions({
     navigating = false;
     // Navigation only changes the camera. Resume from the current dimensions,
     // never reinterpret the whole old mouse stroke in the new camera frame.
-    if (rebaseCameraGesture(event, resumed)) return;
+    const rebased = rebaseCameraGesture(event, resumed);
+    // A Shift depth reference is an absolute target, independent of the drag
+    // baseline. Resolve it on this event even if navigation just rebased it.
+    if (rebased && !(event.shiftKey && current().tool === 'extrude')) return;
     sync();
     if (drag && Math.hypot(event.clientX - drag.screenX, event.clientY - drag.screenY) > 4)
       drag.moved = true;

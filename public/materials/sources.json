@@ -1133,5 +1133,53 @@
         "bytes": 147680
       }
     }
+  },
+  {
+    "id": "Scratches002",
+    "name": "Scratches002",
+    "authors": {
+      "Lennart Demes / ambientCG": "Creation"
+    },
+    "source": "https://ambientcg.com/view?id=Scratches002",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-17",
+    "maps": {
+      "mask": {
+        "url": "https://ambientcg.com/get?file=Scratches002_1K-JPG.zip",
+        "file": "wear/scratches-mask.jpg",
+        "md5": "a4beb8b57bfea804945b64bf8e4b450b",
+        "bytes": 471417
+      },
+      "normal": {
+        "url": "https://ambientcg.com/get?file=Scratches002_1K-JPG.zip",
+        "file": "wear/scratches-normal.jpg",
+        "md5": "91532499418e3446ed31f6a8dbf2dce2",
+        "bytes": 1415785
+      }
+    }
+  },
+  {
+    "id": "Fingerprints001",
+    "name": "Fingerprints001",
+    "authors": {
+      "Lennart Demes / ambientCG": "Creation"
+    },
+    "source": "https://ambientcg.com/view?id=Fingerprints001",
+    "license": "CC0-1.0",
+    "retrieved": "2026-10-17",
+    "maps": {
+      "mask": {
+        "url": "https://ambientcg.com/get?file=Fingerprints001_1K-JPG.zip",
+        "file": "wear/fingerprints-mask.jpg",
+        "md5": "4f77f25ff448398dc02d068301fdf19c",
+        "bytes": 443532
+      },
+      "normal": {
+        "url": "https://ambientcg.com/get?file=Fingerprints001_1K-JPG.zip",
+        "file": "wear/fingerprints-normal.jpg",
+        "md5": "27a3e0611d806cd260f3e85d8be11ca3",
+        "bytes": 415780
+      }
+    }
   }
 ]

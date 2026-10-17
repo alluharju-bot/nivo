@@ -1,3 +1,4 @@
+import { layerDomain } from '../render/layers';
 import { installGeometryStage } from './GeometryStage';
 import { createLocateHighlight } from './locateHighlight';
 import { scalingPreview } from './scalingPreview';
@@ -8,7 +9,7 @@ import { installKnife } from './knife';
 import { captureModelView } from './capture';
 import { annotationText } from '../model/annotationStyle';
 import { installTextureEditing } from './textureEditing';
-import { bodyDisplayMode } from '../model/display';
+import { bodyDisplayMode, bodyGhostOpacity } from '../model/display';
 import { sampleBezier, throughPoints } from '../model/bezier';
 import { pointMarker } from './pointMarker';
 import { createWorkspaceViews } from './workspaceViews';
@@ -419,6 +420,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         props.bodies.map((body) => [body.id, bodyDisplayMode(props.modelDisplay, body.id)]),
       ),
     );
+    renderer.domElement.dataset.ghostOpacities = JSON.stringify(
+      Object.fromEntries(
+        props.bodies.map((body) => [body.id, bodyGhostOpacity(props.modelDisplay, body.id)]),
+      ),
+    );
     navigation.sync(props.bodies, props.selectedIds, props.editingBodyId);
     renderer.domElement.dataset.selectionKind = props.selectedFace
       ? 'face'
@@ -495,6 +501,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         old.uv === uv &&
         old.assets === props.assets
       ) {
+        // Changing translucency never rebuilds geometry or material maps.
+        if (display === 'ghost' && !auxiliary && !cutter)
+          old.mesh.material.forEach((material) => {
+            material.opacity = bodyGhostOpacity(props.modelDisplay, body.id);
+          });
         old.mesh.userData.surfacePriority = surfacePriority;
         old.mesh.renderOrder = surfaceRenderOrder;
         old.outline.renderOrder = surfacePriority ? surfaceRenderOrder + 0.1 : 0;
@@ -518,7 +529,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       geometry.clearGroups();
       const baseMaterial: ModelMaterial =
         display === 'solid' && !(target && props.opening)
-          ? materialLibrary.create(body, props.assets)
+          ? materialLibrary.create(
+              body,
+              props.assets,
+              body.appearance?.layers?.length ? layerDomain(geometry) : undefined,
+            )
           : new THREE.MeshBasicMaterial({ toneMapped: false });
       // CAD face indices remain in userData for picking; uniform surfaces share one draw call.
       const mirror = body.appearance?.preset === 'mirror' && display === 'solid';
@@ -551,7 +566,13 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         const material = faceSelected
           ? selectedFaceMaterial()
           : face.paintIndex !== undefined && display === 'solid' && !(target && props.opening)
-            ? materialLibrary.create(face.source, props.assets)
+            ? materialLibrary.create(
+                face.source,
+                props.assets,
+                face.source.appearance?.layers?.length
+                  ? layerDomain(geometry, face.start, face.count)
+                  : undefined,
+              )
             : baseMaterial.clone();
         if (!face.reflective && material instanceof THREE.MeshPhysicalMaterial)
           mirrorBacking(material);
@@ -591,7 +612,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
               : auxiliary
                 ? 0.035
                 : display === 'ghost'
-                  ? 0.16
+                  ? bodyGhostOpacity(props.modelDisplay, body.id)
                   : 1,
           depthWrite: !auxiliary && !cutter && display !== 'ghost' && display !== 'wireframe',
           depthTest: !cutter,
@@ -607,6 +628,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         }
         if (surfacePriority) prioritizeSurface(material);
         material.userData.originalColor = material.color.getHex();
+        if (material.userData.layerColor)
+          setMaterialColor(material, material.color.clone(), face.source.color);
         material.userData.facePaintIndex = face.paintIndex;
         material.userData.surfaceColor = face.source.color;
         return material;
@@ -869,7 +892,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const feature = preview.feature;
       if (feature.type === 'profile-extrusion' && feature.profile.kind === 'circle') {
         const ball = new THREE.Mesh(
-          new THREE.SphereGeometry(feature.profile.radius, 32, 20),
+          new THREE.SphereGeometry(
+            feature.profile.radius,
+            current().sphereSegments ?? 32,
+            current().sphereSegments ? Math.max(2, Math.round(current().sphereSegments! / 2)) : 20,
+          ).rotateX(Math.PI / 2),
           new THREE.MeshStandardMaterial({
             color: '#5d9782',
             transparent: true,
@@ -1974,6 +2001,7 @@ export function Viewport(props: Props) {
     [
       props.preview,
       props.spherePreview,
+      props.sphereSegments,
       props.detailPreview,
       props.detailPreviews,
       props.surfacePreview,

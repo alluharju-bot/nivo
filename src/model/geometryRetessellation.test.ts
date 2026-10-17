@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CircleGeometry, RingGeometry, Matrix4 } from 'three';
+import { CircleGeometry, RingGeometry, Matrix4, ShapeUtils, Vector2, Vector3 } from 'three';
 import {
   editableGeometry,
   geometryEdges,
@@ -36,6 +36,125 @@ function area(g: EditableGeometry, points = g.points) {
   }
   return a;
 }
+
+function polygon(points: Vec3[]): EditableGeometry {
+  const triangles = ShapeUtils.triangulateShape(
+    points.map((p) => new Vector2(p[0], p[1])),
+    [],
+  ).flat();
+  return {
+    points,
+    triangles,
+    sourceTriangles: triangles,
+    vertexMap: points.map((_, i) => i),
+    patches: new Array(triangles.length / 3).fill(0),
+    groups: [{ start: 0, count: triangles.length, face: 0 }],
+    exact: true,
+    solid: false,
+  };
+}
+function heightAt(g: EditableGeometry, points: Vec3[], x: number, y: number) {
+  for (let i = 0; i < g.triangles.length; i += 3) {
+    const [a, b, c] = g.triangles.slice(i, i + 3).map((id) => points[id]);
+    const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+    const u = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / d;
+    const v = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / d;
+    if (u >= -1e-8 && v >= -1e-8 && u + v <= 1 + 1e-8)
+      return u * a[2] + v * b[2] + (1 - u - v) * c[2];
+  }
+}
+const symmetricHexagon: Vec3[] = [
+  [-300, 0, 250],
+  [-125, 175, 250],
+  [125, 175, 250],
+  [300, 0, 250],
+  [150, -370, 250],
+  [-150, -370, 250],
+];
+describe('symmetric boundary deformation', () => {
+  it('lowers a symmetric front edge without introducing a diagonal ridge across the part', () => {
+    const g = polygon(symmetricHexagon);
+    const points = g.points.map((p) => [p[0], p[1], p[1] < -300 ? 210 : p[2]] as Vec3);
+    const next = retessellateGeometry(g, points);
+    expect(() => validateGeometry(next, points)).not.toThrow();
+    expect(next.points).toBe(g.points);
+    expect(new Set(next.triangles).size).toBe(6);
+    // Test the actual surface, not an arbitrary diagonal within a planar quad.
+    for (let y = -300; y <= 150; y += 50)
+      for (let x = -150; x <= 150; x += 25) {
+        expect(heightAt(next, points, x, y)).toBeCloseTo(250 + (Math.min(0, y) * 40) / 370, 6);
+        expect(heightAt(next, points, x, y)).toBeCloseTo(heightAt(next, points, -x, y)!, 6);
+      }
+  });
+  it('preserves the same surface for a rotated part and any perimeter start or winding', () => {
+    const matrix = new Matrix4().makeRotationAxis(new Vector3(1, 2, 3).normalize(), 0.73);
+    matrix.setPosition(14000, -9000, 4000);
+    for (const reverse of [false, true])
+      for (let offset = 0; offset < 6; offset++) {
+        let order = [...symmetricHexagon.slice(offset), ...symmetricHexagon.slice(0, offset)];
+        if (reverse) order = order.reverse();
+        const source = polygon(order),
+          local = order.map((p) => [p[0], p[1], p[1] < -300 ? 210 : p[2]] as Vec3);
+        const moved = local.map((p) => new Vector3(...p).applyMatrix4(matrix).toArray() as Vec3);
+        const g = {
+          ...source,
+          points: order.map((p) => new Vector3(...p).applyMatrix4(matrix).toArray() as Vec3),
+        };
+        const next = retessellateGeometry(g, moved);
+        expect(() => validateGeometry(next, moved)).not.toThrow();
+        for (const x of [-100, 0, 100])
+          expect(heightAt(next, local, x, -150)).toBeCloseTo(250 - (150 * 40) / 370, 6);
+      }
+  });
+  it('handles a symmetric concave outline without filling the indentations', () => {
+    const g = polygon([
+      [-40, -60, 0],
+      [40, -60, 0],
+      [40, -20, 0],
+      [15, -20, 0],
+      [15, 20, 0],
+      [40, 20, 0],
+      [40, 60, 0],
+      [-40, 60, 0],
+      [-40, 20, 0],
+      [-15, 20, 0],
+      [-15, -20, 0],
+      [-40, -20, 0],
+    ]);
+    const points = g.points.map((p) => [p[0], p[1], p[1] === -60 ? -10 : 0] as Vec3);
+    const next = retessellateGeometry(g, points);
+    expect(() => validateGeometry(next, points)).not.toThrow();
+    expect(geometryEdges(next).filter((e) => e.boundary)).toHaveLength(12);
+    expect(area(next, points)).toBeCloseTo(area(g), 6);
+    expect(heightAt(next, points, 30, 0)).toBeUndefined();
+    for (let y = -55; y < 60; y += 10)
+      for (let x = 0; x < 40; x += 5) {
+        const a = heightAt(next, points, x, y),
+          b = heightAt(next, points, -x, y);
+        if (a === undefined) expect(b).toBeUndefined();
+        else expect(a).toBeCloseTo(b!, 6);
+      }
+  });
+  it('does not mirror intentional asymmetric edits or move unselected anchors', () => {
+    const g = polygon(symmetricHexagon);
+    const points = g.points.map((p, i) => (i === 4 ? ([p[0], p[1], 210] as Vec3) : p));
+    const next = retessellateGeometry(g, points);
+    expect(() => validateGeometry(next, points)).not.toThrow();
+    expect(heightAt(next, points, 150, -370)).toBeCloseTo(210);
+    expect(heightAt(next, points, -150, -370)).toBeCloseTo(250);
+    expect(next.points).toEqual(symmetricHexagon);
+  });
+  it('retains a collinear centre anchor on the lowered edge', () => {
+    const g = polygon([...symmetricHexagon.slice(0, 5), [0, -370, 250], symmetricHexagon[5]]);
+    const points = g.points.map((p) => [p[0], p[1], p[1] < -300 ? 210 : p[2]] as Vec3);
+    const next = retessellateGeometry(g, points);
+    expect(new Set(next.triangles).size).toBe(7);
+    expect(geometryEdges(next).filter((e) => e.boundary)).toHaveLength(7);
+    expect(() => validateGeometry(next, points)).not.toThrow();
+    for (const x of [-100, 0, 100])
+      expect(heightAt(next, points, x, -150)).toBeCloseTo(250 - (150 * 40) / 370, 6);
+  });
+});
 describe('boundary based editing', () => {
   it('handles a large curved patch within the editor limits without argument overflow', () => {
     const width = 250,

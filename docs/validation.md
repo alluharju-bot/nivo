@@ -1,8 +1,138 @@
-# Validointi — 16.10.2026
+# Validointi — 17.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.50.0 — pintakerrokset, polkupursotus ja läpinäkyvyys
+
+- Koko yksikkötestisarja: **732 hyväksyttyä, 6 ohitettua**. Polkupursotuksen,
+  sivumäärällisten perusmuotojen ja näyttöasetusten kohdennettu sarja **14/14**.
+  Mukana suora, taitettu ja kolmiulotteinen Bézier-polku, ontto pyöreä ja
+  suorakulmainen profiili, suljettu polku, tilavuudet sekä virhesyötteet.
+- Yksityisellä Kerrostalo-mallilla neljä veitsiviiltoa, myös mutkitteleva
+  vapaa viiva: jokaisen tuloksen eheys ja solid-tilavuuden säilyminen tarkistettu.
+  Selaimen vapaan viivan testi ja Peru hyväksytty. Sekakappaleen irrallinen
+  pinta säilyy tuloksessa; pilvimallia tai alkuperäistä tiedostoa ei muutettu.
+- Pintakerrosten **3 desktop-selaintestiä hyväksytty** tuotantobuildista:
+  paikallinen asetus ja siirto, kerrosten järjestys, piilotus, poisto,
+  Peru/Palauta, tallennus, GLB-vienti sekä UV/bake. Bakeen sisältynyttä
+  kerrosta ei lisätä toistamiseen. Aiempi maalaus-/veitsi-/kerrossarja **12/12**.
+- Neljä kerrostyyppiä sekä PBR-puupinta tarkistettu 64 näytteen renderissä,
+  vienti myös 8 näytteen testissä. Nämä varmentavat materiaalipolun toimintaa,
+  eivät lopullisen kuvan kohinattomuutta tai suorituskykyä muilla laitteilla.
+- Polkupursotus ja tavallisten muototyökalujen sivumäärä **2/2 desktop-testissä**;
+  aiempi Muotojen läpi -sarja **7/7**. Käyttöliittymätestit kattavat esikatselun,
+  peruutuksen, hyväksymisen, lähdepolun säilymisen, historian ja uudelleenlatauksen.
+- Läpinäkyvyyden oikea hiiriveto päivittää näkymää heti, ei rakenna geometriaa
+  uudelleen ja tallentuu yhtenä peruttavana muutoksena. Materiaalit säilyvät.
+  Shift-push/pull poimii haamukappaleesta myös ruudukon ulkopuolisen korkeuden;
+  kameran muutoksen jälkeinen ensimmäinen viitepoiminta ei enää jää väliin.
+- Näyttötilojen ja kameran kanssa jatkuvien työkalueleiden regressiosarja
+  **20/20 desktopilla**. Läpinäkyvyys, polkupursotus ja sivumäärälliset muodot
+  lisäksi **3/3 tabletin Chromium-emuloinnissa**. Esikatselukuvat tarkastettu.
+
+## V0.49.0 — julkisivut, vienti ja pyöreän päädyn muokkaus
+
+- Koko yksikkötestisarja: **714 hyväksyttyä, 5 ohitettua**. Tämän jälkeen
+  reunasilmukan valinnan ja tarkan verkkopintamittauksen viimeistelyllä
+  CAD/geometriasarja **17/17 hyväksytty**. Kohdennettu materiaalien,
+  LOD:n, viennin ja kolmioinnin sarja **49/49 hyväksytty**.
+- Näkyvässä tuotantobuildin Chromiumissa **26/26 desktop-testiä hyväksytty**:
+  sylinterin reunavalinta perspektiivissä, päädyn skaalaus ja heti push/pull,
+  Peru, materiaaliasetusten tallennus ja lataus, GLB/LOD sekä 15 aiempaa
+  geometriamuokkauksen ja 9 tiedosto-/projektityönkulun regressiota.
+  GPU-instanssien vienti ja takaisin tuonti säilyttävät kolme kopioa, nimet,
+  sijainnit sekä värin/normalin 60-kertaisen mittakaavaeron myös uudessa viennissä.
+- Yksityinen Kerrostalo-pilvimallin revisio 1 luettu paikallisesta varmuuskopiosta.
+  Ei muutoksia pilveen eikä mallia testifixtureihin. 9 osaa, 3550 kolmiota,
+  2 jaettua geometriaa ja 2 materiaalia. GPU-instansseilla 2 materiaalierää
+  (ilman varjo-/muita passeja). Vanhan betonin optimoitu GLB 1 012 440 tavua;
+  uuden julkisivubetonin LOD0 694 736 tavua, LOD2 574 260 tavua. Ero sisältää
+  materiaalikuvien muutoksen, ei vain geometrian optimointia.
+- Kerrostalon suojatut rajat estivät kolmioiden vähentämisen kaikissa LOD:eissa;
+  alkuperäinen 3550 säilyi. Tiheä pallo ja rengas kevenivät yksikkötesteissä,
+  suljettu kuori, keskiaukko, materiaalirajat ja UV:t säilyivät. Jo valmiiksi
+  kevyeen rakennukseen ei luvata keinotekoista 80 prosentin vähennystä.
+- Kerrostalon ennen/jälkeen-kuvat sekä tarkentuvan renderin 8 näytteen
+  materiaalitesti tarkastettu. Tämä todentaa materiaalipolun, ei lopullisen
+  renderin laatua tai kohinan määrää. Vanhojen tallenteiden ulkonäkö säilyy.
+- Ei KTX2-pakkausta, automaattista LOD-vaihtoa tai yleistä mesh-booleania.
+  Verkkopinnan push/pull siirtää suljetun osan tasopintaa; avoimen verkon
+  pursotus ja muut CAD-työkalut ovat erillistä jatkokehitystä.
+
+## V0.48.2 — symmetrisen reunan kolmiointi
+
+- Drone-pilvimallin revisio 1 luettu paikalliseen yksityiseen varmuuskopioon.
+  Molemmat etureunan yläpisteet olivat 210 mm:ssä; yläpinnan neljä CAD-kolmiota
+  muodostivat epäsymmetrisen pinnan. Laskenta toistettu tasaisesta 250 mm
+  lähtömuodosta samalla 40 mm laskulla. Korjattu pinta muodostaa kaksi
+  keskiviivan suhteen symmetristä tasopintaa.
+- **54 kohdennettua yksikkötestiä hyväksytty**: rajakolmiointi, CAD-hyväksyntä,
+  Verkko ja pinta -eheys ja verkkotoiminnot. Uudet regressiot kattavat
+  käännetyn kappaleen, rajauksen aloituspisteen ja suunnan, koveran muodon,
+  suoran reunan välipisteen sekä tarkoituksellisen epäsymmetrisen siirron.
+  Vanha laskenta epäonnistui kahdessa uudessa regressiossa: neljä yläpintaa
+  kahden sijaan ja 7,64 mm poikkeama vertailupisteen korkeudessa.
+- **16 desktop-selaintestiä hyväksytty** tuotantobuildista näkyvässä
+  Chromiumissa: 15 aiempaa geometriamuokkauksen testiä ja uusi symmetriatesti.
+  Lisäksi Drone-mallin paikallisella lähtömuodolla sama käyttöliittymäketju
+  hyväksytty: reunan valinta, esikatselu, hyväksyntä, Peru/Palauta ja lataus.
+  Alkuperäisen ja korjatun pinnan kuvat tarkastettu. Pilvitallennetta ei muutettu;
+  korjattu kokonainen projektikopio tallennettu erillisellä projektitunnisteella.
+- TypeScript, tuotantobuild, muotoilu ja diff-tarkistus hyväksytty.
+  Symmetriakorjaus ei vielä yhdistä jo erillisiksi tallennettuja taitteita,
+  eikä muuta aukollisten tai sisäisiä ohjauspisteitä sisältävien pintojen
+  kolmiointitapaa. Tällaiset rajat on kirjattu jatkokehitykseen.
+
+## V0.48.1 — silmukat, suojattu sivellin ja palautus
+
+- Koko yksikkötestisarja: **698 hyväksyttyä, 5 ohitettua**. Viimeisen
+  historiakorjauksen regressiot mukaan lukien kohdennettu surface-sarja:
+  **26 hyväksyttyä**. Yhteisen kulmapisteen virheellinen törmäystulkinta
+  korjattu; samat tarkistukset estävät oikean taitoksen/itseleikkauksen.
+- Nykyisen geometriamuokkauksen **15 desktop-selaintestiä hyväksytty**.
+  Uuden työnkulun viimeistelty sarja **20/20 hyväksytty**: 10 desktopilla
+  ja samat 10 tabletin Chromium-emuloinnilla. Testit ajettiin näkyvässä
+  selaimessa tuotantobuildista `/nivo/`-polulla.
+- Hiirellä vedettävä silmukkakahva, Esc-peruutus, mitoin siirtäminen ja
+  skaalaus, suojaus, paikallinen peru ja virheellisen muodon hylkääminen
+  testattu. Uudelleenlataus palauttaa maskin, valinnan ja nimen alkuperäistä
+  projektiosaa muuttamatta; nimenomainen hylkääminen poistaa palautuskopion.
+  Viimeinen Ctrl/Cmd+Z-peruutuksen tarkennus ja palautus tarkistettu vielä
+  erikseen lopullisesta 0.48.1-buildista molemmilla selainprofiileilla.
+- Neljän testiosan UV- ja bake-ketju ajettu käyttöliittymästä: ohut rengas,
+  pohjallinen syvennys, peilattu kaareva osa ja kuusi pintamateriaalia.
+  Pintakartat tallentuvat, lähdeosa säilyy ja valitut esikatselukuvat
+  tarkastettu. Lisäksi aiempi GLB-karttavienti ja laskennan peruminen läpäisty.
+- TypeScript ja tuotantobuild hyväksytty. Palautus käyttää selaimen paikallista
+  tallennusta; selainprosessin pakotettua kaatamista tai fyysistä iPadia ei
+  käytetty. Suurten itseleikkaavien verkkojen korjausta ei luvata.
+
+## V0.48.0 — Verkko ja pinta
+
+- Koko yksikkötestisarja hyväksytty: **685 testiä**, 5 ohitettua.
+  Viimeisen UV-siirtotarkennuksen jälkeen kohdennettu verkkogeometrian,
+  CAD-verkkotiheyden ja materiaalien sarja: **25 testiä hyväksytty**.
+  Uusi tapaus varmistaa, ettei UV-kartan muodostus ota väriä viereisestä
+  ohuesta pinnasta. Leikkaus, peilaus, symmetria, verkkotiheyden muutos,
+  saumojen yhteinen sivellinliike ja bake-haun etäisyysraja tarkistettu.
+- Tuotantobuildin näkyvässä Chromiumissa **18 desktop-selaintestiä
+  hyväksytty**: 15 aiempaa geometriamuokkauksen testiä ja 3 uuden
+  työnkulun testiä. Viimeistelty työnkulku tarkistettu uudelleen sekä
+  desktopilla että tablettiprofiililla: **6 testiä hyväksytty**.
+- Käyttöliittymästä testattu leikkaussilmukka, UV-kartta, bake, maalaus,
+  tallennus erilliseksi osaksi, projektin peru/tee uudelleen ja uudelleen
+  avaaminen. GLB sisältää UV-, normal- ja AO-kartat. Pallon sivumäärä,
+  sivellinmuokkaus ja tallentamatta poistuminen tarkistettu. Raskaan
+  bake-operaation peruminen säilyttää työversion ja sallii uuden laskennan.
+- TypeScript, tuotantobuild `/nivo/`-polulla ja lisenssitarkistus hyväksytty.
+  UV-kartoituksen WASM toimitetaan sovelluksen mukana ilman CDN-riippuvuutta.
+  Näkymä tarkistettu myös kuvasta; testeissä käytettiin synteettisiä malleja.
+- Ensiversion rajat: kolmioverkko, akselisuuntaiset leikkaustasot,
+  automaattinen UV-kartoitus ja enintään 1 024 pikselin pintakartat.
+  Testit eivät takaa mielivaltaisten itseään leikkaavien verkkojen korjausta
+  tai kaikkien ulkoisten ohjelmien identtistä tangenttiavaruuden tulkintaa.
 
 ## V0.47.6 — valmistelun rakenteelliset kevennykset
 

@@ -724,6 +724,7 @@ p {
   gap: 8px;
 }
 .display-controls {
+  position: relative;
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -9318,4 +9319,112 @@ p {
 .note-style-fields {
   display: grid;
   gap: 12px;
+}
+
+/* Wear layers belong to the material workflow, with the base finish left intact. */
+.surface-layers-panel {
+  display: grid;
+  gap: 12px;
+}
+.surface-layers-panel .layer-target {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.layer-add-actions {
+  display: grid;
+  gap: 6px;
+}
+.surface-layer-list {
+  display: grid;
+  gap: 8px;
+}
+.surface-layer-card {
+  border: 1px solid #d4ddd9;
+  border-radius: 10px;
+  background: #ffffff70;
+  overflow: hidden;
+}
+.surface-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+}
+.surface-layer-row .layer-name {
+  flex: 1;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+.layer-name small {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 3px;
+}
+.surface-layer-settings {
+  display: grid;
+  gap: 10px;
+  padding: 4px 12px 12px;
+}
+.layer-two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  min-width: 0;
+}
+.layer-two-columns label,
+.layer-two-columns input {
+  min-width: 0;
+  width: 100%;
+}
+.layer-order-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+.surface-layers-panel small {
+  line-height: 1.5;
+}
+
+.display-opacity {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 240px;
+  max-width: 80vw;
+  padding: 10px 12px;
+  display: grid;
+  gap: 5px;
+  border: 1px solid #ffffffb0;
+  border-radius: 8px;
+  background: #f9fbf4ed;
+  box-shadow: 0 3px 16px #21332915;
+  font-size: 12px;
+}
+.display-opacity span {
+  display: flex;
+  justify-content: space-between;
+}
+.display-opacity input {
+  width: 100%;
+  margin: 2px 0;
+  accent-color: #52765f;
+}
+.display-opacity small {
+  font-size: 10px;
+  color: #647464;
+}
+.app-shell[data-compact='true'] .display-opacity {
+  position: static;
+  flex-basis: 100%;
+}
+/* The opacity control must remain usable when the model browser is open. */
+.canvas-topbar:has(.display-opacity) {
+  z-index: 10;
 }

@@ -52,6 +52,81 @@ export function SurfaceMaps({
   return (
     <details className="surface-maps">
       <summary>Pinnan rakenne · PBR</summary>
+      {!appearance.assetId && (preset.pattern === 'plaster' || preset.pattern === 'concrete') && (
+        <>
+          <label className="checkbox-label">
+            <CommitCheckbox
+              label="Laaja pintakuvio"
+              checked={!!appearance.procedural}
+              disabled={busy}
+              onChange={(enabled) =>
+                onChange({
+                  ...appearance,
+                  procedural: enabled
+                    ? { seed: preset.seed ?? 71, variation: 0.25, weathering: 0, detailSize: 200 }
+                    : undefined,
+                  texture: {
+                    ...appearance.texture,
+                    width: enabled ? 12000 : preset.procedural ? 1000 : (preset.size?.[0] ?? 1000),
+                    height: enabled ? 12000 : preset.procedural ? 1000 : (preset.size?.[1] ?? 1000),
+                  },
+                })
+              }
+            />
+            Laaja pintakuvio
+          </label>
+          {appearance.procedural && (
+            <>
+              {(
+                [
+                  ['variation', 'Sävyvaihtelu', 0, 1, 0.05],
+                  ['weathering', 'Valumajäljet', 0, 1, 0.05],
+                  ['detailSize', 'Pintarakenteen koko (mm)', 20, 2000, 10],
+                  ['seed', 'Kuvion siemen', 0, 999999, 1],
+                ] as const
+              ).map(([key, label, min, max, step]) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    type="number"
+                    aria-label={label}
+                    min={min}
+                    max={max}
+                    step={step}
+                    disabled={busy}
+                    key={appearance.procedural![key]}
+                    defaultValue={appearance.procedural![key]}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                    }}
+                    onBlur={(e) => {
+                      const n = Number(e.target.value),
+                        previous = appearance.procedural![key];
+                      if (
+                        e.target.value &&
+                        Number.isFinite(n) &&
+                        n >= min &&
+                        n <= max &&
+                        (key !== 'seed' || Number.isInteger(n))
+                      ) {
+                        if (n !== previous)
+                          void onChange({
+                            ...appearance,
+                            procedural: { ...appearance.procedural!, [key]: n },
+                          });
+                      } else e.target.value = String(previous);
+                    }}
+                  />
+                </label>
+              ))}
+              <p className="muted">
+                Tekstuurin koko säätää laajaa sävykuviota. Pieni pintarakenne säilyttää oman
+                kokonsa. Valumajäljet ovat pystysuuntaista kuviointia.
+              </p>
+            </>
+          )}
+        </>
+      )}
       {preset.pbr && !appearance.assetId && (
         <>
           <p className="muted">Pintaan kuuluvat väri-, normal-, karheus- ja korkeuskartat.</p>
@@ -196,6 +271,9 @@ export function SurfaceMaps({
               {
                 ...appearance,
                 surfaceDetail: true,
+                mapPlacements: appearance.mapPlacements
+                  ? { ...appearance.mapPlacements, [key]: undefined }
+                  : undefined,
                 ...(key === 'bump'
                   ? { bumpDepth: depth, normalStrength: 1 }
                   : key === 'normal'
@@ -287,6 +365,7 @@ export function ModelMaterials({
   busy,
   onChange,
   onPreviewColor,
+  onLayers,
 }: {
   bodies: Body[];
   assets?: Record<string, TextureAsset>;
@@ -294,6 +373,7 @@ export function ModelMaterials({
   busy: boolean;
   onChange: MaterialChange;
   onPreviewColor?: (color?: string) => void;
+  onLayers?: () => void;
 }) {
   const source = bodies[0],
     appearance = source.appearance ?? defaultAppearance(source.material);
@@ -429,6 +509,11 @@ export function ModelMaterials({
           onChange={onChange}
         />
         <SurfaceMaps appearance={appearance} assets={assets} busy={busy} onChange={onChange} />
+        {onLayers && (
+          <button className="button outlined full" onClick={onLayers}>
+            Pintakerrokset{appearance.layers?.length ? ` · ${appearance.layers.length}` : ''}
+          </button>
+        )}
         {error && <p role="alert">{error}</p>}
       </div>
     </details>

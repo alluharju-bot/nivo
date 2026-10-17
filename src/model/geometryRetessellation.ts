@@ -3,6 +3,7 @@ import type { EditableGeometry } from './geometryEditing';
 import type { Vec3 } from './project';
 import { sub, dot, unit } from './geometry';
 import { cross } from './transforms';
+import { symmetricPatchTriangles } from './geometrySymmetry';
 
 const edgeKey = (a: number, b: number) => `${Math.min(a, b)}:${Math.max(a, b)}`;
 const orient = (a: Vector2, b: Vector2, c: Vector2) =>
@@ -211,6 +212,18 @@ function triangulatePatch(before: Vec3[], after: Vec3[], original: number[]): nu
   const displaced = new Set(
     planar ? [] : ids.filter((i) => Math.abs(dot(after[i], n) - median) > tolerance),
   );
+  const symmetric =
+    !planar && loops.length === 1 && flat.length === ids.length
+      ? symmetricPatchTriangles(
+          area(loops[0]) < 0 ? [...loops[0]].reverse() : loops[0],
+          before,
+          after,
+          projected,
+          displaced,
+          tolerance,
+        )
+      : undefined;
+  if (symmetric) result = symmetric;
   const cost = (t: number[]) => {
     const p = t.map((i) => projected.get(i)!);
     const a = Math.abs(signed(t));
@@ -218,7 +231,8 @@ function triangulatePatch(before: Vec3[], after: Vec3[], original: number[]): nu
       p.reduce((s, q, j) => s + q.distanceToSquared(p[(j + 1) % 3]), 0) / Math.max(a, 1e-12);
     return { affected: t.some((i) => displaced.has(i)) ? a : 0, shape };
   };
-  for (let iteration = 0; iteration < 12; iteration++) {
+  // Independent flips would reintroduce the asymmetric crease we just avoided.
+  for (let iteration = 0; iteration < (symmetric ? 0 : 12); iteration++) {
     const adjacency = new Map<string, number[]>();
     result.forEach((t, i) =>
       t.forEach((a, j) => {

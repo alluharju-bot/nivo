@@ -66,6 +66,7 @@ export function ToolRail({
   onShape,
   onCabinet,
   onThroughShapes,
+  onSweep,
   onSurfaceLevels,
   onGeometryEditing,
   dock,
@@ -86,6 +87,7 @@ export function ToolRail({
   ) => void;
   onCabinet: () => void;
   onThroughShapes: () => void;
+  onSweep: () => void;
   onSurfaceLevels: () => void;
   onGeometryEditing: () => void;
   dock: ToolDock;
@@ -417,6 +419,15 @@ export function ToolRail({
           >
             <Shapes />
             <span>Muotojen läpi</span>
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              onSweep();
+            }}
+          >
+            <Shapes />
+            <span>Polkua pitkin</span>
           </button>
           <button
             onClick={() => {

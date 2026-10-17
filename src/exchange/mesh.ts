@@ -107,16 +107,38 @@ export function meshBody(body: Body): BodyMesh {
       (body.feature.type === 'mesh' && body.feature.groups) || [
         { start: 0, count: triangles.length },
       ]
-    ).map((g, index) => ({
-      ...g,
-      index,
-      ref: `surface:${index}`,
-      normal: [0, 0, 1],
-      center: body.origin.map(
-        (n, i) => n + [body.feature.width, body.feature.depth, body.feature.height][i] / 2,
-      ) as Vec3,
-      planar: false,
-    })),
+    ).map((g, index) => {
+      const ids = new Set(triangles.slice(g.start, g.start + g.count));
+      // Use local stored precision for plane detection; GPU world floats can
+      // otherwise turn a tilted flat face into a nonplanar one far from origin.
+      const pointAt = (id: number) =>
+        new Vector3().fromArray(
+          body.feature.type === 'mesh' ? body.feature.vertices : vertices,
+          id * 3,
+        );
+      const origin = pointAt(triangles[g.start]);
+      const n = pointAt(triangles[g.start + 1])
+        .sub(origin)
+        .cross(pointAt(triangles[g.start + 2]).sub(origin))
+        .normalize();
+      const center = new Vector3();
+      let planar = n.lengthSq() > 0.99;
+      for (const id of ids) {
+        const point = pointAt(id);
+        center.add(point);
+        if (Math.abs(n.dot(point.sub(origin))) > 1e-4) planar = false;
+      }
+      center.multiplyScalar(1 / Math.max(1, ids.size));
+      if (body.feature.type === 'mesh') center.add(new Vector3(...body.origin));
+      return {
+        ...g,
+        index,
+        ref: `surface:${index}` as const,
+        normal: n.toArray(),
+        center: center.toArray(),
+        planar,
+      };
+    }),
     volume: Math.abs(volume),
     verticesCAD: [...points.values()].map((point) => ({ point, anchor: anchor(point) })),
     midpointsCAD: [],

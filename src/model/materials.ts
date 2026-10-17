@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { pbrSurfaces } from './pbrCatalog';
 import { collectionPaints, surfaceCollectionName, type SurfaceGroup } from './surfaceCollection';
 import { experimentalMaterials } from './experimentalMaterials';
+import { surfaceLayerSchema } from './surfaceLayerSchema';
 export const texturePlacementSchema = z.object({
   width: z.number().min(0.1).max(100000),
   height: z.number().min(0.1).max(100000),
@@ -11,6 +12,16 @@ export const texturePlacementSchema = z.object({
   lockAspect: z.boolean(),
 });
 export const appearanceSchema = z.object({
+  layers: z.array(surfaceLayerSchema).max(8).optional(),
+  /** Portable, baked-at-runtime multiscale facade maps. Absent keeps legacy surfaces unchanged. */
+  procedural: z
+    .object({
+      seed: z.number().int().min(0).max(999999),
+      variation: z.number().min(0).max(1),
+      weathering: z.number().min(0).max(1),
+      detailSize: z.number().min(20).max(2000),
+    })
+    .optional(),
   metalFinish: z.enum(['smooth', 'brushed']).optional(),
   textureTint: z.enum(['multiply', 'colorize']).optional(),
   mirrorSide: z.enum(['front', 'back', 'both']).optional(),
@@ -22,8 +33,22 @@ export const appearanceSchema = z.object({
       bump: z.string().max(100).optional(),
       roughness: z.string().max(100).optional(),
       metalness: z.string().max(100).optional(),
+      ao: z.string().max(100).optional(),
     })
     .optional(),
+  /** Imported PBR channels can use different physical scales/rotations. */
+  mapPlacements: z
+    .object({
+      normal: texturePlacementSchema.optional(),
+      bump: texturePlacementSchema.optional(),
+      roughness: texturePlacementSchema.optional(),
+      metalness: texturePlacementSchema.optional(),
+      ao: texturePlacementSchema.optional(),
+    })
+    .optional(),
+  /** Atlas roughness is an absolute per-pixel finish, unlike legacy detail maps. */
+  atlasMaps: z.boolean().optional(),
+  atlasCoatRoughness: z.number().min(0).max(1).optional(),
   normalStrength: z.number().min(0).max(5).optional(),
   surfaceDetail: z.boolean().optional(),
   surfaceSource: z.enum(['normal', 'height']).optional(),
@@ -120,6 +145,7 @@ export type MaterialPreset = {
   relief?: number;
   seed?: number;
   emission?: number;
+  procedural?: Appearance['procedural'];
 };
 const wood = (
   id: string,
@@ -549,6 +575,24 @@ materialPresets.push(
 );
 
 materialPresets.push(
+  ...(
+    [
+      ['facade-concrete', 'Julkisivubetoni', '#b9b6ad', 'concrete', 0.9, 0.6, 0.35],
+      ['facade-render-fine', 'Julkisivurappaus · hieno', '#e5e1d7', 'plaster', 0.94, 0.25, 0.16],
+      ['facade-render-coarse', 'Julkisivurappaus · karkea', '#d4cec1', 'plaster', 0.96, 1.2, 0.22],
+    ] as const
+  ).map(([id, name, color, pattern, roughness, relief, variation], i) => ({
+    id,
+    name,
+    color,
+    pattern,
+    roughness,
+    relief,
+    metalness: 0,
+    category: 'Julkisivut',
+    size: [12000, 12000] as [number, number],
+    procedural: { seed: 71 + i, variation, weathering: 0, detailSize: 200 },
+  })),
   {
     id: 'gypsum-smooth',
     name: 'Maalattu kipsi · sileä',
@@ -781,6 +825,7 @@ export function appearancePreset(appearance: Appearance): MaterialPreset {
 }
 export const defaultAppearance = (preset = 'matte'): Appearance => ({
   preset,
+  ...(findPreset(preset).procedural ? { procedural: { ...findPreset(preset).procedural! } } : {}),
   ...(findPreset(preset).pbr || findPreset(preset).pattern === 'patina'
     ? { textureTint: 'colorize' as const }
     : {}),

@@ -6,6 +6,7 @@ The CAD WebAssembly module is provided separately under LGPL-2.1-only.
 OCCT has an additional exception; OpenCascade.js remains LGPL-2.1.
 License texts are included alongside this notice.
 PBR textures and Studio Small 09 HDRI: Poly Haven, CC0-1.0. See materials/sources.json and materials/LICENSE.txt.
+Wear overlays: Scratches002 and Fingerprints001 by Lennart Demes / ambientCG, CC0-1.0. See materials/wear/SOURCES.txt.
 glslSmartDeNoise: Copyright (c) 2019-2020 Michele Morrone, BSD-2-Clause. See glslSmartDeNoise-LICENSE.
 
 Corresponding upstream source and build configuration:
@@ -34,9 +35,9 @@ tslib 2.8.1: 0BSD (tslib-LICENSE.txt)
 iceberg-js 0.8.1: MIT (iceberg-js-LICENSE)
 @supabase/postgrest-js 2.117.3: MIT (@supabase__postgrest-js-LICENSE)
 brepjs-opencascade 0.15.6: LGPL-2.1-only (brepjs-opencascade-LICENSE, brepjs-opencascade-NOTICE)
+fflate 0.8.3: MIT (fflate-LICENSE)
 jspdf 4.2.1: MIT (jspdf-LICENSE)
 @babel/runtime 7.29.7: MIT (@babel__runtime-LICENSE)
-fflate 0.8.3: MIT (fflate-LICENSE)
 fast-png 6.4.0: MIT (fast-png-LICENSE)
 @types/pako 2.0.4: MIT (@types__pako-LICENSE)
 iobuffer 5.4.0: MIT (iobuffer-LICENSE)
@@ -61,6 +62,7 @@ lucide-react 1.49.0: ISC (lucide-react-LICENSE)
 @types/react 19.3.0: MIT (@types__react-LICENSE)
 csstype 3.2.3: MIT (csstype-LICENSE)
 react 19.3.0: MIT (react-LICENSE)
+meshoptimizer 1.1.1: MIT (meshoptimizer-LICENSE.md)
 react-dom 19.3.0: MIT (react-dom-LICENSE)
 scheduler 0.28.0: MIT (scheduler-LICENSE)
 replicad 1.1.0: MIT (replicad-LICENSE)

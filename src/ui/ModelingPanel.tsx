@@ -185,6 +185,8 @@ export function ShapeProperties({
   editingBodyName,
   sides,
   onSides,
+  roundSides,
+  onRoundSides,
   frameLabel,
   onAccept,
 }: {
@@ -203,6 +205,8 @@ export function ShapeProperties({
   editingBodyName?: string;
   sides: number;
   onSides: (sides: number) => void;
+  roundSides?: number;
+  onRoundSides: (sides?: number) => void;
   frameLabel: string;
   onAccept: () => void;
 }) {
@@ -235,6 +239,52 @@ export function ShapeProperties({
             <option value="polygon">Säännöllinen monikulmio</option>
           </select>
         </label>
+      )}
+      {tool === 'circle' && kind !== 'polygon' && (
+        <>
+          <label className="modeling-field">
+            Pinnan tarkkuus
+            <select
+              aria-label="Pyöreän muodon toteutus"
+              value={roundSides === undefined ? 'exact' : 'faceted'}
+              onChange={(e) => onRoundSides(e.target.value === 'exact' ? undefined : 24)}
+            >
+              <option value="exact">Tarkka kaareva pinta</option>
+              <option value="faceted">Säädettävä sivumäärä</option>
+            </select>
+          </label>
+          {roundSides !== undefined && (
+            <label className="modeling-field">
+              Sivujen määrä
+              <input
+                aria-label="Pyöreän muodon sivujen määrä"
+                type="number"
+                min={3}
+                max={128}
+                key={roundSides}
+                defaultValue={roundSides}
+                onBlur={(e) => {
+                  const value = Number(e.currentTarget.value);
+                  if (Number.isInteger(value) && value >= 3 && value <= 128) onRoundSides(value);
+                  else e.currentTarget.value = String(roundSides);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+              {kind === 'sphere' && (
+                <small>
+                  {roundSides * (Math.max(2, Math.round(roundSides / 2)) - 1) + 2} pistettä ·{' '}
+                  {2 * roundSides * (Math.max(2, Math.round(roundSides / 2)) - 1)} kolmiota
+                </small>
+              )}
+            </label>
+          )}
+        </>
       )}
       {tool === 'circle' && kind === 'polygon' && (
         <label className="modeling-field">

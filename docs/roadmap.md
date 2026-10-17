@@ -2,6 +2,171 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.50.0 — pintakerrokset ja vapaan veitsen tarkistus
+
+- **P → Pintakerrokset** sekä osan **Materiaali → Pintakerrokset**. Pöly,
+  naarmut, sormenjäljet ja vesijäljet koko osalle tai pinnalle. Paikallinen
+  jälki asetetaan napsauttamalla tasopintaa. Leveys, korkeus, kierto, sävy,
+  voimakkuus, näkyvyys, järjestys ja poisto; paikallisen jäljen siirto samalla
+  pinnalla uudelleen napsauttamalla tai UV-millimetrikentillä.
+- Enintään kahdeksan muokattavaa kerrosta. Alkuperäinen materiaali ja eri
+  pintojen omat värit/PBR-kartat säilyvät. Linkitettyjen kopioiden jakaminen
+  käyttää samaa kytkintä kuin maalaus. Hold, historia ja projektitallennus
+  käsittelevät kerrokset osana ulkoasua, ilman geometriaan tehtävää leikkausta.
+- Kerrokset yhdistetään workerissa värin, normalin ja pakatun karheus/metalli/
+  pinnoitekartan aineistoksi. Sama tulos mallinnuksessa, rasterissa, tarkentuvassa
+  renderissä, GLB-viennissä ja pintabakessa. CC0-naarmu- ja sormenjälkikartat
+  mukana paikallisesti, pöly ja vesijäljet proseduraalisia. Laskenta vain
+  asetusten muuttuessa; CPU-tulosvälimuisti rajattu noin 48 MiB:iin (yksi
+  suurin tulos voi jäädä välimuistiin), näkyvät materiaalit omistavat karttansa.
+- Paikallisen jäljen turvallinen rajaus koskee tässä versiossa tasopintoja.
+  Kaarevan pinnan projektio, oma läpinäkyvä decal-kuva, maskin maalaus,
+  reunojen automaattikuluma ja ylöspäin suuntautuva pöly jatkokehitykseen.
+  Karttojen enimmäistarkkuus on 2K; hyvin laajan pinnan pikkuyksityiskohdat
+  voivat vaatia myöhemmin useampia tekstuurilohkoja.
+- Veitsi vertaa suljettujen osien tilavuutta erikseen paksuudettomista
+  pinnoista. Sekamuotoinen Kerrostalo ei enää epäonnistu väärään tilavuuteen;
+  myös vapaa mutkitteleva viilto testataan. Leikatut paksuudettomat pinnat
+  säilyvät erillisenä **pinnat**-osana, eivät katoa solid-palojen poiminnassa.
+
+## V0.50.0 — polkua pitkin ja muotojen sivumäärä
+
+- **Muodot → Polkua pitkin**: valitse kynäviiva, Bézier-käyrä tai yhden
+  tasomuodon ulkoreuna. Pyöreä tai suorakulmainen poikkileikkaus, mitat,
+  seinämäpaksuus ja suorakulmaisen profiilin kierto. Nolla seinämänä tekee
+  umpijohdon/listan; positiivinen seinämä avoimen putken/kanavan.
+- Esikatselu ennen hyväksyntää, lähtöpolun vapaaehtoinen piilotus ja
+  säilytys, uusi itsenäinen CAD-osa ja yksi peruttava historiatoiminto.
+  Myös lukittua polkua saa käyttää muotoa muuttamatta. Suora, taitettu,
+  kolmiulotteinen Bézier ja suljettu ympyräpolku testattu.
+- **Muodot → Ympyrä / Ellipsi / Pallo → Pinnan tarkkuus**. Oletuksena tarkka
+  CAD-kaari; valinnainen 3–128 sivua. Ympyrästä/ellipsistä syntyy oikea
+  monikulmioprofiili, myös paksuudella. Pallo muodostuu kolmioverkosta ja
+  korkeussuunnan jaot seuraavat sivumäärää. Esikatselu vastaa asetusta.
+  Verkko ja pinta -tilan aikaisempi perusmuotojen säätö säilyy.
+- Jatkokehitys: irrallisten mittaviivojen ketju poluksi, solidin yksittäisten
+  reunojen poiminta, vapaasti valittu poikkileikkaus ja valmistuneen sweepin
+  polkuun sidottu parametrinen päivitys. Nyt lähtöpolun muuttaminen ei muuta
+  automaattisesti jo valmistunutta osaa. Tiukkojen ja itseään leikkaavien
+  mutkien yleinen käsittely vaatii jatkotestejä; virheellinen CAD-tulos hylätään.
+
+## V0.50.0 — mallinnuksen läpinäkyvyys
+
+- Ghost-näyttötilan **Läpinäkyvyys** 0–100 % näkyy näkymäpalkin alla.
+  Reaaliaikainen liukusäädin, valittu osa/monivalinta ja muokkaustilan
+  aktiivinen osa; tyhjä valinta säätää koko näkymää. Solid palauttaa pinnat.
+- Reunat ja tartunta säilyvät, valinta käyttäytyy kuten nykyisessä Ghost-tilassa.
+  Näkymäasetus säilyy projektissa ja historiassa, ei muokkaa materiaaleja,
+  geometriaa, linkitettyjen osien sisältöä tai renderitulosta.
+- Vedon aikana päivitetään vain materiaalien opacity, ei geometriaa eikä
+  tekstuurikarttoja. Historia ja synkronointi vasta vedon valmistuttua.
+
+## V0.49.0 — julkisivut, GLB-vienti ja sylinterin muokkausketju
+
+- Kolme julkisivupresettiä; laaja sävyvaihtelu erillään fyysisestä mikroreliefistä.
+  Siemen, vaihtelu, geneeriset valumajäljet ja rakenteen koko. Sama PBR-aineisto
+  mallinnuksessa, rasterissa, path tracingissä, UV-bakessa ja GLB:ssä.
+  Vanhojen betoni-/kipsi-/tasoitepintojen vapaaehtoinen päivitys.
+- GLB jakaa geometriat ja materiaalit, valinnainen GPU-instanssointi sekä
+  workerissa lasketut LOD0/1/2-erillistiedostot raportteineen. Suojatut rajat,
+  kompaktit vertex-puskurit, alkuperäinen koskematon. Instanssien takaisin
+  tuonti ja eri mittakaavoja käyttävien PBR-kanavien sijoittelu säilytetään.
+- Perspektiivireunan näkyvyystesti tehdään säteen todellisessa reunapisteessä.
+  Kaareva suljettu reunasilmukka valitaan yhdellä klikkauksella. Skaalattu
+  sylinteripääty tunnistetaan tasaiseksi ja suljetun verkon push/pull toimii
+  yhteisiä pisteitä siirtämällä sekä kuoren eheyden tarkistamalla.
+- Seuraavat askeleet: sijaintia/aukkoja seuraava patina ja lika, KTX2-vienti,
+  LOD-vaihdon ja instanssien spatiaalisen lohkomisen kohdeohjelmaintegraatio.
+  Avoimen verkon pursotus sekä verkkopintojen Cut/Offset tarvitsevat erillisen
+  topologiatyön; niitä ei rinnasteta nykyiseen tasopinnan siirtoon.
+
+## V0.48.2 — symmetrinen reunamuokkaus
+
+- Tasopinnasta muokattavan monikulmion alkuperäinen ja uusi rajaus tarkistetaan
+  peilisymmetrian suhteen. Symmetriset puoliskot kolmioidaan yhdessä: reunan
+  laskeminen ei luo toispuolista harjannetta tai kuoppaa vanhan kolmiojärjestyksen
+  vuoksi. Vino kappale ja rajauksen eri aloituspisteet toimivat samoin.
+- Sama laskenta esikatselussa ja CAD-/verkkohyväksynnässä. Pisteitä ei lisätä
+  eikä vastakkaista puolta siirretä automaattisesti; epäsymmetrinen muokkaus
+  on edelleen mahdollista. Koverat rajat ja suorat reunavälipisteet testattu.
+- Korjaus koskee yhden yhtenäisen tasopinnan rajausta (enintään 512 pistettä).
+  Aukot, sisäiset ohjauspisteet ja jo erillisiksi CAD-pinnoiksi tallennetut
+  taitteet säilyttävät nykyisen käsittelyn. Jatkokehitys: symmetrian huomioiva
+  uudelleenkolmiointi myös aukoille/sisäpisteille sekä hallittu vanhojen
+  geometriamuokkauksen taitteiden uudelleenmuodostus.
+
+## V0.48.1 — Verkko ja pinta: luotettava muokkausketju
+
+- Leikkaussilmukat jäävät valituiksi. Oranssit reunat/pisteet, silmukan
+  valinta listasta, välitön siirto/kierto/skaalaus kahvoilla ja tarkoin
+  X/Y/Z-arvoin; M/R/S-pikanäppäimet. UV-sauman pistekopiot liikkuvat yhdessä.
+- Eheystarkistus omassa peruttavassa workerissa hyväksyttäessä: päällekkäiset
+  kolmiot, yli kahden pinnan reunat, ristiriitaiset pintasuunnat, itseleikkaukset,
+  suljetun kuoren avautuminen ja topologialtaan saman kuoren kääntyminen nurin.
+  Tarkoituksellinen avoin pinta sallitaan. Viallinen muutos palauttaa edellisen
+  työversion. Yhteiseen kulmaan rajautuvien kolmioiden virheellinen
+  törmäystulkinta korjattu myös yhteisestä geometriavalidoinnista.
+- Sivellin kulkee osumapinnasta yhdistyvien kolmioiden kautta ja tarkistaa
+  näkyvyyden kamerasta. Läheinen erillinen tai peittynyt pinta jää koskematta.
+  Suojaa-sivellin, Shiftillä suojauksen poisto, valinnan suojaus ja maskin
+  tyhjennys. Violetti maski säilyy leikkauksissa, tihennyksessä, peilauksessa,
+  UV-kartoituksessa, projektitallennuksessa ja palautuksessa. Suojatun verkon
+  pistevähennys edellyttää maskin poistamista.
+- Vedon Esc-/pointercancel-/ikkunan fokuskatkos peruu esikatselun.
+  Vanhojen pintakarttojen mitätöinti ei enää riko perumishistorian muistilaskentaa.
+- Paikallinen IndexedDB-työversio: viimeinen hyväksytty muutos, nimi,
+  pintakartat, maski ja silmukkavalinta. Viivästetty kirjoitus, tallennustilan
+  ilmoitus, palautus sivun latauksen jälkeen ja Jätä keskeneräiseksi -toiminto.
+  Avaus tarkistaa projektin, osan ja lähdeversion; ristiriitaista versiota ei
+  palauteta automaattisesti. Hyväksyminen tai nimenomainen hylkäys poistaa
+  palautuskopion. Keskeneräisen työn palautus on laitekohtainen, ei pilvisynkkaa.
+- Neljän kappaleen [testiprojekti](../tests/fixtures/verkko-ja-pinta-kovennus.nivo):
+  0,8 mm rengas, pohjallinen pyöristetty syvennys, peilattu kaareva osa ja kuusi
+  erilaista pintamateriaalia. UV/bake-ketju testattu desktopilla ja tabletin
+  Chromium-emuloinnissa; lähdegeometrian säilyminen tarkistettu.
+
+## V0.48.0 — Verkko ja pinta
+
+- Oma yleinen osan työversio: Verkko, Muotoile, UV-kartta, Maalaa ja
+  Pintakartat. Avaus valitun osan yläreunasta, geometriapalkista tai
+  ominaisuuspaneelista. Ei pelikohtaista tilaa eikä muutoksia normaaleihin
+  CAD-pikanäppäimiin. Alkuperäinen osa säilyy; uusi versio on uniikki.
+- CAD-verkkotarkkuuden kolme tasoa, yksimateriaalisen tuodun verkon
+  pistevähennys, tihennys ja ympyrän/sylinterin/pallon 3–128 sivua.
+- X/Y/Z-tasoon lisättävät leikkaussilmukat, myös tasavälein. Lisäävät
+  kolmioverkon reunoja poistamatta pintaa. Kokonaisen osan peilaus,
+  erillinen peilikopio sekä positiivisesta puoliskosta muodostettava
+  yhtenäinen symmetrinen pinta.
+- Nosta/Paina/Tasoita-siveltimet, vaikutussäde ja voimakkuus millimetreinä,
+  Shift-tasoitus sekä avoimen pinnan reunan kiinnitys. UV-saumat pysyvät
+  yhdessä; tietoiset terävät reunat säilyttävät erilliset normaalit.
+- xatlas-automaatti-UV ja kartan esikatselu. Väri, karheus ja metallisuus
+  maalataan suoraan malliin; yksi veto on yksi paikallinen peruutus.
+- CPU/BVH-bake taustatyöntekijässä: tangentti-normal, AO, väri, karheus
+  ja metallisuus. Valittava lähdeosa, hakumatka, AO-etäisyys, 8–64 näytettä
+  ja 128–1024 px kartat. UV:n ja baken voi peruuttaa; myöhäistä tulosta
+  ei hyväksytä peruutuksen jälkeen. Saumojen reunapikselit laajennetaan.
+- Paikallinen työversiohistoria (enintään 30 tilaa / noin 64 MiB), yksi
+  projektihistorian toiminto hyväksyttäessä, nykyinen autosave/pilvitallennus,
+  PNG-karttavienti sekä nykyinen GLB-vienti. Lähdeosan muutos tunnistetaan
+  työversiota uudelleen avattaessa. Muotoilusivellin mitätöi vanhat normal-/AO-kartat.
+
+Ensiversion rajat ja jatko:
+
+- Työversio enintään 60 000 kolmiota / 65 000 renderöintipistettä; tuodun
+  verkon pistevähennyksen lähtöraja 12 000 hitsattua pistettä. UV-saumat
+  voivat lisätä renderöintipisteitä. Alkuperäisen CAD-osan geometria säilyy.
+- UV on automaattinen; saumojen käsin merkitseminen, UV-saarekkeiden
+  käsin muokkaus, quad-retopologia ja reittiä seuraava quad-loop-cut ovat
+  seuraavia laajennuksia. Nykyinen leikkaussilmukka käyttää tasoa.
+- Muotoilusivellin on paikallinen verkon muokkaus, ei volumetrinen
+  sculpt/remesh. Suuret muodonmuutokset voivat vaatia verkon tihentämistä;
+  mielivaltaisten itseleikkausten korjausta ei luvata.
+- Seuraavaksi maalauskerrokset ja pyyhintä, UV-tiheyden analyysi,
+  useamman osan yhteinen atlas, 2K/4K-kartat muistibudjetilla sekä
+  CAD-muutoksista päivittyvä lähde–työversio-ketju. Lähdeosan siirtäminen
+  tai kiertäminen erikseen edellyttää bake-kohdistuksen tarkistamista.
+
 ## V0.47.6 — käynnistysviiveen jatkoselvitys
 
 - Käyttäjän RTX 2060 Super odottaa edelleen useita minuutteja. 0.47.5:n
@@ -345,7 +510,10 @@ Jatkotyöt tehdään saman materiaalivalikon ja maalaustyökalun sisällä.
 - Tallennus/pilvisynkronointi, Peru/Palauta, linkitetyt ja uniikit kopiot sekä
   pintakohtaiset materiaalit kattavat myös jatkossa lisättävät ominaisuudet.
 
-### Backlog: lika, pöly ja materiaalikerrokset
+### Lika, pöly ja materiaalikerrokset — jatkokehitys
+
+Ensimmäinen versio toteutettu v0.50.0:ssa yllä. Alla alkuperäinen tavoite;
+kaarevat paikallisjäljet, omat kuvat ja automaattiset kertymät ovat vielä backlogissa.
 
 Kaksi samaan maalaustyönkulkuun kuuluvaa käyttötapaa, pohjamateriaalia hävittämättä:
 

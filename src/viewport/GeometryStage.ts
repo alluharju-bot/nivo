@@ -4,6 +4,7 @@ import type { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import {
   edgeLoop,
+  curvedEdgeSelection,
   geometryEdges,
   patchPoints,
   type EditableGeometry,
@@ -277,9 +278,17 @@ export function installGeometryStage({
         1,
       );
       const distance = Math.hypot(x - ax - (bx - ax) * t, y - ay - (by - ay) * t);
-      const point = new THREE.Vector3(...current().points[edge.a])
-        .lerp(new THREE.Vector3(...current().points[edge.b]), t)
-        .toArray();
+      // Screen interpolation is not world interpolation in perspective. Testing
+      // visibility at that unrelated point made near rim segments unpickable.
+      rayAt(ax + (bx - ax) * t, ay + (by - ay) * t);
+      const closest = new THREE.Vector3();
+      ray.ray.distanceSqToSegment(
+        new THREE.Vector3(...current().points[edge.a]),
+        new THREE.Vector3(...current().points[edge.b]),
+        undefined,
+        closest,
+      );
+      const point = closest.toArray();
       if (distance < 11 && distance < score && visible(point)) {
         best = i;
         score = distance;
@@ -302,7 +311,10 @@ export function installGeometryStage({
       rayAt(x, y);
       const anchor = new THREE.Vector3();
       ray.ray.distanceSqToSegment(a, b, undefined, anchor);
-      return { ids: [edge.a, edge.b], anchor: anchor.toArray() };
+      return {
+        ids: p.allEdges ? [edge.a, edge.b] : curvedEdgeSelection(edges, i, p.points),
+        anchor: anchor.toArray(),
+      };
     }
     rayAt(x, y);
     const hit = ray.intersectObject(surface, false)[0];
@@ -331,7 +343,13 @@ export function installGeometryStage({
     } else if (p.mode === 'edges') {
       const edge = edgeAt(x, y);
       p.onSelect(
-        edge >= 0 ? (loop ? edgeLoop(edges, edge, p.points) : [edges[edge].a, edges[edge].b]) : [],
+        edge >= 0
+          ? loop
+            ? edgeLoop(edges, edge, p.points)
+            : p.allEdges
+              ? [edges[edge].a, edges[edge].b]
+              : curvedEdgeSelection(edges, edge, p.points)
+          : [],
         extend,
       );
     } else {
@@ -366,7 +384,14 @@ export function installGeometryStage({
       object = hoverPoint;
     } else if (p.mode === 'edges') {
       const i = edgeAt(x, y);
-      if (i >= 0) vertices = [p.points[edges[i].a], p.points[edges[i].b]];
+      if (i >= 0) {
+        const ids = new Set(
+          p.allEdges ? [edges[i].a, edges[i].b] : curvedEdgeSelection(edges, i, p.points),
+        );
+        vertices = edges
+          .filter((e) => ids.has(e.a) && ids.has(e.b))
+          .flatMap((e) => [p.points[e.a], p.points[e.b]]);
+      }
       object = hoverEdge;
     } else {
       rayAt(x, y);

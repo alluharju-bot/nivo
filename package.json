@@ -1,6 +1,6 @@
 {
   "name": "nivo-cad",
-  "version": "0.47.6",
+  "version": "0.50.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -21,8 +21,10 @@
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",
     "brepjs-opencascade": "0.15.6",
+    "fflate": "0.8.3",
     "jspdf": "4.2.1",
     "lucide-react": "1.49.0",
+    "meshoptimizer": "1.1.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "replicad": "1.1.0",
@@ -31,6 +33,7 @@
     "three": "0.186.1",
     "three-gpu-pathtracer": "0.0.26",
     "three-mesh-bvh": "0.9.15",
+    "xatlas-web": "0.1.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

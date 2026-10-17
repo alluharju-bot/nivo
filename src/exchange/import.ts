@@ -5,6 +5,7 @@ import {
   LoadingManager,
   Matrix4,
   Mesh,
+  InstancedMesh,
   MeshStandardMaterial,
   Object3D,
   SkinnedMesh,
@@ -20,7 +21,12 @@ import {
   type Project,
   type Vec3,
 } from '../model/project';
-import { defaultAppearance, textureDefaults, type TextureAsset } from '../model/materials';
+import {
+  defaultAppearance,
+  textureDefaults,
+  type TextureAsset,
+  type TexturePlacement,
+} from '../model/materials';
 import { meshClosure } from './mesh';
 
 export type ImportOptions = { unit: 'mm' | 'cm' | 'm' | 'inch'; up: 'z' | 'y' };
@@ -159,7 +165,7 @@ export async function importMeshFiles(files: File[], options: ImportOptions): Pr
     const gltf = await new GLTFLoader(manager).parseAsync(await file.arrayBuffer(), '');
     try {
       gltf.scene.updateMatrixWorld(true);
-      const partGroups = new Map<Object3D, Body[]>();
+      const partGroups = new Map<Object3D, Map<number, Body[]>>();
       gltf.scene.traverse((object) => {
         if (!(object instanceof Mesh)) return;
         if (
@@ -190,79 +196,126 @@ export async function importMeshFiles(files: File[], options: ImportOptions): Pr
           parentAssociation.primitives === undefined
             ? object.parent
             : object;
-        if (!partGroups.has(owner)) partGroups.set(owner, []);
-        const parts = partGroups.get(owner)!;
-        for (const group of groups) {
-          const geometry = new BufferGeometry();
-          try {
-            // Compact each material range, preserving its own UVs and vertex normals.
-            for (const key of ['position', 'normal', 'uv']) {
-              const attribute = source.getAttribute(key);
-              if (!attribute) continue;
-              const values: number[] = [];
-              for (let i = group.start; i < group.start + group.count; i++) {
-                const index = source.index ? source.index.getX(i) : i;
-                for (let k = 0; k < attribute.itemSize; k++)
-                  values.push(attribute.getComponent(index, k));
+        if (!partGroups.has(owner)) partGroups.set(owner, new Map());
+        const family = partGroups.get(owner)!;
+        const count = object instanceof InstancedMesh ? object.count : 1;
+        if (count > 10000)
+          throw new Error('Yhdessä GLB-erässä voi olla enintään 10 000 instanssia.');
+        for (let instance = 0; instance < count; instance++) {
+          if (!family.has(instance)) family.set(instance, []);
+          const parts = family.get(instance)!;
+          for (const group of groups) {
+            const geometry = new BufferGeometry();
+            try {
+              // Compact each material range, preserving its own UVs and vertex normals.
+              for (const key of ['position', 'normal', 'uv']) {
+                const attribute = source.getAttribute(key);
+                if (!attribute) continue;
+                const values: number[] = [];
+                for (let i = group.start; i < group.start + group.count; i++) {
+                  const index = source.index ? source.index.getX(i) : i;
+                  for (let k = 0; k < attribute.itemSize; k++)
+                    values.push(attribute.getComponent(index, k));
+                }
+                geometry.setAttribute(key, new Float32BufferAttribute(values, attribute.itemSize));
               }
-              geometry.setAttribute(key, new Float32BufferAttribute(values, attribute.itemSize));
-            }
-            const transform = new Matrix4().multiplyMatrices(matrix, object.matrixWorld);
-            geometry.applyMatrix4(transform);
-            if (transform.determinant() < 0) {
-              const indices: number[] = [];
-              for (let i = 0; i < geometry.getAttribute('position').count; i += 3)
-                indices.push(i, i + 2, i + 1);
-              geometry.setIndex(indices);
-            }
-            // glTF texture transforms become vertex UVs, avoiding lost offset/rotation.
-            const material = materials[group.materialIndex ?? 0] as MeshStandardMaterial;
-            const uv = geometry.getAttribute('uv');
-            if (uv && material.map) {
-              material.map.updateMatrix();
-              const elements = material.map.matrix.elements;
-              for (let i = 0; i < uv.count; i++) {
-                const u = uv.getX(i),
-                  v = uv.getY(i);
-                uv.setXY(
-                  i,
-                  elements[0] * u + elements[3] * v + elements[6],
-                  elements[1] * u + elements[4] * v + elements[7],
-                );
+              const transform = new Matrix4().multiplyMatrices(matrix, object.matrixWorld);
+              if (object instanceof InstancedMesh) {
+                const local = new Matrix4();
+                object.getMatrixAt(instance, local);
+                transform.multiply(local);
               }
+              geometry.applyMatrix4(transform);
+              if (transform.determinant() < 0) {
+                const indices: number[] = [];
+                for (let i = 0; i < geometry.getAttribute('position').count; i += 3)
+                  indices.push(i, i + 2, i + 1);
+                geometry.setIndex(indices);
+              }
+              // Positive glTF transforms remain editable material placements. The
+              // legacy UV bake remains a fallback for reflected/out-of-range maps.
+              const material = materials[group.materialIndex ?? 0] as MeshStandardMaterial;
+              const uv = geometry.getAttribute('uv');
+              const basePlacement = material.map && importedPlacement(material.map);
+              if (uv && material.map && !basePlacement) {
+                material.map.updateMatrix();
+                const elements = material.map.matrix.elements;
+                for (let i = 0; i < uv.count; i++) {
+                  const u = uv.getX(i),
+                    v = uv.getY(i);
+                  uv.setXY(
+                    i,
+                    elements[0] * u + elements[3] * v + elements[6],
+                    elements[1] * u + elements[4] * v + elements[7],
+                  );
+                }
+              }
+              const instanceName = owner.userData.nivoInstances?.[instance]?.name;
+              const body = bodyFromGeometry(
+                geometry,
+                instanceName || owner.name || object.name || project.name,
+              );
+              const appearance = {
+                ...defaultAppearance('matte'),
+                preset: 'paint',
+                roughness: material.roughness ?? 0.8,
+                metalness: material.metalness ?? 0,
+                texture: basePlacement || { ...textureDefaults, width: 1, height: 1 },
+              };
+              if (material.map)
+                appearance.assetId = textureAsset(material.map, `${body.name} pinta`);
+              if (material.normalMap)
+                appearance.maps = {
+                  normal: textureAsset(material.normalMap, `${body.name} normaali`),
+                };
+              if (material.roughnessMap)
+                appearance.maps = {
+                  ...appearance.maps,
+                  roughness: textureAsset(material.roughnessMap, `${body.name} karheus`, 1),
+                };
+              if (material.metalnessMap)
+                appearance.maps = {
+                  ...appearance.maps,
+                  metalness: textureAsset(material.metalnessMap, `${body.name} metallisuus`, 2),
+                };
+              if (material.aoMap)
+                appearance.maps = {
+                  ...appearance.maps,
+                  ao: textureAsset(material.aoMap, `${body.name} AO`, 0),
+                };
+              // Keep independent PBR transforms. Baking the colour transform into
+              // UVs used to silently enlarge fine normals to the albedo's scale.
+              if (basePlacement || !material.map) {
+                appearance.mapPlacements = {};
+                for (const key of ['normal', 'roughness', 'metalness', 'ao'] as const) {
+                  const map = material[`${key}Map`];
+                  const placement = map && importedPlacement(map);
+                  if (
+                    placement &&
+                    (!basePlacement || JSON.stringify(placement) !== JSON.stringify(basePlacement))
+                  )
+                    appearance.mapPlacements[key] = placement;
+                }
+              }
+              if (material.roughnessMap) appearance.atlasMaps = true;
+              if (material.normalMap) {
+                appearance.normalStrength = Math.min(5, Math.abs(material.normalScale.x));
+                if (material.normalScale.y < 0) appearance.normalFormat = 'directx';
+              }
+              body.color = `#${(material.color ?? new Color('#ffffff')).getHexString(SRGBColorSpace)}`;
+              body.appearance = appearance;
+              parts.push(body);
+            } finally {
+              geometry.dispose();
             }
-            const body = bodyFromGeometry(geometry, owner.name || object.name || project.name);
-            const appearance = {
-              ...defaultAppearance('matte'),
-              preset: 'paint',
-              roughness: material.roughness ?? 0.8,
-              metalness: material.metalness ?? 0,
-              texture: { ...textureDefaults, width: 1, height: 1 },
-            };
-            if (material.map) appearance.assetId = textureAsset(material.map, `${body.name} pinta`);
-            if (material.normalMap)
-              appearance.maps = {
-                normal: textureAsset(material.normalMap, `${body.name} normaali`),
-              };
-            if (material.roughnessMap)
-              appearance.maps = {
-                ...appearance.maps,
-                roughness: textureAsset(material.roughnessMap, `${body.name} karheus`, 1),
-              };
-            if (material.metalnessMap)
-              appearance.maps = {
-                ...appearance.maps,
-                metalness: textureAsset(material.metalnessMap, `${body.name} metallisuus`, 2),
-              };
-            body.color = `#${(material.color ?? new Color('#ffffff')).getHexString(SRGBColorSpace)}`;
-            body.appearance = appearance;
-            parts.push(body);
-          } finally {
-            geometry.dispose();
           }
         }
       });
-      project.bodies.push(...Array.from(partGroups.values(), combineParts));
+      project.bodies.push(
+        ...Array.from(partGroups.values()).flatMap((family) =>
+          Array.from(family.values(), combineParts),
+        ),
+      );
       if (!project.bodies.length) throw new Error('Tiedostossa ei ole kolmiopintoja.');
       return checkedProject({ ...project, assets });
     } finally {
@@ -288,6 +341,35 @@ export async function importMeshFiles(files: File[], options: ImportOptions): Pr
   } finally {
     urls.forEach((url) => URL.revokeObjectURL(url));
   }
+}
+
+function importedPlacement(map: Texture): TexturePlacement | undefined {
+  if (map.repeat.x <= 0 || map.repeat.y <= 0) return;
+  map.updateMatrix();
+  const width = 1 / map.repeat.x,
+    height = 1 / map.repeat.y;
+  const c = Math.cos(map.rotation),
+    s = Math.sin(map.rotation);
+  const [ox, oy] = [map.matrix.elements[6], map.matrix.elements[7]];
+  const offsetX = -c * ox * width + s * oy * height;
+  const offsetY = -s * ox * width - c * oy * height;
+  if (
+    width < 0.1 ||
+    height < 0.1 ||
+    width > 100000 ||
+    height > 100000 ||
+    Math.abs(offsetX) > 100000 ||
+    Math.abs(offsetY) > 100000
+  )
+    return;
+  return {
+    width,
+    height,
+    offsetX,
+    offsetY,
+    rotation: (map.rotation * 180) / Math.PI,
+    lockAspect: false,
+  };
 }
 
 function combineParts(parts: Body[]): Body {
