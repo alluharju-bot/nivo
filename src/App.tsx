@@ -2438,6 +2438,7 @@ export default function App() {
               : project.bodies
                   .filter((b) => b.penRegion)
                   .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
+            edited ? 'stroke' : 'network',
           )
         : undefined;
       if (!current()) return;

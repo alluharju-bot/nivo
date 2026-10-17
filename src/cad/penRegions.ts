@@ -20,7 +20,12 @@ export interface PenRegions {
 
 /** Fill bounded cells in a spatial drawing network. Heights are never flattened:
  * projection orders connected edges; exact CAD curves bound the resulting faces. */
-export function fillPenRegions(path: Body, boundaries: Body[], previous: Body[] = []): PenRegions {
+export function fillPenRegions(
+  path: Body,
+  boundaries: Body[],
+  previous: Body[] = [],
+  scope: 'network' | 'stroke' = 'network',
+): PenRegions {
   const empty = { bodies: [], replaceIds: [] };
   if (boundaries.length > 255) return empty;
   const shapes: AnyShape[] = [],
@@ -247,6 +252,12 @@ export function fillPenRegions(path: Body, boundaries: Body[], previous: Body[] 
       );
       const bodies: Body[] = [];
       for (const loop of loops) {
+        // Part editing adds only cells actually bounded by the current stroke.
+        // Rebuilding an older connected loop would cap an already sculpted
+        // recess with a loose sheet. Standalone drawing still updates its whole
+        // region network (including previously generated drain/slope patches).
+        if (scope === 'stroke' && !loop.some((h) => owners.get(h.link)!.includes(path.id)))
+          continue;
         if (!loop.some((h) => owners.get(h.link)!.some((id) => penIds.has(id)))) continue;
         const oriented = loop.map((h) => {
           const e = h.link.edge.clone();

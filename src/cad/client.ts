@@ -265,12 +265,18 @@ export class CadClient {
   penPath(points: Vec3[], name: string) {
     return this.request<Body>({ type: 'pen-path', points, name });
   }
-  penRegions(path: Body, boundaries: Body[], previous: Body[] = []) {
+  penRegions(
+    path: Body,
+    boundaries: Body[],
+    previous: Body[] = [],
+    scope: 'network' | 'stroke' = 'network',
+  ) {
     return this.request<import('./penRegions').PenRegions>({
       type: 'pen-regions',
       path,
       boundaries,
       previous,
+      scope,
     });
   }
   splitPath(body: Body, face: FaceRef, path: Body) {

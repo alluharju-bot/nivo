@@ -4,7 +4,11 @@ import type { CadFace, FaceBoundary } from './protocol';
 import { dot, sub } from '../model/geometry';
 
 /** Only shared topological edges qualify. Coincident independent faces do not. */
-export function faceBoundaries(shape: AnyShape, metadata: CadFace[]): FaceBoundary[] {
+export function faceBoundaries(
+  shape: AnyShape,
+  metadata: CadFace[],
+  visitEdge?: (edge: Edge) => void,
+): FaceBoundary[] {
   const faces = shapeFaces(shape);
   const edges: { edge: Edge; owners: number[] }[] = [];
   const byHash = new Map<number, typeof edges>();
@@ -37,6 +41,8 @@ export function faceBoundaries(shape: AnyShape, metadata: CadFace[]): FaceBounda
         Math.abs(dot(sub(a.center, b.center), a.normal)) > 1e-6
       )
         continue;
+      // The visitor may retain a clone; this traversal owns the original edge.
+      visitEdge?.(edge);
       const key = owners.join(':');
       let group = groups.get(key);
       if (!group) {

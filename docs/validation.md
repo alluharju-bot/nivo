@@ -4,6 +4,33 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.50.2 — pinta-alueiden säilyminen ja painaumien peittopinnat
+
+- Ennen korjausta toistettu: kaksi kynäviivaa jakaa 40 mm paksun levyn
+  kolmeen alueeseen. Ensimmäisen alueen −10 mm tai +10 mm Push/Pull yhdisti
+  kaksi muuta aluetta takaisin yhdeksi pinnaksi. Korjaus suojaa nykyiset
+  koplanaariset jakoreunat booleanin siivoukselta.
+- Toinen virhe toistettu sekä CAD- että selaintestillä: painauman alkuperäinen
+  piirrosrajaus on yhä erillisenä viivana. Siihen liittyvä uusi kynäviiva
+  loi painauman päälle irrallisen pinnan, vaikka kappaleessa oli jo paksuus.
+  Muokkaustilassa täytetään nyt vain nykyisen viivan rajaamia alueita.
+- Koko yksikkötestisarja: **737 hyväksyttyä, 6 ohitettua**. Uudet testit
+  tarkistavat todellisen solidin tilavuuden, pintojen erillisyyden,
+  kolmioinnin pinta-alat ja painaumien näkyvät korkeudet. Mukana peräkkäiset
+  suorakulmaiset ja pyöreät painaumat, ympäröivän pinnan nosto, välimuisti,
+  tallennetun CAD-muodon pintaviitteet sekä alkuperäisen geometrian säilyminen.
+- Tarkoituksellinen Bézier-rajauksen sulkeminen altaan aukon päälle ja
+  uuden pinnan pursotus säilyvät. Erillisen viivaverkoston kaatopintojen
+  muodostaminen ei käytä muokkaustilan uutta täyttörajausta.
+- Tuotantobuildin pinta- ja pursotustestit **32/32**: 16 desktopilla ja
+  16 tabletin Chromium-emuloinnissa. Uudet ketjut kattavat usean kynäalueen
+  peräkkäisen muokkauksen, vanhan viivaverkoston peittopinnan, Peru/Palauta,
+  tallennuksen ja jatkamisen sivun uudelleenlatauksen jälkeen. Mukana myös
+  aiemmat Ghost-, päällekkäisten pintojen ja eri korkeuksien viitetestit.
+- TypeScript, tuotantobuild, muutettujen tiedostojen muotoilu ja diff-tarkistus
+  hyväksytty. Käyttäjän alkuperäistä ongelmamallia ei muutettu; nämä ovat
+  paksusta testikappaleesta toistetut virheketjut.
+
 ## V0.50.1 — muokkaustilan pinnalle piirtäminen ja kynän jako
 
 - Virheet toistettu ennen korjausta: Ghost-osan suorakulmio ja kynä eivät

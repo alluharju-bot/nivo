@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.50.2** säilyttää kynällä jaetut pinta-alueet, kun saman paksun
+kappaleen toista aluetta pursotetaan. Myös suorakulmioiden ja ympyröiden
+rajaukset säilyvät erikseen muokattavina. Osan muokkauksessa uusi kynäviiva
+ei enää täytä vanhan viivaverkoston muita silmukoita uudelleen: jo tehtyjen
+painaumien päälle ei synny sen vuoksi irrallista peittävää pintaa.
+
 Versio **0.50.1** korjaa muokkaustilassa pinnalle piirtämisen. Ghost-osa
 säilyy muokattavana, ja sen päällä oleva erillinen tasomuoto antaa tartuntoja
 kaappaamatta muokkauksen kohdetta. Lähellä mutta eri korkeudella oleva

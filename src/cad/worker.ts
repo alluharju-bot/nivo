@@ -102,7 +102,12 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
         reply.result = knifeBodies(request.targets, request.rays, request.curveNormal);
       else if (request.type === 'pen-path') reply.result = penPath(request.points, request.name);
       else if (request.type === 'pen-regions')
-        reply.result = fillPenRegions(request.path, request.boundaries, request.previous);
+        reply.result = fillPenRegions(
+          request.path,
+          request.boundaries,
+          request.previous,
+          request.scope,
+        );
       else if (request.type === 'add-surface-regions')
         reply.result = addSurfaceRegions(request.body, request.regions, request.normal);
       else if (request.type === 'split-path')

@@ -11,7 +11,7 @@ import {
   type Vec3,
 } from '../model/project';
 import { sketchFrame } from '../model/sketch';
-import { booleanBodies } from './operations';
+import { booleanBodies, splitFace } from './operations';
 import { bezierPath } from './modeling';
 import { penPath } from './paths';
 import { fillPenRegions } from './penRegions';
@@ -48,7 +48,7 @@ function ledge(reverse = false) {
     ],
     'Takareuna',
   );
-  return fillPenRegions(line, [curve]).bodies;
+  return fillPenRegions(line, [curve], [], 'stroke').bodies;
 }
 function inspect(body: Body) {
   const shape = createShape(body);
@@ -127,4 +127,39 @@ it('keeps new surfaces in the component and propagates them to linked instances'
   expect(next.bodies[1].component).toEqual(copy.component);
   expect(inspect(next.bodies[1]).mesh.faces).toHaveLength(inspect(added.body).mesh.faces.length);
   expect(inspect(next.bodies[1]).volume).toBeCloseTo(inspect(body).volume, 5);
+});
+
+it('does not regenerate an old pocket cover when a new stroke joins its drawing network', () => {
+  const body = makeBody(300, 200, 40);
+  const profile = makeProfileBody(
+    { kind: 'rectangle', width: 40, depth: 60 },
+    sketchFrame([20, 20, 40]),
+  );
+  const split = splitFace(body, 'z:max', profile);
+  const recessed = pushPullFace(split.body, split.face, -10);
+  const outline = penPath(
+    [
+      [20, 20, 40],
+      [60, 20, 40],
+      [60, 80, 40],
+      [20, 80, 40],
+      [20, 20, 40],
+    ],
+    'Vanha rajaus',
+  );
+  const stroke = penPath(
+    [
+      [60, 20, 40],
+      [300, 20, 40],
+    ],
+    'Uusi viiva',
+  );
+  // The old loop is connected, but this stroke does not create or divide it.
+  const regions = fillPenRegions(stroke, [outline], [], 'stroke');
+  const added = addSurfaceRegions(recessed, regions.bodies, [0, 0, 1]);
+  expect(
+    added?.face,
+    'An unrelated old drawing must not put a sheet over a finished recess',
+  ).toBeUndefined();
+  expect(regions.bodies).toHaveLength(0);
 });

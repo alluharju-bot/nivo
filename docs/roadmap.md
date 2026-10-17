@@ -2,6 +2,21 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.50.2 — jaettujen pintojen peräkkäinen muokkaus
+
+- Paksun osan Push/Pull säilyttää muiden alueiden koplanaariset rajat.
+  Booleanin uusien saumojen siivous suojaa olemassa olevat jakoreunat ja
+  niiden jäljelle jääneet osat operaation topologisen historian avulla.
+- Muokkaustilan kynä lisää vain nykyiseen piirtoon osallistuvia uusia
+  pintoja. Vanha, uuteen viivaan liittyvä piirrosverkosto ei enää palauta
+  jo pursotetun painauman päälle irrallista pintaa. Aukon päälle tarkoituksella
+  suljettu uusi rajaus toimii edelleen; erillisten piirrosten verkoston
+  päivittyminen ja kaatopinnat säilyvät ennallaan.
+- Testit tarkistavat jäljellä olevien alueiden erillisyyden, oikean solidin
+  tilavuuden, painaumien pohjat, näkymän tartunnan sekä historian ja tallennuksen.
+  Korjaus ei automaattisesti poista aiemmin tallentuneita irrallisia pintoja:
+  niiden erottaminen tarkoituksellisista lisäpinnoista vaatii mallin tarkistamisen.
+
 ## V0.50.1 — piirron kohdepinta muokkaustilassa
 
 - Ghost-tilassa avoinna olevan osan pinnat ovat muokattavia. Muiden

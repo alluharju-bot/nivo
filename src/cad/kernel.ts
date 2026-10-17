@@ -1,4 +1,5 @@
 import { resizeProvenPrism } from './prismResize';
+import { faceBoolean } from './faceBoolean';
 import { transferCutProfiles, sketchCutPrism } from './cutProfiles';
 import { resizePrimitive } from '../model/editableDimensions';
 import { projectEdges } from './projection';
@@ -24,6 +25,7 @@ import {
   makePolygon,
   cast,
   type Face,
+  type Edge,
   type AnyShape,
   type Shape3D,
   type Sketch,
@@ -214,6 +216,7 @@ function extrudeSurfaceRegion(
   prism: AnyShape,
   distance: number,
   solidFaces: Set<number>,
+  partitions: Edge[],
 ): AnyShape {
   const solids = shape.solids;
   let base: Shape3D | undefined, volume: Shape3D | undefined;
@@ -221,9 +224,7 @@ function extrudeSurfaceRegion(
   try {
     if (solids.length) base = makeCompound(solids.map((solid) => solid.clone())).asShape3D();
     volume = base
-      ? solidFaces.has(target.hashCode) && distance < 0
-        ? base.cut(prism.asShape3D())
-        : base.fuse(prism.asShape3D())
+      ? faceBoolean(base, prism, solidFaces.has(target.hashCode) && distance < 0, partitions)
       : prism.clone().asShape3D();
     const untouched = faces.filter(
       (face) => !solidFaces.has(face.hashCode) && !face.isSame(target),
@@ -592,11 +593,11 @@ export function pushPullFace(
     throw new Error('Anna nollasta poikkeava pinnan siirtymä väliltä −100 000…100 000 mm.');
   const shape = cache?.shape(body) ?? createShape(body);
   const faces = shapeFaces(shape);
+  const partitions: Edge[] = [];
   let prism: AnyShape | undefined, result: AnyShape | undefined;
   try {
-    const target = (cache?.get(body)?.mesh ?? meshBody(body, shape)).faces.find(
-      (f) => f.ref === ref,
-    );
+    const mesh = cache?.get(body)?.mesh ?? meshBody(body, shape),
+      target = mesh.faces.find((f) => f.ref === ref);
     if (!target || !target.planar) throw new Error('Valitse tasomainen pinta.');
     const detailed = pushPullDetailedFace(body, shape, target, distance, cache);
     if (detailed) return detailed;
@@ -691,6 +692,8 @@ export function pushPullFace(
       vector.delete();
     }
     const solidFaces = solidFaceIds(shape);
+    if (mesh.boundaries.length)
+      faceBoundaries(shape, mesh.faces, (edge) => partitions.push(edge.clone()));
     // Rebuilding a proven uniform BRep first keeps one continuous curved wall,
     // instead of adding a seam or trimming the same spline again at every edit.
     result =
@@ -700,10 +703,16 @@ export function pushPullFace(
         ? resizeProvenPrism(shape, faces[target.index], target.normal, target.center, distance)
         : undefined;
     result ??= faces.some((face) => !solidFaces.has(face.hashCode))
-      ? extrudeSurfaceRegion(shape, faces, faces[target.index], prism, distance, solidFaces)
-      : distance > 0
-        ? shape.asShape3D().fuse(prism.asShape3D())
-        : shape.asShape3D().cut(prism.asShape3D());
+      ? extrudeSurfaceRegion(
+          shape,
+          faces,
+          faces[target.index],
+          prism,
+          distance,
+          solidFaces,
+          partitions,
+        )
+      : faceBoolean(shape, prism, distance < 0, partitions);
     if (!shapeIsValid(result) || solidVolume(result) < 1e-7)
       throw new Error('Pursotus ei muodosta ehjää tilavuuskappaletta.');
     const next = bodyFromShape(body, result);
@@ -722,6 +731,7 @@ export function pushPullFace(
   } finally {
     result?.delete();
     prism?.delete();
+    partitions.forEach((edge) => edge.delete());
     faces.forEach((f) => f.delete());
     shape.delete();
   }
