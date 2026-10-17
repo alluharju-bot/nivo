@@ -104,10 +104,32 @@ export function commitGeometry(body: Body, points: Vec3[], meshCopy = false): Bo
         sewn = cast(sewing.SewedShape());
         const unifier = new (getOC().ShapeUpgrade_UnifySameDomain)(sewn.wrapped, true, true, false);
         try {
+          // Match the modelling tolerance: Float32 round trips must not turn
+          // micrometre deviations into permanent, asymmetric diagonal faces.
+          // Only triangles inside the SAME original patch are unified.
+          unifier.SetLinearTolerance(1e-5);
+          unifier.SetAngularTolerance(1e-7);
           unifier.Build();
           const patch = cast(unifier.Shape());
           temporary.push(patch);
-          patchFaces.push(...shapeFaces(patch));
+          for (const face of shapeFaces(patch)) {
+            if (shapeIsValid(face)) {
+              patchFaces.push(face);
+              continue;
+            }
+            // Unification may change a supporting plane by a few micrometres.
+            // Update its edge/UV tolerances before sewing, also for open sheets.
+            const fixer = new (getOC().ShapeFix_Face)(face.wrapped);
+            try {
+              fixer.SetPrecision(1e-5);
+              fixer.SetMaxTolerance(1e-5);
+              fixer.Perform();
+              patchFaces.push(cast(fixer.Face()) as Face);
+            } finally {
+              fixer.delete();
+              face.delete();
+            }
+          }
         } finally {
           unifier.delete();
         }
@@ -120,7 +142,7 @@ export function commitGeometry(body: Body, points: Vec3[], meshCopy = false): Bo
     }
     if (featureIsSolid(body.feature)) result = makeSolid(patchFaces);
     else {
-      const sewing = new (getOC().BRepBuilderAPI_Sewing)(1e-6, true, true, true, false);
+      const sewing = new (getOC().BRepBuilderAPI_Sewing)(1e-5, true, true, true, false);
       try {
         patchFaces.forEach((f) => sewing.Add(f.wrapped));
         sewing.Perform();

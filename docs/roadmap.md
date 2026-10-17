@@ -2,6 +2,29 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.50.3 — kynän risteykset ja kolmiorajojen ylittäminen
+
+- Kynän avoin viiva leikataan kaikkien samalla tasolla olevien tukipintojen
+  mukaan. Vanha kolmioraja tai aiempi kynäviiva ei katkaise uuden jaon
+  käsittelyä aloituspintaan. Jakokohdista tulee todellista CAD-topologiaa.
+- Kynäviivan ja CAD-reunan sekä erillisten viivojen risteykset osallistuvat
+  yhteiseen viitehakuun. Ympyrän kaaren risteys lasketaan ympyrältä, ei
+  piirron suorasta jänteestä. Eri syvyyksien kuvapäällekkäisyys ei ole risteys.
+- Yhteinen pisteytys: kulmat/päätepisteet → keskipisteet → risteykset → reunat.
+  Ruudulla tarkasti osoitettu piste ei jää kaukana olevan kulman alle.
+  Haku ja välimuisti on rajattu, jotta tiheä geometria ei jäädy kohdistimessa.
+- Geometriamuokkauksen saman alkuperäisen pinnan kolmioiden yhdistäminen
+  sietää enintään 0,00001 mm:n numeerista epätasaisuutta. Reunojen
+  pintakoordinaatit korjataan tarvittaessa saman toleranssin sisällä;
+  tuloksen eheys ja umpinaisen osan tilavuus tarkistetaan edelleen.
+- Geometriamuokkauksen palkki seuraa näkymäpainikkeiden todellista korkeutta.
+  Se ei peitä tabletin kapeassa näkymässä kameran sovituspainiketta.
+- Aiemmin tallentuneita erillisiä pintajakoja ei poisteta automaattisesti:
+  niitä ei voi turvallisesti erottaa käyttäjän tarkoituksellisista kynäjaoista.
+  Niiden yli voi nyt piirtää. Aidosti taittuvien pintojen yli projisoitu
+  viiva tarvitsee erillisen suunnan/projektion määrittelyn; tätä korjausta
+  ei käsitellä automaattisena piirroksen projisointina kaarevalle pinnalle.
+
 ## V0.50.2 — jaettujen pintojen peräkkäinen muokkaus
 
 - Paksun osan Push/Pull säilyttää muiden alueiden koplanaariset rajat.

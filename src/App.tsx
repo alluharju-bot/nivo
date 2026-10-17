@@ -1085,7 +1085,14 @@ export default function App() {
     observer.observe(toolbar);
     if (opacity) observer.observe(opacity);
     return () => observer.disconnect();
-  }, [mode, editingBodyId, openedAssembly, project.settings.modelDisplay, selectedIds]);
+  }, [
+    mode,
+    editingBodyId,
+    geometryBodyId,
+    openedAssembly,
+    project.settings.modelDisplay,
+    selectedIds,
+  ]);
   const moveHoveredIds = useMemo(() => {
     if (tool !== 'move' || !moveHovered) return [];
     const target = visibleBodies.find((b) => b.id === moveHovered);

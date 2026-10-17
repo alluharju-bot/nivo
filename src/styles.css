@@ -9140,9 +9140,6 @@ p {
   box-shadow: 0 5px 22px #18354418;
   backdrop-filter: blur(12px);
 }
-.precision-bar {
-  top: 72px;
-}
 .precision-entry > button {
   border: 0;
   background: transparent;
@@ -9308,7 +9305,6 @@ p {
   border-color: #658c9c66;
 }
 .app-shell[data-compact='true'] .precision-bar {
-  top: 56px;
   z-index: 26;
   max-width: calc(100% - 16px);
 }

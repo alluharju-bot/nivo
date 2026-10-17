@@ -13,17 +13,22 @@ import { circleLineIntersections } from './curveSnap';
 import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
 import { add, scale, dot, sub } from './geometry';
 import { surfaceCenters } from './surfaceCenters';
-/** Lower is stronger: explicit vertices, midpoints, edges, then inference/grid. */
+export const snapRanks = {
+  vertex: 0,
+  midpoint: 1,
+  intersection: 2,
+  edge: 3,
+  inference: 4,
+} as const;
+/** A shared hierarchy for geometry, drawn lines and construction guides. */
 export const snapPriority = (point: { key: string; label: string }) =>
-  /^pen:/.test(point.key) ||
-  point.label === 'Viivan piste' ||
-  point.label === 'Pintojen risteyspiste'
-    ? -1
-    : /:mid:|:center$/.test(point.key) || /keskipiste/i.test(point.label)
-      ? 1
+  /:mid(?::|$)|:center$/.test(point.key) || /keskipiste/i.test(point.label)
+    ? snapRanks.midpoint
+    : /intersection/.test(point.key) || /risteys/i.test(point.label)
+      ? snapRanks.intersection
       : /edge|:line/.test(point.key) || point.label === 'Reuna'
-        ? 2
-        : 0;
+        ? snapRanks.edge
+        : snapRanks.vertex;
 /** Priority is a small acquisition preference, not a veto over a precisely aimed point. */
 export const snapScore = (distance: number, priority: number, preference = 3) =>
   distance + priority * preference;
@@ -110,15 +115,15 @@ export function guideSnapCandidates(raw: Vec3, lines: SnapLine[], threshold: num
     if (Math.hypot(...sub(point, raw)) > threshold * 1.5) return false;
     const name = line.mode === 'free' ? 'Mittaviiva' : 'Apuviiva';
     candidates.push(
-      { point: points[0], key: `${id}:start`, label: `${name} · alku`, priority: -1 },
-      { point: points[1], key: `${id}:end`, label: `${name} · pää`, priority: -1 },
+      { point: points[0], key: `${id}:start`, label: `${name} · alku`, priority: snapRanks.vertex },
+      { point: points[1], key: `${id}:end`, label: `${name} · pää`, priority: snapRanks.vertex },
       {
         point: points[0].map((n, i) => (n + points[1][i]) / 2) as Vec3,
         key: `${id}:mid`,
         label: `${name} · keskipiste`,
-        priority: 0.5,
+        priority: snapRanks.midpoint,
       },
-      { point, key: `${id}:line`, label: name, line: points, priority: 1.5 },
+      { point, key: `${id}:line`, label: name, line: points, priority: snapRanks.edge },
     );
     return true;
   });
@@ -133,7 +138,7 @@ export function guideSnapCandidates(raw: Vec3, lines: SnapLine[], threshold: num
             nearby[i].mode === 'free' || nearby[j].mode === 'free'
               ? 'Mittaviivojen risteys'
               : 'Apuviivojen risteys',
-          priority: -1,
+          priority: snapRanks.intersection,
         });
     }
   return candidates;
@@ -195,7 +200,7 @@ export function snapOnSketchPlane(
         key: 'direction',
         label: `Suunta ${Math.round((angle * 180) / Math.PI)}°`,
         line: [start, fromUV([s[0] + c * along, s[1] + v * along], frame)],
-        priority: 2,
+        priority: snapRanks.inference,
       });
   }
   const near = candidates
@@ -404,7 +409,7 @@ export function snapPoint(
       label: `Suunta ${Math.round((angle * 180) / Math.PI)}°`,
       key: `direction:${angle}`,
       line: [start, projected],
-      priority: 2,
+      priority: snapRanks.inference,
     });
   }
   const eligible = candidates.filter((c) => {

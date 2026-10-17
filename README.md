@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.50.3** korjaa kynän jaon saman tason kolmiorajojen yli.
+Piirto jakaa koko vedon alle jäävän pinnan, ja alueita voi pursottaa erikseen.
+Kynäviivojen ja kappaleiden reunojen todelliset risteykset ovat nyt yhteisiä
+tartuntapisteitä. Järjestys on kulmat, keskipisteet, risteykset ja reunat;
+tarkka tähtäys ja näkyvyys huomioidaan edelleen. Geometriamuokkauksessa
+pienet koordinaattivirheet eivät enää jätä lähes tasaisiin pintoihin
+satunnaisia kolmioreunoja. Tarkoitukselliset pinnanjaot säilyvät.
+
 Versio **0.50.2** säilyttää kynällä jaetut pinta-alueet, kun saman paksun
 kappaleen toista aluetta pursotetaan. Myös suorakulmioiden ja ympyröiden
 rajaukset säilyvät erikseen muokattavina. Osan muokkauksessa uusi kynäviiva

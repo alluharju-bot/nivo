@@ -68,6 +68,7 @@ import {
 import {
   modelSnapPoints,
   snapPriority,
+  snapRanks,
   snapScore,
   onSnapLine,
   closestOnSnapLine,
@@ -85,6 +86,7 @@ import { rotationRadius } from '../model/transforms';
 import { viewHandleRadius } from './handleSize';
 import { cross } from '../model/transforms';
 import { penAxisHint, penAngle, penAngleDirection } from '../model/penInput';
+import { edgeIntersectionPoints } from './edgeIntersections';
 import { surfaceIntersections } from './surfaceIntersections';
 import type { ViewportProps } from './types';
 
@@ -869,18 +871,31 @@ export function installInteractions({
       }
     return edges;
   };
-  const intersectionPoints = (edges: ReferenceEdge[]): ReferencePoint[] =>
-    edges
-      .filter((e) => e.synthetic)
-      .flatMap(({ edge, key }) => [
-        { point: edge.start, key: `${key}:start`, label: 'Pintojen risteyspiste' },
-        { point: edge.end, key: `${key}:end`, label: 'Pintojen risteyspiste' },
-        {
-          point: scale(add(edge.start, edge.end), 0.5),
-          key: `${key}:mid:`,
-          label: 'Pintojen risteys · keskipiste',
-        },
-      ]);
+  const intersectionPoints = (event: PointerEvent, edges: ReferenceEdge[]): ReferencePoint[] => {
+    const rect = canvas.getBoundingClientRect();
+    return [
+      ...edgeIntersectionPoints(
+        edges,
+        camera(),
+        rect.width,
+        rect.height,
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        snapRadius(event, 'point'),
+      ),
+      ...edges
+        .filter((e) => e.synthetic)
+        .flatMap(({ edge, key }) => [
+          { point: edge.start, key: `${key}:start`, label: 'Pintojen risteyspiste' },
+          { point: edge.end, key: `${key}:end`, label: 'Pintojen risteyspiste' },
+          {
+            point: scale(add(edge.start, edge.end), 0.5),
+            key: `${key}:mid:`,
+            label: 'Pintojen risteys · keskipiste',
+          },
+        ]),
+    ];
+  };
   const nearest = (
     event: PointerEvent,
     verticesOnly = false,
@@ -910,7 +925,7 @@ export function installInteractions({
             props.meshes,
             'surface',
           ),
-          ...intersectionPoints(referenceEdges(event)),
+          ...intersectionPoints(event, referenceEdges(event)),
           ...(props.tool === 'pen'
             ? props.penPoints.slice(0, -1).map((point, i) => ({
                 point,
@@ -929,7 +944,7 @@ export function installInteractions({
       }))
       .filter(
         (p) =>
-          p.distance < snapRadius(event, p.priority <= 0 ? 'point' : 'mid') &&
+          p.distance < snapRadius(event, p.priority === snapRanks.midpoint ? 'mid' : 'point') &&
           p.depth >= -1 &&
           p.depth <= 1,
       );
@@ -1668,10 +1683,15 @@ export function installInteractions({
               line: kind === 'line' ? points : undefined,
             });
         };
-        append(points[0], 'start', -1, `${name} · alku`);
-        append(points[1], 'end', -1, `${name} · pää`);
-        append(scale(add(points[0], points[1]), 0.5), 'mid', 0.5, `${name} · keskipiste`);
-        append(point, 'line', 1.5, name);
+        append(points[0], 'start', snapRanks.vertex, `${name} · alku`);
+        append(points[1], 'end', snapRanks.vertex, `${name} · pää`);
+        append(
+          scale(add(points[0], points[1]), 0.5),
+          'mid',
+          snapRanks.midpoint,
+          `${name} · keskipiste`,
+        );
+        append(point, 'line', snapRanks.edge, name);
         return [{ guide, points, source }];
       });
     for (let i = 0; i < near.length; i++)
@@ -1694,7 +1714,7 @@ export function installInteractions({
                 ? 'Mittaviivojen risteys'
                 : 'Apuviivojen risteys',
             kind: 'intersection',
-            priority: -2,
+            priority: snapRanks.intersection,
             intersection: true,
             anchor: { point },
           });
@@ -1728,7 +1748,7 @@ export function installInteractions({
                   ? 'Mittaviivan ja reunan risteys'
                   : 'Apuviivan ja reunan risteys',
             kind: 'intersection',
-            priority: -1,
+            priority: snapRanks.intersection,
             intersection: true,
             anchor:
               synthetic || curve
@@ -1780,7 +1800,8 @@ export function installInteractions({
     if (
       guide &&
       !pointIsAimed &&
-      (!edge || snapScore(guide.distance, guide.priority) <= snapScore(edge.distance, 2)) &&
+      (!edge ||
+        snapScore(guide.distance, guide.priority) <= snapScore(edge.distance, snapRanks.edge)) &&
       (!point ||
         snapScore(guide.distance, guide.priority) < snapScore(point.distance, point.priority))
     ) {
@@ -1789,7 +1810,8 @@ export function installInteractions({
     }
     if (
       point &&
-      (!edge || snapScore(point.distance, point.priority) <= snapScore(edge.distance, 2))
+      (!edge ||
+        snapScore(point.distance, point.priority) <= snapScore(edge.distance, snapRanks.edge))
     ) {
       highlightEdge();
       return { point };
@@ -2057,17 +2079,18 @@ export function installInteractions({
       edge?: { start: Vec3; end: Vec3 };
     })[] = [];
     const allEdges = referenceEdges(event, excluded);
+    const crossings = intersectionPoints(event, allEdges);
     for (const body of eligible) {
       const bodyEdges = allEdges.filter((e) => e.mesh.id === body.id);
       for (const p of [
         ...modelSnapPoints([body], props.meshes, options.surfaceCenters ? 'surface' : 'body'),
-        ...intersectionPoints(bodyEdges),
+        ...crossings.filter((p) => p.key.startsWith(`${body.id}:`)),
       ]) {
         const q = project(p.point),
           distance = Math.hypot(q.x - x, q.y - y);
         const priority = snapPriority(p);
         if (
-          distance < snapRadius(event, priority <= 0 ? 'point' : 'mid') &&
+          distance < snapRadius(event, priority === snapRanks.midpoint ? 'mid' : 'point') &&
           Math.abs(q.z) <= 1 &&
           (!options.accepts || options.accepts(p.point))
         )
@@ -2104,7 +2127,7 @@ export function installInteractions({
             label: synthetic ? 'Pintojen risteys' : 'Reuna',
             bodyId: body.id,
             surfacePriority: surfacePriorityById.get(body.id),
-            priority: 2,
+            priority: snapRanks.edge,
             distance,
             depth: q.z,
             edge,

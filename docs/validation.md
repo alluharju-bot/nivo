@@ -4,6 +4,41 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.50.3 — risteystartunnat ja kynän jako kolmiorajojen yli
+
+- Drone2:n pilvitallennuksen paikallinen kopio tutkittu; alkuperäistä
+  pilvitallennusta ei muutettu. Mallissa on lähes koplanaarisia, erillisiksi
+  CAD-pinnoiksi tallentuneita kolmioita sekä niiden päällä irrallisia kynäviivoja.
+- Ennen korjausta toistettu: kynän poikittainen viiva jakoi diagonaalilla
+  jaetusta levystä vain aloituspuolen. Molemmat vetosuunnat tuottivat kolme
+  aluetta neljän sijasta. Nyt kaikki neljä aluetta ovat CAD-pintoja ja
+  yksittäisen alueen pursotus säilyttää muut jaot.
+- Ennen korjausta toistettu: muutaman miljoonasosamillimetrin koordinaattiero
+  jätti symmetrisen monikulmion pohjaan neljä kolmiofacea kahden tason sijasta.
+  Korjauksen jälkeen lähes tasaiset kolmiot yhdistyvät saman alkuperäisen
+  pinnan sisällä. Sekä avoimen pinnan että umpinaisen osan eheys testattu.
+- Suorien ja ympyränkaarien todelliset 3D-risteykset, vinot tasot,
+  erisyvyisten viivojen hylkäys, päätepisteiden prioriteetti, molempien
+  osallistuvien osien tartuntaomistus sekä muokkauksen jälkeinen välimuistin
+  päivittyminen testattu. Näytön perspektiivinen projektio ei korvaa 3D-laskentaa.
+- Koko yksikkötestisarja: **750 hyväksyttyä, 6 ohitettua**.
+- Ensimmäinen desktop-regressioajo: 30 hyväksyttyä testiä, mukaan lukien
+  kynän reuna-/kulma-/keskipistejaot, Shift ja akselit, kirjoitettu mitta,
+  peräkkäinen Push/Pull, historia ja symmetria. Seuraavissa tartuntatesteissä
+  löytynyt pintojen risteyksen väärä nimike korjattiin; pisteen sijainti oli oikea.
+- Julkaisun selaintarkistus kattaa 42 tapausta: 21 desktopilla ja 21
+  tabletin Chromium-emuloinnissa. Mukana Drone2:n oikea risteys ja saman
+  viivan piirtäminen uudeksi CAD-jaoksi käyttöliittymässä, sekä siirtyminen
+  geometrian reunavalinnasta kynään. Yksi tabletin lataus osui paikallisen
+  buildin vaihtoon; kyseinen testi ja kriittiset kynäketjut ajettiin uudelleen
+  pysyvästä buildista. Pilvitallennus säilyi muuttamattomana.
+- Tabletin geometriapalkin kiinteä sijainti peitti kameran sovituksen.
+  Palkki seuraa nyt näkymäpainikkeiden mitattua alareunaa myös geometriatilan
+  vaihtuessa. Kynän regressio napsauttaa oikeaa sovituspainiketta tästä tilasta.
+- TypeScript, tuotantobuild ja muutettujen tiedostojen muotoilu tarkistettu.
+- Aiemmin tallentuneita pintajakoja ei poisteta latauksessa. Kaarevalle tai
+  aidosti taittuvalle pinnalle projisoiminen ei sisälly tähän tasopintakorjaukseen.
+
 ## V0.50.2 — pinta-alueiden säilyminen ja painaumien peittopinnat
 
 - Ennen korjausta toistettu: kaksi kynäviivaa jakaa 40 mm paksun levyn

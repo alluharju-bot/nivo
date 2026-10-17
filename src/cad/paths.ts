@@ -4,6 +4,7 @@ import {
   cast,
   getOC,
   measureArea,
+  makeCompound,
   type AnyShape,
   type Shape3D,
 } from 'replicad';
@@ -49,7 +50,8 @@ export function penPath(points: Vec3[], name: string): Body {
   }
 }
 
-/** Split a face with a clipped open wire; a dangling line remains a separate drawing. */
+/** Split the stroke's coplanar support, including existing face divisions.
+ * Clip to real surfaces; a dangling line remains a separate drawing. */
 export function splitWithPath(body: Body, ref: FaceRef, path: Body): SplitResult {
   if (body.locked) throw new Error('Vapauta kappaleen Hold ennen pinnan jakamista.');
   const shape = createShape(body),
@@ -65,11 +67,58 @@ export function splitWithPath(body: Body, ref: FaceRef, path: Body): SplitResult
     const points = meshBody(path, wire).verticesCAD;
     if (points.some((p) => Math.abs(dot(sub(p.point, target.center), target.normal)) > 1e-5))
       throw new Error('Viivan tulee olla jaettavan pinnan tasossa.');
-    const common = new oc.BRepAlgoAPI_Common(faces[target.index].wrapped, wire.wrapped);
+    // A stroke may cross an old pen boundary or a triangulated planar patch.
+    // Clipping to just the starting face silently discarded the rest of it.
+    const tolerance = 1e-5;
+    const support = makeCompound(
+      before.faces
+        .filter((face) => {
+          if (
+            !face.planar ||
+            dot(face.normal, target.normal) <= 1 - 1e-10 ||
+            Math.abs(dot(sub(face.center, target.center), target.normal)) > tolerance
+          )
+            return false;
+          const edges = faces[face.index].edges;
+          try {
+            return edges.every((e) => {
+              const a = e.startPoint,
+                b = e.endPoint;
+              try {
+                return [a, b].every(
+                  (p) => Math.abs(dot(sub(p.toTuple(), target.center), target.normal)) <= tolerance,
+                );
+              } finally {
+                a.delete();
+                b.delete();
+              }
+            });
+          } finally {
+            edges.forEach((e) => e.delete());
+          }
+        })
+        .map((face) => faces[face.index]),
+    );
+    const common = new oc.BRepAlgoAPI_Common();
     try {
+      const args = common.Arguments(),
+        tools = common.Tools();
+      try {
+        args.Append(support.wrapped);
+        tools.Append(wire.wrapped);
+        common.SetArguments(args);
+        common.SetTools(tools);
+      } finally {
+        args.delete();
+        tools.delete();
+      }
+      common.SetNonDestructive(true);
+      common.SetFuzzyValue(tolerance);
+      common.Build();
       clipped = cast(common.Shape());
     } finally {
       common.delete();
+      support.delete();
     }
     const args = splitter.Arguments(),
       tools = splitter.Tools();
@@ -83,6 +132,7 @@ export function splitWithPath(body: Body, ref: FaceRef, path: Body): SplitResult
       tools.delete();
     }
     splitter.SetNonDestructive(true);
+    splitter.SetFuzzyValue(tolerance);
     splitter.Build();
     result = cast(splitter.Shape());
     const resultFaces = result.faces,

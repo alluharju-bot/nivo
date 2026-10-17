@@ -100,6 +100,48 @@ it('keeps a symmetric polygon edge deformation symmetric through CAD acceptance 
     body = next;
   }
 });
+it('does not turn coordinate rounding into asymmetric CAD creases on a symmetric deformation', () => {
+  const body = makeProfileBody(
+    {
+      kind: 'polygon',
+      points: [
+        [0, 0],
+        [80.123456, 200.345678],
+        [520.456789, 200.345678],
+        [600.580245, 0],
+        [450.2901225, -350.125678],
+        [150.2901225, -350.125678],
+      ],
+    },
+    sketchFrame([0, 0, 0]),
+    250,
+  );
+  const g = prepareGeometry(body);
+  const points = g.points.map(
+    ([x, y, z]) =>
+      [
+        x > 400 && y < -300 && z > 200 ? Math.fround(x) : x,
+        x < 1 && z < 1 ? y - 3.6e-6 : y,
+        y < -300 ? (z > 200 ? 190 : 60) : y > 200 ? (z > 200 ? 200 : 50) : z,
+      ] as [number, number, number],
+  );
+  const changed = commitGeometry(body, points);
+  const { mesh } = shapeInfo(changed);
+  expect(mesh.faces.filter((f) => f.normal[2] > 0.9)).toHaveLength(2);
+  expect(mesh.faces.filter((f) => f.normal[2] < -0.9)).toHaveLength(2);
+  expect(mesh.faces.filter((f) => Math.abs(f.normal[2]) < 0.01)).toHaveLength(6);
+  const accepted = prepareGeometry(changed);
+  expect(() => validateGeometry(accepted, accepted.points)).not.toThrow();
+});
+it('keeps a nearly planar open surface valid without an artificial diagonal', () => {
+  const body = makeBody(200, 120, 0);
+  const g = prepareGeometry(body);
+  const points = g.points.map(
+    ([x, y, z]) => [x, y, x === 200 && y === 120 ? z + 4e-6 : z] as [number, number, number],
+  );
+  const changed = commitGeometry(body, points);
+  expect(shapeInfo(changed).mesh.faces).toHaveLength(1);
+});
 it('scales only a selected face about its centre and keeps its paint on the moved face', () => {
   const body = { ...makeBody(100, 80, 60), faceMaterials: {} };
   const shape = createShape(body);
