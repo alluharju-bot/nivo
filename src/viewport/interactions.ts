@@ -107,7 +107,8 @@ export function installInteractions({
   current: () => ViewportProps;
   render: () => void;
 }) {
-  const selectableBody = (id: string) => bodyDisplayMode(current().modelDisplay, id) !== 'ghost';
+  const selectableBody = (id: string) =>
+    id === current().editingBodyId || bodyDisplayMode(current().modelDisplay, id) !== 'ghost';
   const occludingBody = (id: string) =>
     !['ghost', 'wireframe'].includes(bodyDisplayMode(current().modelDisplay, id));
   const raycaster = new THREE.Raycaster(),
@@ -1057,6 +1058,28 @@ export function installInteractions({
     const bodyId = point
       ? current().bodies.find((b) => point.key.startsWith(`${b.id}:`))?.id
       : edge?.mesh.id;
+    // A reference identifies a position, not the owner of the new geometry.
+    // A coplanar sketch/part may be drawn in front of the active face. Keep its
+    // exact anchors, but resolve the support in the explicitly edited part.
+    const edited = ['rectangle', 'circle', 'pen'].includes(current().tool)
+      ? current().meshes.find((m) => m.id === current().sketchEditingBodyId)
+      : undefined;
+    if (edited) {
+      // The ray has already resolved an interior hit; avoid a second triangle
+      // scan of a potentially large face when there is no competing anchor.
+      if (!anchor && hit?.target.bodyId === edited.id) return hit.target;
+      setRay(event);
+      for (const position of [anchor, hit?.target.point]) {
+        if (!position) continue;
+        const face = contextualFace(
+          edited,
+          position,
+          raycaster.ray.direction.clone().negate().toArray() as Vec3,
+        );
+        if (face)
+          return { bodyId: edited.id, face: face.ref, normal: face.normal, point: position };
+      }
+    }
     if (anchor && bodyId) {
       setRay(event);
       const mesh = current().meshes.find((m) => m.id === bodyId)!;
@@ -1114,9 +1137,21 @@ export function installInteractions({
   const sketchStartAt = (event: PointerEvent) => {
     const props = current(),
       target = sketchSurfaceAt(event);
-    const picked = pickReference(event, () => true, true);
+    const editSurface =
+      target?.bodyId === props.sketchEditingBodyId &&
+      props.meshes.find((m) => m.id === target?.bodyId)?.faces.find((f) => f.ref === target?.face)
+        ?.planar;
+    const projectReference = !!editSurface && (event.shiftKey || shift);
+    const picked = pickReference(
+      event,
+      (p) =>
+        !editSurface ||
+        projectReference ||
+        Math.abs(dot(sub(p, target!.point), target!.normal)) < 1e-5,
+      true,
+    );
     const guide = picked.guide;
-    const exact =
+    let exact: Snap | undefined =
       picked.point ??
       guide ??
       (picked.edge && {
@@ -1125,8 +1160,23 @@ export function installInteractions({
         label: picked.edge.label,
         line: [picked.edge.edge.start, picked.edge.edge.end] as [Vec3, Vec3],
       });
+    if (exact && projectReference) {
+      const reference = exact.point,
+        point = sub(
+          reference,
+          scale(target!.normal, dot(sub(reference, target!.point), target!.normal)),
+        );
+      exact = {
+        ...exact,
+        point,
+        label: `${exact.label} · Shift-viite`,
+        line: [reference, point],
+      };
+    }
     const guideOwnsPlane =
-      guide && (!target || Math.abs(dot(sub(guide.point, target.point), target.normal)) > 1e-5);
+      !editSurface &&
+      guide &&
+      (!target || Math.abs(dot(sub(guide.point, target.point), target.normal)) > 1e-5);
     const image = target || guide ? undefined : referenceImageAt(event);
     const explicit = ['rectangle', 'circle'].includes(props.tool) ? props.axis : undefined;
     const normal = explicit

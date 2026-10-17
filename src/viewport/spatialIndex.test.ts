@@ -99,6 +99,7 @@ it('a ghost keeps exact reference hits while selection and occlusion pass throug
   const ghost = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), material);
   const behind = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), material);
   ghost.userData.modelDisplay = 'ghost';
+  ghost.userData.id = 'ghost';
   ghost.position.z = 20;
   const group = new THREE.Group();
   group.add(ghost, behind);
@@ -107,6 +108,14 @@ it('a ghost keeps exact reference hits while selection and occlusion pass throug
   expect(intersectModel(ray, group, 'selection')[0].object).toBe(behind);
   expect(intersectModel(ray, group, 'reference')[0].point.z).toBe(20);
   expect(intersectModel(ray, group, 'occlusion')[0].object).toBe(behind);
+  // Explicitly entering a part makes its translucent surfaces editable, but
+  // never hides reference anchors behind it or selects unrelated ghosts.
+  group.userData.editingBodyId = 'ghost';
+  expect(intersectModel(ray, group, 'selection')[0].object).toBe(ghost);
+  expect(intersectModel(ray, group, 'occlusion')[0].object).toBe(behind);
+  group.userData.editingBodyId = 'other';
+  expect(intersectModel(ray, group, 'selection')[0].object).toBe(behind);
+  delete group.userData.editingBodyId;
   ghost.userData.modelDisplay = 'solid';
   expect(intersectModel(ray, group, 'selection')[0].object).toBe(ghost);
   ghost.geometry.dispose();

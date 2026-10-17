@@ -433,6 +433,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         : '';
     renderer.domElement.dataset.selectedFace = props.selectedFace ?? '';
     renderer.domElement.dataset.editingBody = props.editingBodyId ?? '';
+    bodies.userData.editingBodyId = props.editingBodyId;
     const box = bounds(props.bodies),
       min = new THREE.Vector3(...box.min),
       max = new THREE.Vector3(...box.max);

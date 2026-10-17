@@ -8003,6 +8003,9 @@ export default function App() {
               sphereSegments={roundSides}
               sketchFrame={shapeFrame}
               sketchTarget={sketchTarget}
+              sketchEditingBodyId={
+                surfaceMode === 'region' && shapePurpose === 'model' ? editingBodyId : undefined
+              }
               booleanTargets={booleanTargets}
               booleanTools={booleanTools}
               pickDepth={pickDepth}

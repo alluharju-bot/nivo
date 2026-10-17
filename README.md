@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.50.1** korjaa muokkaustilassa pinnalle piirtämisen. Ghost-osa
+säilyy muokattavana, ja sen päällä oleva erillinen tasomuoto antaa tartuntoja
+kaappaamatta muokkauksen kohdetta. Lähellä mutta eri korkeudella oleva
+apuviiva ei enää nosta piirron aloitusta pois pinnalta. Shiftillä viitteen
+voi projisoida aktiiviselle tasopinnalle. Kynän reunasta reunaan vedetty
+viiva jakaa pinnan heti, ja uusia alueita voi pursottaa erikseen.
+
 Versio **0.50.0** lisää **P → Pintakerrokset**: pölyn, naarmut, sormenjäljet
 ja vesijäljet pohjamateriaalin päälle. Lisää kerros koko osalle tai pinnalle,
 tai aseta paikallinen jälki napsauttamalla tasopintaa. Kokoa, kiertoa,

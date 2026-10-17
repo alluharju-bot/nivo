@@ -115,6 +115,8 @@ export interface ViewportProps {
   calibration?: { id: string; points: [number, number][] };
   onCalibrationPoint?: (point: [number, number]) => void;
   editingBodyId?: string;
+  /** Only surface-edit drawing owns this part; explicit new-part drawing stays free. */
+  sketchEditingBodyId?: string;
   scopeIds?: string[];
   paintScope?: 'body' | 'face';
   paintPick?: boolean;

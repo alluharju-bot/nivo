@@ -1,8 +1,31 @@
-# Validointi — 17.10.2026
+# Validointi — 18.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.50.1 — muokkaustilan pinnalle piirtäminen ja kynän jako
+
+- Virheet toistettu ennen korjausta: Ghost-osan suorakulmio ja kynä eivät
+  jakaneet pintaa, ja Solid-osan päälle piirretty erillinen tasomuoto kaappasi
+  suorakulmion kohteen. Erillisessä testissä 2 mm pinnan yläpuolella oleva
+  mittaviiva nosti kynän aloituksen z=40:stä z=42:een ja esti pinnanjaon;
+  sama tilanne esti suorakulmion hyväksymisen.
+- Kohdistuksen yksikkötestit **14/14**. Ghost säilyttää viitepisteet ja
+  läpivalinnan muualla, mutta omaan muokkaustilaan avattu Ghost-osa on valittava.
+- Piirto-/muokkausregressiot **64/64 desktopilla** tuotantobuildista.
+  Mukana ensimmäisen viivan reunat, kulmat ja keskipisteet sekä ylä- että
+  perspektiivinäkymässä, pyöreät reunat, Shift, akselit, kirjoitettu mitta,
+  eri korkeuksien apuviivat, koplanaariset muodot ja muokkaustilan rajaus.
+- Lopullisen 0.50.1-buildin uudet kohdistus- ja aiemmat rakennusmuototestit
+  lisäksi **12/12 desktopilla ja 12/12 tabletin Chromium-emuloinnissa**.
+- Uusissa regressioissa ei tarkisteta vain viivan näkyvyyttä: CAD-osassa
+  on kaksi uutta erillistä yläpinta-aluetta, alkuperäinen tilavuus säilyy,
+  Ghost-osan uusi alue pursottuu yksin ja Peru palauttaa tarkan lähtömallin.
+  Myös apuviivan alkuperäinen korkeus säilyy Shift-projektion jälkeen.
+- TypeScript, tuotantobuild, rajattu muotoilutarkistus ja diff-tarkistus
+  hyväksytty. Korjaus koskee tasopinnalta aloittamista; kaarevalle pinnalle
+  piirtämisen CAD-rajoja ei muuteta tai ohiteta.
 
 ## V0.50.0 — pintakerrokset, polkupursotus ja läpinäkyvyys
 

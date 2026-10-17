@@ -88,7 +88,7 @@ export class BodySpatialIndex {
   }
 }
 
-/** Ghosts keep their CAD hit geometry for references, but never block selection or sight. */
+/** Ghosts keep exact references and never occlude; only the explicitly edited ghost is selectable. */
 export function intersectModel(
   ray: THREE.Raycaster,
   group: THREE.Group,
@@ -111,7 +111,11 @@ export function intersectModel(
       // CAD outlines are references, not surfaces that hide a snap point. In
       // particular, never scan thousands of curve segments for every candidate.
       (purpose === 'occlusion' && !(object instanceof THREE.Mesh)) ||
-      (purpose !== 'reference' && object.userData.modelDisplay === 'ghost') ||
+      (purpose !== 'reference' &&
+        object.userData.modelDisplay === 'ghost' &&
+        (purpose === 'occlusion' ||
+          object.userData.id !== group.userData.editingBodyId ||
+          !group.userData.editingBodyId)) ||
       (purpose === 'occlusion' && object.userData.modelDisplay === 'wireframe')
     )
       continue;

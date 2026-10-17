@@ -2,6 +2,22 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.50.1 — piirron kohdepinta muokkaustilassa
+
+- Ghost-tilassa avoinna olevan osan pinnat ovat muokattavia. Muiden
+  haamuosien läpi valitseminen ja niiden käyttö tartuntaviitteinä säilyvät.
+- Suorakulmion, ympyrän ja kynän aloitus erottaa tartuntapisteen omistajan
+  muokkauksen kohteesta. Samalla tasolla oleva erillinen muoto ei vie
+  pinnanjakoa pois avoinna olevasta osasta. Kohdepinnan pitää todella
+  sisältää aloituspiste; toista osaa ei muuteta huomaamatta.
+- Aktiiviselta tasopinnalta aloittaminen käyttää sen tason tartuntoja.
+  Eri korkeudella oleva läheinen apuviiva ei siirrä alkua pois pinnalta;
+  Shift projisoi poimitun viitteen aktiiviselle tasolle. Uusi osa ja
+  rakennusviivat säilyvät erillisinä piirtoina.
+- Kynän ensimmäinen reunasta reunaan -viiva jakaa pinnan myös näissä
+  tilanteissa. Uudet pinnat, niiden erillinen pursotus ja peruminen
+  varmennetaan CAD-geometriasta käyttöliittymätestin jälkeen.
+
 ## V0.50.0 — pintakerrokset ja vapaan veitsen tarkistus
 
 - **P → Pintakerrokset** sekä osan **Materiaali → Pintakerrokset**. Pöly,
