@@ -2,6 +2,40 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.51.3 — kolmiomäärät ja LOD-vertailu
+
+- Alapalkin **Kolmiot ja LOD** näyttää näkyvien malliosien ja valinnan kolmiot;
+  avattuna myös koko projektin määrä. Kopiot lasketaan erikseen, piilotetut osat
+  vain koko mallin määrään. Viivat ja rakentamisen apugeometria jätetään pois.
+  Mittari käyttää olemassa olevia näyttöverkkoja eikä käynnistä CAD-laskentaa.
+- Sama vienti-ikkuna sisältää LOD0/1/2-version luonnin. Oletustavoitteet 100/50/20 %,
+  LOD1/2 muokattavissa; tarkka, tasapainoinen tai kevyt muodon säilytys.
+  Näytetään toteutuneet kolmiomäärät, suhde alkuperäiseen ja tiedostokoko.
+  Tarkkuusraja, aukot, materiaalirajat ja UV-saumat voivat estää tavoitteen.
+- Pyöritettävä esikatselu ja kolmioverkko; kamera pysyy samana tasoa vaihdettaessa.
+  Vertailu lukee samat GLB-tiedostot, jotka ladataan. Yksi taso tai ZIP-paketti
+  raportteineen; laskettuja versioita ei luoda uudelleen latauksen yhteydessä.
+- Laskennan peruminen, ikkunan sulkeminen ja Esc keskeyttävät workerin.
+  Tavoitteen tai kohteen muuttaminen poistaa vanhan vertailutuloksen.
+  Alkuperäistä projektia, geometriaa tai historiaa ei muokata.
+- Tässä vaiheessa LOD-versiot ovat erillisiä vientimalleja. Nivon päämallin
+  automaattinen LOD-vaihto, takaisin muokattaviksi sidotut versiot sekä
+  instanssien spatiaalinen lohkominen ovat jatkotyötä.
+
+### Seuraavaksi suunniteltu: lohkeileva maalikerros
+
+- P → Pintakerrokset: pohjana nykyinen puu/metalli, sen päälle peittävä maali.
+  Kulutusmaski paljastaa alkuperäisen värin, normalin, karheuden ja metallisuuden.
+  Maali pysyy ei-metallisena myös metallin päällä; paljastunut metalli heijastaa
+  pohjamateriaalin mukaisesti. Tämä on suunnitelma, ei vielä toteutettu kerros.
+- Säädöt: maalin sävy ja kiilto, kuluman määrä, lohkeiden koko ja kuvion siemen.
+  Koko pinta tai rajattu jälki. Aluksi proseduraalinen maski; myöhemmin maskin
+  maalaus sekä oikeisiin geometriareunoihin perustuva kuluminen.
+- Kevyt toteutus nykyisellä pintakerrosten workerilla: kartat yhdistetään
+  asetusten muuttuessa, tulos välimuistiin. Ei lisää kolmioita eikä erillistä
+  päällekkäistä pintaa. Sama koostettu PBR-tulos mallinnuksessa, renderissä,
+  GLB-viennissä ja LOD-versioissa. Todella irtoavat maalilastut vaatisivat geometriaa.
+
 ## V0.51.2 — valon keila ja suunta mallinnuksessa
 
 - P-työkalussa oma Valo-osio: koko osa tai pinta, LED-/spottiesiasetukset,

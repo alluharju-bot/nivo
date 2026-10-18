@@ -1746,6 +1746,196 @@ p {
   white-space: nowrap;
   color: #9ba68f;
 }
+.mesh-statistics {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  color: #536958;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.mesh-statistics:hover {
+  background: #e8eee1;
+  border-color: #d1dcc9;
+}
+.mesh-statistics:disabled {
+  opacity: 0.55;
+}
+.export-triangles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+  background: #edf1e8;
+  border-radius: 10px;
+}
+.export-triangles > div {
+  display: grid;
+  gap: 4px;
+}
+.export-triangles span {
+  font-size: 12px;
+  color: #657663;
+}
+.export-triangles strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.export-triangles small {
+  font-size: 11px;
+  font-weight: 400;
+}
+.selection-dialog:has(.lod-panel) {
+  width: min(660px, calc(100vw - 24px));
+}
+.lod-panel {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.lod-targets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.lod-targets label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.lod-targets input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+}
+.lod-quality {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.lod-quality select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+}
+.lod-levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 14px 0 10px;
+}
+.lod-levels button {
+  display: grid;
+  gap: 5px;
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f4f6ef;
+  text-align: center;
+  font-size: 12px;
+  color: #3d5549;
+}
+.lod-levels button[aria-pressed='true'] {
+  background: #e0ebd6;
+  border-color: #879e76;
+}
+.lod-levels small {
+  font-size: 10px;
+}
+.lod-preview {
+  position: relative;
+  height: 290px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #e8ede7;
+}
+.lod-preview canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.lod-fit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  padding: 7px 10px;
+  border: 1px solid #d2dccd;
+  border-radius: 6px;
+  background: #fafcf4e8;
+  font-size: 11px;
+}
+.lod-preview-status {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  padding: 8px;
+  background: #fafcf4e8;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.lod-preview-actions,
+.lod-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.lod-preview-actions button,
+.lod-progress button {
+  border: 1px solid var(--line);
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: white;
+}
+.lod-preview-actions .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.lod-notice {
+  padding: 10px;
+  background: #f4efdf;
+  border-radius: 8px;
+  color: #766334;
+}
+@media (max-width: 900px) {
+  .mesh-selection-count {
+    display: none;
+  }
+  .status-bar:has(.mesh-statistics) > .status-right {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .lod-preview {
+    height: 230px;
+  }
+  .export-triangles strong {
+    font-size: 15px;
+  }
+  .lod-levels button {
+    font-size: 10px;
+  }
+}
 .status-divider {
   border-left: 1px solid var(--line);
   height: 12px;

@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.51.3** näyttää mallin ja valinnan kolmiomäärät alapalkissa.
+**Kolmiot ja LOD** avaa kolmen tarkkuustason vertailun: säädä tavoitteita,
+vertaa samaa kuvakulmaa ja kolmioverkkoa, lataa yksi GLB tai koko LOD-paketti.
+Alkuperäinen projekti säilyy. Etäisyyteen perustuva LOD-vaihto tehdään kohdeohjelmassa.
+
 Versio **0.51.2** tuo **P → Valo** -osion mallinnusnäkymään. Valitse osa
 tai pinta, säädä LED-/spottiasetukset ja suuntaa spotti napsauttamalla
 kohdepistettä. Keilan apuviivat päivittyvät suunnan ja leveyden mukana.

@@ -66,11 +66,13 @@ async function exportGlbLevel(
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   const scene = await exportScene(bodies, meshes, assets, options);
   try {
+    options.signal?.throwIfAborted();
     const buffer = (await new GLTFExporter().parseAsync(scene.root, {
       binary: true,
       animations: scene.animations,
       maxTextureSize: options.maxTextureSize ?? Infinity,
     })) as ArrayBuffer;
+    options.signal?.throwIfAborted();
     return { buffer, ...scene.stats };
   } finally {
     scene.release();
@@ -86,33 +88,68 @@ export async function glbLodPackage(
   progress: (message: string) => void,
   motions?: Project['motions'],
 ) {
-  const { zip, strToU8 } = await import('fflate');
+  return packGlbLods(await prepareGlbLods(bodies, meshes, assets, instances, progress, motions));
+}
+
+/** Prepare once: the preview and download use the exact same GLB buffers. */
+export async function prepareGlbLods(
+  bodies: Body[],
+  meshes: BodyMesh[],
+  assets: Project['assets'],
+  instances: boolean,
+  progress: (message: string) => void,
+  motions?: Project['motions'],
+  ratios: [number, number] = [0.5, 0.2],
+  signal?: AbortSignal,
+  errors: [number, number] = [0.001, 0.005],
+) {
+  if (
+    !ratios.every(Number.isFinite) ||
+    ratios[0] <= 0 ||
+    ratios[0] >= 1 ||
+    ratios[1] <= 0 ||
+    ratios[1] >= ratios[0]
+  )
+    throw new Error('Valitse 0 < LOD2 < LOD1 < 100 %.');
+  if (!errors.every((n) => Number.isFinite(n) && n >= 0 && n <= 1))
+    throw new Error('Virheellinen LOD-muotovirheen raja.');
   const files: Record<string, Uint8Array> = {},
     levels = [];
   for (const [level, ratio, error, maxTextureSize] of [
     [0, 1, 0, 2048],
-    [1, 0.5, 0.001, 1024],
-    [2, 0.2, 0.005, 512],
+    [1, ratios[0], errors[0], 1024],
+    [2, ratios[1], errors[1], 512],
   ]) {
-    progress(`Valmistellaan LOD ${level + 1}/3…`);
+    signal?.throwIfAborted();
+    progress(`Valmistellaan LOD${level} · ${level + 1}/3…`);
     const result = await exportGlbLevel(bodies, meshes, assets, {
       instances,
       motions,
       ratio,
       error,
       maxTextureSize,
+      signal,
     });
     const file = `LOD${level}.glb`;
     files[file] = new Uint8Array(result.buffer);
+    const { buffer: _buffer, ...stats } = result;
     levels.push({
       file,
       targetTriangleRatio: ratio,
       maxRelativeError: error,
       maxTextureSize,
-      ...Object.fromEntries(Object.entries(result).filter(([key]) => key !== 'buffer')),
+      ...stats,
       bytes: result.buffer.byteLength,
     });
   }
+  return { files, levels, instances };
+}
+export type PreparedLods = Awaited<ReturnType<typeof prepareGlbLods>>;
+
+export async function packGlbLods(prepared: PreparedLods) {
+  const { zip, strToU8 } = await import('fflate');
+  const { levels, instances } = prepared;
+  const files = { ...prepared.files };
   files['manifest.json'] = strToU8(
     JSON.stringify(
       {

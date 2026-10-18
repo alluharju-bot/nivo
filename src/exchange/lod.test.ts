@@ -3,6 +3,22 @@ import { BoxGeometry, SphereGeometry, TorusGeometry } from 'three';
 import { geometryPayload } from './exportScene';
 import { simplifyExportMesh } from './lod';
 import { meshClosure } from './mesh';
+import { prepareGlbLods } from './export';
+
+it('rejects invalid target ratios and accuracy before starting an export', async () => {
+  for (const ratios of [
+    [0.2, 0.5],
+    [1, 0.2],
+    [0.5, NaN],
+    [0.5, 0],
+  ] as [number, number][])
+    await expect(prepareGlbLods([], [], {}, false, () => {}, undefined, ratios)).rejects.toThrow(
+      'LOD2',
+    );
+  await expect(
+    prepareGlbLods([], [], {}, false, () => {}, undefined, [0.5, 0.2], undefined, [NaN, 0.1]),
+  ).rejects.toThrow('muotovirheen');
+});
 
 it('reduces a smooth surface while retaining finite normals, UVs and a closed shell', async () => {
   const g = new SphereGeometry(100, 48, 32);

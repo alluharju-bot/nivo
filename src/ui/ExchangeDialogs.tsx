@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, FileInput } from 'lucide-react';
 import { SelectionDialog } from './SelectionDialog';
 import { freshProject, type Project } from '../model/project';
@@ -8,9 +8,11 @@ import { formatLength } from '../model/units';
 import type { CadClient } from '../cad/client';
 import type { BodyMesh } from '../cad/protocol';
 import { importDefaults, importMeshFiles, type ImportOptions } from '../exchange/import';
-import { glbExport, glbLodPackage, stlBinary, type ExportMesh } from '../exchange/export';
+import { glbExport, stlBinary, type ExportMesh } from '../exchange/export';
 import { meshClosure } from '../exchange/mesh';
 import { downloadFile, safeFilename } from '../storage/projects';
+import { LodPanel } from './LodPanel';
+import { meshStatistics, triangleCount } from '../model/meshStats';
 
 export function ImportDialog({
   files,
@@ -141,30 +143,57 @@ export function ExportDialog({
   meshes,
   cad,
   onClose,
+  initialLods = false,
+  visibleIds,
 }: {
   project: Project;
   ids: string[];
   meshes: BodyMesh[];
   cad: CadClient;
   onClose: () => void;
+  initialLods?: boolean;
+  visibleIds?: string[];
 }) {
   const [scope, setScope] = useState(ids.length ? 'selection' : 'visible');
-  const [format, setFormat] = useState('stl');
+  const [format, setFormat] = useState(initialLods ? 'glb' : 'stl');
   const [tolerance, setTolerance] = useState(0.05),
     [bed, setBed] = useState(true);
   const [allowOpen, setAllowOpen] = useState(false);
   const [includeMotions, setIncludeMotions] = useState(true);
   const [instances, setInstances] = useState(false),
-    [lods, setLods] = useState(false);
-  const [progress, setProgress] = useState('');
+    [lods, setLods] = useState(initialLods);
   const [working, setWorking] = useState(false),
     [error, setError] = useState('');
-  const selected = new Set(ids);
-  const bodies = project.bodies.filter(
-    (b) =>
-      (scope === 'selection' ? selected.has(b.id) : bodyVisible(b, project.groups)) &&
-      b.purpose !== 'construction' &&
-      b.purpose !== 'drawing',
+  // Disabling the start button can move focus to the page while a worker runs.
+  // Escape must still close this cancellable preview, even without dialog focus.
+  useEffect(() => {
+    if (format !== 'glb' || !lods) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [format, lods, onClose]);
+  const bodies = useMemo(() => {
+    const allowed = new Set(
+      scope === 'selection'
+        ? ids
+        : (visibleIds ??
+            project.bodies.filter((b) => bodyVisible(b, project.groups)).map((b) => b.id)),
+    );
+    return project.bodies.filter(
+      (b) => allowed.has(b.id) && b.purpose !== 'construction' && b.purpose !== 'drawing',
+    );
+  }, [project.bodies, project.groups, scope, ids, visibleIds]);
+  const statistics = useMemo(
+    () => ({
+      model: meshStatistics(project.bodies, meshes),
+      scope: meshStatistics(bodies, meshes),
+    }),
+    [project.bodies, bodies, meshes],
   );
   const box = bounds(bodies),
     sizes = box.max.map((n, i) => n - box.min[i]);
@@ -184,28 +213,14 @@ export function ExportDialog({
           'application/step',
         );
       } else if (format === 'glb') {
-        if (lods)
-          downloadFile(
-            await glbLodPackage(
-              bodies,
-              meshes,
-              project.assets,
-              instances,
-              setProgress,
-              includeMotions ? project.motions : undefined,
-            ),
-            `${safeFilename(project.name)}-LOD.zip`,
-            'application/zip',
-          );
-        else
-          downloadFile(
-            await glbExport(bodies, meshes, project.assets, {
-              instances,
-              motions: includeMotions ? project.motions : undefined,
-            }),
-            `${safeFilename(project.name)}.glb`,
-            'model/gltf-binary',
-          );
+        downloadFile(
+          await glbExport(bodies, meshes, project.assets, {
+            instances,
+            motions: includeMotions ? project.motions : undefined,
+          }),
+          `${safeFilename(project.name)}.glb`,
+          'model/gltf-binary',
+        );
       } else {
         const meshIds = new Set(bodies.filter((b) => b.feature.type === 'mesh').map((b) => b.id));
         const cadBodies = bodies.filter((b) => b.feature.type !== 'mesh');
@@ -228,14 +243,13 @@ export function ExportDialog({
       setError((e as Error).message);
     } finally {
       setWorking(false);
-      setProgress('');
     }
   };
   return (
     <SelectionDialog
-      title="Vie 3D-malli"
+      title={initialLods ? 'Kolmiot ja LOD' : 'Vie 3D-malli'}
       onClose={() => {
-        if (!working) onClose();
+        if (!working || (format === 'glb' && lods)) onClose();
       }}
     >
       <div className="exchange-fields">
@@ -272,6 +286,25 @@ export function ExportDialog({
       </div>
       <p className="export-size">
         {bodies.length} osaa · {sizes.map((n) => formatLength(n)).join(' × ')} mm
+      </p>
+      <div className="export-triangles" aria-label="Mallin kolmiomäärät">
+        <div>
+          <span>{scope === 'selection' ? 'Valinta' : 'Näkyvät osat'}</span>
+          <strong>
+            {triangleCount(statistics.scope.triangles)} <small>kolmiota</small>
+          </strong>
+        </div>
+        <div>
+          <span>Koko malli</span>
+          <strong>
+            {triangleCount(statistics.model.triangles)} <small>kolmiota</small>
+          </strong>
+        </div>
+      </div>
+      <p className="muted">
+        Nykyinen näyttöverkko. Kopiot lasketaan erikseen; viivat ja apugeometria eivät ole mukana.
+        {!!statistics.scope.pending &&
+          ` ${statistics.scope.pending} osan geometria vielä valmistuu.`}
       </p>
       {format === 'stl' && (
         <>
@@ -326,6 +359,7 @@ export function ExportDialog({
                 <input
                   type="checkbox"
                   checked={includeMotions}
+                  disabled={working}
                   onChange={(e) => setIncludeMotions(e.target.checked)}
                 />
                 Pivotit ja avaus-/sulkemisanimaatiot
@@ -357,30 +391,37 @@ export function ExportDialog({
           <p className="muted">
             Materiaalit ja identtiset geometriat jaetaan automaattisesti. Alkuperäinen malli säilyy.
           </p>
-          {lods && (
-            <p className="muted">
-              ZIP sisältää kolme GLB-versiota ja toteutuneet kolmiomäärät. Aseta vaihtumisetäisyydet
-              kohdeohjelmassa. Aukot ja materiaalirajat rajoittavat kevennystä.
-            </p>
-          )}
           {instances && (
             <p className="muted">
               Edellyttää kohdeohjelman EXT_mesh_gpu_instancing-tukea. Osien nimet säilyvät
               instanssien lisätiedoissa.
             </p>
           )}
+          {lods && (
+            <LodPanel
+              bodies={bodies}
+              meshes={meshes}
+              project={project}
+              instances={instances}
+              includeMotions={includeMotions}
+              onWorking={setWorking}
+              onDownloaded={onClose}
+            />
+          )}
         </>
       )}
       <div className="dialog-actions">
-        <button
-          className="button dark"
-          disabled={working || !bodies.length}
-          onClick={() => void download()}
-        >
-          <Download size={16} />
-          {working ? progress || 'Valmistellaan tiedostoa…' : 'Lataa tiedosto'}
-        </button>
-        <button disabled={working} onClick={onClose}>
+        {!(format === 'glb' && lods) && (
+          <button
+            className="button dark"
+            disabled={working || !bodies.length}
+            onClick={() => void download()}
+          >
+            <Download size={16} />
+            {working ? 'Valmistellaan tiedostoa…' : 'Lataa tiedosto'}
+          </button>
+        )}
+        <button disabled={working && !(format === 'glb' && lods)} onClick={onClose}>
           Sulje
         </button>
       </div>

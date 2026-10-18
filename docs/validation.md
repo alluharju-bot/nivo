@@ -4,6 +4,32 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.51.3 — kolmiomäärät ja LOD-vertailu
+
+- 10 kohdennettua testiä hyväksytty: projektin/valinnan/näkyvien osien
+  kolmiot, piilotetut ryhmät, instanssit, puuttuva verkko, LOD-rajojen
+  validointi, materiaalisaumat, aukkojen säilyminen, viennin jako ja pivotit.
+- Tuotantobuildin kuusi selaintapausta hyväksytty desktopilla ja tabletin
+  Chromium-emuloinnissa. Kaksi erillistä yksityisen Kerrostalo-mallin testiä
+  ohitettu, koska mallia ei otettu tähän testiajoon.
+- Testipallo: LOD0 1 840, LOD1 920 ja LOD2 368 kolmiota. Vertailukameran
+  sijainti, kohde ja zoom säilyvät. Esikatselu lataa varsinaisen GLB:n;
+  sen kolmiomäärät vastaavat paketin raporttia ja yksittäinen lataus
+  vastaa tavutasolla ZIP-paketin samaa versiota. Alkuperäisen osat ja
+  asetukset säilyvät muuttumattomina.
+- Yksinkertaisen laatikon 12 kolmiota eivät kevene keinotekoisesti:
+  käyttöliittymä näyttää toteutuneen määrän ja tavoitetta rajoittavan ehdon.
+  Tavoitteen vaihto poistaa vanhan tuloksen. Sulkeminen kesken laskennan
+  ja saman työn uudelleenkäynnistys testattu. Testissä löytynyt fokuksen
+  katoamisen estämä Esc-sulkeminen korjattu ja tarkistettu uudelleen.
+- Vanha GLB-vienti, materiaalikarttojen mittakaavat, GPU-instanssit,
+  erillisten nimettyjen osien takaisinluku ja projektin säilyminen testattu.
+  TypeScript, tuotantobuild, muotoilu sekä diff tarkistettu.
+- Mittari kuvaa malliosien näyttöverkon kolmioita, ei varjopassien tai
+  käyttöliittymän piirtokustannusta. LOD-vaihtoa ei vielä tehdä automaattisesti
+  Nivon päämallinnusnäkymässä. Maalin lohkeilukerros on kirjattu suunnitelmaksi,
+  eikä sitä lasketa tämän version toteutettuihin ominaisuuksiin.
+
 ## V0.51.2 — valon suunta ja P-työkalun valoasetukset
 
 - 32 kohdennettua testiä hyväksytty: valon paikallinen suunta, kääntyneen

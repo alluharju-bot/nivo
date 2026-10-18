@@ -20,6 +20,7 @@ import { readProjectTransfer, compareTransferredProject } from './storage/projec
 import { ProjectLibrary } from './ui/ProjectLibrary';
 import { ProductSource } from './ui/ProductSource';
 import { ImportDialog, ExportDialog } from './ui/ExchangeDialogs';
+import { MeshStatistics } from './ui/MeshStatistics';
 import { useFullscreen } from './ui/useFullscreen';
 import { useMobileWorkspace } from './ui/useMobileWorkspace';
 import { MobileStart } from './ui/MobileStart';
@@ -897,7 +898,7 @@ export default function App() {
   const [revisionsOpen, setRevisionsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [libraryRevision, setLibraryRevision] = useState(0);
-  const [exportOpen, setExportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState<boolean | 'lod'>(false);
   const importMode = useRef<'open' | 'add'>('open');
   const [importFiles, setImportFiles] = useState<File[]>();
   const [savePartName, setSavePartName] = useState<string>();
@@ -966,6 +967,7 @@ export default function App() {
         })),
     [project.bodies, project.groups, openedAssembly, isolated, project.id],
   );
+  const visibleBodyIds = useMemo(() => visibleBodies.map((b) => b.id), [visibleBodies]);
   const textureBody =
     tool === 'paint' && paintMode === 'texture' && !renderOpen
       ? visibleBodies.find(
@@ -7863,6 +7865,7 @@ export default function App() {
               onTexture={previewTexture}
               onTextureCommit={commitTexture}
               modalOpen={
+                !!exportOpen ||
                 touchReview ||
                 (compact && mobileStart) ||
                 revisionsOpen ||
@@ -10562,6 +10565,8 @@ export default function App() {
       )}
       {exportOpen && (
         <ExportDialog
+          initialLods={exportOpen === 'lod'}
+          visibleIds={visibleBodyIds}
           project={project}
           ids={selectedIds}
           meshes={editor.meshes}
@@ -10949,6 +10954,14 @@ export default function App() {
               `Valinta palautettu · ${selectionDescription({ ids, guideIds, dimensionIds, markupIds })}.`,
             );
           }}
+        />
+        <MeshStatistics
+          bodies={project.bodies}
+          meshes={editor.meshes}
+          visible={visibleBodies}
+          selected={selectedIds}
+          busy={busy || !!surfaceSource || !!geometrySession.current?.pending}
+          onOpen={() => setExportOpen('lod')}
         />
         <span className="status-right">
           {partsOpen

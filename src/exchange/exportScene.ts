@@ -24,6 +24,7 @@ import { appearancePreset, defaultAppearance } from '../model/materials';
 import type { LodMesh } from './lod';
 
 export interface GlbOptions {
+  signal?: AbortSignal;
   motions?: Motion[];
   instances?: boolean;
   ratio?: number;
@@ -91,6 +92,7 @@ export async function exportScene(
     });
   };
   try {
+    options.signal?.throwIfAborted();
     const byId = new Map(meshes.map((m) => [m.id, m]));
     const missing = bodies.filter((b) => !byId.get(b.id)?.triangles.length);
     if (missing.length)
@@ -164,23 +166,36 @@ export async function exportScene(
     }
     library.endFrame();
     await library.ready();
+    options.signal?.throwIfAborted();
     if (options.ratio && options.ratio < 1) {
       worker = new Worker(new URL('./lod.worker.ts', import.meta.url), { type: 'module' });
       for (const bucket of geometries.values())
         for (let i = 0; i < bucket.length; i++) {
           const old = bucket[i];
           const payload = await new Promise<LodMesh>((resolve, reject) => {
+            const finish = (error?: Error, mesh?: LodMesh) => {
+              clearTimeout(timer);
+              options.signal?.removeEventListener('abort', abort);
+              error ? reject(error) : resolve(mesh!);
+            };
+            const abort = () => {
+              worker?.terminate();
+              finish(new DOMException('LOD-laskenta peruttu.', 'AbortError'));
+            };
             const timer = setTimeout(
-              () => reject(new Error('LOD-kevennys ylitti aikarajan. Vie alkuperäinen tarkkuus.')),
+              () => finish(new Error('LOD-kevennys ylitti aikarajan. Vie alkuperäinen tarkkuus.')),
               60000,
             );
+            options.signal?.addEventListener('abort', abort, { once: true });
+            if (options.signal?.aborted) {
+              abort();
+              return;
+            }
             worker!.onmessage = (e: MessageEvent<{ mesh: LodMesh; error?: string }>) => {
-              clearTimeout(timer);
-              e.data.error ? reject(new Error(e.data.error)) : resolve(e.data.mesh);
+              finish(e.data.error ? new Error(e.data.error) : undefined, e.data.mesh);
             };
             worker!.onerror = () => {
-              clearTimeout(timer);
-              reject(new Error('LOD-kevennystä ei voitu käynnistää.'));
+              finish(new Error('LOD-kevennystä ei voitu käynnistää.'));
             };
             worker!.postMessage({
               mesh: geometryPayload(old),

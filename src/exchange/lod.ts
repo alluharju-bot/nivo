@@ -16,7 +16,7 @@ export async function simplifyExportMesh(
   ratio: number,
   error: number,
 ): Promise<LodMesh> {
-  if (ratio <= 0 || ratio > 1 || !Number.isFinite(error) || error < 0)
+  if (!Number.isFinite(ratio) || ratio <= 0 || ratio > 1 || !Number.isFinite(error) || error < 0)
     throw new Error('Virheellinen LOD-tarkkuus.');
   if (ratio === 1 || input.indices.length <= 36) return input;
   await MeshoptSimplifier.ready;

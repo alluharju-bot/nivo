@@ -70,3 +70,11 @@ it('does not silently omit an unbuilt part', async () => {
     'geometrian valmistumista',
   );
 });
+it('rejects a cancelled preparation before allocating model data', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const bodies = boxes();
+  await expect(
+    exportScene(bodies, bodies.map(meshBody), {}, { signal: controller.signal }),
+  ).rejects.toMatchObject({ name: 'AbortError' });
+});
