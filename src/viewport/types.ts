@@ -172,6 +172,7 @@ export interface ViewportProps {
   selectedGroupId?: string;
   selectedFace?: FaceRef;
   tool: Tool;
+  motion?: import('../model/motion').MotionViewport;
   preview?: Body;
   moveMode?: 'axis' | 'free';
   copyMove: boolean;

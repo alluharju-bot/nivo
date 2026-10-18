@@ -22,6 +22,7 @@ export function reidentifyProject(source: Project): Project {
         field === 'owner' ||
         field === 'ids' ||
         field === 'sources' ||
+        field === 'movingIds' ||
         (field.endsWith('Id') && field !== 'topologyId')
       )
         return mapped(value);
@@ -100,6 +101,7 @@ export function mergeProject(target: Project, source: Project) {
       ...incoming.groups.map((g) => ({ ...g, parentId: g.parentId ?? group.id })),
     ],
     partTypes,
+    motions: [...(target.motions ?? []), ...(incoming.motions ?? [])],
     assets: { ...target.assets, ...incoming.assets },
     dimensions: [...target.dimensions, ...incoming.dimensions],
     guides: [...target.guides, ...incoming.guides],
@@ -160,6 +162,9 @@ export function selectionProject(project: Project, ids: string[], name: string):
       ...freshProject(),
       name,
       bodies,
+      motions: project.motions?.filter(
+        (m) => selected.has(m.anchorId) && m.movingIds.every((id) => selected.has(id)),
+      ),
       distributions: project.distributions?.filter(
         (s) => s.kind === 'bodies' && s.members.every((m) => m.ids.every((id) => selected.has(id))),
       ),

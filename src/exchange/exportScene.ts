@@ -1,3 +1,5 @@
+import { attachMotions } from './motionExport';
+import type { Motion } from '../model/motion';
 import { layerDomain } from '../render/layers';
 import {
   BufferGeometry,
@@ -22,6 +24,7 @@ import { appearancePreset, defaultAppearance } from '../model/materials';
 import type { LodMesh } from './lod';
 
 export interface GlbOptions {
+  motions?: Motion[];
   instances?: boolean;
   ratio?: number;
   error?: number;
@@ -155,6 +158,7 @@ export async function exportScene(
       object.name = body.name;
       object.userData.nivoId = body.id;
       object.matrix.copy(frame);
+      frame.decompose(object.position, object.quaternion, object.scale);
       object.matrixAutoUpdate = false;
       root.add(object);
     }
@@ -192,10 +196,15 @@ export async function exportScene(
           old.dispose();
         }
     }
+    const motions = (options.motions ?? []).filter((m) =>
+      m.movingIds.some((id) => bodies.some((b) => b.id === id)),
+    );
+    const animatedIds = new Set(motions.flatMap((m) => [m.anchorId, ...m.movingIds]));
+    const animations = attachMotions(root, bodies, motions);
     if (options.instances) {
       const batches = new Map<string, Mesh[]>();
       for (const child of root.children)
-        if (child instanceof Mesh) {
+        if (child instanceof Mesh && !animatedIds.has(child.userData.nivoId)) {
           const ids = (Array.isArray(child.material) ? child.material : [child.material]).map(
             (m) => m.uuid,
           );
@@ -229,6 +238,7 @@ export async function exportScene(
     });
     return {
       root,
+      animations,
       release,
       stats: {
         parts: bodies.length,

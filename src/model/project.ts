@@ -1,3 +1,4 @@
+import { motionSchema, motionError } from './motion';
 import { drawingAnnotationSchema } from './drawingAnnotations';
 import { productReferenceSchema } from './productReference';
 import { distributionSchema } from './distributionSchema';
@@ -481,6 +482,7 @@ export const projectSchema = z
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
+    motions: z.array(motionSchema).max(1000).optional(),
     distributions: z.array(distributionSchema).max(1000).optional(),
     assets: z.record(z.string().max(100), assetSchema).optional(),
     sections: z.array(sectionSchema).max(100).optional(),
@@ -557,10 +559,13 @@ export const projectSchema = z
       p.partTypes ?? [],
       p.renderViews ?? [],
       p.distributions ?? [],
+      p.motions ?? [],
     ]) {
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });
     }
+    const movementError = motionError(p.motions ?? [], p.bodies);
+    if (movementError) ctx.addIssue({ code: 'custom', message: movementError });
     if (p.bodies.some((body) => body.groupId && !p.groups.some((g) => g.id === body.groupId)))
       ctx.addIssue({ code: 'custom', message: 'Kappale viittaa puuttuvaan ryhmään.' });
     const partTypes = new Set((p.partTypes ?? []).map((t) => t.id));

@@ -9424,3 +9424,203 @@ p {
 .canvas-topbar:has(.display-opacity) {
   z-index: 10;
 }
+
+/* Named mechanism workspace: the same model, reversible presentation poses. */
+.motion-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  overflow-y: auto;
+}
+.motion-heading {
+  position: sticky;
+  top: -18px;
+  z-index: 2;
+  background: var(--paper);
+  margin: -18px -18px 0;
+  padding: 18px;
+  border-bottom: 1px solid #d8ddd7;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.motion-heading strong {
+  font-size: 15px;
+}
+.motion-heading small {
+  display: block;
+  margin-top: 5px;
+  color: #69756e;
+  font-size: 11px;
+}
+.motion-inspector button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid #d8ddd7;
+  border-radius: 7px;
+  background: #f8faf6;
+  color: #324b42;
+  font-size: 12px;
+  cursor: pointer;
+}
+.motion-inspector button[aria-pressed='true'] {
+  background: #f0e6f7;
+  color: #813fac;
+  border-color: #c099da;
+}
+.motion-inspector button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.motion-inspector button.dark {
+  background: #294c40;
+  color: white;
+}
+.motion-create,
+.motion-row {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.motion-create button,
+.motion-row button {
+  flex: 1;
+}
+.motion-list {
+  display: grid;
+  gap: 5px;
+}
+.motion-list > div {
+  display: flex;
+  gap: 5px;
+  border-radius: 8px;
+  padding: 4px;
+}
+.motion-list > div.active {
+  background: #eee6f2;
+}
+.motion-list .motion-name {
+  justify-content: start;
+  flex: 1;
+  min-width: 0;
+  border-color: transparent;
+  background: transparent;
+}
+.motion-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.motion-fields {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #d8ddd7;
+  padding-top: 16px;
+}
+.motion-fields label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  color: #45584f;
+  min-width: 0;
+}
+.motion-fields input:not([type='range']),
+.motion-fields select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #ced7cf;
+  border-radius: 6px;
+  background: white;
+  color: #263e34;
+  padding: 7px;
+  box-sizing: border-box;
+}
+.motion-fields input[type='range'] {
+  width: 100%;
+  accent-color: #9553b5;
+}
+.motion-id {
+  color: #7c867f;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.motion-coordinates {
+  display: flex;
+  gap: 8px;
+}
+.motion-coordinates label {
+  flex: 1;
+}
+.motion-members {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 130px;
+  overflow: auto;
+}
+.motion-members li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+}
+.motion-members li span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.motion-members li button {
+  border: 0;
+  padding: 3px;
+}
+.motion-pick-hint {
+  border-left: 3px solid #a35fc3;
+  padding: 8px 10px;
+  background: #f1eaf5;
+  font-size: 12px;
+}
+.motion-inspector .motion-delete {
+  color: #9c493a;
+}
+.motion-footnote {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.motion-pivot-label {
+  position: absolute;
+  z-index: 6;
+  border: 1px solid #bac8d4;
+  border-radius: 5px;
+  background: #f4f8fbea;
+  color: #345870;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.motion-pivot-label.active {
+  color: #813fac;
+  border-color: #c199d5;
+  background: #f8edffef;
+}
+.motion-pivot-label[hidden] {
+  display: none;
+}
+@media (max-width: 900px) {
+  .motion-inspector {
+    max-height: calc(100dvh - 70px);
+    width: min(320px, 80vw);
+  }
+}

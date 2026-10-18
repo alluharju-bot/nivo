@@ -1,3 +1,4 @@
+import { pruneMotions } from './motion';
 import { isOverallDimension, type Project } from './project';
 import { bodyLocked, groupAncestors, groupBodies, groupContains } from './groups';
 import { anchorBodyId, dimensionBodyIds } from './dimensions';
@@ -29,6 +30,10 @@ export function removeSelection(project: Project, ids: string[]) {
   return {
     ...project,
     bodies: project.bodies.filter((b) => !chosen.has(b.id)),
+    motions: pruneMotions(
+      project.motions,
+      project.bodies.filter((b) => !chosen.has(b.id)),
+    ),
     distributions: project.distributions?.filter(
       (s) => s.kind !== 'bodies' || !s.members.some((m) => m.ids.some((id) => chosen.has(id))),
     ),

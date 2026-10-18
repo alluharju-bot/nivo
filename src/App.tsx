@@ -1,3 +1,4 @@
+import { useMotionWorkspace } from './ui/MotionWorkspace';
 import { radialPolygon, facetedSphere } from './model/roundPrimitives';
 import { SweepPanel } from './ui/SweepPanel';
 import { SurfaceLayersPanel } from './ui/SurfaceLayersPanel';
@@ -765,6 +766,10 @@ export default function App() {
   const textureDraftRef = useRef<typeof textureDraft>(undefined);
   const [openedAssembly, setOpenedAssembly] = useState<string>();
   const [mode, setMode] = useState<'model' | 'drawing'>('model');
+  const motion = useMotionWorkspace(project, selectedIds, busy, editor.transact);
+  useEffect(() => {
+    if (renderOpen || partsOpen || mode !== 'model') motion.close();
+  }, [renderOpen, partsOpen, mode]);
   const geometryActive =
     !!geometryBody &&
     mode === 'model' &&
@@ -1839,6 +1844,7 @@ export default function App() {
   };
   const begin = (next: Tool, prepared = false) => {
     if (busy) return;
+    if (motion.open) motion.close();
     if (!prepared && geometryActive && geometrySession.current?.pending) {
       void geometrySession.current.finish().then((ok) => {
         if (ok) setGeometryNextTool(next);
@@ -4363,6 +4369,22 @@ export default function App() {
     setMode('model');
     setTool('select');
   };
+  const openMotions = () => {
+    if (!leaveGeometryForView() || busy) return;
+    resetGesture();
+    setGeometryBodyId(undefined);
+    setEditingBodyId(undefined);
+    setOpenedAssembly(undefined);
+    setLoftOpen(false);
+    setPartsOpen(false);
+    setRenderOpen(false);
+    setMode('model');
+    setTool('select');
+    setSelectedFace(undefined);
+    if (workspace.panel) workspace.open(workspace.panel);
+    setPanelOpen(true);
+    motion.start();
+  };
   const openDrawing = () => {
     if (!leaveGeometryForView()) return;
     setDrawingScopeOverride(undefined);
@@ -4470,6 +4492,13 @@ export default function App() {
         linkDialog
       )
         return;
+      if (motion.open) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          motion.close();
+        }
+        return;
+      }
       if (loftOpen) {
         if (event.key === 'Escape') {
           event.preventDefault();
@@ -6545,16 +6574,23 @@ export default function App() {
           <select
             className="mobile-workspace-select"
             aria-label="Työtila"
-            value={renderOpen ? 'render' : partsOpen ? 'parts' : mode}
+            value={renderOpen ? 'render' : partsOpen ? 'parts' : motion.open ? 'motion' : mode}
             onChange={(e) => {
               setHeaderMenuOpen(false);
-              if (e.target.value === 'render') openRender();
+              if (e.target.value === 'motion') openMotions();
+              else if (e.target.value === 'render') openRender();
               else if (e.target.value === 'parts') openParts();
               else if (e.target.value === 'drawing') openDrawing();
-              else closeRender();
+              else {
+                motion.close();
+                closeRender();
+              }
             }}
           >
             <option value="model">Malli</option>
+            <option value="motion" disabled={!ready || busy || !project.bodies.length}>
+              Animaatio
+            </option>
             <option value="drawing" disabled={!project.bodies.length || busy}>
               Mittakuva
             </option>
@@ -6568,11 +6604,21 @@ export default function App() {
         )}
         <div className="mode-switch" aria-label="Työtila">
           <button
-            aria-pressed={!renderOpen && !partsOpen && mode === 'model'}
-            onClick={closeRender}
+            aria-pressed={!renderOpen && !partsOpen && !motion.open && mode === 'model'}
+            onClick={() => {
+              motion.close();
+              closeRender();
+            }}
           >
             <Box size={16} />
             Malli
+          </button>
+          <button
+            aria-pressed={motion.open}
+            disabled={!ready || busy || !project.bodies.length}
+            onClick={openMotions}
+          >
+            <RotateCw size={16} /> Animaatio
           </button>
           <button
             aria-pressed={!renderOpen && !partsOpen && mode === 'drawing'}
@@ -7851,7 +7897,10 @@ export default function App() {
               groups={project.groups}
               meshes={openingPreviewMeshes}
               selected={selected}
-              selectedIds={loftOpen ? loftIds : selectedIds}
+              motion={motion.viewport}
+              selectedIds={
+                motion.open ? (motion.active?.movingIds ?? []) : loftOpen ? loftIds : selectedIds
+              }
               moveHoveredIds={openingDraft ? [] : moveHoveredIds}
               selectionHoveredIds={selectionHoveredIds}
               onSelectionHover={setSelectionHovered}
@@ -8160,7 +8209,10 @@ export default function App() {
                 return selectedIds;
               }}
             />
-            {(!panelOpen || touchReview) && !(compact && touchReview) && numericInput}
+            {!motion.open &&
+              (!panelOpen || touchReview) &&
+              !(compact && touchReview) &&
+              numericInput}
             {tool === 'select' && selectedGuide && !selectedIds.length && (
               <div className="guide-actions" role="toolbar" aria-label="Viivan toiminnot">
                 <span>
@@ -8524,7 +8576,8 @@ export default function App() {
             {dimensionFields(geometryBody)}
           </aside>
         )}
-        {panelOpen && mode === 'model' && !loftOpen && !geometryActive && (
+        {panelOpen && motion.panel}
+        {panelOpen && mode === 'model' && !loftOpen && !geometryActive && !motion.open && (
           <aside className="inspector" aria-label="Ominaisuudet">
             {compact && (
               <button className="mobile-panel-close" onClick={() => setPanelOpen(false)}>

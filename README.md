@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.51.0** lisää **Animaatio → Sarana / Liuku**. Valitse kiinteä
+ankkuri ja liikkuvat osat, poimi pivot pisteestä tai reunasta ja määritä
+avautumiskulma tai liukumatka. Jokaisella liikkeellä on oma Suljettu–Auki-asento:
+esimerkiksi kuusi laatikkoa avautuvat erikseen. Esikatselu ei muuta geometriaa.
+Nimetyt pivotit, pysyvät osatunnisteet ja avaus-/sulkemisanimaatiot kulkevat
+GLB-viennissä myös muihin 3D-ohjelmiin. [Pivotit ja animaatiot](docs/pivotit-ja-animaatiot.fi.md).
+
 Versio **0.50.3** korjaa kynän jaon saman tason kolmiorajojen yli.
 Piirto jakaa koko vedon alle jäävän pinnan, ja alueita voi pursottaa erikseen.
 Kynäviivojen ja kappaleiden reunojen todelliset risteykset ovat nyt yhteisiä

@@ -1574,6 +1574,33 @@ export function installInteractions({
             } as Anchor),
     };
   };
+  const motionHit = (event: PointerEvent) => {
+    const mode = current().motion?.picking;
+    const face = faceAt(event, true)?.target;
+    if (mode === 'anchor' || mode === 'moving')
+      return face ? { point: face.point, bodyId: face.bodyId } : undefined;
+    if (mode !== 'pivot' && mode !== 'axis') return;
+    const guide = guideAt(event);
+    const edge = edgeAt(event);
+    const point = nearest(event);
+    if (guide && !point) return { point: guide.point, label: guide.label };
+    if (point)
+      return {
+        point: point.point,
+        bodyId: face?.bodyId,
+        label: point.label,
+        axis:
+          edge && !edge.curve && point.label === 'Reunan keskipiste' ? edge.direction : undefined,
+      };
+    if (edge)
+      return {
+        point: edge.point,
+        bodyId: edge.mesh.id,
+        axis: edge.curve ? undefined : edge.direction,
+        label: edge.label,
+      };
+    if (face) return { point: face.point, bodyId: face.bodyId, label: 'Pinta' };
+  };
   const guideEndpointsAt = (event: PointerEvent): GuideEndpoint[] => {
     const props = current(),
       rect = container.getBoundingClientRect();
@@ -3629,6 +3656,12 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.modalOpen) return;
+    if (props.motion) {
+      const hit = motionHit(event);
+      if (hit) props.motion.onPick(hit);
+      canvas.focus({ preventScroll: true });
+      return;
+    }
     if (props.opening) {
       openingPress = {
         id: faceAt(event)?.target.bodyId,
@@ -4371,6 +4404,14 @@ export function installInteractions({
     const props = current();
     if (props.modalOpen) return;
     if (blocked || props.busy) return;
+    if (props.motion) {
+      highlightFace();
+      highlightEdge();
+      const hit = motionHit(event);
+      if (hit) show({ point: hit.point, key: 'pivot-pick', label: hit.label ?? 'Valitse osa' });
+      else show();
+      return;
+    }
     if (props.opening) {
       highlightFace();
       highlightEdge();
@@ -4841,7 +4882,7 @@ export function installInteractions({
       if (!pointers.size) blocked = false;
       return;
     }
-    if (pickingOther || current().modalOpen) {
+    if (pickingOther || current().modalOpen || current().motion) {
       pickingOther = false;
       pointers.delete(event.pointerId);
       drag = undefined;
@@ -5113,6 +5154,7 @@ export function installInteractions({
       controlCopyBefore = undefined;
     }
     if (
+      current().motion ||
       current().modalOpen ||
       current().opening ||
       (event.target as HTMLElement).closest(
@@ -5263,7 +5305,7 @@ export function installInteractions({
     if (event.key === 'Shift') current().onSelectionHover?.(undefined);
     if (event.key === 'Control') controlCopyBefore = undefined;
     if (event.key === 'Control') controlRotationBefore = undefined;
-    if (current().modalOpen || current().opening) {
+    if (current().modalOpen || current().opening || current().motion) {
       if (event.key === 'Shift') {
         shift = false;
         measureShiftPending = false;
@@ -5378,6 +5420,7 @@ export function installInteractions({
     if (
       !['select', 'measure'].includes(current().tool) ||
       current().busy ||
+      current().motion ||
       current().modalOpen ||
       current().opening ||
       event.button !== 0 ||

@@ -153,6 +153,7 @@ export function ExportDialog({
   const [tolerance, setTolerance] = useState(0.05),
     [bed, setBed] = useState(true);
   const [allowOpen, setAllowOpen] = useState(false);
+  const [includeMotions, setIncludeMotions] = useState(true);
   const [instances, setInstances] = useState(false),
     [lods, setLods] = useState(false);
   const [progress, setProgress] = useState('');
@@ -185,13 +186,23 @@ export function ExportDialog({
       } else if (format === 'glb') {
         if (lods)
           downloadFile(
-            await glbLodPackage(bodies, meshes, project.assets, instances, setProgress),
+            await glbLodPackage(
+              bodies,
+              meshes,
+              project.assets,
+              instances,
+              setProgress,
+              includeMotions ? project.motions : undefined,
+            ),
             `${safeFilename(project.name)}-LOD.zip`,
             'application/zip',
           );
         else
           downloadFile(
-            await glbExport(bodies, meshes, project.assets, { instances }),
+            await glbExport(bodies, meshes, project.assets, {
+              instances,
+              motions: includeMotions ? project.motions : undefined,
+            }),
             `${safeFilename(project.name)}.glb`,
             'model/gltf-binary',
           );
@@ -309,6 +320,22 @@ export function ExportDialog({
       )}
       {format === 'glb' && (
         <>
+          {!!project.motions?.length && (
+            <>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={includeMotions}
+                  onChange={(e) => setIncludeMotions(e.target.checked)}
+                />
+                Pivotit ja avaus-/sulkemisanimaatiot
+              </label>
+              <p className="muted">
+                Sisällytä ankkuri ja kaikki liikkeen osat vientiin. Liikkuvat osat säilyvät
+                erillisinä solmuina myös GPU-instansseja käytettäessä.
+              </p>
+            </>
+          )}
           <label className="checkbox-label">
             <input
               type="checkbox"

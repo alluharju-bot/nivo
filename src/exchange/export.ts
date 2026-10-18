@@ -68,6 +68,7 @@ async function exportGlbLevel(
   try {
     const buffer = (await new GLTFExporter().parseAsync(scene.root, {
       binary: true,
+      animations: scene.animations,
       maxTextureSize: options.maxTextureSize ?? Infinity,
     })) as ArrayBuffer;
     return { buffer, ...scene.stats };
@@ -83,6 +84,7 @@ export async function glbLodPackage(
   assets: Project['assets'],
   instances: boolean,
   progress: (message: string) => void,
+  motions?: Project['motions'],
 ) {
   const { zip, strToU8 } = await import('fflate');
   const files: Record<string, Uint8Array> = {},
@@ -95,6 +97,7 @@ export async function glbLodPackage(
     progress(`Valmistellaan LOD ${level + 1}/3…`);
     const result = await exportGlbLevel(bodies, meshes, assets, {
       instances,
+      motions,
       ratio,
       error,
       maxTextureSize,

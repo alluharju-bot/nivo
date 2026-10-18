@@ -1,3 +1,4 @@
+import { pruneMotions } from './model/motion';
 import { shareProjectData } from './model/sharing';
 import { isPointDimension, type Vec3 } from './model/project';
 import { resolveAnchor } from './model/guides';
@@ -149,6 +150,7 @@ export function useEditor() {
         if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
           ...resolved,
+          motions: pruneMotions(resolved.motions, resolved.bodies),
           annotations: resolved.annotations?.map((m) =>
             m.kind === 'note'
               ? {

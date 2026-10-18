@@ -4,6 +4,36 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.51.0 — pivotit, saranat ja liu'ut
+
+- Kuusi itsenäistä laatikkoa, usean osan sarana, negatiivinen kierto,
+  kesken liikkeen sulkeminen sekä yhden liikkeen asentosäätö toisen
+  liikkuessa testattu. Alkuperäiset osat ja geometria säilyvät tallennuksessa.
+- Pivotin poiminta kulmasta ja mittaviivan päätepisteestä sekä ankkurin ja
+  useiden liikkuvien osien valinta suoraan näkymästä testattu käyttöliittymässä.
+- Projektin tallennus, kumoaminen, viitteiden siivous poistettaessa, kokonaisen
+  mekanismin kopiointi, osakirjasto ja projektien yhdistäminen testattu.
+  Sarana seuraa ankkurin siirtoa ja kiertoa; kokonaisuuden skaalaus mukauttaa
+  pivotin ja liukumatkan. Kiertävät hierarkiat ja ristiriitaiset ajurit hylätään.
+- Animaatio päivittää vain liikkuvien osien esitysmatriisit ja varjot.
+  Selaintesti tarkistaa, ettei avaaminen kasvata geometrian rakennuslaskuria
+  eikä muuta tallennetun projektin osia tai pivotin määritystä.
+- GLB-tiedosto viety käyttöliittymästä, tunnisteet ja animaatiokanavat luettu
+  tiedostosta, sitten sama tiedosto ladattu erillisellä GLTFLoaderilla.
+  AnimationMixerilla toistetun oven loppuasento tarkistettu metreinä.
+  Saranoiden yli 180° kierto, sulkeminen ja liukukanavat testattu erikseen.
+- Koko yksikkötestisarja: 761 hyväksyttyä, 6 ohitettua. Sen jälkeen lisätty
+  skaalaustapaus ja viimeiset liikkeen optimoinnit: kaikki 12 mekanismi- ja
+  vientitestiä hyväksytty. Julkaisun CI ajaa vielä koko lopullisen sarjan.
+- Selaimessa 62 erillistä tapausta tarkistettu desktopilla ja tabletin
+  Chromium-emuloinnissa: 8 mekanismi-/vientitapausta, 18 projekti-/tiedostotapausta,
+  18 kierto- ja 18 skaalaustapausta. Poimintatestin tekstipaikannin korjattiin
+  käyttämään valittujen osien listaa; käyttöliittymässä molemmat osat olivat
+  jo oikein valittuina. Viimeinen mekanismiajo: 8/8 hyväksyttyä.
+- TypeScript, tuotantobuild, muotoilu ja diff tarkistettu. GLB:n toistoa ei
+  ole tässä passissa testattu erillisessä pelimoottorissa; viennin standardit
+  animaatiot ja extras-tiedot sekä niiden lukeminen on testattu.
+
 ## V0.50.3 — risteystartunnat ja kynän jako kolmiorajojen yli
 
 - Drone2:n pilvitallennuksen paikallinen kopio tutkittu; alkuperäistä

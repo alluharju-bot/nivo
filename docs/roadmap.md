@@ -2,6 +2,30 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.51.0 — nimetyt pivotit, saranat ja liu'ut
+
+- Animaatio-työtila käyttää samaa mallinnusnäkymää. Pivot poimitaan kulmasta,
+  keskipisteestä, apuviivalta, pinnalta tai suorasta reunasta; tarkat koordinaatit
+  ja X/Y/Z-akselit ovat myös käytettävissä. Reuna määrittää akselin.
+- Liikkeellä on pysyvä ID ja nimi, ankkuriosa sekä yksi tai useampi liikkuva osa.
+  Sarana: avautuminen asteina. Liuku: avautuminen millimetreinä. Kesto ja pehmeä
+  tai tasainen ajoitus. Suljettu/Auki, jatkuva asentosäädin ja kaikkien palautus.
+- Liikkeet ovat itsenäisiä; kuuden laatikon avaaminen erikseen on testattu.
+  Jo liikkuva osa voi olla toisen nivelen ankkuri. Kiertävät ketjut ja yhden
+  osan ristiriitaiset ajurit estetään. Liikkeen voi kääntää kesken animaation.
+- Esikatselu muuttaa vain näkymän matriiseja. Ei geometrian uudelleenlaskentaa,
+  aihiomittojen muutoksia, linkitetyn geometrian muutoksia tai kuvakohtaista
+  historian/pilvitallennuksen kuormaa. Työkalun vaihto palauttaa lepoasennon.
+- Tallennus, kumoaminen, osien poisto, kokonaisen mekanismin kopiointi,
+  projektien yhdistäminen ja osakirjasto säilyttävät viitteiden eheyden.
+- GLB ja LOD-vienti sisältävät pivot-solmut, tavalliset animaatiokanavat,
+  erilliset avaus-/sulkemisleikkeet sekä Nivon tunnisteet extras-tiedoissa.
+  Animoitavia osia ei niputeta GPU-instansseiksi. Puutteellinen vientivalinta
+  pyytää mukaan puuttuvat mekanismin osat.
+- Jatkoon: käyttäjän nimeämät lisäasennot, animaatioiden yhteinen aikajana,
+  tauko/toisto, liikeratojen tilantarve ja törmäysvaroitus. Mekaaninen fysiikka
+  sekä rasitus- ja lujuuslaskenta säilyvät erillisinä kokonaisuuksina.
+
 ## V0.50.3 — kynän risteykset ja kolmiorajojen ylittäminen
 
 - Kynän avoin viiva leikataan kaikkien samalla tasolla olevien tukipintojen
@@ -593,6 +617,10 @@ Kopioinnin, skaalauksen, UV-muutosten ja CAD-pintajaon vaikutus kiinnitykseen,
 valinta/Hold, historia, pilvitallennus ja tekstuurimuisti testataan yhdessä.
 
 ### Backlog: mekanismien liike ja toimintakokeilut
+
+**V0.51.0:** sarana, liuku, nimetty pivot, itsenäiset lepo-/avoimet asennot,
+asentosäädin, avaus/sulkeminen ja GLB-animaatiot toteutettu. Alla olevasta
+Kokeile-tilasta tauko/toisto, käsin veto ja törmäyspalaute ovat jatkokehitystä.
 
 1. **Sarana ja liuku ensin.** Valitse osa tai kokoonpano sekä reuna, piste tai
    akseli. Aseta sarana-akseli ja avautumisen suunta/asteet tai liukusuunta ja

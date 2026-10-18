@@ -1,3 +1,4 @@
+import { createMotionPreview } from './motions';
 import { layerDomain } from '../render/layers';
 import { installGeometryStage } from './GeometryStage';
 import { createLocateHighlight } from './locateHighlight';
@@ -59,6 +60,7 @@ import { createTriangleIndex } from './triangleIndex';
 import { createRenderer, watchGraphicsContext, contextLostMessage } from './graphicsContext';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
+  motion: () => void;
   geometry: () => void;
   capture: () => Promise<Blob>;
   color: () => void;
@@ -187,6 +189,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const renderNow = () => {
     if (disposed || renderer.getContext().isContextLost()) return;
     textureEditor?.update();
+    motionPreview.update(camera);
     const rotating = current().rotation;
     if (rotationRings && rotating) {
       const radius = viewHandleRadius(
@@ -392,6 +395,16 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     boundary?: THREE.Box3Helper;
   };
   let bodyNodes = new Map<string, BodyNode>();
+  const motionPreview = createMotionPreview(
+    container,
+    scene,
+    () => current().motion,
+    () => bodyNodes,
+    () => {
+      renderer.shadowMap.needsUpdate = true;
+      render();
+    },
+  );
   let geometryBuilds = 0;
   const removeNode = (node: BodyNode, keepGeometry = false) => {
     bodies.remove(node.mesh, node.outline);
@@ -441,6 +454,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     clippingSphere.radius = Math.max(100, min.distanceTo(max) / 2);
     const bodyById = new Map(props.bodies.map((body) => [body.id, body]));
     const surfaceOrder = new Map(props.bodies.map((body, i) => [body.id, i + 1]));
+    const activeMotion = props.motion?.motions.find((m) => m.id === props.motion?.activeId);
+    const animatedIds = new Set(props.motion?.motions.flatMap((m) => m.movingIds));
     const selectedIds = new Set(props.selectedIds);
     const heldIds = new Set(props.heldSelectionIds);
     const previewIds = new Set(props.colorPreview?.ids);
@@ -463,6 +478,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const reference =
         (!!props.editingBodyId && !context) || (!!scopeIds && !scopeIds.has(data.id));
       const target =
+          activeMotion?.anchorId === data.id ||
           (props.tool === 'boolean' && props.booleanTargets.includes(data.id)) ||
           !!props.opening?.targets.includes(data.id),
         cutter = props.tool === 'boolean' && props.booleanTools.includes(data.id),
@@ -752,19 +768,22 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     );
     renderer.domElement.dataset.instanceBatches = String(
       bodyBatches.sync(
-        [...bodyNodes].map(([id, node]) => {
-          const body = bodyById.get(id)!;
-          return {
-            id,
-            shape: node.shape,
-            style: node.style,
-            origin: body.origin,
-            mesh: node.mesh,
-            outline: node.outline,
-          };
-        }),
+        [...bodyNodes]
+          .filter(([id]) => !animatedIds.has(id))
+          .map(([id, node]) => {
+            const body = bodyById.get(id)!;
+            return {
+              id,
+              shape: node.shape,
+              style: node.style,
+              origin: body.origin,
+              mesh: node.mesh,
+              outline: node.outline,
+            };
+          }),
       ),
     );
+    motionPreview.sync();
     // Picker preview is explicit and may show an occluded part. Reuse model edge
     // geometry; no retessellation, material cloning or model hit-test changes.
     const pickKey = (props.pickHoveredIds ?? []).join('|');
@@ -1824,6 +1843,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         }
       });
     },
+    motion: motionPreview.sync,
     texture,
     color,
     sync,
@@ -1847,6 +1867,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     },
     dispose() {
       disposed = true;
+      motionPreview.dispose();
       geometryEditor?.dispose();
       cancelAnimationFrame(renderFrame);
       observer.disconnect();
@@ -1959,6 +1980,9 @@ export function Viewport(props: Props) {
     props.booleanTargets,
     props.booleanTools,
     props.opening,
+    props.motion?.motions,
+    !!props.motion,
+    props.motion?.activeId,
     props.axisStyle,
     props.axisLabels,
     props.gridStep,
@@ -1970,6 +1994,7 @@ export function Viewport(props: Props) {
     api.current?.geometry();
     api.current?.interactionSync();
   }, [props.geometryEditing, props.geometryActive]);
+  useEffect(() => api.current?.motion(), [props.motion]);
   useEffect(() => api.current?.color(), [props.colorPreview]);
   useEffect(() => api.current?.texture(), [props.editingTexture]);
   useEffect(

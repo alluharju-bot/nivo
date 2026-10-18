@@ -210,6 +210,7 @@ export function translateSelection(
   const groupIds = new Map(copiedGroups.map((g) => [g.id, uid()]));
   const bodyName = copyNameAllocator(project.bodies.map((b) => b.name));
   const groupName = copyNameAllocator(project.groups.map((g) => g.name));
+  const motionName = copyNameAllocator((project.motions ?? []).map((m) => m.name));
   const bodies = copySources.map((b) => ({
     ...b,
     id: bodyIds.get(b.id)!,
@@ -280,6 +281,20 @@ export function translateSelection(
     project: {
       ...project,
       bodies: [...project.bodies.map((b) => sourceById.get(b.id) ?? b), ...bodies],
+      motions: project.motions
+        ? [
+            ...project.motions,
+            ...project.motions
+              .filter((m) => bodyIds.has(m.anchorId) && m.movingIds.every((id) => bodyIds.has(id)))
+              .map((m) => ({
+                ...m,
+                id: uid(),
+                name: motionName(m.name),
+                anchorId: bodyIds.get(m.anchorId)!,
+                movingIds: m.movingIds.map((id) => bodyIds.get(id)!),
+              })),
+          ]
+        : undefined,
       groups: [...project.groups, ...groups],
       guides: [...project.guides, ...guides],
       dimensions: [...project.dimensions, ...dimensions],

@@ -1,3 +1,4 @@
+import { motionWorld, setMotionWorld } from './motion';
 import { Matrix3, Quaternion, Matrix4 } from 'three';
 import { bounds, type Body, type Project, type Vec3, type Axis } from './project';
 import { add, sub, unit } from './geometry';
@@ -130,6 +131,25 @@ export function applyScaling(project: Project, results: Body[], s: Scaling): Pro
   return {
     ...project,
     bodies: project.bodies.map((b) => replacements.get(b.id) ?? b),
+    motions: project.motions?.map((m) => {
+      const before = project.bodies.find((b) => b.id === m.anchorId),
+        after = replacements.get(m.anchorId);
+      if (!before || !after || !s.ids.includes(m.anchorId)) return m;
+      const world = motionWorld(m, before),
+        direction = scaleVector(world.axis, s.factors);
+      return setMotionWorld(
+        {
+          ...m,
+          amount:
+            m.kind === 'slide' && m.movingIds.every((id) => s.ids.includes(id))
+              ? m.amount * Math.hypot(...direction)
+              : m.amount,
+        },
+        after,
+        scalePoint(world.pivot, s.pivot, s.factors),
+        unit(direction),
+      );
+    }),
     guides: project.guides.map((g) => {
       const anchor = 'edge' in g.anchor ? g.anchor.edge.from : g.anchor;
       if (!('bodyId' in anchor) || !s.ids.includes(anchor.bodyId)) return g;
