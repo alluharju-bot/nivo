@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.51.4** lisää **P → Pintakerrokset → Lohkeileva maali**.
+Nykyinen puu, metalli tai muu materiaali säilyy pohjana. Maalille voi valita
+sävyn ja kiillon sekä säätää kuluman määrää ja lohkeiden kokoa. Kuluneet kohdat
+paljastavat pohjan oman kuvion, karheuden ja metallisuuden. Pohjamateriaalin
+voi vaihtaa samassa paneelissa kerroksia menettämättä. Koko pinta tai paikallinen
+jälki; sama PBR-tulos renderissä ja GLB-/LOD-viennissä, ilman lisägeometriaa.
+
 Versio **0.51.3** näyttää mallin ja valinnan kolmiomäärät alapalkissa.
 **Kolmiot ja LOD** avaa kolmen tarkkuustason vertailun: säädä tavoitteita,
 vertaa samaa kuvakulmaa ja kolmioverkkoa, lataa yksi GLB tai koko LOD-paketti.

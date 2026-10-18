@@ -131,31 +131,33 @@ test('all four overlays render alongside a PBR wood finish', async ({ page }, in
   expect(errors).toEqual([]);
 });
 
-test('baking surface layers into a UV atlas preserves the source without applying the overlays twice', async ({
-  page,
-}) => {
-  const { newSurfaceLayer } = await import('../src/model/surfaceLayers');
-  const body = {
-    ...makeBody(100, 80, 60),
-    appearance: { ...defaultAppearance('chrome'), layers: [newSurfaceLayer('dust')] },
-  };
-  await ready(page, [body]);
-  await editBody(page, body.id);
-  await page.getByRole('button', { name: 'Verkko ja pinta', exact: true }).first().click();
-  const d = page.getByRole('dialog', { name: 'Verkko ja pinta', exact: true });
-  await d.getByRole('button', { name: 'UV-kartta', exact: true }).click();
-  await d.getByLabel('Pintakartan koko').selectOption('128');
-  await d.getByRole('button', { name: 'Luo UV-kartta', exact: true }).click();
-  await expect(d.getByRole('status')).toContainText('pintavärit siirretty', { timeout: 60000 });
-  await d.getByRole('button', { name: 'Pintakartat', exact: true }).click();
-  await d.getByLabel('AO-näytteet').selectOption('8');
-  await d.getByRole('button', { name: 'Laske pintakartat', exact: true }).click();
-  await expect(d.getByRole('status')).toContainText('Pintakartat valmiit', { timeout: 60000 });
-  await d.getByRole('button', { name: 'Lisää työversio projektiin', exact: true }).click();
-  await expect(d).toHaveCount(0);
-  const result = await save(page);
-  expect(result.bodies[0].appearance!.layers).toEqual(body.appearance.layers);
-  expect(result.bodies[1].appearance!.layers).toBeUndefined();
-  expect(result.bodies[1].appearance!.atlasMaps).toBe(true);
-  expect(result.bodies[1].appearance!.maps!.normal).toBeTruthy();
-});
+for (const kind of ['dust', 'paint'] as const) {
+  test(`baking ${kind} into a UV atlas preserves the source without applying the overlays twice`, async ({
+    page,
+  }) => {
+    const { newSurfaceLayer } = await import('../src/model/surfaceLayers');
+    const body = {
+      ...makeBody(100, 80, 60),
+      appearance: { ...defaultAppearance('chrome'), layers: [newSurfaceLayer(kind)] },
+    };
+    await ready(page, [body]);
+    await editBody(page, body.id);
+    await page.getByRole('button', { name: 'Verkko ja pinta', exact: true }).first().click();
+    const d = page.getByRole('dialog', { name: 'Verkko ja pinta', exact: true });
+    await d.getByRole('button', { name: 'UV-kartta', exact: true }).click();
+    await d.getByLabel('Pintakartan koko').selectOption('128');
+    await d.getByRole('button', { name: 'Luo UV-kartta', exact: true }).click();
+    await expect(d.getByRole('status')).toContainText('pintavärit siirretty', { timeout: 60000 });
+    await d.getByRole('button', { name: 'Pintakartat', exact: true }).click();
+    await d.getByLabel('AO-näytteet').selectOption('8');
+    await d.getByRole('button', { name: 'Laske pintakartat', exact: true }).click();
+    await expect(d.getByRole('status')).toContainText('Pintakartat valmiit', { timeout: 60000 });
+    await d.getByRole('button', { name: 'Lisää työversio projektiin', exact: true }).click();
+    await expect(d).toHaveCount(0);
+    const result = await save(page);
+    expect(result.bodies[0].appearance!.layers).toEqual(body.appearance.layers);
+    expect(result.bodies[1].appearance!.layers).toBeUndefined();
+    expect(result.bodies[1].appearance!.atlasMaps).toBe(true);
+    expect(result.bodies[1].appearance!.maps!.normal).toBeTruthy();
+  });
+}

@@ -2,7 +2,12 @@ import { useMotionWorkspace } from './ui/MotionWorkspace';
 import { radialPolygon, facetedSphere } from './model/roundPrimitives';
 import { SweepPanel } from './ui/SweepPanel';
 import { SurfaceLayersPanel } from './ui/SurfaceLayersPanel';
-import { changeSurfaceLayers, newSurfaceLayer, type SurfaceLayer } from './model/surfaceLayers';
+import {
+  changeLayerBase,
+  changeSurfaceLayers,
+  newSurfaceLayer,
+  type SurfaceLayer,
+} from './model/surfaceLayers';
 import { BodyDimensions } from './ui/BodyDimensions';
 import type { DimensionKey } from './model/editableDimensions';
 import type { GeometryStageProps } from './viewport/GeometryStage';
@@ -118,7 +123,12 @@ import {
 import type { Distribution } from './model/distributionSchema';
 import { repeatTranslation } from './model/repeat';
 import { OverlapPicker, type PickCandidate } from './ui/OverlapPicker';
-import { defaultAppearance, type TexturePlacement, type Appearance } from './model/materials';
+import {
+  defaultAppearance,
+  findPreset,
+  type TexturePlacement,
+  type Appearance,
+} from './model/materials';
 import { CabinetBuilder } from './ui/CabinetBuilder';
 import { insertCabinet } from './model/cabinet';
 import { useRenderJob } from './render/useRenderJob';
@@ -5013,7 +5023,10 @@ export default function App() {
   );
   const layerFace = layerBody?.id === layerTarget?.id ? layerTarget?.face : undefined;
   const layerSurface = layerBody && faceMaterialBody(layerBody, layerFace);
-  const shownLayers = layerSurface?.appearance?.layers ?? [];
+  const shownLayers =
+    paintScope === 'face' && layerFace === undefined
+      ? []
+      : (layerSurface?.appearance?.layers ?? []);
   const layerIds =
     layerFace === undefined && layerBody && selectedIdSet.has(layerBody.id)
       ? selectedIds
@@ -8773,6 +8786,38 @@ export default function App() {
                           : undefined
                       }
                       layers={shownLayers}
+                      basePreset={
+                        layerSurface &&
+                        (layerSurface.appearance ?? defaultAppearance(layerSurface.material)).preset
+                      }
+                      onBase={(presetId) => {
+                        if (busy || movementBlocked || !layerIds.length) return;
+                        const preset = findPreset(presetId);
+                        void editor.transact(
+                          {
+                            ...project,
+                            bodies: project.bodies.map((b) =>
+                              layerIds.includes(b.id)
+                                ? {
+                                    ...changeLayerBase(
+                                      b,
+                                      placeMaterial(
+                                        faceMaterialBody(b, layerFace),
+                                        defaultAppearance(preset.id),
+                                        editor.meshes.find((m) => m.id === b.id),
+                                        true,
+                                      ),
+                                      preset.color,
+                                      layerFace,
+                                    ),
+                                    localMaterial: !paintLinked,
+                                  }
+                                : b,
+                            ),
+                          },
+                          'Pohjamateriaali vaihdettu. Pintakerrokset säilyivät.',
+                        );
+                      }}
                       kind={layerKind}
                       onKind={setLayerKind}
                       scope={paintScope}

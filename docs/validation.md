@@ -4,6 +4,29 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.51.4 — lohkeileva maali ja pohjamateriaali
+
+- 30 kohdennettua testiä hyväksytty: kerrosten väri-/PBR-laskenta, pintakohtaiset
+  materiaalit, patina, linkitetyt kopiot ja Hold-suojaus. Uuden maalin 0 % on
+  peittävä ei-metallinen pinta; 100 % ja piilotus palauttavat pohjan. Sama maski
+  ohjaa väriä, karheutta, metallisuutta ja pohjan lakkakerroksen vaimennusta.
+- Kuluma kasvaa saman kuvion sisällä, siemen ja fyysinen koko vaihtavat kuviota.
+  Paikallinen jälki ei toistu sijoitusalueensa ulkopuolella. Kerrosjärjestys,
+  pohjan vaihto, pintojen omat jäljet ja projektin takaisinluku tarkistettu.
+- Kuusi selaintapausta desktopilla ja tabletin Chromium-emuloinnissa:
+  kerroksen lisäys, säädöt, pohjan vaihto, kuvion vaihto, piilotus, poisto,
+  kumoaminen, tallennus sekä uudelleenavaus; pölyn ja maalin UV-leivonta.
+  Leivottu työversio sisältää kartat ilman päällekkäistä kerroskäsittelyä.
+- GLB:n kuvadata purettu ja tarkistettu: ehjän maalin väri #2468a0,
+  karheus 0,8 ja metallisuus 0. Täysin kuluneen kerroksen vienti käyttää
+  alkuperäistä kromia ilman ylimääräisiä karttoja, karheus 0,1 / metallisuus 1.
+- Näytönohjaimella kiihdytetyn Chromen (Apple M1 Pro / ANGLE Metal) 64 näytteen
+  renderi valmistui ilman selain- tai renderivirheitä. Näkyvinä näytteinä
+  PBR-tammi, ruostunut rauta ja kromi omine maalikerroksineen. Kuvat tarkastettu.
+- Paneelin muotoilu tarkistettu desktopilla ja tabletilla. TypeScript,
+  tuotantobuild, tiedostojen muotoilu ja diff tarkistettu. Kuluma on
+  pintakartta, ei simuloitu vaurio tai todellinen geometrinen maalilastu.
+
 ## V0.51.3 — kolmiomäärät ja LOD-vertailu
 
 - 10 kohdennettua testiä hyväksytty: projektin/valinnan/näkyvien osien

@@ -9561,7 +9561,37 @@ p {
 /* Wear layers belong to the material workflow, with the base finish left intact. */
 .surface-layers-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  padding: 0 16px 16px;
+}
+.surface-layers-panel label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+}
+.surface-layers-panel select,
+.surface-layers-panel input:not([type='checkbox']) {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #ced6cb;
+  border-radius: 7px;
+  background: #fff;
+  color: #243e33;
+  font: inherit;
+}
+.surface-layers-panel input[type='color'] {
+  height: 34px;
+  padding: 3px;
+  cursor: pointer;
+}
+.surface-layers-panel .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .surface-layers-panel .layer-target {
   margin: 0;
@@ -9577,6 +9607,7 @@ p {
   gap: 8px;
 }
 .surface-layer-card {
+  min-width: 0;
   border: 1px solid #d4ddd9;
   border-radius: 10px;
   background: #ffffff70;
@@ -9606,12 +9637,14 @@ p {
 }
 .surface-layer-settings {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 10px;
   padding: 4px 12px 12px;
 }
 .layer-two-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
 }
@@ -9621,9 +9654,16 @@ p {
   width: 100%;
 }
 .layer-order-actions {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
+}
+.layer-order-actions .button {
+  min-width: 0;
+  padding: 6px 3px;
+  gap: 4px;
+  font-size: 11px;
+  white-space: normal;
 }
 .surface-layers-panel small {
   line-height: 1.5;

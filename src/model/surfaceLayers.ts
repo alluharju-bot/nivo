@@ -10,6 +10,7 @@ export const layerNames: Record<SurfaceLayer['kind'], string> = {
   scratches: 'Naarmut',
   fingerprints: 'Sormenjäljet',
   water: 'Vesijäljet',
+  paint: 'Lohkeileva maali',
 };
 export function newSurfaceLayer(kind: SurfaceLayer['kind']): SurfaceLayer {
   const size = kind === 'fingerprints' ? 120 : kind === 'water' ? 180 : 300;
@@ -21,8 +22,45 @@ export function newSurfaceLayer(kind: SurfaceLayer['kind']): SurfaceLayer {
     width: size,
     height: size,
     rotation: 0,
-    color: kind === 'dust' ? '#b9b1a0' : '#d5d1c5',
+    color: kind === 'paint' ? '#537c78' : kind === 'dust' ? '#b9b1a0' : '#d5d1c5',
     seed: 1,
+    ...(kind === 'paint' ? { chipSize: 30, roughness: 0.65 } : {}),
+  };
+}
+
+/** Replacing the substrate never discards layers, including independent face layers. */
+export function changeLayerBase(
+  body: Body,
+  appearance: Appearance,
+  color: string,
+  face?: number,
+): Body {
+  const update = (source: Appearance | undefined) =>
+    withSurfaceLayers(appearance, source?.layers ?? []);
+  if (face !== undefined) {
+    const source = faceMaterialBody(body, face);
+    return {
+      ...body,
+      faceMaterials: {
+        ...body.faceMaterials,
+        [face]: { color, appearance: update(source.appearance) },
+      },
+    };
+  }
+  return {
+    ...body,
+    color,
+    appearance: update(body.appearance),
+    ...(body.faceMaterials
+      ? {
+          faceMaterials: Object.fromEntries(
+            Object.entries(body.faceMaterials).map(([id, material]) => [
+              id,
+              { color, appearance: update(material.appearance) },
+            ]),
+          ),
+        }
+      : {}),
   };
 }
 export function withSurfaceLayers(appearance: Appearance, layers: SurfaceLayer[]): Appearance {

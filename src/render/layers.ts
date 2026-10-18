@@ -132,7 +132,9 @@ export function createLayerComposer(
       baseReady: Promise<unknown>,
       onTint: (color: THREE.Color) => void,
     ) {
-      const active = appearance.layers?.filter((l) => l.enabled && l.amount > 0);
+      const active = appearance.layers?.filter(
+        (l) => l.enabled && (l.kind === 'paint' ? l.amount < 1 : l.amount > 0),
+      );
       if (!active?.length) return;
       const region = domain ?? {
         x: 0,

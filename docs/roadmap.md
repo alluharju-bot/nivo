@@ -2,6 +2,30 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.51.4 — pohjamateriaali, maali ja kulutusmaski
+
+- **P → Pintakerrokset → Lohkeileva maali**: peittävä, ei-metallinen maalikerros
+  nykyisen materiaalin päällä. Kulutusmaski paljastaa pohjan värin, normalin,
+  karheuden ja metallisuuden; maalattu metalli ei heijasta metallina maalin läpi.
+- Maalin sävy ja kiilto, kuluma 0–100 %, lohkeen koko millimetreinä, kierto
+  ja Vaihda kulumakuviota. 0 % on ehjä maali, 100 % paljas pohja.
+  Koko osan/pinnan kerros tai rajattu jälki nykyisillä sijoitussäädöillä.
+- Pohjamateriaalin vaihto samassa paneelissa säilyttää kerrokset, myös pintojen
+  omat paikalliset jäljet. Piilotus, poisto, järjestys, monivalinta, linkitetyt
+  kopiot, Hold, kumoaminen ja tallennus käyttävät nykyistä materiaalikäytäntöä.
+- Proseduraalinen maski ei vaadi ladattavaa tekstuuria. Kartat koostetaan
+  workerissa ja säilytetään välimuistissa; ei uusia kolmioita, päällekkäisiä
+  pintoja eikä jatkuvaa maskilaskentaa kameran liikkuessa. Hyvin ohut maalireuna
+  näkyy normal-kartassa. Täysin kulunut kerros ohitetaan materiaalilaskennassa.
+- Yhteinen koostettu PBR-tulos mallinnuksessa, molemmissa renderitiloissa,
+  GLB-/LOD-viennissä ja pintakarttojen leivonnassa. Alkuperäiset materiaalit
+  säilyvät projektissa erillisinä, eikä leivottu työversio lisää kerroksia kahdesti.
+- Jatkoon: maskin maalaus/kuvatuonti ja todellisia geometriareunoja seuraava
+  kuluminen. Nykyinen kuvio on proseduraalinen, ei käytön tai sään simulointi.
+  Paikallisen jäljen sijoitus rajautuu edelleen tasopintoihin. Irronneet
+  maalilastut vaatisivat erillistä geometriaa. Geelin, lasin ja valaisevien
+  pintojen monikerroksinen optiikka on erillistä jatkotyötä.
+
 ## V0.51.3 — kolmiomäärät ja LOD-vertailu
 
 - Alapalkin **Kolmiot ja LOD** näyttää näkyvien malliosien ja valinnan kolmiot;
@@ -21,20 +45,6 @@
 - Tässä vaiheessa LOD-versiot ovat erillisiä vientimalleja. Nivon päämallin
   automaattinen LOD-vaihto, takaisin muokattaviksi sidotut versiot sekä
   instanssien spatiaalinen lohkominen ovat jatkotyötä.
-
-### Seuraavaksi suunniteltu: lohkeileva maalikerros
-
-- P → Pintakerrokset: pohjana nykyinen puu/metalli, sen päälle peittävä maali.
-  Kulutusmaski paljastaa alkuperäisen värin, normalin, karheuden ja metallisuuden.
-  Maali pysyy ei-metallisena myös metallin päällä; paljastunut metalli heijastaa
-  pohjamateriaalin mukaisesti. Tämä on suunnitelma, ei vielä toteutettu kerros.
-- Säädöt: maalin sävy ja kiilto, kuluman määrä, lohkeiden koko ja kuvion siemen.
-  Koko pinta tai rajattu jälki. Aluksi proseduraalinen maski; myöhemmin maskin
-  maalaus sekä oikeisiin geometriareunoihin perustuva kuluminen.
-- Kevyt toteutus nykyisellä pintakerrosten workerilla: kartat yhdistetään
-  asetusten muuttuessa, tulos välimuistiin. Ei lisää kolmioita eikä erillistä
-  päällekkäistä pintaa. Sama koostettu PBR-tulos mallinnuksessa, renderissä,
-  GLB-viennissä ja LOD-versioissa. Todella irtoavat maalilastut vaatisivat geometriaa.
 
 ## V0.51.2 — valon keila ja suunta mallinnuksessa
 

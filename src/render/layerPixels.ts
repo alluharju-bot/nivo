@@ -1,6 +1,7 @@
 import type { SurfaceLayer } from '../model/surfaceLayers';
 import type { SampleTexture } from '../surface/bake';
 import { facadeNoise } from './facade';
+import { paintCoverage } from './paintWear';
 export type LayerDomain = { x: number; y: number; width: number; height: number };
 export type LayerInput = {
   domain: LayerDomain;
@@ -92,11 +93,24 @@ export function composeLayerPixels(input: LayerInput): LayerPixels {
     ['color', 'normal', 'surface'].map((k) => [k, new Uint8ClampedArray(width * height * 4)]),
   ) as LayerPixels;
   const layers = input.layers
-    .filter((l) => l.enabled && l.amount > 0)
+    .filter((l) => l.enabled && (l.kind === 'paint' ? l.amount < 1 : l.amount > 0))
     .map((l) => ({
       ...l,
       tint: [1, 3, 5].map((i) => linear(parseInt(l.color.slice(i, i + 2), 16) / 255)),
+      coverage: l.kind === 'paint' ? new Float32Array(width * height) : undefined,
     }));
+  const du = domain.width / width,
+    dv = domain.height / height;
+  for (const layer of layers) {
+    if (!layer.coverage) continue;
+    for (let y = 0; y < height; y++)
+      for (let x = 0; x < width; x++) {
+        const u = domain.x + (x + 0.5) * du,
+          v = domain.y + domain.height - (y + 0.5) * dv;
+        layer.coverage[y * width + x] =
+          layerCoordinates(layer, u, v)[2] * paintCoverage(layer, u, v, Math.max(du, dv));
+      }
+  }
   const col = [1, 1, 1],
     norm = [0.5, 0.5, 1],
     data = [1, 1, 1],
@@ -130,6 +144,24 @@ export function composeLayerPixels(input: LayerInput): LayerPixels {
         ny = (m[3] / ax) * a + (m[4] / ay) * ny;
       }
       for (const layer of layers) {
+        if (layer.coverage) {
+          const coverage = layer.coverage[y * width + x];
+          for (let c = 0; c < 3; c++) col[c] = mix(col[c], layer.tint[c], coverage);
+          rough = mix(rough, layer.roughness ?? 0.65, coverage);
+          metal *= 1 - coverage;
+          // Opaque dielectric paint also masks the substrate's coat and transmission.
+          coat *= 1 - coverage;
+          nx *= 1 - coverage * 0.8;
+          ny *= 1 - coverage * 0.8;
+          const at = (a: number, b: number) =>
+            layer.coverage![
+              Math.max(0, Math.min(height - 1, b)) * width + Math.max(0, Math.min(width - 1, a))
+            ];
+          // A thin paint film, not displaced geometry. Derivatives use physical millimetres.
+          nx -= ((at(x + 1, y) - at(x - 1, y)) * 0.08) / (2 * du);
+          ny -= ((at(x, y - 1) - at(x, y + 1)) * 0.08) / (2 * dv);
+          continue;
+        }
         const [lu, lv, edge] = layerCoordinates(layer, u, v);
         if (!edge) continue;
         const source = input.masks[layer.kind];

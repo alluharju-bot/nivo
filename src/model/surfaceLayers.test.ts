@@ -1,7 +1,12 @@
 import { expect, it } from 'vitest';
 import { freshProject, makeBody, parseProject } from './project';
 import { defaultAppearance } from './materials';
-import { changeSurfaceLayers, newSurfaceLayer } from './surfaceLayers';
+import {
+  changeLayerBase,
+  changeSurfaceLayers,
+  newSurfaceLayer,
+  surfaceLayerSchema,
+} from './surfaceLayers';
 import { synchronizeComponents } from './components';
 import { assertHolds } from './holds';
 it('keeps base and independent face finishes, restores every map after removing layers', () => {
@@ -46,4 +51,39 @@ it('shares overlays with linked copies and protects held instances', async () =>
   expect(() => assertHolds({ ...project, bodies: [a, { ...b, locked: true }] }, result)).toThrow(
     /Hold/,
   );
+});
+
+it('changing a paint substrate preserves independent face layers, placements and portable settings', () => {
+  const paint = {
+    ...newSurfaceLayer('paint'),
+    amount: 0,
+    roughness: 0.04,
+    chipSize: 15,
+    seed: 875,
+  };
+  const patch = { ...paint, id: 'patch', center: [10, 20] as [number, number] };
+  const body = {
+    ...makeBody(),
+    appearance: { ...defaultAppearance('chrome'), layers: [paint] },
+    faceMaterials: {
+      2: { color: '#eeeeee', appearance: { ...defaultAppearance('oak'), layers: [patch] } },
+    },
+  };
+  const next = changeLayerBase(body, defaultAppearance('iron-rust'), '#ffffff');
+  expect(next.appearance!.preset).toBe('iron-rust');
+  expect(next.appearance!.layers).toEqual([paint]);
+  expect(next.faceMaterials![2].appearance.layers).toEqual([patch]);
+  expect(next.faceMaterials![2].appearance.preset).toBe('iron-rust');
+  expect(next.feature).toBe(body.feature);
+  const face = changeLayerBase(body, defaultAppearance('pine'), '#ffffff', 2);
+  expect(face.appearance).toEqual(body.appearance);
+  expect(face.faceMaterials![2].appearance.preset).toBe('pine');
+  expect(face.faceMaterials![2].appearance.layers).toEqual([patch]);
+  expect(parseProject(JSON.stringify({ ...freshProject(), bodies: [next] })).bodies[0]).toEqual(
+    next,
+  );
+  expect(surfaceLayerSchema.safeParse({ ...paint, chipSize: 0 }).success).toBe(false);
+  expect(surfaceLayerSchema.safeParse({ ...paint, roughness: -1 }).success).toBe(false);
+  // Old four overlay kinds remain valid without the new paint-only settings.
+  expect(surfaceLayerSchema.parse(newSurfaceLayer('dust')).chipSize).toBeUndefined();
 });

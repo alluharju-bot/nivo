@@ -3,6 +3,33 @@ import { Eye, EyeOff, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { layerNames, type SurfaceLayer } from '../model/surfaceLayers';
 import type { PaintScope as Scope } from '../model/faceMaterials';
 import { PaintScope } from './PaintScope';
+import { materialPresets, findPreset } from '../model/materials';
+function LayerColor({
+  layer,
+  busy,
+  onChange,
+}: {
+  layer: SurfaceLayer;
+  busy: boolean;
+  onChange: (id: string, patch: Partial<SurfaceLayer>) => void;
+}) {
+  return (
+    <label>
+      {layer.kind === 'paint' ? 'Maalin sävy' : 'Sävy'}
+      <input
+        aria-label={layer.kind === 'paint' ? 'Maalin sävy' : 'Pintakerroksen sävy'}
+        type="color"
+        key={layer.color}
+        defaultValue={layer.color}
+        disabled={busy}
+        onBlur={(e) => {
+          if (e.currentTarget.value !== layer.color)
+            onChange(layer.id, { color: e.currentTarget.value });
+        }}
+      />
+    </label>
+  );
+}
 function NumberField({
   label,
   value,
@@ -63,6 +90,8 @@ export function SurfaceLayersPanel({
   linked,
   onLinked,
   count,
+  basePreset,
+  onBase,
 }: {
   name?: string;
   layers: SurfaceLayer[];
@@ -81,6 +110,8 @@ export function SurfaceLayersPanel({
   linked: boolean;
   onLinked: (linked: boolean) => void;
   count: number;
+  basePreset?: string;
+  onBase: (preset: string) => void;
 }) {
   const [opened, setOpened] = useState<string>();
   return (
@@ -90,6 +121,32 @@ export function SurfaceLayersPanel({
         {name ?? 'Napsauta osaa tai pintaa'}
         {count > 1 && scope === 'body' ? ` · ${count} valittua osaa` : ''}
       </p>
+      {name && basePreset && (
+        <label>
+          Pohjamateriaali
+          <select
+            aria-label="Pohjamateriaali"
+            value={basePreset}
+            disabled={busy}
+            onChange={(e) => onBase(e.target.value)}
+          >
+            {!materialPresets.some((p) => p.id === basePreset) && (
+              <option value={basePreset}>{findPreset(basePreset).name}</option>
+            )}
+            {[...new Set(materialPresets.map((p) => p.category))].map((category) => (
+              <optgroup key={category} label={category}>
+                {materialPresets
+                  .filter((p) => p.category === category)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      )}
       <label>
         Kerros
         <select
@@ -136,12 +193,13 @@ export function SurfaceLayersPanel({
               </button>
               <button
                 className="layer-name"
-                aria-expanded={opened === layer.id}
+                aria-expanded={opened === layer.id || layers.length === 1}
                 onClick={() => setOpened(opened === layer.id ? undefined : layer.id)}
               >
                 {layerNames[layer.kind]}
                 <small>
                   {layer.center ? 'Paikallinen jälki' : 'Koko pinta'} ·{' '}
+                  {layer.kind === 'paint' ? 'kuluma ' : ''}
                   {Math.round(layer.amount * 100)} %
                 </small>
               </button>
@@ -156,29 +214,68 @@ export function SurfaceLayersPanel({
             </div>
             {(opened === layer.id || layers.length === 1) && (
               <div className="surface-layer-settings">
-                <NumberField
-                  label="Voimakkuus (%)"
-                  value={Math.round(layer.amount * 100)}
-                  max={100}
-                  onChange={(n) => onChange(layer.id, { amount: n / 100 })}
-                  disabled={busy}
-                />
-                <div className="layer-two-columns">
+                {layer.kind === 'paint' && (
+                  <div className="layer-two-columns">
+                    <LayerColor layer={layer} busy={busy} onChange={onChange} />
+                    <NumberField
+                      label="Maalin kiilto (%)"
+                      value={Math.round((1 - (layer.roughness ?? 0.65)) * 100)}
+                      max={96}
+                      onChange={(n) => onChange(layer.id, { roughness: (100 - n) / 100 })}
+                      disabled={busy}
+                    />
+                  </div>
+                )}
+                <div className={layer.kind === 'paint' ? 'layer-two-columns' : undefined}>
                   <NumberField
-                    label="Leveys (mm)"
-                    value={layer.width}
-                    min={1}
-                    onChange={(n) => onChange(layer.id, { width: n })}
+                    label={layer.kind === 'paint' ? 'Kuluma (%)' : 'Voimakkuus (%)'}
+                    value={Math.round(layer.amount * 100)}
+                    max={100}
+                    onChange={(n) => onChange(layer.id, { amount: n / 100 })}
                     disabled={busy}
                   />
-                  <NumberField
-                    label="Korkeus (mm)"
-                    value={layer.height}
-                    min={1}
-                    onChange={(n) => onChange(layer.id, { height: n })}
-                    disabled={busy}
-                  />
+                  {layer.kind === 'paint' && (
+                    <NumberField
+                      label="Lohkeen koko (mm)"
+                      value={layer.chipSize ?? 30}
+                      min={0.5}
+                      max={10000}
+                      step={0.5}
+                      onChange={(chipSize) => onChange(layer.id, { chipSize })}
+                      disabled={busy}
+                    />
+                  )}
                 </div>
+                {layer.kind === 'paint' && (
+                  <>
+                    <small>0 %: ehjä maali · 100 %: paljas pohjamateriaali</small>
+                    <button
+                      className="button outlined"
+                      disabled={busy}
+                      onClick={() => onChange(layer.id, { seed: (layer.seed + 1) % 1000000 })}
+                    >
+                      Vaihda kulumakuviota
+                    </button>
+                  </>
+                )}
+                {(layer.kind !== 'paint' || layer.center) && (
+                  <div className="layer-two-columns">
+                    <NumberField
+                      label="Leveys (mm)"
+                      value={layer.width}
+                      min={1}
+                      onChange={(n) => onChange(layer.id, { width: n })}
+                      disabled={busy}
+                    />
+                    <NumberField
+                      label="Korkeus (mm)"
+                      value={layer.height}
+                      min={1}
+                      onChange={(n) => onChange(layer.id, { height: n })}
+                      disabled={busy}
+                    />
+                  </div>
+                )}
                 <NumberField
                   label="Kierto (°)"
                   value={layer.rotation}
@@ -187,26 +284,9 @@ export function SurfaceLayersPanel({
                   onChange={(n) => onChange(layer.id, { rotation: n })}
                   disabled={busy}
                 />
-                <label>
-                  Sävy
-                  <input
-                    aria-label="Pintakerroksen sävy"
-                    type="color"
-                    key={layer.color}
-                    defaultValue={layer.color}
-                    disabled={busy}
-                    onInput={(e) => {
-                      e.currentTarget.dataset.draft = e.currentTarget.value;
-                    }}
-                    onBlur={(e) => {
-                      if (e.currentTarget.value !== layer.color)
-                        onChange(layer.id, { color: e.currentTarget.value });
-                    }}
-                    onChange={(e) => {
-                      e.currentTarget.dataset.draft = e.currentTarget.value;
-                    }}
-                  />
-                </label>
+                {layer.kind !== 'paint' && (
+                  <LayerColor layer={layer} busy={busy} onChange={onChange} />
+                )}
                 {layer.center && (
                   <>
                     <div className="layer-two-columns">
@@ -238,24 +318,26 @@ export function SurfaceLayersPanel({
                     </button>
                   </>
                 )}
-                <div className="layer-order-actions">
-                  <button
-                    className="button subtle"
-                    disabled={busy || index === 0}
-                    onClick={() => onOrder(layer.id, -1)}
-                  >
-                    <ArrowUp size={14} />
-                    Aiemmaksi
-                  </button>
-                  <button
-                    className="button subtle"
-                    disabled={busy || index === layers.length - 1}
-                    onClick={() => onOrder(layer.id, 1)}
-                  >
-                    <ArrowDown size={14} />
-                    Myöhemmäksi
-                  </button>
-                </div>
+                {layers.length > 1 && (
+                  <div className="layer-order-actions">
+                    <button
+                      className="button subtle"
+                      disabled={busy || index === 0}
+                      onClick={() => onOrder(layer.id, -1)}
+                    >
+                      <ArrowUp size={14} />
+                      Aiemmaksi
+                    </button>
+                    <button
+                      className="button subtle"
+                      disabled={busy || index === layers.length - 1}
+                      onClick={() => onOrder(layer.id, 1)}
+                    >
+                      <ArrowDown size={14} />
+                      Myöhemmäksi
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </article>

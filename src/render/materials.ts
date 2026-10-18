@@ -663,7 +663,12 @@ export function createMaterialLibrary(
       material.emissive.set(emission.color);
       material.emissiveIntensity = emission.enabled ? emission.intensity : 0;
       bindPreviewShadowsOnce(material);
-      if (appearance.layers?.some((layer) => layer.enabled && layer.amount > 0)) {
+      if (
+        appearance.layers?.some(
+          (layer) =>
+            layer.enabled && (layer.kind === 'paint' ? layer.amount < 1 : layer.amount > 0),
+        )
+      ) {
         const masks: Partial<
           Record<'scratches' | 'fingerprints', { mask: THREE.Texture; normal: THREE.Texture }>
         > = {};
