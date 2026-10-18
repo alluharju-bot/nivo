@@ -2,6 +2,25 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.51.5 — teksturoitu kumi ja muovi
+
+- Kumit: hienorakeinen kumi ja uritettu kumi. Muovit: hienorakeinen ABS
+  ja karkearakeinen muovi. Nykyiset sileät muovit säilyvät ennallaan.
+- Saumattomat proseduraaliset väri-, korkeus- ja karheuskartat. Normal-kartta
+  johdetaan fyysisestä korkeudesta ja tekstuurin koosta. Väri säilyy neutraalina
+  sävytystä varten; pintarakennetta ei tehdä tummilla, valaistusta jäljittelevillä
+  kuvioilla. Ei ladattavia uusia kuvia eikä lisägeometriaa.
+- Nykyinen maalaus, sävy, kiilto, tekstuurin koko/kierto/siirto ja pintakerrokset.
+  Materiaalit käyttävät yhteistä mallinnus-, renderi- ja GLB-/LOD-vientipolkua.
+  Kartat luodaan ja jaetaan materiaalikirjaston välimuistista.
+- Kerrokset sopivat yhteisenä pintaefektinä umpinaisille puu-, metalli-, kivi-,
+  kumi-, muovi- ja muille tavallisille materiaaleille. Lohkeileva maali paljastaa
+  pohjan; se ei simuloi itse pohjamateriaalin repeämistä tai kulumista.
+- Lasiin ja geeleihin kerrokset voidaan lisätä, mutta läpäisyn vaimennus on
+  pinta-arvio, ei erillisten ainekerrosten valonsironnan laskenta. Valaisevan
+  materiaalin emissio ei vielä seuraa kerrosten peittoa; tämä jatkotyö säilyy
+  monikerroksisen optiikan backlogissa.
+
 ## V0.51.4 — pohjamateriaali, maali ja kulutusmaski
 
 - **P → Pintakerrokset → Lohkeileva maali**: peittävä, ei-metallinen maalikerros

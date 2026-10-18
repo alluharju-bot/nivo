@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { pbrMapUrl } from '../model/pbrCatalog';
 import { derivedCanvas, sourceSize } from './surfaceMaps';
 import { patinaCanvases } from './patina';
+import { polymerCanvases } from './polymer';
 import { facadeCanvases } from './facade';
 import {
   createLayerComposer,
@@ -36,6 +37,8 @@ export function bindPreviewShadowsOnce(material: THREE.MeshStandardMaterial) {
 /** Deterministic, offline patterns; the species have different grain and pore structure. */
 export function patternCanvas(preset: MaterialPreset) {
   if (preset.pattern === 'patina') return patinaCanvases(preset.seed, preset.patina).color;
+  if (preset.pattern === 'polymer')
+    return polymerCanvases(preset.polymer ?? 'fine', preset.seed ?? 1).color;
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
@@ -289,6 +292,7 @@ export function createMaterialLibrary(
   const patterns = new Map<string, HTMLCanvasElement>(),
     images = new Map<string, HTMLImageElement>();
   const patinas = new Map<string, ReturnType<typeof patinaCanvases>>();
+  const polymers = new Map<string, ReturnType<typeof polymerCanvases>>();
   const facades = new Map<string, ReturnType<typeof facadeCanvases>>();
   const normals = new Map<string, HTMLCanvasElement>(),
     roughness = new Map<string, HTMLCanvasElement>();
@@ -413,6 +417,7 @@ export function createMaterialLibrary(
       let map: THREE.Texture | null = null,
         pattern: HTMLCanvasElement | undefined;
       let patina: ReturnType<typeof patinaCanvases> | undefined;
+      let polymer: ReturnType<typeof polymerCanvases> | undefined;
       let facade: ReturnType<typeof facadeCanvases> | undefined;
       const imageMap = (
         id: string | undefined,
@@ -522,6 +527,14 @@ export function createMaterialLibrary(
           facades.set(key, facade);
         }
         map = texture(facade.color, true, placement);
+      } else if (preset.pattern === 'polymer') {
+        polymer = polymers.get(preset.id);
+        if (!polymer) {
+          polymer = polymerCanvases(preset.polymer ?? 'fine', preset.seed ?? 1);
+          polymers.set(preset.id, polymer);
+        }
+        pattern = polymer.height;
+        map = texture(polymer.color, true, placement);
       } else if (preset.pattern === 'patina') {
         patina = patinas.get(preset.id);
         if (!patina) {
@@ -577,6 +590,7 @@ export function createMaterialLibrary(
           roughnessMap ??= texture(facade.roughness, false, placement);
         }
         if (patina) roughnessMap ??= texture(patina.roughness, false, placement);
+        if (polymer) roughnessMap ??= texture(polymer.roughness, false, placement);
         // A custom color image must not inherit an unrelated built-in relief.
         if (preset.pbr && !appearance.assetId) {
           normalMap ??=
@@ -710,6 +724,7 @@ export function createMaterialLibrary(
       placeholders.clear();
       patterns.clear();
       patinas.clear();
+      polymers.clear();
       facades.clear();
       images.clear();
       normals.clear();

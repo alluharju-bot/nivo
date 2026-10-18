@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.51.5** lisää **Kumit**-ryhmään hienorakeisen ja uritetun kumin
+sekä **Muovit**-ryhmään hienorakeisen ABS:n ja karkearakeisen muovin.
+Saumaton pintakuvio, fyysiseen kokoon suhteutettu kohokuvio ja karheuskartta
+syntyvät paikallisesti. Sävy, kiilto, tekstuuriasettelu ja kaikki nykyiset
+pintakerrokset toimivat myös näillä materiaaleilla, renderissä ja GLB-viennissä.
+
 Versio **0.51.4** lisää **P → Pintakerrokset → Lohkeileva maali**.
 Nykyinen puu, metalli tai muu materiaali säilyy pohjana. Maalille voi valita
 sävyn ja kiillon sekä säätää kuluman määrää ja lohkeiden kokoa. Kuluneet kohdat

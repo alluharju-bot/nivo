@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { pbrSurfaces } from './pbrCatalog';
 import { collectionPaints, surfaceCollectionName, type SurfaceGroup } from './surfaceCollection';
 import { experimentalMaterials } from './experimentalMaterials';
+import { polymerMaterials } from './polymerMaterials';
 import { surfaceLayerSchema } from './surfaceLayerSchema';
 export const texturePlacementSchema = z.object({
   width: z.number().min(0.1).max(100000),
@@ -128,7 +129,9 @@ export type MaterialPreset = {
   grainAxis?: 'u' | 'v';
   /** Correlated colour, relief, roughness and metalness for oxidized metals. */
   patina?: 'copper' | 'iron-rust' | 'iron-polished' | 'iron-black';
+  polymer?: 'fine' | 'pebbled' | 'ribbed';
   pattern?:
+    | 'polymer'
     | 'oak'
     | 'walnut'
     | 'birch'
@@ -379,6 +382,7 @@ export const materialPresets: MaterialPreset[] = [
     transmission: 0.8,
   },
   ...experimentalMaterials,
+  ...polymerMaterials,
   {
     id: 'granite',
     name: 'Graniitti',

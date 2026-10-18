@@ -4,6 +4,26 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.51.5 — teksturoitu kumi ja muovi
+
+- 26 kohdennettua testiä hyväksytty: uudet pintakuviot, materiaalit,
+  optiikka ja pintakerrokset. Kuvioiden saumattomuus, siemen, fyysinen koko,
+  normal-kartan vaihtelu ja projektin takaisinluku tarkistettu.
+- Pöly, naarmut, sormenjäljet, vesijäljet ja lohkeileva maali testattu
+  kaikilla neljällä uudella materiaalilla. Kerroksen piilotus palauttaa
+  pohjan; kerros ei muuta alkuperäisiä karttoja eikä tee pohjasta metallista.
+- Kaksi selaintapausta hyväksytty desktopilla ja tabletin Chromium-emuloinnissa:
+  maalaus, kerrokset, tallennus, uudelleenavaus ja GLB-vienti. Vienti sisältää
+  väri-, normal- ja karheus-/metallisuuskartat kuvatietoineen. Materiaalien
+  ja kerrosten muokkaaminen ei kasvattanut geometrian rakennuslaskuria.
+- Neljän materiaalinäytteen 64 näytteen renderi valmistui laitteistokiihdytetyssä
+  Chromessa (Apple M1 Pro / ANGLE Metal) ilman selain- tai renderivirheitä.
+  Mukana paikalliset pöly-, naarmu-, sormenjälki- ja maalikerrokset.
+  Mallinnusnäkymän ja renderin kuvat tarkastettu.
+- TypeScript, tuotantobuild, muotoilu ja diff tarkistettu. Uudet materiaalit
+  ovat umpinaisia pintamateriaaleja. Lasi-/geelikerrosten optiikka ja emissioon
+  vaikuttava peitto eivät kuulu tämän version parannuksiin.
+
 ## V0.51.4 — lohkeileva maali ja pohjamateriaali
 
 - 30 kohdennettua testiä hyväksytty: kerrosten väri-/PBR-laskenta, pintakohtaiset
