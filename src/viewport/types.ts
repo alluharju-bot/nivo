@@ -173,6 +173,7 @@ export interface ViewportProps {
   selectedFace?: FaceRef;
   tool: Tool;
   motion?: import('../model/motion').MotionViewport;
+  lightEditing?: import('../ui/LightPanel').LightEditing;
   preview?: Body;
   moveMode?: 'axis' | 'free';
   copyMove: boolean;

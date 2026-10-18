@@ -1,4 +1,5 @@
 import { createMotionPreview } from './motions';
+import { createLightHelper } from './lightEditing';
 import { layerDomain } from '../render/layers';
 import { installGeometryStage } from './GeometryStage';
 import { createLocateHighlight } from './locateHighlight';
@@ -60,6 +61,7 @@ import { createTriangleIndex } from './triangleIndex';
 import { createRenderer, watchGraphicsContext, contextLostMessage } from './graphicsContext';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
+  light: () => void;
   motion: () => void;
   geometry: () => void;
   capture: () => Promise<Blob>;
@@ -190,6 +192,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     if (disposed || renderer.getContext().isContextLost()) return;
     textureEditor?.update();
     motionPreview.update(camera);
+    lightHelper.update(camera);
     const rotating = current().rotation;
     if (rotationRings && rotating) {
       const radius = viewHandleRadius(
@@ -406,6 +409,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     },
   );
   let geometryBuilds = 0;
+  const lightHelper = createLightHelper(
+    container,
+    renderer.domElement,
+    scene,
+    () => current().lightEditing,
+  );
   const removeNode = (node: BodyNode, keepGeometry = false) => {
     bodies.remove(node.mesh, node.outline);
     if (!keepGeometry) {
@@ -1827,6 +1836,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           scene.getObjectByName('interaction-overlays'),
           scene.getObjectByName('geometry-editing-overlays'),
           scene.getObjectByName('section-handles'),
+          scene.getObjectByName('light-direction-helper'),
         ]
           .filter((object): object is THREE.Object3D => !!object)
           .map((object) => ({ object, visible: object.visible }));
@@ -1844,6 +1854,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       });
     },
     motion: motionPreview.sync,
+    light: render,
     texture,
     color,
     sync,
@@ -1868,6 +1879,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     dispose() {
       disposed = true;
       motionPreview.dispose();
+      lightHelper.dispose();
       geometryEditor?.dispose();
       cancelAnimationFrame(renderFrame);
       observer.disconnect();
@@ -1995,6 +2007,7 @@ export function Viewport(props: Props) {
     api.current?.interactionSync();
   }, [props.geometryEditing, props.geometryActive]);
   useEffect(() => api.current?.motion(), [props.motion]);
+  useEffect(() => api.current?.light(), [props.lightEditing]);
   useEffect(() => api.current?.color(), [props.colorPreview]);
   useEffect(() => api.current?.texture(), [props.editingTexture]);
   useEffect(

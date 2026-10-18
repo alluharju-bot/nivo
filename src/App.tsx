@@ -92,6 +92,7 @@ import { useWorkspaceViews } from './ui/WorkspaceViews';
 import { ModelMaterials, type MaterialChange } from './ui/MaterialSurface';
 import { isPointDimension, dimensionEnvelope, type PointDimension } from './model/project';
 import { PaintPanel } from './ui/PaintPanel';
+import { LightPanel, useLightWorkspace } from './ui/LightPanel';
 import { faceMaterialBody, paintSurface, type PaintScope } from './model/faceMaterials';
 import { TexturePanel } from './ui/TexturePanel';
 import {
@@ -755,7 +756,8 @@ export default function App() {
   });
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
-  const [paintMode, setPaintMode] = useState<'paint' | 'texture' | 'layers'>('paint');
+  const [lightLinked, setLightLinked] = useState(false);
+  const [paintMode, setPaintMode] = useState<'paint' | 'texture' | 'layers' | 'light'>('paint');
   const [layerKind, setLayerKind] = useState<SurfaceLayer['kind']>('dust');
   const [layerTarget, setLayerTarget] = useState<{ id: string; face?: number }>();
   const [layerPlacing, setLayerPlacing] = useState<false | 'new' | string>(false);
@@ -1118,7 +1120,7 @@ export default function App() {
       return [];
     const visible = new Set(visibleBodies.map((b) => b.id));
     if (tool === 'paint')
-      return !paintPick && paintScope === 'body' && paintMode === 'paint'
+      return !paintPick && paintScope === 'body' && (paintMode === 'paint' || paintMode === 'light')
         ? paintAll && selectedIdSet.has(selectionHovered)
           ? selectedIds
           : [selectionHovered]
@@ -4556,6 +4558,11 @@ export default function App() {
         return;
       }
       if (event.key === 'Escape') {
+        if (!renderOpen && tool === 'paint' && paintMode === 'light' && light.aiming) {
+          event.preventDefault();
+          light.cancel();
+          return;
+        }
         if (geometryActive) {
           event.preventDefault();
           void closeGeometryEditing();
@@ -4949,6 +4956,21 @@ export default function App() {
       setLinkDialog(true);
     }
   };
+  const light = useLightWorkspace({
+    project,
+    meshes: editor.meshes,
+    selected,
+    selectedIds,
+    active: tool === 'paint' && paintMode === 'light' && !renderOpen && !geometryActive,
+    busy,
+    scope: paintScope,
+    linked: lightLinked,
+    select: (id) => {
+      if (selectedIdSet.has(id)) setSelected(id);
+      else select(id);
+    },
+    transact: editor.transact,
+  });
   const paintParts = (
     ids: string[],
     appearance: Appearance,
@@ -5030,6 +5052,15 @@ export default function App() {
     }
   };
   const paintBody = (id: string, face: number, uv?: [number, number]) => {
+    if (paintMode === 'light') {
+      if (
+        !busy &&
+        inAssembly(project, id, openedAssembly) &&
+        (!editingBodyId || id === editingBodyId)
+      )
+        light.pick(id, face);
+      return;
+    }
     if (paintMode === 'layers' && !paintPick) {
       if (
         busy ||
@@ -6245,28 +6276,30 @@ export default function App() {
   const activeTool = !['select', 'navigate'].includes(tool);
   const shapeTool = ['rectangle', 'circle', 'pen'].includes(tool);
   const toolTitle =
-    tool === 'paint' && paintMode === 'texture'
-      ? 'Tekstuurin asettelu'
-      : tool === 'pen' && penMode === 'bezier'
-        ? 'Bézier-käyrä'
-        : tool === 'circle'
-          ? { circle: 'Ympyrä', ellipse: 'Ellipsi', polygon: 'Monikulmio', sphere: 'Pallo' }[
-              shapeKind
-            ]
-          : tool === 'measure'
-            ? {
-                dimension: 'Dimensio',
-                guide: 'Apuviiva',
-                free: 'Vapaa mittaviiva',
-                area: 'Pinta-ala',
-                note: 'Huomautus',
-                highlight: 'Korostusalue',
-              }[measureMode]
-            : tool === 'boolean'
-              ? booleanOperation === 'cut'
-                ? 'Leikkaa'
-                : 'Yhdistä'
-              : (tools.find((t) => t.id === tool)?.label ?? '');
+    tool === 'paint' && paintMode === 'light'
+      ? 'Valo'
+      : tool === 'paint' && paintMode === 'texture'
+        ? 'Tekstuurin asettelu'
+        : tool === 'pen' && penMode === 'bezier'
+          ? 'Bézier-käyrä'
+          : tool === 'circle'
+            ? { circle: 'Ympyrä', ellipse: 'Ellipsi', polygon: 'Monikulmio', sphere: 'Pallo' }[
+                shapeKind
+              ]
+            : tool === 'measure'
+              ? {
+                  dimension: 'Dimensio',
+                  guide: 'Apuviiva',
+                  free: 'Vapaa mittaviiva',
+                  area: 'Pinta-ala',
+                  note: 'Huomautus',
+                  highlight: 'Korostusalue',
+                }[measureMode]
+              : tool === 'boolean'
+                ? booleanOperation === 'cut'
+                  ? 'Leikkaa'
+                  : 'Yhdistä'
+                : (tools.find((t) => t.id === tool)?.label ?? '');
   const targetName = selectedIds.length > 1 ? `${selectedIds.length} kappaletta` : body?.name;
   const shapeTarget =
     sketchTarget && project.bodies.find((b) => b.id === sketchTarget.bodyId)?.name;
@@ -6286,17 +6319,21 @@ export default function App() {
           : targetName;
   const toolStep =
     tool === 'paint'
-      ? paintMode === 'layers'
-        ? layerPlacing
-          ? 'Napsauta tasopintaa jäljen asettamiseksi. Esc peruu.'
-          : 'Napsauta osaa tai pintaa muokataksesi sen pintakerroksia.'
-        : paintMode === 'texture'
-          ? 'Napsauta teksturoitua osaa ja vedä kuviota tai kahvaa.'
-          : paintPick
-            ? 'Napsauta pintaa poimiaksesi sen materiaalin. Esc peruuttaa pipetin.'
-            : paintScope === 'face'
-              ? 'Valitse materiaali ja napsauta maalattavaa pintaa.'
-              : 'Valitse materiaali ja napsauta maalattavaa osaa.'
+      ? paintMode === 'light'
+        ? light.aiming
+          ? 'Napsauta valon kohdetta. Esc peruu suuntaamisen.'
+          : 'Valitse osa tai pinta ja säädä sen valoa.'
+        : paintMode === 'layers'
+          ? layerPlacing
+            ? 'Napsauta tasopintaa jäljen asettamiseksi. Esc peruu.'
+            : 'Napsauta osaa tai pintaa muokataksesi sen pintakerroksia.'
+          : paintMode === 'texture'
+            ? 'Napsauta teksturoitua osaa ja vedä kuviota tai kahvaa.'
+            : paintPick
+              ? 'Napsauta pintaa poimiaksesi sen materiaalin. Esc peruuttaa pipetin.'
+              : paintScope === 'face'
+                ? 'Valitse materiaali ja napsauta maalattavaa pintaa.'
+                : 'Valitse materiaali ja napsauta maalattavaa osaa.'
       : tool === 'move'
         ? selectedIds.length
           ? 'Tartu valinnan korostettuun pisteeseen ja vedä.'
@@ -7818,6 +7855,7 @@ export default function App() {
               editingBodyId={geometryBody && tool === 'boolean' ? undefined : editingBodyId}
               scopeIds={scopeIds}
               onPaint={paintBody}
+              lightEditing={light.viewport}
               paintPick={paintPick}
               paintScope={paintMode === 'texture' ? 'body' : layerPlacing ? 'face' : paintScope}
               editingTexture={busy ? undefined : activeTexture}
@@ -8671,7 +8709,11 @@ export default function App() {
               {activeTool && holdNotice}
               {tool === 'paint' && (
                 <>
-                  <div className="material-tool-tabs" role="group" aria-label="Maalauksen työkalut">
+                  <div
+                    className="material-tool-tabs paint-workspace-tabs"
+                    role="group"
+                    aria-label="Maalauksen työkalut"
+                  >
                     <button
                       aria-pressed={paintMode === 'paint'}
                       onClick={() => {
@@ -8701,8 +8743,26 @@ export default function App() {
                     >
                       Pintakerrokset
                     </button>
+                    <button
+                      aria-pressed={paintMode === 'light'}
+                      onClick={() => {
+                        setPaintMode('light');
+                        setPaintPick(false);
+                        setLayerPlacing(false);
+                      }}
+                    >
+                      Valo
+                    </button>
                   </div>
-                  {paintMode === 'layers' ? (
+                  {paintMode === 'light' ? (
+                    <LightPanel
+                      light={light}
+                      scope={paintScope}
+                      onScope={setPaintScope}
+                      linked={lightLinked}
+                      onLinked={setLightLinked}
+                    />
+                  ) : paintMode === 'layers' ? (
                     <SurfaceLayersPanel
                       name={
                         layerBody && (paintScope === 'body' || layerFace !== undefined)

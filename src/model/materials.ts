@@ -74,6 +74,11 @@ export const appearanceSchema = z.object({
       intensity: z.number().min(0).max(100),
       angle: z.number().min(5).max(160),
       direction: z.enum(['x', '-x', 'y', '-y', 'z', '-z']),
+      /** Unit direction in the part's local frame; absent uses the selected axis. */
+      aim: z
+        .tuple([z.number().finite(), z.number().finite(), z.number().finite()])
+        .refine((v) => Math.hypot(...v) > 1e-8 && Math.hypot(...v) < 2, 'Virheellinen valon suunta')
+        .optional(),
     })
     .optional(),
   texture: texturePlacementSchema,
@@ -859,7 +864,8 @@ export const hasAppearanceTexture = (appearance: Appearance) => {
   const preset = appearancePreset(appearance);
   return !!(appearance.assetId || preset.pattern || preset.pbr);
 };
-export function emissionSettings(appearance: Appearance, color: string) {
+export type Emission = NonNullable<Appearance['emission']>;
+export function emissionSettings(appearance: Appearance, color: string): Emission {
   const preset = findPreset(appearance.preset);
   return (
     appearance.emission ?? {

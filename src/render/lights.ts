@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Body } from '../model/project';
-import { defaultAppearance, emissionSettings } from '../model/materials';
+import { defaultAppearance, emissionSettings, type Emission } from '../model/materials';
+import { emissionDirection } from '../model/emission';
 import { textureFrameMatrix } from './materials';
 import { emitterDisk } from './emitterDisk';
 
@@ -61,6 +62,17 @@ export function emitterFrame(
   };
 }
 
+/** Shared by the model's direction helper and both render modes. */
+export function spotEmitterFrame(body: Body, geometry: THREE.BufferGeometry, emission: Emission) {
+  const axis = 'xyz'.indexOf(emission.direction.slice(-1));
+  const frame = emitterFrame(body, geometry, axis, emission.direction.startsWith('-') ? -1 : 1);
+  if (emission.aim)
+    frame.direction
+      .set(...emissionDirection(emission))
+      .transformDirection(textureFrameMatrix(body));
+  return frame;
+}
+
 export function createPartLights(body: Body, geometry: THREE.BufferGeometry) {
   const emission = emissionSettings(
     body.appearance ?? defaultAppearance(body.material),
@@ -76,8 +88,7 @@ export function createPartLights(body: Body, geometry: THREE.BufferGeometry) {
   )
     return group;
   if (emission.type === 'spot') {
-    const axis = { x: 0, y: 1, z: 2 }[emission.direction.slice(-1)]!;
-    const frame = emitterFrame(body, geometry, axis, emission.direction.startsWith('-') ? -1 : 1);
+    const frame = spotEmitterFrame(body, geometry, emission);
     const light = shadowedSpot(
       emission.color,
       emission.intensity * 1_000_000,

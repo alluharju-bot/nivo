@@ -3656,6 +3656,12 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.modalOpen) return;
+    if (props.lightEditing?.aiming) {
+      const point = referenceAt(event)?.point ?? faceAt(event, true)?.target.point;
+      if (point) props.lightEditing.onAim(point, true);
+      canvas.focus({ preventScroll: true });
+      return;
+    }
     if (props.motion) {
       const hit = motionHit(event);
       if (hit) props.motion.onPick(hit);
@@ -4404,6 +4410,16 @@ export function installInteractions({
     const props = current();
     if (props.modalOpen) return;
     if (blocked || props.busy) return;
+    if (props.lightEditing?.aiming) {
+      highlightFace();
+      const reference = referenceAt(event);
+      const point = reference?.point ?? faceAt(event, true)?.target.point;
+      if (point) {
+        show({ point, key: 'light-target', label: reference?.label ?? 'Valon kohde' });
+        props.lightEditing.onAim(point, false);
+      } else show();
+      return;
+    }
     if (props.motion) {
       highlightFace();
       highlightEdge();

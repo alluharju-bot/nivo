@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.51.2** tuo **P → Valo** -osion mallinnusnäkymään. Valitse osa
+tai pinta, säädä LED-/spottiasetukset ja suuntaa spotti napsauttamalla
+kohdepistettä. Keilan apuviivat päivittyvät suunnan ja leveyden mukana.
+Valon suunta voi olla vapaa ja kääntyy osan mukana; asetukset säilyvät renderiin.
+
 Versio **0.51.1** lisää Metallit-kokoelmaan hieman ruostuneen raudan,
 kiillottuneen patinoituneen raudan ja mustan raudan. Saumattomien pintojen
 väri, karheus, metallisuus ja hienovarainen kohokuvio toimivat mallinnuksessa,

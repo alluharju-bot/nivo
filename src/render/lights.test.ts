@@ -5,6 +5,48 @@ import { captureRenderScene } from './snapshot';
 import { defaultAppearance } from '../model/materials';
 import { makeBody } from '../model/project';
 import { textureFrameMatrix } from './materials';
+import { changeEmission } from '../model/emission';
+
+it('uses the chosen free direction in preview and traced spotlights while retaining the emitting origin', () => {
+  const body = changeEmission(
+    {
+      ...makeBody(40, 20, 10, [300, -200, 800]),
+      textureFrame: {
+        offset: [0, 0, 0],
+        rotation: new THREE.Quaternion()
+          .setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2)
+          .toArray(),
+      },
+    },
+    { enabled: true, type: 'spot', direction: '-z', aim: [0.6, 0, -0.8] },
+  );
+  const geometry = new THREE.BoxGeometry(40, 20, 10)
+    .translate(20, 10, 5)
+    .applyMatrix4(textureFrameMatrix(body));
+  const group = createPartLights(body, geometry);
+  const light = group.children[0] as THREE.SpotLight;
+  expect(
+    light.target.position
+      .clone()
+      .sub(light.position)
+      .distanceTo(new THREE.Vector3(0, 0.6, -0.8)),
+  ).toBeLessThan(1e-8);
+  expect(light.position.distanceTo(emitterFrame(body, geometry, 2, -1).position)).toBeLessThan(
+    1e-8,
+  );
+  const scene = new THREE.Scene();
+  scene.add(group);
+  const snapshot = captureRenderScene(scene, new THREE.PerspectiveCamera(), 10, 10);
+  const copy = snapshot.scene.children[0].children[0] as THREE.SpotLight;
+  expect(
+    copy.target.position
+      .clone()
+      .sub(copy.position)
+      .distanceTo(new THREE.Vector3(0, 0.6, -0.8)),
+  ).toBeLessThan(1e-8);
+  snapshot.dispose();
+  geometry.dispose();
+});
 
 it('samples circular LED faces, preserves their shape on clone and rejects rings and arcs', () => {
   const body = { ...makeBody(120, 120, 0), appearance: defaultAppearance('led-neutral') };

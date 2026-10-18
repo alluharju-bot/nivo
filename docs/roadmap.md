@@ -2,6 +2,23 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.51.2 — valon keila ja suunta mallinnuksessa
+
+- P-työkalussa oma Valo-osio: koko osa tai pinta, LED-/spottiesiasetukset,
+  käyttöönotto, väri, voimakkuus, keilan leveys ja tarkka suunta.
+- Suuntaa kohteeseen: napsauta pistettä, reunaa, apuviivaa tai pintaa.
+  Suunnan esikatselu ei muuta projektia; napsautus hyväksyy, Esc peruu.
+- Näkymän mukana skaalautuva keila ja suuntauskahva. Leveyden esikatselu
+  liukusäätimellä, yksi historiatoiminto hyväksyttäessä. Apuviivat eivät
+  päädy mallinnusnäkymän PNG-kuvaan tai vientigeometriaan.
+- Vapaa suunta tallennetaan osan paikalliseen akselistoon, ja sama suunta
+  toimii molemmissa renderöintitiloissa. Suunnan kierto/korkeus myös numeroina.
+- Valoasetukset säilyttävät materiaalin, tekstuurin ja muut pintakohtaiset
+  asetukset. Valitut esiintymät ovat oletuskohde; linkitetyille kopioille
+  jakaminen on erikseen valittavissa. Jaettu suunta on sama paikallinen suunta.
+- Monivalinnan itsenäiset valot voi suunnata samaan pisteeseen. Hold-lukitus,
+  kumoaminen, palautus ja projektin tallennus säilyvät käytössä.
+
 ## V0.51.1 — rautapinnat
 
 - Metallit: hieman ruostunut rauta, kiillottunut patina ja musta rauta.

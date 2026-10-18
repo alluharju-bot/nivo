@@ -4,6 +4,28 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.51.2 — valon suunta ja P-työkalun valoasetukset
+
+- 32 kohdennettua testiä hyväksytty: valon paikallinen suunta, kääntyneen
+  osan spotti, renderin tilannekuva, pintamateriaalit ja linkitetyt komponentit.
+  Valoasetusten muutos säilyttää tekstuurit, värit ja muiden pintojen materiaalit.
+- 12 selaintestiä hyväksytty desktopilla ja tabletin Chromium-emuloinnissa.
+  Suunnan esikatselu ei tallennu muutokseksi; napsautus, kumoaminen,
+  palautus, Esc ja uudelleenlataus tarkistettu. Keilan säätö ei kasvata
+  geometrian rakennuslaskuria. Mukana yksittäisen pinnan valo, monivalinta,
+  linkitettyjen osien erilliset valosuunnat sekä Hold-lukitus.
+- Maalauksen ja pipetin regressiot hyväksytty. Headless-ajon vanha
+  renderimaalauksen testi tuotti renderiohjelman käännösvirheitä;
+  sen hyväksyntä osoittaa materiaalien muokkauksen toimivuuden,
+  ei tarkentuvan renderin onnistumista kyseisessä ympäristössä.
+- Tuotantobuild tarkistettu erikseen laitteistokiihdytetyssä Chromessa
+  (Apple M1 Pro / ANGLE Metal): P-valoasetukset, vapaa suunta ja 64 näytteen
+  renderi valmistuivat ilman selain- tai renderivirheitä. Vino valokeila
+  osuu vastaanottavalle pinnalle valitun suunnan mukaisesti.
+- Mallinnusnäkymän keila on suunnan ja kulman apu; fyysinen valaistus
+  lasketaan renderissä. Desktopin ja tabletin paneelit tarkastettu kuvista.
+- TypeScript, tuotantobuild, muotoilu ja diff tarkistettu.
+
 ## V0.51.1 — rautapinnat
 
 - 29 kohdennettua materiaali-, patina-, optiikka-, pintakartta- ja
