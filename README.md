@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.51.1** lisää Metallit-kokoelmaan hieman ruostuneen raudan,
+kiillottuneen patinoituneen raudan ja mustan raudan. Saumattomien pintojen
+väri, karheus, metallisuus ja hienovarainen kohokuvio toimivat mallinnuksessa,
+renderissä ja GLB-viennissä. Sävyä ja kiiltoa voi säätää tavalliseen tapaan.
+
 Versio **0.51.0** lisää **Animaatio → Sarana / Liuku**. Valitse kiinteä
 ankkuri ja liikkuvat osat, poimi pivot pisteestä tai reunasta ja määritä
 avautumiskulma tai liukumatka. Jokaisella liikkeellä on oma Suljettu–Auki-asento:

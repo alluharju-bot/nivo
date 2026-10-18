@@ -121,6 +121,8 @@ export type MaterialPreset = {
   clearcoat?: number;
   pbr?: string;
   grainAxis?: 'u' | 'v';
+  /** Correlated colour, relief, roughness and metalness for oxidized metals. */
+  patina?: 'copper' | 'iron-rust' | 'iron-polished' | 'iron-black';
   pattern?:
     | 'oak'
     | 'walnut'
@@ -273,6 +275,24 @@ export const materialPresets: MaterialPreset[] = [
     roughness: 0.07,
     metalness: 1,
   },
+  ...(
+    [
+      { id: 'iron-rust', name: 'Rauta · hieman ruostunut', relief: 0.1 },
+      { id: 'iron-polished', name: 'Rauta · kiillottunut patina', relief: 0.035 },
+      { id: 'iron-black', name: 'Musta rauta', relief: 0.045 },
+    ] as const
+  ).map((iron): MaterialPreset => ({
+    id: iron.id,
+    name: iron.name,
+    category: 'Metallit',
+    color: '#ffffff',
+    roughness: 1,
+    metalness: 1,
+    pattern: 'patina',
+    patina: iron.id,
+    size: [240, 240],
+    relief: iron.relief,
+  })),
   ...[
     { id: 'silver', name: 'hopea', color: '#c7cbd0' },
     { id: 'black', name: 'musta', color: '#30343a' },

@@ -35,7 +35,7 @@ export function bindPreviewShadowsOnce(material: THREE.MeshStandardMaterial) {
 
 /** Deterministic, offline patterns; the species have different grain and pore structure. */
 export function patternCanvas(preset: MaterialPreset) {
-  if (preset.pattern === 'patina') return patinaCanvases(preset.seed).color;
+  if (preset.pattern === 'patina') return patinaCanvases(preset.seed, preset.patina).color;
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
@@ -525,7 +525,7 @@ export function createMaterialLibrary(
       } else if (preset.pattern === 'patina') {
         patina = patinas.get(preset.id);
         if (!patina) {
-          patina = patinaCanvases(preset.seed);
+          patina = patinaCanvases(preset.seed, preset.patina);
           patinas.set(preset.id, patina);
         }
         pattern = patina.height;

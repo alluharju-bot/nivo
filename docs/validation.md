@@ -4,6 +4,23 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.51.1 — rautapinnat
+
+- 29 kohdennettua materiaali-, patina-, optiikka-, pintakartta- ja
+  renderimateriaalitestiä hyväksytty. Ruosteen rajattu peitto sekä värin,
+  karheuden ja metallisuuden yhteys tarkistettu; kuparipatina säilyy ennallaan.
+- Tuotantobuildin selaintesti hyväksytty desktopilla ja tabletin Chromium-
+  emuloinnissa: kolmen raudan maalaus, tallennus, sivun uudelleenlataus,
+  esikatselu ja GLB-vienti. Viennin väri-, normaali- ja yhdistetyt
+  metallisuus-/karheuskartat ovat mukana tiedostossa.
+- Rautapintojen 64 näytteen renderi valmistui GPU-kiihdytetyssä Chromessa
+  (Apple M1 Pro / ANGLE Metal) ilman selain- tai renderivirheitä.
+  Mallinnus-, esikatselu- ja tarkentuvan renderin kuvat tarkastettu.
+- Vanha koko metallikokoelman headless-renderitesti katkesi testiympäristön
+  WebGL-kontekstin menetykseen. Siksi tarkentuva renderi tarkistettiin
+  erikseen laitteistokiihdytetyllä selaimella; headless-ajoa ei lasketa läpäistyksi.
+- TypeScript, tuotantobuild, muotoilu ja diff tarkistettu.
+
 ## V0.51.0 — pivotit, saranat ja liu'ut
 
 - Kuusi itsenäistä laatikkoa, usean osan sarana, negatiivinen kierto,

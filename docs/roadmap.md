@@ -2,6 +2,14 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.51.1 — rautapinnat
+
+- Metallit: hieman ruostunut rauta, kiillottunut patina ja musta rauta.
+- Saumaton proseduraalinen väri, korkeus, karheus ja metallisuus käyttävät
+  samaa pintakuviota. Ruostekohdat ovat karheampia ja vähemmän metallisia.
+- Nykyiset sävy-, kiilto- ja tekstuuriasettelun säädöt sekä GLB-vienti.
+  Pinnat syntyvät paikallisesti ja toimivat myös ilman verkkoyhteyttä.
+
 ## V0.51.0 — nimetyt pivotit, saranat ja liu'ut
 
 - Animaatio-työtila käyttää samaa mallinnusnäkymää. Pivot poimitaan kulmasta,
