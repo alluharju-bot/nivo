@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.51.6** säilyttää offset-mitan, kun aktiivinen työkalu valitaan
+uudelleen O-näppäimellä tai painikkeesta. Pienen ympyrän seuraava offset
+ei enää vaihdu huomaamatta 18 mm:iin. Sisään- ja ulospäin tehtävät toistot
+sekä syntyneet erilliset alueet tarkistetaan regressiotesteillä.
+[Mechanical Animation -arkkitehtuuriauditointi](docs/mechanical-animation-audit.fi.md)
+on valmis jatkototeutuksen pohjaksi; uutta aikajanaeditoria ei vielä ole lisätty.
+
 Versio **0.51.5** lisää **Kumit**-ryhmään hienorakeisen ja uritetun kumin
 sekä **Muovit**-ryhmään hienorakeisen ABS:n ja karkearakeisen muovin.
 Saumaton pintakuvio, fyysiseen kokoon suhteutettu kohokuvio ja karheuskartta

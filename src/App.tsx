@@ -1944,13 +1944,15 @@ export default function App() {
     ) {
       setPanelOpen(!compact);
       setDraftId(uid());
-      writeFields({ ...defaults });
+      // Re-selecting O continues with the current inset, like clicking the next
+      // face. Resetting to 18 mm made a second offset fail on small circles.
+      const offsetStart = tool === 'offset' ? fieldsRef.current.offset : '18';
+      writeFields({ ...defaults, ...(next === 'offset' ? { offset: offsetStart } : {}) });
       if (next === 'circle') writeFields({ width: '100', depth: '60' });
       if (['rectangle', 'circle', 'pen'].includes(next))
         setShapeName(
           `${next === 'rectangle' ? 'Levy' : next === 'circle' ? 'Ympyrä' : 'Kynämuoto'} ${project.bodies.length + 1}`,
         );
-      if (next === 'offset') writeFields({ offset: '18' });
       const hovered = hoveredFaceRef.current;
       const target = toolFaceTarget(
         editor.meshes,

@@ -2,6 +2,27 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.51.6 — offsetin toisto ja animaation arkkitehtuuriauditointi
+
+- Aktiivisen Offset-työkalun uudelleenvalinta säilyttää nykyisen mitan ja
+  suunnan. Aiempi O-painallus palautti 18 mm:n oletuksen, jolloin pienen
+  ympyrän toinen sisennys ylitti säteen. Ensimmäisen käyttöönoton oletus
+  säilyy; geometrian laskentaa ei vaihdeta ilman todettua geometriavirhettä.
+- Toistotestit: ympyrän keskialue, ulkokehä, rengas sekä 18-, 24- ja
+  60-sivuisen sylinterin pääty. O-uusinta testataan 2 ja −2 mm:n mitoilla.
+- [Mechanical Animation v0.1 — auditointi](mechanical-animation-audit.fi.md)
+  kartoittaa nykyisen toteutuksen, uudelleenkäytön, puutteet ja hyväksyntäportit.
+  Vaihe A on tehty; B–F ovat suunniteltua työtä, eivät julkaistuja ominaisuuksia.
+- Seuraava toteutuskokonaisuus: versionoitu klippi-/TRS-tietomalli ja
+  deterministinen arvioija, animaatiolle oma transformikohde nykyisiin
+  työkaluihin, sitten aikajana, historia/tallennus ja vientitestit.
+  Ryhmä ja kokoonpano säilyvät erillisinä käsitteinä.
+- Vientiin ratkaistaan avainvälin interpoloinnin ja glTF-samplerin ero;
+  Smooth näytteistetään mitattavalla virherajalla. Step-sekoitus ei saa
+  muuttua hiljaa pehmeäksi. Unrealin todellinen animaatiotuonti on erillinen
+  hyväksyntäportti; sitä ei ole tässä auditissa suoritettu. Tapahtumamerkit
+  ja JSON-vienti kuuluvat myöhempään vaiheeseen F.
+
 ## V0.51.5 — teksturoitu kumi ja muovi
 
 - Kumit: hienorakeinen kumi ja uritettu kumi. Muovit: hienorakeinen ABS

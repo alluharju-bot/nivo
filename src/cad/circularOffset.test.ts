@@ -1,9 +1,9 @@
 import { beforeAll, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import init from 'replicad-opencascadejs';
-import { getOC, setOC } from 'replicad';
+import { getOC, setOC, measureArea, type Shape3D } from 'replicad';
 import { makeProfileBody, type Body, type Vec3 } from '../model/project';
-import { sketchFrame } from '../model/sketch';
+import { sketchFrame, type Profile } from '../model/sketch';
 import { createShape, meshBody, pushPullFace } from './kernel';
 import { offsetFace, offsetOutline, booleanBodies } from './operations';
 import { scaleBodies } from './scaling';
@@ -32,6 +32,72 @@ function inspect(body: Body) {
     shape.delete();
   }
 }
+
+for (const distance of [5, -5])
+  it(`repeats a circular offset on its new region (${distance} mm)`, () => {
+    let body = makeProfileBody({ kind: 'circle', radius: 50 }, sketchFrame([0, 0, 0]));
+    let face = inspect(body).faces[0].ref;
+    for (let step = 1; step <= 3; step++) {
+      expect(offsetOutline(body, face, distance).length).toBeGreaterThan(0);
+      const result = offsetFace(body, face, distance);
+      body = result.body;
+      face = result.face;
+      expect(inspect(body).faces).toHaveLength(step + 1);
+      const shape = createShape(body);
+      try {
+        expect(measureArea(shape as Shape3D)).toBeCloseTo(
+          Math.PI * (distance < 0 ? 50 + step * 5 : 50) ** 2,
+          4,
+        );
+      } finally {
+        shape.delete();
+      }
+    }
+  });
+
+it('insets a previously created circular rim without losing its centre or other divisions', () => {
+  const disk = makeProfileBody({ kind: 'circle', radius: 100 }, sketchFrame([0, 0, 0]));
+  let body = offsetFace(disk, inspect(disk).faces[0].ref, 20).body;
+  const shape = createShape(body),
+    faces = shape.faces;
+  let face;
+  try {
+    face = inspect(body).faces.find(
+      (f) => Math.abs(measureArea(faces[f.index]) - Math.PI * (100 ** 2 - 80 ** 2)) < 1e-4,
+    )!.ref;
+  } finally {
+    faces.forEach((f) => f.delete());
+    shape.delete();
+  }
+  for (let i = 0; i < 3; i++) {
+    expect(offsetOutline(body, face, 2).length).toBeGreaterThan(0);
+    const inset = offsetFace(body, face, 2);
+    body = inset.body;
+    face = inset.face;
+    expect(inspect(body).faces).toHaveLength(4 + 2 * i);
+  }
+});
+
+for (const sides of [18, 24, 60])
+  it(`repeats an inset on a ${sides}-sided cylinder cap`, () => {
+    const profile: Profile = {
+      kind: 'polygon',
+      points: Array.from({ length: sides }, (_, i) => [
+        50 * Math.cos((i * 2 * Math.PI) / sides),
+        50 * Math.sin((i * 2 * Math.PI) / sides),
+      ]),
+    };
+    let body = makeProfileBody(profile, sketchFrame([0, 0, 0]), 40);
+    let face = inspect(body).faces.find((f) => f.normal[2] > 0.9)!.ref;
+    const volume = inspect(body).volume;
+    for (const distance of [5, 4, 3]) {
+      const result = offsetFace(body, face, distance);
+      body = result.body;
+      face = result.face;
+      expect(inspect(body).volume).toBeCloseTo(volume, 3);
+    }
+    expect(inspect(body).faces).toHaveLength(sides + 5);
+  });
 
 // Fixed-order volume integration is too coarse for rational B-spline cylinders.
 function exactVolume(body: Body) {

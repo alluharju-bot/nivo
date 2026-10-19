@@ -1,8 +1,30 @@
-# Validointi — 18.10.2026
+# Validointi — 19.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.51.6 — offsetin toisto ja animaatioauditointi
+
+- Toistettu ennen korjausta: 10 mm:n säteisen ympyrän 2 mm:n offset onnistuu,
+  mutta aktiivisen työkalun O-uusinta vaihtaa kenttään 18 mm. Sama testi
+  hyväksytty korjauksen jälkeen sekä 2 mm:n sisennyksellä että −2 mm:n
+  ulospäin offsetilla; kolme peräkkäistä operaatiota ilman mitan uudelleensyöttöä.
+- 35 ympyräoffsetin ja tasomuotojen geometriatestiä hyväksytty. Mukana
+  keskialueen, ulkokehän ja renkaan peräkkäiset offsetit sekä 18-, 24- ja
+  60-sivuisten sylinterien päädyt; alueet ja pinta-ala/tilavuus tarkistettu.
+- 20 selaintapausta hyväksytty desktopilla ja tabletin Chromium-emuloinnissa.
+  Uusintojen lisäksi ontot päädyt, XY-skaalattu sylinteri, kaappirunko,
+  läpipuhkaisu, virheellisen mitan hylkäys ja Hold-käytös.
+- Mechanical Animationin vaihe A tehty nykyistä koodia vasten. Nykyisten
+  liikkeiden 12 mallinnus-/vientitestiä sekä kaksi selaimen sarana-/GLB-testiä
+  hyväksytty. Binäärinen GLB luetaan ja toistetaan Three.js:n kautta.
+  Uusi aikajana ja TRS-keyframet ovat suunnitelma; riippumattoman katselimen
+  ja Unrealin tuontitestaus kuuluvat myöhempään vientivaiheeseen.
+- TypeScript, tuotantobuild, muotoilu ja diff tarkistettu. Offsetin
+  geometriamoottoria ei muutettu: korjaus säilyttää nykyisen mitan, kun
+  jo aktiivinen Offset valitaan uudelleen. Muiden työkalujen kautta
+  aktivoidun Offsetin oletus säilyy 18 mm:nä.
 
 ## V0.51.5 — teksturoitu kumi ja muovi
 
