@@ -9905,3 +9905,330 @@ p {
     width: min(320px, 80vw);
   }
 }
+
+/* Mechanical animation shares the modelling viewport and transform tools. */
+.animation-workspace .model-stage > .viewport {
+  bottom: 216px;
+}
+.animation-timeline {
+  position: absolute;
+  z-index: 12;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 216px;
+  background: #f5f7f5;
+  border-top: 1px solid #cad5cf;
+  color: #243e35;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+.animation-transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #dce3df;
+  flex-wrap: wrap;
+}
+.animation-transport button,
+.animation-transport select {
+  min-height: 29px;
+}
+.animation-transport > select:first-child {
+  max-width: 180px;
+}
+.animation-transport label {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  white-space: nowrap;
+}
+.animation-transport input[type='number'] {
+  width: 65px;
+  padding: 5px;
+}
+.animation-transport output {
+  font-variant-numeric: tabular-nums;
+  width: 65px;
+  text-align: center;
+  font-weight: 600;
+}
+.animation-loop input {
+  accent-color: #39725b;
+}
+.animation-ruler {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 22px 3px 12px;
+}
+.animation-ruler input {
+  width: 100%;
+  accent-color: #3c816a;
+}
+.animation-tracks {
+  overflow: auto;
+  position: relative;
+  padding: 0 22px 10px 12px;
+  flex: 1;
+}
+.animation-track {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  min-height: 32px;
+}
+.animation-track-name {
+  text-align: left;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 6px;
+}
+.animation-track.active .animation-track-name {
+  background: #dfebe4;
+  color: #205f49;
+}
+.animation-track-lane {
+  position: relative;
+  height: 32px;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent calc(10% - 1px),
+    #dfe6e1 calc(10% - 1px),
+    #dfe6e1 10%
+  );
+  border-bottom: 1px solid #e3e8e5;
+}
+.animation-key {
+  position: absolute;
+  top: 5px;
+  transform: translateX(-50%);
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  color: #487e6a;
+  font-size: 15px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.animation-key.step {
+  color: #776397;
+}
+.animation-key.linear {
+  color: #477c9b;
+}
+.animation-key.selected {
+  color: #cf762e;
+  background: #fff2db;
+  border-radius: 4px;
+}
+.animation-playhead-area {
+  position: absolute;
+  inset: 0 22px 0 204px;
+  pointer-events: none;
+}
+.animation-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #c57637;
+  z-index: 3;
+}
+.animation-empty {
+  padding: 8px;
+  color: #67796f;
+}
+.animation-inspector {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+.animation-inspector header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.animation-inspector h2 {
+  font-size: 17px;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.animation-inspector small {
+  color: #6c8576;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+}
+.animation-inspector label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+.animation-inspector input,
+.animation-inspector select {
+  width: 100%;
+  min-width: 0;
+}
+.animation-tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.animation-tool-row button {
+  flex: 1;
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 7px;
+}
+.animation-inspector button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.animation-inspector button[aria-pressed='true'] {
+  background: #d9e9e0;
+  color: #205b46;
+}
+.animation-pose-grid fieldset {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  margin: 12px 0;
+}
+.animation-pose-grid legend {
+  font-size: 11px;
+  margin-bottom: 8px;
+  color: #61756a;
+}
+.animation-pose-grid input {
+  font-variant-numeric: tabular-nums;
+  padding: 7px 4px;
+}
+.animation-draft {
+  border-left: 3px solid #c19044;
+  background: #fbf4e8;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.animation-draft button {
+  margin-top: 7px;
+}
+.animation-key-editor {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dae3dc;
+  border-radius: 8px;
+  padding: 10px;
+}
+.animation-key-editor legend {
+  font-size: 12px;
+}
+.animation-inspector details summary {
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.animation-event {
+  display: grid;
+  grid-template-columns: 48px 1fr 24px;
+  gap: 3px;
+  margin: 5px 0;
+}
+.animation-workspace .model-tree-overlay {
+  max-height: calc(100% - 270px);
+}
+@media (max-width: 900px) {
+  .animation-ruler,
+  .animation-track {
+    grid-template-columns: 115px 1fr;
+  }
+  .animation-playhead-area {
+    left: 139px;
+  }
+  .animation-transport {
+    gap: 4px;
+    padding: 6px;
+  }
+  .animation-transport > select:first-child {
+    max-width: 120px;
+  }
+  .animation-transport output {
+    display: none;
+  }
+}
+
+.animation-inspector input,
+.animation-inspector select,
+.animation-transport input[type='number'],
+.animation-transport select {
+  box-sizing: border-box;
+  border: 1px solid #cdd9d1;
+  border-radius: 6px;
+  background: #fff;
+  color: #294c3b;
+  padding: 6px 7px;
+  font: inherit;
+}
+.animation-inspector button:not(.button),
+.animation-transport button,
+.animation-track-name,
+.animation-key {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+}
+.animation-inspector button:not(.button):hover,
+.animation-transport button:hover,
+.animation-track-name:hover {
+  background: #e4ece6;
+}
+.animation-inspector button:disabled,
+.animation-transport button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.animation-inspector button[aria-pressed='true'] {
+  background: #d9e9e0;
+  color: #205b46;
+}
+.animation-key.step {
+  color: #776397;
+}
+.animation-key.linear {
+  color: #477c9b;
+}
+.animation-key.smooth {
+  color: #487e6a;
+}
+.animation-key.selected {
+  color: #aa5415;
+  background: #fff2db;
+  border-color: #e0b27d;
+}
+.animation-inspector button:focus-visible,
+.animation-timeline button:focus-visible {
+  outline: 2px solid #3c816a;
+  outline-offset: 2px;
+}
+
+.animation-inspector > .animation-tool-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

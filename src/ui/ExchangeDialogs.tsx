@@ -217,6 +217,8 @@ export function ExportDialog({
           await glbExport(bodies, meshes, project.assets, {
             instances,
             motions: includeMotions ? project.motions : undefined,
+            animation: includeMotions ? project.animation : undefined,
+            groups: project.groups,
           }),
           `${safeFilename(project.name)}.glb`,
           'model/gltf-binary',
@@ -353,7 +355,7 @@ export function ExportDialog({
       )}
       {format === 'glb' && (
         <>
-          {!!project.motions?.length && (
+          {!!(project.motions?.length || project.animation?.clips.length) && (
             <>
               <label className="checkbox-label">
                 <input
@@ -362,7 +364,7 @@ export function ExportDialog({
                   disabled={working}
                   onChange={(e) => setIncludeMotions(e.target.checked)}
                 />
-                Pivotit ja avaus-/sulkemisanimaatiot
+                Pivotit ja animaatioklipit
               </label>
               <p className="muted">
                 Sisällytä ankkuri ja kaikki liikkeen osat vientiin. Liikkuvat osat säilyvät

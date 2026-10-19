@@ -1,3 +1,4 @@
+import { transformAnimationModel } from './animationProject';
 import { motionWorld, setMotionWorld } from './motion';
 import { Matrix3, Quaternion, Matrix4 } from 'three';
 import { bounds, type Body, type Project, type Vec3, type Axis } from './project';
@@ -130,6 +131,14 @@ export function applyScaling(project: Project, results: Body[], s: Scaling): Pro
   const replacements = new Map(results.map((b) => [b.id, b]));
   return {
     ...project,
+    animation: transformAnimationModel(
+      project.animation,
+      s.ids,
+      new Matrix4()
+        .makeTranslation(...s.pivot)
+        .multiply(new Matrix4().makeScale(...s.factors))
+        .multiply(new Matrix4().makeTranslation(...(s.pivot.map((n) => -n) as Vec3))),
+    ),
     bodies: project.bodies.map((b) => replacements.get(b.id) ?? b),
     motions: project.motions?.map((m) => {
       const before = project.bodies.find((b) => b.id === m.anchorId),

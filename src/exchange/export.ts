@@ -102,6 +102,8 @@ export async function prepareGlbLods(
   ratios: [number, number] = [0.5, 0.2],
   signal?: AbortSignal,
   errors: [number, number] = [0.001, 0.005],
+  animation?: Project['animation'],
+  groups?: Project['groups'],
 ) {
   if (
     !ratios.every(Number.isFinite) ||
@@ -125,6 +127,8 @@ export async function prepareGlbLods(
     const result = await exportGlbLevel(bodies, meshes, assets, {
       instances,
       motions,
+      animation,
+      groups,
       ratio,
       error,
       maxTextureSize,

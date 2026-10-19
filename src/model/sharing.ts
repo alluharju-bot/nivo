@@ -48,6 +48,7 @@ export function shareProjectData(previous: Project, next: Project): Project {
   return {
     ...next,
     bodies,
+    animation: equalJson(previous.animation, next.animation) ? previous.animation : next.animation,
     motions: next.motions ? reuse(previous.motions ?? [], next.motions) : undefined,
     groups: reuse(previous.groups, next.groups),
     partTypes: next.partTypes ? reuse(previous.partTypes ?? [], next.partTypes) : undefined,

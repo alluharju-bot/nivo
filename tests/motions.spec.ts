@@ -12,6 +12,7 @@ async function workspace(page: Page) {
   const button = page.getByRole('button', { name: 'Animaatio', exact: true });
   if (await button.isVisible()) await button.click();
   else await page.getByLabel('Työtila', { exact: true }).selectOption('motion');
+  await page.getByRole('button', { name: 'Sarana / liuku · kahden asennon liike' }).click();
   await expect(panel(page)).toBeVisible();
 }
 const pose = async (page: Page) =>

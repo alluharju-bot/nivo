@@ -1,3 +1,4 @@
+import { pruneAnimation } from './animation';
 import {
   freshProject,
   projectSchema,
@@ -101,6 +102,14 @@ export function mergeProject(target: Project, source: Project) {
       ...incoming.groups.map((g) => ({ ...g, parentId: g.parentId ?? group.id })),
     ],
     partTypes,
+    animation:
+      target.animation || incoming.animation
+        ? {
+            version: 1 as const,
+            nodes: [...(target.animation?.nodes ?? []), ...(incoming.animation?.nodes ?? [])],
+            clips: [...(target.animation?.clips ?? []), ...(incoming.animation?.clips ?? [])],
+          }
+        : undefined,
     motions: [...(target.motions ?? []), ...(incoming.motions ?? [])],
     assets: { ...target.assets, ...incoming.assets },
     dimensions: [...target.dimensions, ...incoming.dimensions],
@@ -162,6 +171,11 @@ export function selectionProject(project: Project, ids: string[], name: string):
       ...freshProject(),
       name,
       bodies,
+      animation: pruneAnimation(
+        project.animation,
+        bodies,
+        project.groups.filter((g) => groups.has(g.id)),
+      ),
       motions: project.motions?.filter(
         (m) => selected.has(m.anchorId) && m.movingIds.every((id) => selected.has(id)),
       ),

@@ -95,7 +95,7 @@ it('migrates earlier projects without reinterpreting point dimensions as overall
     offset: [0, -30, 0],
   };
   const restored = parseProject(JSON.stringify({ ...project, version: 7, dimensions: [d] }));
-  expect(restored.version).toBe(8);
+  expect(restored.version).toBe(9);
   expect(restored.dimensions).toEqual([d]);
   expect(
     dimensionValue(

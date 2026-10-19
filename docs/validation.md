@@ -4,6 +4,33 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.52.0 — Mechanical Animation
+
+- Koko yksikkö-/geometriasetti: **797 hyväksyttyä**, 6 ennestään ohitettua.
+  14 uutta testiä käsittelee TRS:ää, parent/lapsiliikettä, interpolointia,
+  pivotia, skeemaa, kopiointia, ryhmäsiirtojen suojausta, v8-historiaa ja vientiä.
+- Uuden aikajanan ja vanhan sarana-/liukutyökalun selaintestit desktopilla
+  ja Chromiumin tablet-emuloinnissa: **20 hyväksyttyä**. Avainten lisäys, kenttämuokkaus,
+  raahaus, kopiointi/poisto, pivotin poiminta myös siirtyneestä osasta,
+  M/R/L-työkalut, Undo/Redo, tallennus/uudelleenavaus, toisto molempiin suuntiin.
+- Testi varmistaa, ettei toisto lisää geometrian rakentamiskertoja eikä muuta
+  tallennettua perusmallia. Blast Door -esimerkissä 13 osaa / 6 raitaa.
+- GLB luettu Three.js:n GLTFLoaderilla ja toistettu AnimationMixerillä.
+  Kanavat, STEP, hierarkia, tunnisteet sekä asennot seitsemässä aikakohdassa
+  verrattu Nivon arvioijaan, mukaan lukien kelaus taaksepäin.
+- **Riippumaton Blender 5.2.2 LTS -tuonti ja asentovertailu hyväksytty.**
+  BLAST_DOOR_OPEN: kolme osaa, ryhmä/lapsiliike, kierto ja skaala,
+  ajat 0 / 0,35 / 0,8 / 1,7 / 3,5 / 1 / 0 s. Suurin havaittu
+  osan origon ero **0,005814 mm** (raja 0,03 mm).
+  Uusinta: Playwrightin GLB-vientitesti kirjoittaa tiedostot järjestelmän väliaikaiskansioon;
+  `Blender --background --factory-startup --python scripts/validate-animation-blender.py`.
+- Unreal Engine ei ole asennettuna: **todellinen Unreal-animaatiotuonti on testaamatta**.
+  JSON-vienti säilyttää alkuperäiset avainvälit ja tapahtumamerkit; tämä ei korvaa
+  Unrealin tuonti-/toistotestiä. Sekamuotoisen Step/Linear/Smooth-raidan
+  GLB:n lyhyen siirtymävälin toleranssi dokumentoidaan viennin metadatassa.
+- TypeScript, tuotantobuild, muotoilu ja diff tarkistettu. Animaatioesikatselun
+  paikallinen TRS on erillään CAD-/mesh-geometriasta ja automaattitallennuksesta.
+
 ## V0.51.6 — offsetin toisto ja animaatioauditointi
 
 - Toistettu ennen korjausta: 10 mm:n säteisen ympyrän 2 mm:n offset onnistuu,

@@ -1,5 +1,70 @@
 # Mechanical Animation v0.1 — arkkitehtuuriauditointi
 
+## Toteutus 0.52.0 — käyttö
+
+**Animaatio** yläpalkissa avaa aikajanan samaan mallinäkymään.
+
+1. Luo klippi. Valitse näkymästä osa tai mallilistasta ryhmä/kokoonpano.
+   Oikean paneelin kohdevalinnalla pääsee myös suljetun kokoonpanon yksittäisiin osiin.
+2. Poimi tarvittaessa pivot näkymän kulmasta, reunasta tai mittaviivasta.
+   Oletuspivot on osan tai ryhmän keskellä. Pivot asetetaan ennen luonnosasennon tekemistä.
+3. Lisää avain aikaan 0. Vaihda aikaa ja käytä **M**, **R**, **L** tai oikean
+   paneelin paikallisia X/Y/Z-kenttiä. **Lisää / päivitä avain** tai **I** tallentaa asennon.
+4. Valitse aikajanan timantti: muokkaa aikaa, seuraavan välin interpolointia
+   ja asentoarvoja; kopioi tai poista avain. Asentoarvojen muutos hyväksytään
+   Lisää / päivitä avain -painikkeella. Ajoituksen voi muuttaa myös raahaamalla.
+5. Toista tai tauota välilyönnillä. Nopeuden negatiiviset vaihtoehdot toistavat
+   taaksepäin. Stop palaa aikaan 0; tilan sulkeminen palauttaa mallinnusasennon.
+6. **Vie 3D-malli → GLB → Pivotit ja animaatioklipit** vie liikkeet.
+   **Klippi ja vienti → Lataa animaatiodata** tuottaa erillisen JSON-tiedoston.
+
+Luonnosasento on selvästi merkitty. Ajan vaihtaminen hylkää tallentamattoman
+luonnoksen. Esikatselun kelaaminen/toistaminen ei kirjoita historiaa, pilveä
+tai geometriaa; avainmuutokset käyttävät normaalia Undo/Redo-historiaa.
+Sarana-/liukutyökalun kahden asennon toiminnot ovat paneelin alareunassa.
+
+[Blast Door -testimalli](../public/examples/blast-door.nivo): 13 osaa,
+kuusi raitaa, 3,5 sekuntia, eri aikaan liikkuvat ovilehdet ja lukitustapit,
+hydraulivarsien skaalautuminen sekä viisi tapahtumamerkkiä.
+Malli on synteettinen esimerkki, ei käyttäjän projekti.
+
+## Toteutuksen rajat ja vienti
+
+- Ryhmä ja kokoonpano säilyvät erillisinä käsitteinä. Molemmat voivat saada
+  animaatioraidan, joka liikuttaa sisältöä; lapsiosan oma liike on paikallinen.
+- Ryhmän vaihtaminen staattisen hierarkian sisällä säilyttää asennot.
+  Jos siirto vaihtaisi animoitua vanhempaa, se estetään selittävällä ilmoituksella:
+  perityn liikkeen leipominen uudelle vanhemmalle on jatkokehitystä.
+- Pivotin jälkikäteen vaihtaminen säilyttää avainasennot. Kiertoliike avainten
+  välissä voi muuttua uuden pivotin vuoksi; käyttöliittymä pyytää tarkistamaan sen.
+- Kiertojen välillä käytetään lyhintä quaternion-kaarta. Yli 180° liikkeeseen
+  tarvitaan väliavaimia. Paikallista akselistoa vinouttavaa maailman suuntaista
+  epätasaista skaalausta ei tallenneta virheellisenä TRS-muunnoksena.
+- Step on glTF STEP. Smooth on mukautuvasti näytteistetty LINEAR
+  (paikallinen tavoitevirhe 0,01 mm / 0,0001 rad / 0,00001 skaalayksikköä
+  ennen tiedoston Float32-pakkausta). Samalla raidalla Step+jatkuva liike käyttää
+  lyhyttä dokumentoitua siirtymäväliä; tarkka alkuperäisdata säilyy JSONissa.
+- GLB säilyttää hierarkian, osien/solmujen ID:t, TRS-kanavat, klippien nimet
+  ja tapahtumat `extras.nivoAnimation`-tiedoissa. Metrit/Y-up saadaan juurimuunnoksella.
+  Loop ja tapahtumat ovat metadataa: kohdeohjelma vastaa toistosta ja tapahtumista.
+- Tapahtumamerkit voi lisätä, nimetä ja poistaa. Esikatselu ei suorita
+  pelitapahtumia. Kelauksen, keskeytysten ja kierrosten tapahtumalogiikka
+  kuuluu kohdeohjelmalle; Nivossa on erikseen testattu välin ylityksen apufunktio.
+- GLB testattu Three.js:n lisäksi **Blender 5.2.2 LTS**:llä, mukaan lukien
+  ryhmä/lapsiliike, quaternion-kierto, skaala ja ajassa taaksepäin kelaus.
+  **Unreal-tuontia ei ole testattu**: tällä koneella ei ole Unreal-asennusta.
+  Unrealin todellinen ajettava tuonti on edelleen erillinen hyväksymisportti.
+
+Projektiformaatti on nyt v9, animaatio-osio v1. Vanhat projektit ja v8:n
+jaettu kumoamishistoria avautuvat; vanha Nivo-versio ei voi hiljaa avata ja
+uudelleentallentaa uutta v9-tiedostoa pudottaen animaatiot.
+
+Keskeinen toteutus: `model/animationSchema.ts`, `model/animation.ts`,
+`model/animationPose.ts`, `model/animationProject.ts`, `ui/AnimationWorkspace.tsx`,
+`viewport/animation.ts` ja `exchange/animationExport.ts`.
+
+## Alkuperäinen vaihe A — ennen toteutusta
+
 19.10.2026. Tarkastettu Nivo 0.51.5, commit `a4df123`.
 Tämä on käyttäjän Mechanical Animation -määrittelyn **vaihe A**.
 Uutta aikajanaeditoria tai keyframe-tietomallia ei ole vielä toteutettu.

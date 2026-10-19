@@ -48,7 +48,18 @@ export function LodPanel({
     setPrepared(undefined);
     setLevel(0);
     setError('');
-  }, [bodies, meshes, project.assets, project.motions, instances, includeMotions, ratios, quality]);
+  }, [
+    bodies,
+    meshes,
+    project.assets,
+    project.motions,
+    project.animation,
+    project.groups,
+    instances,
+    includeMotions,
+    ratios,
+    quality,
+  ]);
   const valid =
     ratios.every(Number.isFinite) && ratios[0] > ratios[1] && ratios[1] >= 1 && ratios[0] < 100;
   const run = async (download = false) => {
@@ -73,6 +84,8 @@ export function LodPanel({
           [ratios[0] / 100, ratios[1] / 100],
           job.signal,
           errors[quality],
+          includeMotions ? project.animation : undefined,
+          project.groups,
         ));
       job.signal.throwIfAborted();
       if (!mounted.current) return;

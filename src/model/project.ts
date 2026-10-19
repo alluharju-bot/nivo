@@ -1,3 +1,4 @@
+import { animationSchema } from './animationSchema';
 import { motionSchema, motionError } from './motion';
 import { drawingAnnotationSchema } from './drawingAnnotations';
 import { productReferenceSchema } from './productReference';
@@ -478,10 +479,11 @@ export type BodyGroup = z.infer<typeof groupSchema>;
 export const projectSchema = z
   .object({
     format: z.literal('nivo'),
-    version: z.literal(8),
+    version: z.literal(9),
     id,
     name: z.string().min(1).max(120),
     units: z.literal('mm'),
+    animation: animationSchema.optional(),
     motions: z.array(motionSchema).max(1000).optional(),
     distributions: z.array(distributionSchema).max(1000).optional(),
     assets: z.record(z.string().max(100), assetSchema).optional(),
@@ -564,6 +566,14 @@ export const projectSchema = z
       if (new Set(list.map((item) => item.id)).size !== list.length)
         ctx.addIssue({ code: 'custom', message: 'Tunnisteet eivät saa toistua.' });
     }
+    if (
+      p.animation?.nodes.some(
+        (n) =>
+          (n.bodyId && !p.bodies.some((b) => b.id === n.bodyId)) ||
+          (n.groupId && !p.groups.some((g) => g.id === n.groupId)),
+      )
+    )
+      ctx.addIssue({ code: 'custom', message: 'Animaation kohde puuttuu projektista.' });
     const movementError = motionError(p.motions ?? [], p.bodies);
     if (movementError) ctx.addIssue({ code: 'custom', message: movementError });
     if (p.bodies.some((body) => body.groupId && !p.groups.some((g) => g.id === body.groupId)))
@@ -655,7 +665,7 @@ export const axisIndex = { x: 0, y: 1, z: 2 } as const;
 export const uid = () => crypto.randomUUID();
 export const freshProject = (): Project => ({
   format: 'nivo',
-  version: 8,
+  version: 9,
   id: uid(),
   name: 'Nimetön projekti',
   units: 'mm',
@@ -792,6 +802,8 @@ export function parseProject(text: string): Project {
     value = { ...value, version: 7 };
   if (value && typeof value === 'object' && 'version' in value && value.version === 7)
     value = { ...value, version: 8 };
+  if (value && typeof value === 'object' && 'version' in value && value.version === 8)
+    value = { ...value, version: 9 };
   const result = projectSchema.safeParse(value);
   if (!result.success) throw new Error(projectValidationMessage(result.error));
   return result.data;

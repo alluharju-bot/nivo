@@ -211,7 +211,13 @@ export class History {
       // v3 contains current-schema objects. Avoid serializing a multi-megabyte
       // BRep 100 times just to validate it. Legacy formats still run migrations.
       const validate = (raw: unknown) =>
-        shared ? projectSchema.parse(raw) : parseProject(JSON.stringify(raw));
+        shared
+          ? projectSchema.parse(
+              raw && typeof raw === 'object' && 'version' in raw && raw.version === 8
+                ? { ...raw, version: 9 }
+                : raw,
+            )
+          : parseProject(JSON.stringify(raw));
       if (
         data.version !== 1 ||
         !equalJson(validate(data.current), projectSchema.parse(this.current))

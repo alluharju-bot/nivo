@@ -163,7 +163,7 @@ describe('rigid transforms and object organization', () => {
       settings: { guideXray: false },
     };
     const migrated = parseProject(JSON.stringify(legacy));
-    expect(migrated.version).toBe(8);
+    expect(migrated.version).toBe(9);
     expect(migrated.groups).toEqual([]);
     expect(migrated.settings.axisStyle).toBe('subtle');
     expect(migrated.settings.axisLabels).toBe(false);

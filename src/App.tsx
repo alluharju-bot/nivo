@@ -1,3 +1,5 @@
+import { Matrix4, Vector3 } from 'three';
+import { useAnimationWorkspace, AnimationPanel, AnimationTimeline } from './ui/AnimationWorkspace';
 import { useMotionWorkspace } from './ui/MotionWorkspace';
 import { radialPolygon, facetedSphere } from './model/roundPrimitives';
 import { SweepPanel } from './ui/SweepPanel';
@@ -780,8 +782,20 @@ export default function App() {
   const [openedAssembly, setOpenedAssembly] = useState<string>();
   const [mode, setMode] = useState<'model' | 'drawing'>('model');
   const motion = useMotionWorkspace(project, selectedIds, busy, editor.transact);
+  const animation = useAnimationWorkspace(
+    project,
+    editor.meshes,
+    busy,
+    editor.transact,
+    selectedIds,
+    selectedGroupId,
+  );
+  const transformBodies = animation.open ? animation.posed.bodies : project.bodies;
   useEffect(() => {
-    if (renderOpen || partsOpen || mode !== 'model') motion.close();
+    if (renderOpen || partsOpen || mode !== 'model') {
+      motion.close();
+      animation.close();
+    }
   }, [renderOpen, partsOpen, mode]);
   const geometryActive =
     !!geometryBody &&
@@ -944,7 +958,7 @@ export default function App() {
   }, [treeExpansion.revealKey]);
   const fileInput = useRef<HTMLInputElement>(null);
   const inspectorDetails = useRef<HTMLDivElement>(null);
-  const body = project.bodies.find((b) => b.id === selected);
+  const body = transformBodies.find((b) => b.id === selected);
   const selectedGroup = project.groups.find((g) => g.id === selectedGroupId);
   const editingBody = project.bodies.find((b) => b.id === editingBodyId);
   const selectionBox = useMemo(
@@ -1787,12 +1801,12 @@ export default function App() {
     setRotationDraft(rotationRef.current);
   };
   const startRotation = (ids: string[]) => {
-    const parts = project.bodies.filter((b) => ids.includes(b.id));
+    const parts = transformBodies.filter((b) => ids.includes(b.id));
     try {
       requireMovable(parts, project.groups);
       rotationRef.current = {
         ids,
-        pivot: bodiesCenter(parts),
+        pivot: (animation.open ? animation.pivot(ids) : undefined) ?? bodiesCenter(parts),
         axis: [0, 0, 1],
       };
       setRotationDraft(rotationRef.current);
@@ -1803,10 +1817,15 @@ export default function App() {
     }
   };
   const startScaling = (ids: string[]) => {
-    const parts = project.bodies.filter((b) => ids.includes(b.id));
+    const parts = transformBodies.filter((b) => ids.includes(b.id));
     try {
       requireMovable(parts, project.groups);
-      scalingRef.current = { ids, pivot: bodiesCenter(parts), factors: [1, 1, 1], mode: 'uniform' };
+      scalingRef.current = {
+        ids,
+        pivot: (animation.open ? animation.pivot(ids) : undefined) ?? bodiesCenter(parts),
+        factors: [1, 1, 1],
+        mode: 'uniform',
+      };
       setScalingDraft(scalingRef.current);
       scaleInputRef.current = 'factor';
       setScaleInput('factor');
@@ -1829,7 +1848,7 @@ export default function App() {
     scalingRef.current = next;
     setScalingDraft(next);
     if (patch.factors || patch.mode) {
-      const size = scaleSize(project.bodies.filter((b) => next.ids.includes(b.id)));
+      const size = scaleSize(transformBodies.filter((b) => next.ids.includes(b.id)));
       const value = scalingFactor(next);
       writeFields({
         factor: inputNumber(value),
@@ -1846,7 +1865,7 @@ export default function App() {
     const draft = scalingRef.current;
     if (!draft) return;
     const input = scaleInputRef.current;
-    const size = scaleSize(project.bodies.filter((b) => draft.ids.includes(b.id)));
+    const size = scaleSize(transformBodies.filter((b) => draft.ids.includes(b.id)));
     const index = ['x', 'y', 'z'].indexOf(input);
     const factor =
       input === 'factor'
@@ -1858,6 +1877,17 @@ export default function App() {
   };
   const begin = (next: Tool, prepared = false) => {
     if (busy) return;
+    if (animation.open && !['select', 'move', 'rotate', 'scale', 'navigate'].includes(next)) {
+      animation.setError(
+        'Animaatiossa muokataan asentoa. Palaa Malli-tilaan muuttaaksesi geometriaa.',
+      );
+      return;
+    }
+    if (animation.open && animation.playing) {
+      animation.setError('Tauota toisto ennen asennon muokkaamista.');
+      return;
+    }
+    if (animation.open) animation.pause();
     if (motion.open) motion.close();
     if (!prepared && geometryActive && geometrySession.current?.pending) {
       void geometrySession.current.finish().then((ok) => {
@@ -2534,6 +2564,47 @@ export default function App() {
       return;
     }
     try {
+      if (animation.open) {
+        let ids = selectedIds,
+          delta: Matrix4 | undefined;
+        if (tool === 'move') {
+          const candidate = makePreview(),
+            source = transformBodies.find((b) => b.id === candidate?.id);
+          if (candidate && source)
+            delta = new Matrix4().makeTranslation(...sub(candidate.origin, source.origin));
+        } else if (tool === 'rotate' && rotationRef.current) {
+          const r = rotationRef.current;
+          ids = r.ids;
+          delta = new Matrix4()
+            .makeTranslation(...r.pivot)
+            .multiply(
+              new Matrix4().makeRotationAxis(
+                new Vector3(...r.axis).normalize(),
+                (rotationAngle(fieldsRef.current.angle) * Math.PI) / 180,
+              ),
+            )
+            .multiply(new Matrix4().makeTranslation(...(r.pivot.map((n) => -n) as Vec3)));
+        } else if (tool === 'scale') {
+          const scale = scalingValue();
+          if (scale) {
+            ids = scale.ids;
+            delta = new Matrix4()
+              .makeTranslation(...scale.pivot)
+              .multiply(new Matrix4().makeScale(...scale.factors))
+              .multiply(new Matrix4().makeTranslation(...(scale.pivot.map((n) => -n) as Vec3)));
+          }
+        }
+        if (delta) {
+          animation.transform(ids, delta);
+          resetGesture();
+          writeFields({ ...defaults });
+          setAwaitingStart(true);
+          editor.setMessage(
+            'Animaation asento muutettu. Lisää avain tallentaaksesi sen aikajanalle.',
+          );
+        }
+        return;
+      }
       if (['extrude', 'offset'].includes(tool) && faceRef.current)
         requireMovable(
           project.bodies.filter((b) => b.id === faceRef.current!.bodyId),
@@ -3248,7 +3319,7 @@ export default function App() {
       setMoveInputAxis(event.axis);
       const local = !event.axis && event.direction;
       setMoveDirection(local || undefined);
-      const source = project.bodies.find((b) => b.id === event.bodyId) ?? body;
+      const source = transformBodies.find((b) => b.id === event.bodyId) ?? body;
       if (!source) return;
       if (local) {
         if (lockRef.current.has('length')) return;
@@ -3639,7 +3710,7 @@ export default function App() {
     }
   })();
   const scaleDimensions = scalingDraft
-    ? scaleSize(project.bodies.filter((b) => scalingDraft.ids.includes(b.id)))
+    ? scaleSize(transformBodies.filter((b) => scalingDraft.ids.includes(b.id)))
     : [0, 0, 0];
   const numericFields: NumericField[] =
     tool === 'scale'
@@ -4399,7 +4470,8 @@ export default function App() {
     setSelectedFace(undefined);
     if (workspace.panel) workspace.open(workspace.panel);
     setPanelOpen(true);
-    motion.start();
+    motion.close();
+    animation.start();
   };
   const openDrawing = () => {
     if (!leaveGeometryForView()) return;
@@ -4508,6 +4580,60 @@ export default function App() {
         linkDialog
       )
         return;
+      if (animation.open) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('input, textarea, select, [contenteditable]')) {
+          const key = event.key.toLowerCase();
+          if (key === ' ') {
+            event.preventDefault();
+            resetGesture();
+            animation.playing ? animation.pause() : animation.play();
+            return;
+          }
+          if (key === 'i' && !event.ctrlKey && !event.metaKey) {
+            event.preventDefault();
+            resetGesture();
+            void animation.addKey();
+            return;
+          }
+          if (key === 'escape') {
+            event.preventDefault();
+            if (gestureActive.current || tool !== 'select') {
+              resetGesture();
+              setTool('select');
+            } else if (animation.dirty) animation.discard();
+            else animation.close();
+            return;
+          }
+          if (
+            !event.ctrlKey &&
+            !event.metaKey &&
+            ![
+              'm',
+              'r',
+              'l',
+              'v',
+              'x',
+              'y',
+              'z',
+              'tab',
+              'enter',
+              'shift',
+              'alt',
+              'control',
+              'backspace',
+              'delete',
+              'arrowleft',
+              'arrowright',
+              'arrowup',
+              'arrowdown',
+            ].includes(key) &&
+            !/^[0-9.,+\-]$/.test(key)
+          )
+            return;
+          if (['delete', 'backspace'].includes(key) || (key === 'x' && tool === 'select')) return;
+        }
+      }
       if (motion.open) {
         if (event.key === 'Escape') {
           event.preventDefault();
@@ -5903,6 +6029,10 @@ export default function App() {
       : undefined;
   const openGeometryEditing = (selection: GeometrySelection = 'points') => {
     if (busy) return;
+    if (animation.open) {
+      animation.setError('Sulje animaatio ennen geometrian muokkaamista.');
+      return;
+    }
     if (!geometryTarget) {
       editor.setError('Valitse yksi osa geometrian muokkaamiseen.');
       return;
@@ -5930,6 +6060,10 @@ export default function App() {
     setPanelOpen(true);
   };
   const openSurfaceWorkspace = () => {
+    if (animation.open) {
+      animation.setError('Sulje animaatio ennen geometrian muokkaamista.');
+      return;
+    }
     const target = geometryBody ?? geometryTarget;
     if (!target || busy) return;
     if (bodyLocked(target, project.groups)) {
@@ -6607,6 +6741,34 @@ export default function App() {
       />
     );
 
+  const showModelInspector =
+    panelOpen &&
+    mode === 'model' &&
+    !loftOpen &&
+    !geometryActive &&
+    !motion.open &&
+    !animation.open;
+  const animationActions = {
+    project,
+    busy,
+    tool,
+    operation: numericInput,
+    onSelect: (ids: string[], groupId?: string) => {
+      resetGesture();
+      setSelectedIds(ids);
+      setSelected(ids[0]);
+      setSelectedGroupId(groupId);
+      setSelectedFace(undefined);
+      setAwaitingStart(true);
+      setTool('select');
+    },
+    onTool: (next: 'select' | 'move' | 'rotate' | 'scale') => begin(next),
+    onLegacy: () => {
+      animation.close();
+      motion.start();
+    },
+    onResetGesture: resetGesture,
+  };
   return (
     <div className="app-shell" data-compact={compact} onContextMenu={(e) => e.preventDefault()}>
       <header className="app-header">
@@ -6628,7 +6790,15 @@ export default function App() {
           <select
             className="mobile-workspace-select"
             aria-label="Työtila"
-            value={renderOpen ? 'render' : partsOpen ? 'parts' : motion.open ? 'motion' : mode}
+            value={
+              renderOpen
+                ? 'render'
+                : partsOpen
+                  ? 'parts'
+                  : motion.open || animation.open
+                    ? 'motion'
+                    : mode
+            }
             onChange={(e) => {
               setHeaderMenuOpen(false);
               if (e.target.value === 'motion') openMotions();
@@ -6637,6 +6807,7 @@ export default function App() {
               else if (e.target.value === 'drawing') openDrawing();
               else {
                 motion.close();
+                animation.close();
                 closeRender();
               }
             }}
@@ -6658,9 +6829,12 @@ export default function App() {
         )}
         <div className="mode-switch" aria-label="Työtila">
           <button
-            aria-pressed={!renderOpen && !partsOpen && !motion.open && mode === 'model'}
+            aria-pressed={
+              !renderOpen && !partsOpen && !motion.open && !animation.open && mode === 'model'
+            }
             onClick={() => {
               motion.close();
+              animation.close();
               closeRender();
             }}
           >
@@ -6668,7 +6842,7 @@ export default function App() {
             Malli
           </button>
           <button
-            aria-pressed={motion.open}
+            aria-pressed={motion.open || animation.open}
             disabled={!ready || busy || !project.bodies.length}
             onClick={openMotions}
           >
@@ -7059,7 +7233,7 @@ export default function App() {
       </header>
 
       <div
-        className={`workspace ${panelOpen ? 'panel-open' : ''} ${mode === 'drawing' ? 'drawing-workspace' : ''}`}
+        className={`workspace ${animation.open ? 'animation-workspace' : ''} ${panelOpen ? 'panel-open' : ''} ${mode === 'drawing' ? 'drawing-workspace' : ''}`}
         hidden={renderOpen || partsOpen}
         data-dock={mode === 'model' ? (compact ? 'left' : dock) : undefined}
       >
@@ -7091,9 +7265,15 @@ export default function App() {
                 setDock(next);
                 localStorage.setItem('nivo-tool-dock', next);
               }}
-              tools={tools}
+              tools={
+                animation.open
+                  ? tools.filter((t) =>
+                      ['select', 'move', 'rotate', 'scale', 'navigate'].includes(t.id),
+                    )
+                  : tools
+              }
               tool={tool}
-              busy={busy}
+              busy={busy || animation.playing}
               onTool={(next) => {
                 if (next === 'pen') setPenMode('line');
                 begin(next);
@@ -7650,6 +7830,7 @@ export default function App() {
               </div>
             ) : (
               geometryTarget &&
+              !animation.open &&
               mode === 'model' &&
               !renderOpen &&
               !partsOpen && (
@@ -7902,6 +8083,7 @@ export default function App() {
                 setPickList(list);
               }}
               onContextMenu={({ x, y, bodyId, guideId, dimensionId, markupId, candidates }) => {
+                if (animation.open) return;
                 if (busy || openingDraft) return;
                 if (markupId) {
                   if (!selectedMarkupIds.includes(markupId)) selectMarkup(markupId);
@@ -7934,7 +8116,14 @@ export default function App() {
                   setPanelOpen(true);
                 }
               }}
-              onEditBody={openBodyEdit}
+              onEditBody={
+                animation.open
+                  ? (id) => {
+                      const unit = selectionUnit(project, id, openedAssembly);
+                      if (unit.groupId) openAssembly(unit.groupId);
+                    }
+                  : openBodyEdit
+              }
               onCloseBodyEdit={closeBodyEdit}
               onEditBlocked={explainEditContext}
               onRemoveBoundary={(target) => void eraseBoundary(target)}
@@ -7954,6 +8143,19 @@ export default function App() {
               meshes={openingPreviewMeshes}
               selected={selected}
               motion={motion.viewport}
+              animation={
+                animation.viewport
+                  ? {
+                      ...animation.viewport,
+                      bodies: animation.posed.bodies
+                        .filter((b) => openingPreviewBodies.some((v) => v.id === b.id))
+                        .map((b) => ({ ...b, locked: bodyLocked(b, project.groups) })),
+                      meshes: animation.posed.meshes.filter((m) =>
+                        openingPreviewMeshes.some((v) => v.id === m.id),
+                      ),
+                    }
+                  : undefined
+              }
               selectedIds={
                 motion.open ? (motion.active?.movingIds ?? []) : loftOpen ? loftIds : selectedIds
               }
@@ -8149,8 +8351,10 @@ export default function App() {
               dimensionLineStyle={project.settings.dimensionLineStyle}
               moveMode={project.settings.moveMode ?? 'axis'}
               copyMove={copyMove}
-              onCopyMove={changeCopyMove}
-              onCopyRotation={(copy) => changeRotation({ copy })}
+              onCopyMove={animation.open ? () => {} : changeCopyMove}
+              onCopyRotation={(copy) => {
+                if (!animation.open) changeRotation({ copy });
+              }}
               offsetDistance={offsetDistance}
               offsetOutline={offsetPreview.lines}
               offsetPreviewDistance={offsetPreview.distance}
@@ -8265,7 +8469,9 @@ export default function App() {
                 return selectedIds;
               }}
             />
+            <AnimationTimeline state={animation} {...animationActions} />
             {!motion.open &&
+              !animation.open &&
               (!panelOpen || touchReview) &&
               !(compact && touchReview) &&
               numericInput}
@@ -8632,8 +8838,9 @@ export default function App() {
             {dimensionFields(geometryBody)}
           </aside>
         )}
+        {panelOpen && <AnimationPanel state={animation} {...animationActions} />}
         {panelOpen && motion.panel}
-        {panelOpen && mode === 'model' && !loftOpen && !geometryActive && !motion.open && (
+        {showModelInspector && (
           <aside className="inspector" aria-label="Ominaisuudet">
             {compact && (
               <button className="mobile-panel-close" onClick={() => setPanelOpen(false)}>

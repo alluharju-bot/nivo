@@ -27,6 +27,7 @@ export function scalingPreview(scene: THREE.Scene) {
     s: Scaling | undefined,
     bodies: Body[],
     nodes: Map<string, { mesh: THREE.Mesh; outline: THREE.LineSegments }>,
+    matrices?: Map<string, THREE.Matrix4>,
   ) {
     group.visible = !!s;
     if (!s) {
@@ -37,7 +38,12 @@ export function scalingPreview(scene: THREE.Scene) {
       }
       return;
     }
-    const nextKey = s.ids.map((id) => `${id}:${nodes.get(id)?.mesh.geometry.uuid}`).join('|');
+    const nextKey = s.ids
+      .map(
+        (id) =>
+          `${id}:${nodes.get(id)?.mesh.geometry.uuid}:${matrices?.get(id)?.elements.join(',') ?? ''}`,
+      )
+      .join('|');
     if (nextKey !== key) {
       clear(surfaces);
       clear(handles);
@@ -59,6 +65,12 @@ export function scalingPreview(scene: THREE.Scene) {
           node.outline.geometry,
           new THREE.LineBasicMaterial({ color: '#36755f' }),
         );
+        const matrix = matrices?.get(id);
+        if (matrix)
+          for (const object of [mesh, edge]) {
+            object.matrixAutoUpdate = false;
+            object.matrix.copy(matrix);
+          }
         surfaces.add(mesh, edge);
       }
     }

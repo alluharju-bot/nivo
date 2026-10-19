@@ -1,7 +1,26 @@
-# .nivo-projektiformaatti v8
+# .nivo-projektiformaatti v9
 
-UTF-8 JSON, tunniste `format: "nivo"` ja `version: 8`. Kaikki mitat ovat
+UTF-8 JSON, tunniste `format: "nivo"` ja `version: 9`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
+
+V0.52.0 nostaa formaatin versioon 9 ja lisää valinnaisen `animation`-osion:
+
+- `version: 1`, `nodes`, `clips`. Vanha v8 migroidaan muuttamatta geometriaa;
+  vanhat `motions`-saranat ja liu'ut säilyvät rinnalla.
+- Solmu: `id`, `name`, valinnainen `bodyId` **tai** `groupId`, `parentId`,
+  `rest: { position, rotation, scale }`. TRS on paikallinen suhteessa parentiin,
+  kierto on normalisoitu quaternion `[x,y,z,w]`, mitat ovat millimetrejä.
+- Klippi: `id`, `name`, `duration`, `loop`, `tracks`, `markers`.
+  Raita: `nodeId`, aikajärjestetty `keys`. Avain: `id`, `time`, `pose`,
+  `interpolation: step | linear | smooth`; interpolointi koskee seuraavaa väliä.
+  Merkki: `id`, `name`, `time`. Kesto on 0,01–3600 sekuntia.
+- Enintään 20 000 solmua, 200 klippiä, 10 000 raitaa/klippi ja
+  10 000 avainta/raita. Nämä ovat tiedoston validointirajoja, eivät lupaus
+  kaikkien enimmäisten samanaikaisesta suorituskyvystä.
+- Solmuketjun on oltava syklitön; kohteet ja parentit ovat pysyviä ID-viitteitä.
+  Sama kohde kuuluu yhteen solmuun, samalla ajalla on yksi avain/raita.
+- Esikatselun aika ja luonnosasento eivät tallennu. Paikallinen/pilvitallennus,
+  Undo/Redo, projektituonti ja osakirjasto käsittelevät tallennettua animaatiota.
 
 V0.44.0 lisää valinnaisen `body.product`-tuoteviitteen:
 `catalogKey`, `brand`, `name`, valinnaiset `article` ja `variant`, HTTPS-`source`,
@@ -60,7 +79,7 @@ Valinnaiset v0.35.0-kentät:
 ```json
 {
   "format": "nivo",
-  "version": 8,
+  "version": 9,
   "id": "project-uuid",
   "name": "Hyllylevy",
   "units": "mm",

@@ -1,3 +1,5 @@
+import { Matrix4 } from 'three';
+import { transformAnimationModel, copyAnimation } from './animationProject';
 import { isOverallDimension, isPointDimension } from './project';
 import { dimensionBodyIds } from './dimensions';
 import { uid, type Anchor, type Body, type BodyGroup, type Project, type Vec3 } from './project';
@@ -180,6 +182,11 @@ export function translateSelection(
     return {
       project: {
         ...project,
+        animation: transformAnimationModel(
+          project.animation,
+          ids,
+          new Matrix4().makeTranslation(...offset),
+        ),
         bodies: project.bodies.map((b) =>
           ids.includes(b.id) ? { ...b, origin: add(b.origin, offset) } : b,
         ),
@@ -281,6 +288,7 @@ export function translateSelection(
     project: {
       ...project,
       bodies: [...project.bodies.map((b) => sourceById.get(b.id) ?? b), ...bodies],
+      animation: copyAnimation(project.animation, bodyIds, groupIds, offset),
       motions: project.motions
         ? [
             ...project.motions,

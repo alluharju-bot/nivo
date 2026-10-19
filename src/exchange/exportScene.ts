@@ -1,3 +1,6 @@
+import { attachAnimation } from './animationExport';
+import type { AnimationData } from '../model/animation';
+import type { BodyGroup } from '../model/project';
 import { attachMotions } from './motionExport';
 import type { Motion } from '../model/motion';
 import { layerDomain } from '../render/layers';
@@ -26,6 +29,8 @@ import type { LodMesh } from './lod';
 export interface GlbOptions {
   signal?: AbortSignal;
   motions?: Motion[];
+  animation?: AnimationData;
+  groups?: BodyGroup[];
   instances?: boolean;
   ratio?: number;
   error?: number;
@@ -215,7 +220,9 @@ export async function exportScene(
       m.movingIds.some((id) => bodies.some((b) => b.id === id)),
     );
     const animatedIds = new Set(motions.flatMap((m) => [m.anchorId, ...m.movingIds]));
-    const animations = attachMotions(root, bodies, motions);
+    const animations = options.animation?.clips.length
+      ? attachAnimation(root, bodies, options.animation, options.groups, motions)
+      : attachMotions(root, bodies, motions);
     if (options.instances) {
       const batches = new Map<string, Mesh[]>();
       for (const child of root.children)

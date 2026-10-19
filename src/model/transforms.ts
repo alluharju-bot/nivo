@@ -1,3 +1,5 @@
+import { Matrix4, Vector3 } from 'three';
+import { transformAnimationModel } from './animationProject';
 import { isPointDimension } from './project';
 import { dimensionBodyIds } from './dimensions';
 import { bounds, type Body, type BodyGroup, type Project, type Vec3 } from './project';
@@ -68,6 +70,11 @@ export function moveToOrigin(
   const anchor = reference === 'center' ? bodiesCenter(chosen) : bounds(chosen).min;
   return {
     ...project,
+    animation: transformAnimationModel(
+      project.animation,
+      ids,
+      new Matrix4().makeTranslation(...(anchor.map((n) => -n) as Vec3)),
+    ),
     bodies: project.bodies.map((b) =>
       ids.includes(b.id) ? { ...b, origin: sub(b.origin, anchor) } : b,
     ),
@@ -77,6 +84,19 @@ export function applyRotation(project: Project, results: Body[], rotation: Rotat
   const moved = new Set(results.map((b) => b.id));
   return {
     ...project,
+    animation: transformAnimationModel(
+      project.animation,
+      results.map((b) => b.id),
+      new Matrix4()
+        .makeTranslation(...rotation.pivot)
+        .multiply(
+          new Matrix4().makeRotationAxis(
+            new Vector3(...rotation.axis).normalize(),
+            (rotation.angle * Math.PI) / 180,
+          ),
+        )
+        .multiply(new Matrix4().makeTranslation(...(rotation.pivot.map((n) => -n) as Vec3))),
+    ),
     bodies: project.bodies.map((b) => results.find((r) => r.id === b.id) ?? b),
     dimensions: project.dimensions.map((d) =>
       isPointDimension(d) &&

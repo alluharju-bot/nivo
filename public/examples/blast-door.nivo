@@ -1,0 +1,1615 @@
+{
+  "format": "nivo",
+  "version": 9,
+  "id": "nivo-blast-door-demo",
+  "name": "Blast Door · mekaaninen animaatio",
+  "units": "mm",
+  "animation": {
+    "version": 1,
+    "nodes": [
+      {
+        "id": "node-root",
+        "name": "BLAST_DOOR_ROOT",
+        "groupId": "root",
+        "rest": {
+          "position": [
+            0,
+            69,
+            1100
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-left",
+        "name": "LEFT_DOOR_GROUP",
+        "groupId": "left",
+        "parentId": "node-root",
+        "rest": {
+          "position": [
+            -351,
+            -46,
+            -50
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-right",
+        "name": "RIGHT_DOOR_GROUP",
+        "groupId": "right",
+        "parentId": "node-root",
+        "rest": {
+          "position": [
+            351,
+            -46,
+            -50
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-left-pins",
+        "name": "LEFT_LOCKING_PINS",
+        "groupId": "left-pins",
+        "parentId": "node-left",
+        "rest": {
+          "position": [
+            287,
+            -40,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-right-pins",
+        "name": "RIGHT_LOCKING_PINS",
+        "groupId": "right-pins",
+        "parentId": "node-right",
+        "rest": {
+          "position": [
+            -287,
+            -40,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-FRAME_LEFT",
+        "name": "FRAME_LEFT",
+        "bodyId": "FRAME_LEFT",
+        "parentId": "node-root",
+        "rest": {
+          "position": [
+            -750,
+            21,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-FRAME_RIGHT",
+        "name": "FRAME_RIGHT",
+        "bodyId": "FRAME_RIGHT",
+        "parentId": "node-root",
+        "rest": {
+          "position": [
+            750,
+            21,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-FRAME_TOP",
+        "name": "FRAME_TOP",
+        "bodyId": "FRAME_TOP",
+        "parentId": "node-root",
+        "rest": {
+          "position": [
+            0,
+            21,
+            1050
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-LEFT_DOOR_MESH",
+        "name": "LEFT_DOOR_MESH",
+        "bodyId": "LEFT_DOOR_MESH",
+        "parentId": "node-left",
+        "rest": {
+          "position": [
+            0,
+            17,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-RIGHT_DOOR_MESH",
+        "name": "RIGHT_DOOR_MESH",
+        "bodyId": "RIGHT_DOOR_MESH",
+        "parentId": "node-right",
+        "rest": {
+          "position": [
+            0,
+            17,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-LEFT_PANEL",
+        "name": "LEFT_PANEL",
+        "bodyId": "LEFT_PANEL",
+        "parentId": "node-left",
+        "rest": {
+          "position": [
+            1,
+            -33,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-RIGHT_PANEL",
+        "name": "RIGHT_PANEL",
+        "bodyId": "RIGHT_PANEL",
+        "parentId": "node-right",
+        "rest": {
+          "position": [
+            -1,
+            -33,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-LEFT_LOCK_TOP",
+        "name": "LEFT_LOCK_TOP",
+        "bodyId": "LEFT_LOCK_TOP",
+        "parentId": "node-left-pins",
+        "rest": {
+          "position": [
+            0,
+            0,
+            700
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-LEFT_LOCK_BOTTOM",
+        "name": "LEFT_LOCK_BOTTOM",
+        "bodyId": "LEFT_LOCK_BOTTOM",
+        "parentId": "node-left-pins",
+        "rest": {
+          "position": [
+            0,
+            0,
+            -700
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-RIGHT_LOCK_TOP",
+        "name": "RIGHT_LOCK_TOP",
+        "bodyId": "RIGHT_LOCK_TOP",
+        "parentId": "node-right-pins",
+        "rest": {
+          "position": [
+            0,
+            0,
+            700
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-RIGHT_LOCK_BOTTOM",
+        "name": "RIGHT_LOCK_BOTTOM",
+        "bodyId": "RIGHT_LOCK_BOTTOM",
+        "parentId": "node-right-pins",
+        "rest": {
+          "position": [
+            0,
+            0,
+            -700
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-HYDRAULIC_PISTON_LEFT",
+        "name": "HYDRAULIC_PISTON_LEFT",
+        "bodyId": "HYDRAULIC_PISTON_LEFT",
+        "parentId": "node-root",
+        "rest": {
+          "position": [
+            -710,
+            -95,
+            896
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-HYDRAULIC_PISTON_RIGHT",
+        "name": "HYDRAULIC_PISTON_RIGHT",
+        "bodyId": "HYDRAULIC_PISTON_RIGHT",
+        "parentId": "node-root",
+        "rest": {
+          "position": [
+            710,
+            -95,
+            896
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    ],
+    "clips": [
+      {
+        "id": "blast-door-open",
+        "name": "BLAST_DOOR_OPEN",
+        "duration": 3.5,
+        "loop": false,
+        "tracks": [
+          {
+            "nodeId": "node-left",
+            "keys": [
+              {
+                "id": "left-0",
+                "time": 0,
+                "pose": {
+                  "position": [
+                    -351,
+                    -46,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "left-1",
+                "time": 0.35,
+                "pose": {
+                  "position": [
+                    -351,
+                    -51,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "left-2",
+                "time": 0.8,
+                "pose": {
+                  "position": [
+                    -351,
+                    -54,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "left-3",
+                "time": 1.7,
+                "pose": {
+                  "position": [
+                    -351,
+                    -146,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "left-4",
+                "time": 3.5,
+                "pose": {
+                  "position": [
+                    -1051,
+                    -146,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              }
+            ]
+          },
+          {
+            "nodeId": "node-right",
+            "keys": [
+              {
+                "id": "right-0",
+                "time": 0,
+                "pose": {
+                  "position": [
+                    351,
+                    -46,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "right-1",
+                "time": 0.4,
+                "pose": {
+                  "position": [
+                    351,
+                    -51,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "right-2",
+                "time": 0.85,
+                "pose": {
+                  "position": [
+                    351,
+                    -54,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "right-3",
+                "time": 1.75,
+                "pose": {
+                  "position": [
+                    351,
+                    -146,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "right-4",
+                "time": 3.5,
+                "pose": {
+                  "position": [
+                    1051,
+                    -146,
+                    -50
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              }
+            ]
+          },
+          {
+            "nodeId": "node-left-pins",
+            "keys": [
+              {
+                "id": "left-pins-0",
+                "time": 0,
+                "pose": {
+                  "position": [
+                    287,
+                    -40,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "left-pins-1",
+                "time": 0.35,
+                "pose": {
+                  "position": [
+                    287,
+                    -40,
+                    -35
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              }
+            ]
+          },
+          {
+            "nodeId": "node-right-pins",
+            "keys": [
+              {
+                "id": "right-pins-0",
+                "time": 0,
+                "pose": {
+                  "position": [
+                    -287,
+                    -40,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "right-pins-1",
+                "time": 0.4,
+                "pose": {
+                  "position": [
+                    -287,
+                    -40,
+                    -35
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              }
+            ]
+          },
+          {
+            "nodeId": "node-HYDRAULIC_PISTON_LEFT",
+            "keys": [
+              {
+                "id": "HYDRAULIC_PISTON_LEFT-0",
+                "time": 0,
+                "pose": {
+                  "position": [
+                    -710,
+                    -95,
+                    896
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "HYDRAULIC_PISTON_LEFT-1",
+                "time": 1.7,
+                "pose": {
+                  "position": [
+                    -710,
+                    -195,
+                    896
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "HYDRAULIC_PISTON_LEFT-2",
+                "time": 3.5,
+                "pose": {
+                  "position": [
+                    -1060,
+                    -195,
+                    896
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    4.9,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              }
+            ]
+          },
+          {
+            "nodeId": "node-HYDRAULIC_PISTON_RIGHT",
+            "keys": [
+              {
+                "id": "HYDRAULIC_PISTON_RIGHT-0",
+                "time": 0,
+                "pose": {
+                  "position": [
+                    710,
+                    -95,
+                    896
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "HYDRAULIC_PISTON_RIGHT-1",
+                "time": 1.75,
+                "pose": {
+                  "position": [
+                    710,
+                    -195,
+                    896
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              },
+              {
+                "id": "HYDRAULIC_PISTON_RIGHT-2",
+                "time": 3.5,
+                "pose": {
+                  "position": [
+                    1060,
+                    -195,
+                    896
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    4.9,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "smooth"
+              }
+            ]
+          }
+        ],
+        "markers": [
+          {
+            "id": "pressure",
+            "time": 0,
+            "name": "HYDRAULIC_PRESSURE_START"
+          },
+          {
+            "id": "unlock",
+            "time": 0.35,
+            "name": "LOCK_RELEASE_IMPACT"
+          },
+          {
+            "id": "strain",
+            "time": 0.8,
+            "name": "METAL_STRAIN"
+          },
+          {
+            "id": "steam",
+            "time": 1.7,
+            "name": "STEAM_RELEASE"
+          },
+          {
+            "id": "open",
+            "time": 3.5,
+            "name": "DOOR_OPEN_COMPLETE"
+          }
+        ]
+      }
+    ]
+  },
+  "bodies": [
+    {
+      "id": "FRAME_LEFT",
+      "name": "FRAME_LEFT",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 100,
+        "depth": 180,
+        "height": 2200
+      },
+      "origin": [
+        -800,
+        0,
+        0
+      ],
+      "color": "#465b60",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "root",
+      "quantityBasis": {
+        "dimensions": [
+          2200,
+          180,
+          100
+        ],
+        "geometryKey": "rectangle-extrusion:447912106",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "FRAME_RIGHT",
+      "name": "FRAME_RIGHT",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 100,
+        "depth": 180,
+        "height": 2200
+      },
+      "origin": [
+        700,
+        0,
+        0
+      ],
+      "color": "#465b60",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "root",
+      "quantityBasis": {
+        "dimensions": [
+          2200,
+          180,
+          100
+        ],
+        "geometryKey": "rectangle-extrusion:447912106",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "FRAME_TOP",
+      "name": "FRAME_TOP",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 1400,
+        "depth": 180,
+        "height": 100
+      },
+      "origin": [
+        -700,
+        0,
+        2100
+      ],
+      "color": "#465b60",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "root",
+      "quantityBasis": {
+        "dimensions": [
+          1400,
+          180,
+          100
+        ],
+        "geometryKey": "rectangle-extrusion:2688497693",
+        "axes": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "LEFT_DOOR_MESH",
+      "name": "LEFT_DOOR_MESH",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 698,
+        "depth": 80,
+        "height": 2100
+      },
+      "origin": [
+        -700,
+        0,
+        0
+      ],
+      "color": "#738a8e",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "left",
+      "quantityBasis": {
+        "dimensions": [
+          2100,
+          698,
+          80
+        ],
+        "geometryKey": "rectangle-extrusion:1288648870",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "RIGHT_DOOR_MESH",
+      "name": "RIGHT_DOOR_MESH",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 698,
+        "depth": 80,
+        "height": 2100
+      },
+      "origin": [
+        2,
+        0,
+        0
+      ],
+      "color": "#738a8e",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "right",
+      "quantityBasis": {
+        "dimensions": [
+          2100,
+          698,
+          80
+        ],
+        "geometryKey": "rectangle-extrusion:1288648870",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "LEFT_PANEL",
+      "name": "LEFT_PANEL",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 540,
+        "depth": 20,
+        "height": 1300
+      },
+      "origin": [
+        -620,
+        -20,
+        400
+      ],
+      "color": "#96a8a5",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "left",
+      "quantityBasis": {
+        "dimensions": [
+          1300,
+          540,
+          20
+        ],
+        "geometryKey": "rectangle-extrusion:1801840951",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "RIGHT_PANEL",
+      "name": "RIGHT_PANEL",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 540,
+        "depth": 20,
+        "height": 1300
+      },
+      "origin": [
+        80,
+        -20,
+        400
+      ],
+      "color": "#96a8a5",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "right",
+      "quantityBasis": {
+        "dimensions": [
+          1300,
+          540,
+          20
+        ],
+        "geometryKey": "rectangle-extrusion:1801840951",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "LEFT_LOCK_TOP",
+      "name": "LEFT_LOCK_TOP",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 32,
+        "depth": 34,
+        "height": 100
+      },
+      "origin": [
+        -80,
+        -34,
+        1700
+      ],
+      "color": "#c4a66a",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "left-pins",
+      "quantityBasis": {
+        "dimensions": [
+          100,
+          34,
+          32
+        ],
+        "geometryKey": "rectangle-extrusion:1610468891",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "LEFT_LOCK_BOTTOM",
+      "name": "LEFT_LOCK_BOTTOM",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 32,
+        "depth": 34,
+        "height": 100
+      },
+      "origin": [
+        -80,
+        -34,
+        300
+      ],
+      "color": "#c4a66a",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "left-pins",
+      "quantityBasis": {
+        "dimensions": [
+          100,
+          34,
+          32
+        ],
+        "geometryKey": "rectangle-extrusion:1610468891",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "RIGHT_LOCK_TOP",
+      "name": "RIGHT_LOCK_TOP",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 32,
+        "depth": 34,
+        "height": 100
+      },
+      "origin": [
+        48,
+        -34,
+        1700
+      ],
+      "color": "#c4a66a",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "right-pins",
+      "quantityBasis": {
+        "dimensions": [
+          100,
+          34,
+          32
+        ],
+        "geometryKey": "rectangle-extrusion:1610468891",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "RIGHT_LOCK_BOTTOM",
+      "name": "RIGHT_LOCK_BOTTOM",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 32,
+        "depth": 34,
+        "height": 100
+      },
+      "origin": [
+        48,
+        -34,
+        300
+      ],
+      "color": "#c4a66a",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "right-pins",
+      "quantityBasis": {
+        "dimensions": [
+          100,
+          34,
+          32
+        ],
+        "geometryKey": "rectangle-extrusion:1610468891",
+        "axes": [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "HYDRAULIC_PISTON_LEFT",
+      "name": "HYDRAULIC_PISTON_LEFT",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 180,
+        "depth": 32,
+        "height": 32
+      },
+      "origin": [
+        -800,
+        -42,
+        1980
+      ],
+      "color": "#b5c3c6",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "root",
+      "quantityBasis": {
+        "dimensions": [
+          180,
+          32,
+          32
+        ],
+        "geometryKey": "rectangle-extrusion:3494351201",
+        "axes": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "HYDRAULIC_PISTON_RIGHT",
+      "name": "HYDRAULIC_PISTON_RIGHT",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 180,
+        "depth": 32,
+        "height": 32
+      },
+      "origin": [
+        620,
+        -42,
+        1980
+      ],
+      "color": "#b5c3c6",
+      "purpose": "model",
+      "locked": false,
+      "hidden": false,
+      "groupId": "root",
+      "quantityBasis": {
+        "dimensions": [
+          180,
+          32,
+          32
+        ],
+        "geometryKey": "rectangle-extrusion:3494351201",
+        "axes": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "root",
+      "name": "BLAST_DOOR_ROOT",
+      "hidden": false,
+      "kind": "folder"
+    },
+    {
+      "id": "left",
+      "name": "LEFT_DOOR_GROUP",
+      "hidden": false,
+      "parentId": "root",
+      "kind": "assembly"
+    },
+    {
+      "id": "right",
+      "name": "RIGHT_DOOR_GROUP",
+      "hidden": false,
+      "parentId": "root",
+      "kind": "assembly"
+    },
+    {
+      "id": "left-pins",
+      "name": "LEFT_LOCKING_PINS",
+      "hidden": false,
+      "parentId": "left",
+      "kind": "assembly"
+    },
+    {
+      "id": "right-pins",
+      "name": "RIGHT_LOCKING_PINS",
+      "hidden": false,
+      "parentId": "right",
+      "kind": "assembly"
+    }
+  ],
+  "dimensions": [],
+  "guides": [],
+  "settings": {
+    "guideXray": false,
+    "axisStyle": "subtle",
+    "axisLabels": false,
+    "dimensionDisplay": "all"
+  },
+  "updatedAt": "2026-10-19T00:00:00.000Z"
+}

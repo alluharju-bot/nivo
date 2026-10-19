@@ -1575,7 +1575,7 @@ export function installInteractions({
     };
   };
   const motionHit = (event: PointerEvent) => {
-    const mode = current().motion?.picking;
+    const mode = current().animation?.picking ? 'pivot' : current().motion?.picking;
     const face = faceAt(event, true)?.target;
     if (mode === 'anchor' || mode === 'moving')
       return face ? { point: face.point, bodyId: face.bodyId } : undefined;
@@ -3662,6 +3662,12 @@ export function installInteractions({
       canvas.focus({ preventScroll: true });
       return;
     }
+    if (props.animation?.picking) {
+      const hit = motionHit(event);
+      if (hit) props.animation.onPick(hit.point);
+      canvas.focus({ preventScroll: true });
+      return;
+    }
     if (props.motion) {
       const hit = motionHit(event);
       if (hit) props.motion.onPick(hit);
@@ -4418,6 +4424,14 @@ export function installInteractions({
         show({ point, key: 'light-target', label: reference?.label ?? 'Valon kohde' });
         props.lightEditing.onAim(point, false);
       } else show();
+      return;
+    }
+    if (props.animation?.picking) {
+      highlightFace();
+      highlightEdge();
+      const hit = motionHit(event);
+      if (hit) show({ point: hit.point, key: 'animation-pivot', label: hit.label ?? 'Pivot' });
+      else show();
       return;
     }
     if (props.motion) {

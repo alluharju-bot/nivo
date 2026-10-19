@@ -2,6 +2,18 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.52.0 — mekaaninen animaatio
+
+- Toteutettu klipit, paikallinen TRS, parent-hierarkia ja pivotit, Step/Linear/Smooth,
+  aikajana, avainten muokkaus/raahaus/kopiointi/poisto, toisto molempiin suuntiin.
+- Samat M/R/L-työkalut toimivat luonnosasennoilla; esikatselu ei muuta geometriaa.
+  Tallennus, Undo/Redo, v8-migraatio, kopiointi ja tuonti mukana.
+- GLB-hierarkia ja TRS-kanavat, JSON-vienti, tapahtumamerkit ja Blast Door -esimerkki.
+  Vanha sarana/liuku säilyy. [Käyttö ja rajat](mechanical-animation-audit.fi.md).
+- Seuraavat: todellinen Unreal-tuonnin toistotesti, perityn liikkeen leivonta
+  parent-vaihdossa, animaatioraitojen laajempi monivalinta, tapahtumien integraatio
+  kohdeohjelmaan. Ei luustoanimointia, IK:ta tai fysiikkasimulaatiota tässä versiossa.
+
 ## V0.51.6 — offsetin toisto ja animaation arkkitehtuuriauditointi
 
 - Aktiivisen Offset-työkalun uudelleenvalinta säilyttää nykyisen mitan ja

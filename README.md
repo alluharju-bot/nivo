@@ -3,12 +3,22 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.52.0** tuo **Animaatio**-tilaan mekaanisten liikkeiden aikajanan.
+Valitse osa tai ryhmä, aseta aika, muuta asentoa tutuilla **M / R / L**
+-työkaluilla ja paina **Lisää / päivitä avain**. Position, quaternion-kierto
+ja skaala tallentuvat omille raidoilleen; lapsiosalla voi olla oma liike.
+Step, Linear ja Smooth, pivotin poiminta, avainten raahaus/kopiointi,
+Undo/Redo sekä GLB-/JSON-vienti kuuluvat kokonaisuuteen. Esikatselu ei muuta
+mallin geometriaa. Vanha sarana-/liukutyökalu löytyy samasta paneelista.
+[Käyttö ja toteutuksen rajat](docs/mechanical-animation-audit.fi.md),
+[valmis Blast Door -esimerkki](public/examples/blast-door.nivo).
+
 Versio **0.51.6** säilyttää offset-mitan, kun aktiivinen työkalu valitaan
 uudelleen O-näppäimellä tai painikkeesta. Pienen ympyrän seuraava offset
 ei enää vaihdu huomaamatta 18 mm:iin. Sisään- ja ulospäin tehtävät toistot
 sekä syntyneet erilliset alueet tarkistetaan regressiotesteillä.
 [Mechanical Animation -arkkitehtuuriauditointi](docs/mechanical-animation-audit.fi.md)
-on valmis jatkototeutuksen pohjaksi; uutta aikajanaeditoria ei vielä ole lisätty.
+tehtiin ennen version 0.52.0 toteutusta.
 
 Versio **0.51.5** lisää **Kumit**-ryhmään hienorakeisen ja uritetun kumin
 sekä **Muovit**-ryhmään hienorakeisen ABS:n ja karkearakeisen muovin.

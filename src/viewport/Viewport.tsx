@@ -1,3 +1,4 @@
+import { createAnimationPreview } from './animation';
 import { createMotionPreview } from './motions';
 import { createLightHelper } from './lightEditing';
 import { layerDomain } from '../render/layers';
@@ -63,6 +64,7 @@ export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   light: () => void;
   motion: () => void;
+  animation: () => void;
   geometry: () => void;
   capture: () => Promise<Blob>;
   color: () => void;
@@ -408,6 +410,17 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       render();
     },
   );
+  const animationPreview = createAnimationPreview(
+    () => current().animation,
+    () => bodyNodes,
+    renderer.domElement,
+    () => {
+      renderer.shadowMap.needsUpdate = true;
+      render();
+    },
+  );
+  const workingBodies = () => current().animation?.bodies ?? current().bodies;
+  const workingMeshes = () => current().animation?.meshes ?? current().meshes;
   let geometryBuilds = 0;
   const lightHelper = createLightHelper(
     container,
@@ -447,7 +460,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         props.bodies.map((body) => [body.id, bodyGhostOpacity(props.modelDisplay, body.id)]),
       ),
     );
-    navigation.sync(props.bodies, props.selectedIds, props.editingBodyId);
+    navigation.sync(workingBodies(), props.selectedIds, props.editingBodyId);
     renderer.domElement.dataset.selectionKind = props.selectedFace
       ? 'face'
       : props.selectedIds.length
@@ -464,7 +477,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const bodyById = new Map(props.bodies.map((body) => [body.id, body]));
     const surfaceOrder = new Map(props.bodies.map((body, i) => [body.id, i + 1]));
     const activeMotion = props.motion?.motions.find((m) => m.id === props.motion?.activeId);
-    const animatedIds = new Set(props.motion?.motions.flatMap((m) => m.movingIds));
+    const animatedIds = new Set([
+      ...(props.motion?.motions.flatMap((m) => m.movingIds) ?? []),
+      ...(props.animation
+        ? props.animation.data.nodes.flatMap((n) => (n.bodyId ? [n.bodyId] : []))
+        : []),
+    ]);
     const selectedIds = new Set(props.selectedIds);
     const heldIds = new Set(props.heldSelectionIds);
     const previewIds = new Set(props.colorPreview?.ids);
@@ -793,6 +811,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       ),
     );
     motionPreview.sync();
+    animationPreview.sync();
     // Picker preview is explicit and may show an occluded part. Reuse model edge
     // geometry; no retessellation, material cloning or model hit-test changes.
     const pickKey = (props.pickHoveredIds ?? []).join('|');
@@ -863,16 +882,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const preview = () => {
     rotationRings = undefined;
     const scaling = current().scaling;
-    scalePreview.update(scaling, current().bodies, bodyNodes);
+    scalePreview.update(scaling, workingBodies(), bodyNodes, current().animation?.matrices);
     const rotation = current().rotation;
     const moving = current().tool === 'move' ? current().preview : undefined;
-    const source = moving && current().bodies.find((b) => b.id === moving.id);
+    const source = moving && workingBodies().find((b) => b.id === moving.id);
     const selectedIds = new Set(current().selectedIds);
     const moved =
       moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
     const nextMoveKey = moved
       ? current()
-          .selectedIds.map((id) => `${id}:${bodyNodes.get(id)?.mesh.geometry.uuid}`)
+          .selectedIds.map(
+            (id) =>
+              `${id}:${bodyNodes.get(id)?.mesh.geometry.uuid}:${current().animation?.matrices.get(id)?.elements.join(',') ?? ''}`,
+          )
           .join('|') +
         ':' +
         !!current().selectedGroupId
@@ -1000,7 +1022,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         )
         .multiply(new THREE.Matrix4().makeTranslation(...(rotation.pivot.map((n) => -n) as Vec3)));
       if (!rotation.picking && Math.abs(rotation.angle % 360) > 1e-8) {
-        for (const data of current().meshes.filter((m) => rotation.ids.includes(m.id))) {
+        for (const data of workingMeshes().filter((m) => rotation.ids.includes(m.id))) {
           const body = current().bodies.find((b) => b.id === data.id)!;
           const geometry = new THREE.BufferGeometry();
           geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
@@ -1029,16 +1051,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         }
       }
       rotationModelRadius = rotationRadius(
-        current().bodies.filter((b) => rotation.ids.includes(b.id)),
+        workingBodies().filter((b) => rotation.ids.includes(b.id)),
       );
       rotationRings = new THREE.Group();
       rotationRings.position.set(...rotation.pivot);
       ghost.add(rotationRings);
-      for (const handle of rotationHandles(
-        { ...rotation, pivot: [0, 0, 0] },
-        current().bodies,
-        1,
-      )) {
+      for (const handle of rotationHandles({ ...rotation, pivot: [0, 0, 0] }, workingBodies(), 1)) {
         const ring = new Line2(
           new LineGeometry().setPositions(handle.points.flat()),
           new LineMaterial({
@@ -1054,7 +1072,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         ring.renderOrder = 96;
         rotationRings.add(ring);
       }
-      const grip = resolveRotationGrip(rotation, current().bodies, current().meshes),
+      const grip = resolveRotationGrip(rotation, workingBodies(), workingMeshes()),
         movingGrip = rotatePoint(grip, rotation.pivot, rotation.axis, rotation.angle);
       renderer.domElement.dataset.rotationGrip = JSON.stringify(grip);
       renderer.domElement.dataset.rotationGripPreview = JSON.stringify(movingGrip);
@@ -1234,13 +1252,19 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           mesh.userData = { orbitSurface: true, sharedGeometry: true };
           const outline = new THREE.LineSegments(node.outline.geometry, edgeMaterial.clone());
           outline.userData.sharedGeometry = true;
+          const animationMatrix = current().animation?.matrices.get(id);
+          if (animationMatrix)
+            for (const object of [mesh, outline]) {
+              object.matrixAutoUpdate = false;
+              object.matrix.copy(animationMatrix);
+            }
           ghost.add(mesh, outline);
         }
         material.dispose();
         edgeMaterial.dispose();
         const bodyById = new Map(current().bodies.map((b) => [b.id, b]));
         moveBatches.sync(
-          [...selectedIds].flatMap((id, index) => {
+          (current().animation ? [] : [...selectedIds]).flatMap((id, index) => {
             const body = bodyById.get(id),
               mesh = ghost.children[index * 2],
               outline = ghost.children[index * 2 + 1];
@@ -1560,7 +1584,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     controls = rebuildOrbitControls(controls, camera);
     navigation = installCameraNavigation(controls, renderer.domElement, navigationSurfaces);
     const target = controls.target.clone();
-    navigation.sync(current().bodies, current().selectedIds, current().editingBodyId);
+    navigation.sync(workingBodies(), current().selectedIds, current().editingBodyId);
     controls.target.copy(target);
     controls.addEventListener('change', render);
     controls.addEventListener('change', knife.clear);
@@ -1657,8 +1681,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const ids = command.ids ?? props.selectedIds;
       const items =
         command.type === 'fit' && ids.length
-          ? props.bodies.filter((b) => ids.includes(b.id))
-          : props.bodies;
+          ? workingBodies().filter((b) => ids.includes(b.id))
+          : workingBodies();
       const box = bounds(items),
         min = new THREE.Vector3(...box.min),
         max = new THREE.Vector3(...box.max);
@@ -1798,7 +1822,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     bodies,
     guides,
     camera: () => camera,
-    current: () => (current().geometryActive ? { ...current(), modalOpen: true } : current()),
+    current: () => {
+      const props = current();
+      return {
+        ...props,
+        bodies: props.animation?.bodies ?? props.bodies,
+        meshes: props.animation?.meshes ?? props.meshes,
+        modalOpen: props.modalOpen || props.geometryActive || props.animation?.playing,
+      };
+    },
     render,
   });
   const syncGeometry = () => {
@@ -1854,6 +1886,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       });
     },
     motion: motionPreview.sync,
+    animation: () => {
+      animationPreview.sync();
+      bodies.userData.spatialIndex = new BodySpatialIndex(workingBodies());
+      navigation.sync(workingBodies(), current().selectedIds, current().editingBodyId);
+      interactions.sync();
+    },
     light: render,
     texture,
     color,
@@ -1879,6 +1917,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     dispose() {
       disposed = true;
       motionPreview.dispose();
+      animationPreview.dispose();
       lightHelper.dispose();
       geometryEditor?.dispose();
       cancelAnimationFrame(renderFrame);
@@ -1994,6 +2033,7 @@ export function Viewport(props: Props) {
     props.opening,
     props.motion?.motions,
     !!props.motion,
+    !!props.animation,
     props.motion?.activeId,
     props.axisStyle,
     props.axisLabels,
@@ -2007,6 +2047,10 @@ export function Viewport(props: Props) {
     api.current?.interactionSync();
   }, [props.geometryEditing, props.geometryActive]);
   useEffect(() => api.current?.motion(), [props.motion]);
+  useEffect(() => {
+    api.current?.animation();
+    api.current?.preview();
+  }, [props.animation]);
   useEffect(() => api.current?.light(), [props.lightEditing]);
   useEffect(() => api.current?.color(), [props.colorPreview]);
   useEffect(() => api.current?.texture(), [props.editingTexture]);

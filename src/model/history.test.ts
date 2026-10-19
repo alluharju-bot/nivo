@@ -90,7 +90,7 @@ it('migrates version 5 project history together with the active project', () => 
   expect(
     history.restore(JSON.stringify({ version: 1, current: old, past: [start], future: [] })),
   ).toBe(true);
-  expect(history.undo().version).toBe(8);
+  expect(history.undo().version).toBe(9);
 });
 
 it('keeps repeated saves, branching, and action contexts consistent throughout a long session', () => {
@@ -118,4 +118,18 @@ it('keeps repeated saves, branching, and action contexts consistent throughout a
   restored.commit({ ...restored.current, name: 'Uusi jatko' });
   expect(restored.canRedo).toBe(false);
   expect(restored.undo().name).toBe('Vaihe 109');
+});
+
+it('migrates shared v8 history without losing undo and redo', () => {
+  const old = { ...freshProject(), version: 8 } as unknown as ReturnType<typeof freshProject>;
+  const previous = new History(old);
+  previous.commit({ ...old, name: 'Before animation update' });
+  previous.commit({ ...previous.current, name: 'Last' });
+  previous.undo();
+  const current = parseProject(JSON.stringify(previous.current));
+  const restored = new History(current);
+  expect(restored.restore(previous.serialize())).toBe(true);
+  expect(restored.peekUndo()?.version).toBe(9);
+  expect(restored.redo().name).toBe('Last');
+  expect(restored.undo().name).toBe('Before animation update');
 });

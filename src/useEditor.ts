@@ -1,3 +1,5 @@
+import { pruneAnimation } from './model/animation';
+import { reconcileAnimationHierarchy } from './model/animationProject';
 import { pruneMotions } from './model/motion';
 import { shareProjectData } from './model/sharing';
 import { isPointDimension, type Vec3 } from './model/project';
@@ -145,11 +147,13 @@ export function useEditor() {
           );
           assertHolds(history.current, resolved);
           resolved = preserveDetailBlanks(history.current, resolved);
+          resolved = reconcileAnimationHierarchy(history.current, resolved);
         }
         if (mode === 'replace') resolved = preserveDetailBlanks(resolved, resolved);
         if (current !== revision.current) return false;
         const validated = projectSchema.safeParse({
           ...resolved,
+          animation: pruneAnimation(resolved.animation, resolved.bodies, resolved.groups),
           motions: pruneMotions(resolved.motions, resolved.bodies),
           annotations: resolved.annotations?.map((m) =>
             m.kind === 'note'
