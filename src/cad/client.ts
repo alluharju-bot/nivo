@@ -224,6 +224,19 @@ export class CadClient {
   mergePlanar(bodies: Body[]) {
     return this.request<Body>({ type: 'merge-planar', bodies });
   }
+  revolveProfile(body: Body) {
+    return this.request<Body>({ type: 'revolve-profile', body });
+  }
+  align(bodies: Body[], target: Body, options: import('../model/alignment').AlignmentOptions) {
+    return this.request<Vec3>({ type: 'align', bodies, target, options });
+  }
+  revolve(
+    profile: Body | undefined,
+    options: import('../model/revolution').RevolutionOptions,
+    existing?: Body,
+  ) {
+    return this.request<EdgeDetailResult>({ type: 'revolve', profile, options, existing });
+  }
   sweep(path: Body, options: import('./sweep').SweepOptions) {
     return this.request<EdgeDetailResult>({ type: 'sweep', path, options });
   }

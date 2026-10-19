@@ -176,6 +176,10 @@ export interface ViewportProps {
   animation?: import('../ui/AnimationWorkspace').AnimationViewport;
   lightEditing?: import('../ui/LightPanel').LightEditing;
   preview?: Body;
+  placementPreview?: { ids: string[]; offset: Vec3 };
+  objectPick?: (id: string) => void;
+  axisPicker?: import('../ui/RevolvePanel').AxisPicker;
+  revolutionAxis?: { origin: Vec3; direction: Vec3 };
   moveMode?: 'axis' | 'free';
   copyMove: boolean;
   onCopyMove: (copy: boolean) => void;

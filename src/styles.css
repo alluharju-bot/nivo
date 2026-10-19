@@ -10280,3 +10280,65 @@ p {
     gap: 2px;
   }
 }
+
+.alignment-grid {
+  display: grid;
+  grid-template-columns: 44px 1fr 1fr;
+  gap: 8px;
+  margin: 16px 0;
+}
+.alignment-row {
+  display: contents;
+}
+.alignment-row button,
+.revolve-axis-choice button {
+  border: 1px solid #cbd8ce;
+  border-radius: 6px;
+  min-height: 38px;
+  background: transparent;
+  cursor: pointer;
+}
+.alignment-row button[aria-pressed='true'],
+.revolve-axis-choice button[aria-pressed='true'] {
+  background: #dcebe4;
+  border-color: #4c8a75;
+  color: #225e4c;
+  font-weight: 700;
+}
+.alignment-grid select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 3px;
+  border: 1px solid #cad9cf;
+  border-radius: 6px;
+  background: #fff;
+}
+.revolve-axis-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  border: 0;
+  padding: 8px 0;
+  margin: 8px 0;
+}
+.revolve-axis-choice {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.revolve-axis-fields legend {
+  font-size: 12px;
+}
+.revolve-axis-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.revolve-axis-fields input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #cad9cf;
+  border-radius: 6px;
+}

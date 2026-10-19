@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.53.0** lisää **Kohdista**- ja **Muodot → Pyöräytä** -työkalut.
+Keskitys ja reunojen sovitus toimivat valituilla maailman tai vertailuosan
+akseleilla. Useat osat siirtyvät yhdessä ja vertailuosa säilyy paikallaan.
+Pyöräytä luo akselin ympäri kappaleen suljetusta profiilista tai pinnan
+avoimesta Bézier-käyrästä. Akselin voi poimia pisteestä ja suorasta reunasta.
+Esikatselu, Undo/Redo sekä tallennetun profiilin ja kulman uudelleenmuokkaus
+kuuluvat mukaan. [Käyttö ja rajat](docs/kohdistus-ja-pyoraytys.fi.md).
+
 Versio **0.52.1** lisää animaatioavainten monivalinnan. Valitse avaimia eri
 raidoilta **Shiftillä** ja vedä niitä yhdessä: keskinäiset aikaerot säilyvät.
 Raidan nimi valitsee sen kaikki avaimet. **Monivalinta**-painike toimii myös

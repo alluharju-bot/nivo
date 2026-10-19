@@ -1,3 +1,5 @@
+import { alignBodies } from './alignment';
+import { revolveProfile, restoreRevolutionProfile } from './revolution';
 import { sweepPath } from './sweep';
 import { changeDimension } from './editableDimensions';
 import { scaleBodies } from './scaling';
@@ -81,7 +83,13 @@ self.onmessage = (event: MessageEvent<CadRequest & { id: number }>) => {
           .map((entry) => entry.mesh);
         syncedBodies = new Map(ordered.map((body) => [body.id, body]));
         sentMeshes = new Map(entries.map((entry) => [entry.mesh.id, entry.mesh]));
-      } else if (request.type === 'sweep') reply.result = sweepPath(request.path, request.options);
+      } else if (request.type === 'align')
+        reply.result = alignBodies(request.bodies, request.target, request.options);
+      else if (request.type === 'revolve-profile')
+        reply.result = restoreRevolutionProfile(request.body);
+      else if (request.type === 'revolve')
+        reply.result = revolveProfile(request.profile, request.options, request.existing);
+      else if (request.type === 'sweep') reply.result = sweepPath(request.path, request.options);
       else if (request.type === 'sphere')
         reply.result = sphereBody(request.center, request.radius, request.name);
       else if (request.type === 'bezier')

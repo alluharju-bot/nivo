@@ -3656,6 +3656,30 @@ export function installInteractions({
     }
     const props = current();
     if (props.busy || props.modalOpen) return;
+    if (props.objectPick) {
+      const hit = faceAt(event, true),
+        wire = wireAt(event);
+      const id = hit?.target.bodyId ?? wire?.object.userData.id;
+      if (id) props.objectPick(id);
+      canvas.focus({ preventScroll: true });
+      return;
+    }
+    if (props.axisPicker) {
+      if (props.axisPicker.mode === 'edge') {
+        const edge = edgeAt(
+          event,
+          () => true,
+          (e) => !e.curve && !e.edge.circle,
+        );
+        if (edge) props.axisPicker.onPick(edge.point, edge.direction);
+        else props.onSnap('Valitse suora reuna kiertoakseliksi.');
+      } else {
+        const point = referenceAt(event)?.point ?? faceAt(event, true)?.target.point;
+        if (point) props.axisPicker.onPick(point);
+      }
+      canvas.focus({ preventScroll: true });
+      return;
+    }
     if (props.lightEditing?.aiming) {
       const point = referenceAt(event)?.point ?? faceAt(event, true)?.target.point;
       if (point) props.lightEditing.onAim(point, true);
@@ -4416,6 +4440,39 @@ export function installInteractions({
     const props = current();
     if (props.modalOpen) return;
     if (blocked || props.busy) return;
+    if (props.objectPick) {
+      const hit = faceAt(event, true),
+        wire = wireAt(event);
+      highlightFace();
+      highlightEdge();
+      show();
+      props.onSelectionHover?.(hit?.target.bodyId ?? wire?.object.userData.id);
+      return;
+    }
+    if (props.axisPicker) {
+      highlightFace();
+      if (props.axisPicker.mode === 'edge') {
+        const edge = edgeAt(
+          event,
+          () => true,
+          (e) => !e.curve && !e.edge.circle,
+        );
+        highlightEdge(edge?.edge);
+        show(
+          edge
+            ? { point: edge.point, key: edge.key, label: 'Pyöräytysakseli · suora reuna' }
+            : undefined,
+        );
+      } else {
+        highlightEdge();
+        const ref = referenceAt(event);
+        const point = ref?.point ?? faceAt(event, true)?.target.point;
+        show(
+          point ? { point, key: 'revolve-axis', label: ref?.label ?? 'Akselin piste' } : undefined,
+        );
+      }
+      return;
+    }
     if (props.lightEditing?.aiming) {
       highlightFace();
       const reference = referenceAt(event);
@@ -5447,6 +5504,7 @@ export function installInteractions({
     }
   };
   const doubleClick = (event: MouseEvent) => {
+    if (current().objectPick || current().axisPicker) return;
     if (
       !['select', 'measure'].includes(current().tool) ||
       current().busy ||

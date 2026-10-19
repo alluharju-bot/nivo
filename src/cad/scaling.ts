@@ -1,3 +1,4 @@
+import { transformRevolution } from './revolution';
 import { transformCutProfiles, transformCutProfilesAsync } from './cutProfiles';
 import { ZodError } from 'zod';
 import { deserializeShape } from 'replicad';
@@ -123,6 +124,14 @@ export async function scaleBodies(
             (s) => s.scale(factors[0], pivot),
             levels.normal,
             factors[0],
+          );
+        if (uniform)
+          transformRevolution(
+            body,
+            result.at(-1)!,
+            (s) => s.scale(factors[0], pivot),
+            (p) => scalePoint(p, pivot, factors),
+            (v) => v,
           );
         if (uniform) transformCutProfiles(body, result.at(-1)!, (s) => s.scale(factors[0], pivot));
         else

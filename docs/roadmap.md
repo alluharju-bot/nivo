@@ -2,6 +2,25 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.53.0 — kohdistus ja profiilin pyöräytys
+
+- **Kohdista** oikeasta paneelista, kontekstivalikosta tai komentohausta.
+  Vertailuosa valitaan näkymästä tai listasta. X/Y/Z valitaan erikseen;
+  lähteen ja kohteen alku-/keskikohta/loppureuna sovitetaan maailman tai
+  vertailuosan akselistossa. Monivalinta liikkuu jäykkänä kokonaisuutena.
+  Lukittua vertailuosaa saa käyttää, lukittuja lähdeosia ei siirretä.
+- **Muodot → Pyöräytä**: yksi tasoprofiili tai yhtenäinen avoin käyrä,
+  ±0,01…360°, X/Y/Z tai pisteestä ja suorasta reunasta poimittu akseli.
+  Suljettu profiili tekee umpimallin, avoin käyrä pinnan. Esikatselu ja
+  itsensä leikkaavien umpimallien hylkäys ennen hyväksyntää.
+- Tallennettu lähtöprofiili, akseli ja kulma säilyvät projektissa. **Muokkaa
+  pyöräytystä** vaihtaa kulman/akselin tai käyttää muokattua lähtöprofiilia.
+  **Palauta profiili muokattavaksi** tekee itsenäisen kopion lähtöprofiilista.
+  Kopiot, siirto, kierto ja tasainen skaala säilyttävät pyöräytysasetukset.
+- Myöhempi Cut/Push/Pull tai epätasainen skaala muuttaa tuloksen tavalliseksi
+  geometriaksi. Riippuvuusketjut ja muut muokkaukset säilyttävä parametrinen
+  operaatiohistoria ovat jatkotyötä. [Käyttö ja rajat](kohdistus-ja-pyoraytys.fi.md).
+
 ## V0.52.1 — animaatioavainten ja raitojen monivalinta
 
 - Shift/Ctrl/⌘ lisää ja poistaa avaimia eri raidoilta. Raidan nimi valitsee
@@ -2098,7 +2117,8 @@ vähentäminen, mitatut valotehot sekä suurten sisätilojen renderin suoritusky
 
 - Kupukanta, linssikanta ja tavallisimmat pultinkannat yksinkertaisesta
   kiinnikevalikosta: halkaisija, kannan korkeus, varren pituus ja upotus / kantaura.
-- Profiilin pyöräytys akselin ympäri tarkkoja pyörähdyskappaleita varten.
+- Profiilin pyöräytys toteutettu v0.53.0: **Muodot → Pyöräytä**. Kiinnikkeiden
+  omat mittapresetit ovat jatkotyötä.
 - Kevyt kierreetön oletus kalustevisualisointiin; tarkka kierre tarvittaessa.
   Toistettavat linkitetyt kiinnikkeet, asettelu pinnalle ja leikkauslistan rajaus.
 

@@ -1,3 +1,5 @@
+import { AlignmentPanel } from './ui/AlignmentPanel';
+import { RevolvePanel, type AxisPicker } from './ui/RevolvePanel';
 import { Matrix4, Vector3 } from 'three';
 import { useAnimationWorkspace, AnimationPanel, AnimationTimeline } from './ui/AnimationWorkspace';
 import { useMotionWorkspace } from './ui/MotionWorkspace';
@@ -554,6 +556,22 @@ export default function App() {
   const [knifeCommand, setKnifeCommand] = useState<{ id: number; action: 'finish' | 'clear' }>();
   const [penMode, setPenMode] = useState<'line' | 'bezier'>('line');
   const [bezierStyle, setBezierStyle] = useState<'smooth' | 'bezier'>('smooth');
+  const [alignmentDraft, setAlignmentDraft] = useState<{
+    ids: string[];
+    targetId?: string;
+    revision: number;
+  }>();
+  const [alignmentOffset, setAlignmentOffset] = useState<Vec3>();
+  const [revolveOpen, setRevolveOpen] = useState(false);
+  const [revolveEditingId, setRevolveEditingId] = useState<string>();
+  const [revolvePicking, setRevolvePicking] = useState<AxisPicker>();
+  const [revolutionAxis, setRevolutionAxis] = useState<{ origin: Vec3; direction: Vec3 }>();
+  useEffect(() => {
+    if (alignmentDraft && alignmentDraft.revision !== editor.revision()) {
+      setAlignmentDraft(undefined);
+      setAlignmentOffset(undefined);
+    }
+  }, [project]);
   const [sweepOpen, setSweepOpen] = useState(false);
   const [loftOpen, setLoftOpen] = useState(false);
   const [surfaceLevelsOpen, setSurfaceLevelsOpen] = useState(false);
@@ -1578,6 +1596,11 @@ export default function App() {
     );
   };
   const select = (id?: string, face?: FaceRef, additive = false, force = false) => {
+    if (alignmentDraft && !force) {
+      if (id && !alignmentDraft.ids.includes(id))
+        setAlignmentDraft((d) => (d ? { ...d, targetId: id } : d));
+      return;
+    }
     if (openingDraft && !force) {
       if (id) toggleOpeningTarget(id);
       return;
@@ -1588,7 +1611,7 @@ export default function App() {
         const candidate = project.bodies.find((b) => b.id === id);
         if (candidate && !featureIsSolid(candidate.feature))
           setLoftIds((ids) =>
-            sweepOpen
+            sweepOpen || revolveOpen
               ? ids[0] === id
                 ? []
                 : [id]
@@ -1907,6 +1930,12 @@ export default function App() {
     setLoftOpen(false);
     setSurfaceLevelsOpen(false);
     setSweepOpen(false);
+    setRevolveOpen(false);
+    setRevolveEditingId(undefined);
+    setRevolvePicking(undefined);
+    setRevolutionAxis(undefined);
+    setAlignmentDraft(undefined);
+    setAlignmentOffset(undefined);
     setLayerPlacing(false);
     setLevelEditingId(undefined);
     setLoftPreview(undefined);
@@ -4439,6 +4468,8 @@ export default function App() {
     return true;
   };
   const openRender = () => {
+    setAlignmentDraft(undefined);
+    setAlignmentOffset(undefined);
     if (!leaveGeometryForView()) return;
     setLoftOpen(false);
     setLoftPreview(undefined);
@@ -4457,6 +4488,8 @@ export default function App() {
     setTool('select');
   };
   const openMotions = () => {
+    setAlignmentDraft(undefined);
+    setAlignmentOffset(undefined);
     if (!leaveGeometryForView() || busy) return;
     resetGesture();
     setGeometryBodyId(undefined);
@@ -4474,6 +4507,8 @@ export default function App() {
     animation.start();
   };
   const openDrawing = () => {
+    setAlignmentDraft(undefined);
+    setAlignmentOffset(undefined);
     if (!leaveGeometryForView()) return;
     setDrawingScopeOverride(undefined);
     setLoftOpen(false);
@@ -4488,6 +4523,8 @@ export default function App() {
     setTab('dimensions');
   };
   const openParts = () => {
+    setAlignmentDraft(undefined);
+    setAlignmentOffset(undefined);
     if (!leaveGeometryForView()) return;
     resetGesture();
     setEditingBodyId(undefined);
@@ -4638,6 +4675,14 @@ export default function App() {
         if (event.key === 'Escape') {
           event.preventDefault();
           motion.close();
+        }
+        return;
+      }
+      if (alignmentDraft) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setAlignmentDraft(undefined);
+          setAlignmentOffset(undefined);
         }
         return;
       }
@@ -4930,7 +4975,7 @@ export default function App() {
       selected={loftOpen ? loftIds : selectedIds}
       busy={busy}
       onSelect={(id, additive) => {
-        if (loftOpen) {
+        if (loftOpen || alignmentDraft) {
           select(id);
           return;
         }
@@ -4955,6 +5000,11 @@ export default function App() {
       }}
       onSelectRange={(range) => {
         if (busy) return;
+        if (alignmentDraft) {
+          const id = range.find((id) => !alignmentDraft.ids.includes(id));
+          if (id) select(id);
+          return;
+        }
         if (editingBodyId) {
           explainEditContext();
           return;
@@ -4965,7 +5015,9 @@ export default function App() {
             const eligible = range.filter((id) =>
               project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
             );
-            return sweepOpen ? eligible.slice(0, 1) : [...new Set([...old, ...eligible])];
+            return sweepOpen || revolveOpen
+              ? eligible.slice(0, 1)
+              : [...new Set([...old, ...eligible])];
           });
           return;
         }
@@ -5000,6 +5052,11 @@ export default function App() {
         if (part) setCameraCommand({ id: performance.now(), type: 'fit', ids: [id], locate: true });
       }}
       onSelectGroup={(id) => {
+        if (alignmentDraft) {
+          const target = groupBodies(project, id).find((b) => !alignmentDraft.ids.includes(b.id));
+          if (target) select(target.id);
+          return;
+        }
         if (editingBodyId) {
           editor.setMessage('Päätä osan muokkaus ennen ryhmän valintaa.');
           return;
@@ -5472,6 +5529,7 @@ export default function App() {
     !!body &&
     selectedIds.length === 1 &&
     !featureIsSolid(body.feature) &&
+    !editor.meshes.find((m) => m.id === body.id)?.faces.some((f) => !f.planar) &&
     !bodyLocked(body, project.groups) &&
     !editingBodyId;
   const canCutOpening =
@@ -5949,6 +6007,11 @@ export default function App() {
   )
     quickActions.push(
       {
+        label: 'Kohdista…',
+        run: () => openAlignment(),
+        disabled: busy || !!movementBlocked || animation.open || motion.open,
+      },
+      {
         label: linkedSelection ? 'Linkitetty · tee uniikiksi' : 'Uniikki · linkitä',
         run: toggleLink,
         disabled: busy || !!movementBlocked,
@@ -6186,6 +6249,62 @@ export default function App() {
       }}
     />
   );
+  const openAlignment = () => {
+    if (busy || !selectedIds.length || animation.open || motion.open || !leaveGeometryForView())
+      return;
+    try {
+      requireMovable(
+        project.bodies.filter((b) => selectedIds.includes(b.id)),
+        project.groups,
+      );
+    } catch (e) {
+      editor.setError((e as Error).message);
+      return;
+    }
+    const ids = [...selectedIds];
+    begin('select');
+    resetGesture();
+    setEditingBodyId(undefined);
+    setSelectedFace(undefined);
+    setAlignmentDraft({ ids, revision: editor.revision() });
+    setAlignmentOffset(undefined);
+  };
+  const acceptAlignment = async (offset: Vec3) => {
+    if (!alignmentDraft || busy) return;
+    if (alignmentDraft.revision !== editor.revision()) {
+      editor.setError('Malli muuttui. Avaa kohdistus uudelleen.');
+      return;
+    }
+    try {
+      const next = translateSelection(project, alignmentDraft.ids, offset).project;
+      activityHistory.prepare(actionContext);
+      if (await editor.transact(next, `Kohdistettu ${alignmentDraft.ids.length} osaa`)) {
+        setAlignmentDraft(undefined);
+        setAlignmentOffset(undefined);
+      }
+    } catch (e) {
+      editor.setError((e as Error).message);
+    }
+  };
+  const openRevolution = () => {
+    if (busy || animation.open || motion.open || !leaveGeometryForView()) return;
+    const existing = body?.feature.type === 'brep' && body.feature.revolution ? body : undefined;
+    begin('select');
+    resetGesture();
+    setEditingBodyId(undefined);
+    setSurfaceMode('new');
+    setPanelOpen(true);
+    setRevolveEditingId(existing?.id);
+    setLoftIds(
+      existing
+        ? []
+        : selectedIds
+            .filter((id) => project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)))
+            .slice(0, 1),
+    );
+    setRevolveOpen(true);
+    setLoftOpen(true);
+  };
   const openSurfaceLevels = () => {
     if (!leaveGeometryForView()) return;
     begin('select');
@@ -6206,6 +6325,32 @@ export default function App() {
     setLoftOpen(true);
   };
   const commands: Command[] = [
+    {
+      id: 'align',
+      label: 'Kohdista',
+      group: 'Muokkaa',
+      keywords: 'keskitä keskitys akseli reuna align',
+      reason: !selectedIds.length
+        ? 'Valitse siirrettävät osat.'
+        : busy
+          ? 'Odota laskentaa.'
+          : animation.open || motion.open
+            ? 'Palaa mallinnustilaan.'
+            : undefined,
+      run: openAlignment,
+    },
+    {
+      id: 'revolve',
+      label: 'Pyöräytä',
+      group: 'Muodot',
+      keywords: 'revolve sorvaa pyörähdys profiili akseli',
+      reason: busy
+        ? 'Odota laskentaa.'
+        : animation.open || motion.open
+          ? 'Palaa mallinnustilaan.'
+          : undefined,
+      run: openRevolution,
+    },
     {
       id: 'geometry-editing',
       label: 'Geometrian muokkaus',
@@ -7300,6 +7445,7 @@ export default function App() {
               }}
               onGeometryEditing={() => openGeometryEditing()}
               onSurfaceLevels={openSurfaceLevels}
+              onRevolve={openRevolution}
               onSweep={() => {
                 begin('select');
                 resetGesture();
@@ -7979,6 +8125,14 @@ export default function App() {
               detailTarget={detailTarget}
               detailPreview={tool === 'detail' ? detailPreview.results?.[0] : undefined}
               detailPreviews={tool === 'detail' ? detailPreview.results : undefined}
+              objectPick={alignmentDraft ? (id) => select(id) : undefined}
+              placementPreview={
+                alignmentDraft && alignmentOffset
+                  ? { ids: alignmentDraft.ids, offset: alignmentOffset }
+                  : undefined
+              }
+              axisPicker={loftOpen && revolveOpen ? revolvePicking : undefined}
+              revolutionAxis={loftOpen && revolveOpen ? revolutionAxis : undefined}
               surfacePreview={loftOpen ? loftPreview : undefined}
               surfacePreviewSources={loftOpen && surfaceLevelsOpen ? loftIds : undefined}
               detailSize={offsetDistance}
@@ -8077,7 +8231,7 @@ export default function App() {
                 !!surfaceSplitDraft
               }
               pickOthers={pickOthers}
-              pickHoveredIds={pickPreviewIds}
+              pickHoveredIds={alignmentDraft?.targetId ? [alignmentDraft.targetId] : pickPreviewIds}
               onPickCandidates={(list) => {
                 setPickOthers(false);
                 setPickList(list);
@@ -8223,12 +8377,17 @@ export default function App() {
               epoch={epoch}
               onSelect={select}
               onSelectMany={(ids, additive, guideIds = [], dimensionIds = [], markupIds = []) => {
+                if (alignmentDraft) {
+                  const id = ids.find((id) => !alignmentDraft.ids.includes(id));
+                  if (id) select(id);
+                  return;
+                }
                 if (loftOpen) {
                   if (surfaceLevelsOpen && levelEditingId) return;
                   const eligible = [...new Set([...(additive ? loftIds : []), ...ids])].filter(
                     (id) => project.bodies.some((b) => b.id === id && !featureIsSolid(b.feature)),
                   );
-                  setLoftIds(sweepOpen ? eligible.slice(0, 1) : eligible);
+                  setLoftIds(sweepOpen || revolveOpen ? eligible.slice(0, 1) : eligible);
                   return;
                 }
                 if (tool === 'boolean') {
@@ -8701,7 +8860,90 @@ export default function App() {
                 <X size={18} /> Sulje ominaisuudet
               </button>
             )}
-            {surfaceLevelsOpen ? (
+            {revolveOpen ? (
+              <RevolvePanel
+                key={revolveEditingId ?? 'new'}
+                bodies={project.bodies}
+                ids={loftIds}
+                onIds={setLoftIds}
+                existing={project.bodies.find((b) => b.id === revolveEditingId)}
+                cad={editor.cad}
+                busy={busy}
+                onPreview={setLoftPreview}
+                onPick={setRevolvePicking}
+                onAxis={setRevolutionAxis}
+                onRestoreProfile={() =>
+                  void (async () => {
+                    const existing = project.bodies.find((b) => b.id === revolveEditingId);
+                    if (!existing) return;
+                    let profileId = '';
+                    activityHistory.prepare(actionContext);
+                    const ok = await editor.transact(async () => {
+                      const profile = {
+                        ...(await editor.cad.revolveProfile(existing)),
+                        groupId: existing.groupId,
+                      };
+                      profileId = profile.id;
+                      return { ...project, bodies: [...project.bodies, profile] };
+                    }, 'Profiilikopio palautettu. Muokkaa profiilia ja valitse se osan Muokkaa pyöräytystä -toiminnossa.');
+                    if (!ok) return;
+                    setLoftOpen(false);
+                    setLoftPreview(undefined);
+                    setRevolvePicking(undefined);
+                    setRevolutionAxis(undefined);
+                    select(profileId, undefined, false, true);
+                  })()
+                }
+                onClose={() => {
+                  if (busy) editor.cancel();
+                  setLoftOpen(false);
+                  setLoftPreview(undefined);
+                  setRevolvePicking(undefined);
+                  setRevolutionAxis(undefined);
+                }}
+                onCommit={async (result, ids, hide) => {
+                  const existing = project.bodies.find((b) => b.id === revolveEditingId);
+                  if (existing && bodyLocked(existing, project.groups)) {
+                    editor.setError('Vapauta osan lukitus ennen muokkausta.');
+                    return;
+                  }
+                  const next = {
+                    ...result.body,
+                    groupId: existing ? existing.groupId : openedAssembly,
+                  };
+                  activityHistory.prepare(actionContext);
+                  const ok = await editor.transact(
+                    {
+                      ...project,
+                      bodies: existing
+                        ? project.bodies.map((b) =>
+                            b.id === existing.id
+                              ? next
+                              : hide && ids.includes(b.id)
+                                ? { ...b, hidden: true }
+                                : b,
+                          )
+                        : [
+                            ...project.bodies.map((b) =>
+                              hide && ids.includes(b.id) ? { ...b, hidden: true } : b,
+                            ),
+                            next,
+                          ],
+                    },
+                    existing
+                      ? 'Pyöräytys päivitetty.'
+                      : 'Pyörähdyskappale luotu. Lähtöprofiili säilyy mallissa.',
+                  );
+                  if (ok) {
+                    setLoftOpen(false);
+                    setLoftPreview(undefined);
+                    setRevolvePicking(undefined);
+                    setRevolutionAxis(undefined);
+                    select(next.id, undefined, false, true);
+                  }
+                }}
+              />
+            ) : surfaceLevelsOpen ? (
               <SurfaceLevelsPanel
                 key={levelEditingId ?? 'new'}
                 bodies={project.bodies}
@@ -10063,6 +10305,26 @@ export default function App() {
                   )}
                   {holdNotice}
                   {distributionButton}
+                  {!!selectedIds.length && (
+                    <button
+                      className="button outlined full"
+                      disabled={busy || !!movementBlocked}
+                      onClick={openAlignment}
+                    >
+                      Kohdista…
+                    </button>
+                  )}
+                  {body?.feature.type === 'brep' &&
+                    body.feature.revolution &&
+                    selectedIds.length === 1 && (
+                      <button
+                        className="button outlined full"
+                        disabled={busy || !!movementBlocked}
+                        onClick={openRevolution}
+                      >
+                        Muokkaa pyöräytystä
+                      </button>
+                    )}
                   {geometryTarget && (
                     <button
                       className="button subtle full"
@@ -10192,7 +10454,11 @@ export default function App() {
                             ? 'Kolmiomalli'
                             : featureIsSolid(body.feature)
                               ? 'CAD-kappale'
-                              : 'Tasoluonnos'}
+                              : editor.meshes
+                                    .find((m) => m.id === body.id)
+                                    ?.faces.some((f) => !f.planar)
+                                ? 'CAD-pinta'
+                                : 'Tasoluonnos'}
                         {selectedFace
                           ? ` · ${editingBodyId ? 'Valittu pinta · X / Delete' : (faceNames[selectedFace] ?? 'Valittu pinta')}`
                           : ''}
@@ -10489,6 +10755,22 @@ export default function App() {
         )}
       </div>
 
+      {alignmentDraft && (
+        <AlignmentPanel
+          project={project}
+          ids={alignmentDraft.ids}
+          targetId={alignmentDraft.targetId}
+          onTarget={(id) => setAlignmentDraft((d) => (d ? { ...d, targetId: id } : d))}
+          cad={editor.cad}
+          busy={busy}
+          onPreview={setAlignmentOffset}
+          onApply={(offset) => void acceptAlignment(offset)}
+          onClose={() => {
+            setAlignmentDraft(undefined);
+            setAlignmentOffset(undefined);
+          }}
+        />
+      )}
       {distributionDraft && (
         <DistributionDialog
           key={distributionDraft.series.id}

@@ -114,6 +114,19 @@ export type CadRequest =
       existing?: Body;
     }
   | { type: 'scale'; bodies: Body[]; pivot: Vec3; factors: Vec3 }
+  | { type: 'revolve-profile'; body: Body }
+  | {
+      type: 'align';
+      bodies: Body[];
+      target: Body;
+      options: import('../model/alignment').AlignmentOptions;
+    }
+  | {
+      type: 'revolve';
+      profile?: Body;
+      options: import('../model/revolution').RevolutionOptions;
+      existing?: Body;
+    }
   | { type: 'sweep'; path: Body; options: import('./sweep').SweepOptions }
   | { type: 'sphere'; center: Vec3; radius: number; name: string }
   | {

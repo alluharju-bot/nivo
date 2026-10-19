@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { add, scale } from '../model/geometry';
 import { bounds, featureIsSolid, type Vec3, type View } from '../model/project';
 import { guidePoints, guideMeasurement } from '../model/guides';
 import { formatLength } from '../model/units';
@@ -884,14 +885,21 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const scaling = current().scaling;
     scalePreview.update(scaling, workingBodies(), bodyNodes, current().animation?.matrices);
     const rotation = current().rotation;
-    const moving = current().tool === 'move' ? current().preview : undefined;
+    const placement = current().placementPreview;
+    const placed = placement && workingBodies().find((b) => b.id === placement.ids[0]);
+    const moving =
+      placed && placement
+        ? { ...placed, origin: add(placed.origin, placement.offset) }
+        : current().tool === 'move'
+          ? current().preview
+          : undefined;
     const source = moving && workingBodies().find((b) => b.id === moving.id);
-    const selectedIds = new Set(current().selectedIds);
+    const selectedIds = new Set(placement?.ids ?? current().selectedIds);
     const moved =
       moving && source && moving.origin.some((n, i) => Math.abs(n - source.origin[i]) > 1e-6);
     const nextMoveKey = moved
-      ? current()
-          .selectedIds.map(
+      ? [...selectedIds]
+          .map(
             (id) =>
               `${id}:${bodyNodes.get(id)?.mesh.geometry.uuid}:${current().animation?.matrices.get(id)?.elements.join(',') ?? ''}`,
           )
@@ -974,6 +982,32 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       );
       outline.renderOrder = 96;
       ghost.add(outline);
+    }
+    const revolutionAxis = current().revolutionAxis;
+    if (revolutionAxis && Math.hypot(...revolutionAxis.direction) > 1e-8) {
+      const result = current().surfacePreview?.body;
+      const size = result
+        ? Math.max(result.feature.width, result.feature.depth, result.feature.height, 10) * 0.75
+        : 150;
+      const direction = unit(revolutionAxis.direction);
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(...add(revolutionAxis.origin, scale(direction, -size))),
+        new THREE.Vector3(...add(revolutionAxis.origin, scale(direction, size))),
+      ]);
+      const line = new THREE.Line(
+        geometry,
+        new THREE.LineDashedMaterial({
+          color: '#c45aa0',
+          dashSize: size / 15,
+          gapSize: size / 25,
+          depthTest: false,
+          depthWrite: false,
+          toneMapped: false,
+        }),
+      );
+      line.computeLineDistances();
+      line.renderOrder = 120;
+      ghost.add(line, pointMarker(revolutionAxis.origin, '#c45aa0', 12));
     }
     renderer.domElement.dataset.surfacePreview = current().surfacePreview ? 'true' : 'false';
     if ((current().tool === 'detail' && current().detailPreview) || current().surfacePreview) {
@@ -2083,6 +2117,8 @@ export function Viewport(props: Props) {
     () => api.current?.preview(),
     [
       props.preview,
+      props.placementPreview,
+      props.revolutionAxis,
       props.spherePreview,
       props.sphereSegments,
       props.detailPreview,

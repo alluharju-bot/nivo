@@ -1,3 +1,4 @@
+import { revolutionSchema } from './revolution';
 import { animationSchema } from './animationSchema';
 import { motionSchema, motionError } from './motion';
 import { drawingAnnotationSchema } from './drawingAnnotations';
@@ -141,6 +142,7 @@ const brepFeature = z.object({
   solid: z.boolean(),
   topologyId: id,
   surfaceLevels: surfaceLevelsSchema.optional(),
+  revolution: revolutionSchema.optional(),
   // Full sketch and its actual trimmed face, both in this feature's local frame.
   // Retain the cutter across holes/roundovers, without attaching it to a stale face index.
   cutProfiles: z
