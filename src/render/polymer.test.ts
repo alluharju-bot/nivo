@@ -104,3 +104,26 @@ it.each(polymerMaterials)(
     expect(maps).toEqual(polymerPixels(preset.polymer!, preset.seed!, 128));
   },
 );
+
+it('weaves carbon fiber periodically with independent roughness and physical relief', () => {
+  for (const [u, v] of [
+    [0.03, 0.07],
+    [-0.4, 0.42],
+    [0.999, -0.1],
+  ]) {
+    expect(polymerSample('carbon', u, v, 105).height).toBeCloseTo(
+      polymerSample('carbon', u + 1, v - 1, 105).height,
+      9,
+    );
+  }
+  expect(polymerSample('carbon', 0.0625, 0.03, 105).height).toBeGreaterThan(
+    polymerSample('carbon', 0, 0.03, 105).height + 0.4,
+  );
+  expect(polymerSample('carbon', 0.0625, 0.03, 105).height).not.toBe(
+    polymerSample('fine', 0.0625, 0.03, 105).height,
+  );
+  const pixels = polymerPixels('carbon', 105, 128);
+  expect(pixels.color).not.toEqual(pixels.height);
+  expect(new Set(pixels.color.filter((_, i) => i % 4 === 0)).size).toBeGreaterThan(20);
+  expect(findPreset('carbon-fiber').metalness).toBe(0);
+});

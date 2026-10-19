@@ -278,13 +278,28 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         )
           continue;
         const existing = Array.isArray(object.material) ? object.material : [object.material];
-        for (const material of existing) {
+        for (const [materialIndex, material] of existing.entries()) {
           const index = material.userData.facePaintIndex as number | undefined;
           const source = faceMaterialBody(body, index);
           const surface = library.create(
             source,
             next.assets,
-            source.appearance?.layers?.length ? layerDomain(object.geometry) : undefined,
+            source.appearance?.layers?.length
+              ? (() => {
+                  const ranges = (object.geometry as THREE.BufferGeometry).groups
+                    .filter((g) => g.materialIndex === materialIndex)
+                    .map((g) => layerDomain(object.geometry, g.start, g.count));
+                  if (!ranges.length) return layerDomain(object.geometry);
+                  const x = Math.min(...ranges.map((r) => r.x)),
+                    y = Math.min(...ranges.map((r) => r.y));
+                  return {
+                    x,
+                    y,
+                    width: Math.max(...ranges.map((r) => r.x + r.width)) - x,
+                    height: Math.max(...ranges.map((r) => r.y + r.height)) - y,
+                  };
+                })()
+              : undefined,
           );
           const backing = material.userData.mirrorBacking;
           // Retain material identity: the trace snapshot shares these instances.
@@ -323,7 +338,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
-      materialUV(geometry, body);
+      materialUV(geometry, body, data.faces);
       const materials = renderFaceMaterials(geometry, body, data, (source, range) =>
         library.create(
           source,

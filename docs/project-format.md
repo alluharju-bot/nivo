@@ -535,3 +535,26 @@ Kenttä on esiintymäkohtainen, kulkee kopioinnissa ja `.nivo`-siirrossa ja on
 v8-tiedoston kanssa taaksepäin yhteensopiva. Suljetut ryhmät ovat sen sijaan
 selaimen projektikohtainen käyttöliittymäasetus (`nivo-tree-folds:<projectId>`),
 eivät yhteinen geometria- tai muokkaushistoriatieto.
+
+### Pintamerkinnät ja käsin maalattu kuluma (0.54.0)
+
+`Appearance.layers` tukee `kind: "decal"` -kerrosta. `decal` on version nykyiseen
+valinnaiseen skeemaan kuuluva lähde: `text` (teksti, fontti, väli, tasaus),
+`image` (projektin `assetId`) tai `drawing` (normalisoidut vektoripolut).
+Kerros käyttää olemassa olevia `width`, `height`, `rotation`, `center` ja
+`color` -kenttiä. `amount` tarkoittaa peittävyyttä; `wear`, `roughness` ja
+`relief` ovat erillisiä. Puuttuvat kentät säilyttävät vanhojen projektien
+käyttäytymisen.
+
+`maskMode` on `automatic`, `manual` tai `combined`. `strokes` sisältää
+pinnan UV-millimetreinä tallennetut pisteet, säteen, voimakkuuden, kovuuden
+ja kumitustilan. Valinnainen `breaks` katkaisee polun UV-saumassa. Maskin
+rasteria ei tallenneta projektiin. Automaattinen kuvio ja omat vedot säilyvät
+erillisinä. Kuvaviitteet tarkistetaan projektin validoinnissa, kopioidaan
+osakirjastoon ja tunnistetaan uudelleen toista projektia tuotaessa.
+
+`Appearance.surfaceMapping` tallentaa käsin maalatun sylinteripinnan paikallisen
+origon, akselin, kehäakselin ja säteen. Se otetaan käyttöön vain maalattavilla
+sylinteripinnoilla. Näyttögeometriaan lisätään UV-sauman tarvitsema
+vertex-duplikointi, mutta mallin geometria ja kolmioiden määrä säilyvät.
+Sama kartoitus kuuluu mallinnuksen, renderin, GLB-viennin ja UV-baken polkuihin.

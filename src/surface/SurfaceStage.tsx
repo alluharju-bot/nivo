@@ -1,3 +1,4 @@
+import { materialFaceRanges } from '../render/layerUV';
 import { layerDomain } from '../render/layers';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
@@ -643,8 +644,12 @@ export function SurfaceStage(props: StageProps) {
         props.body.feature.type === 'mesh'
           ? { ...props.body, feature: { ...props.body.feature, uv: props.mesh.uv } }
           : props.body,
+        materialFaceRanges(props.mesh.faces),
       );
-      g.setAttribute('uv', temp.getAttribute('uv').clone());
+      temp.translate(...(props.body.origin.map((n) => -n) as [number, number, number]));
+      for (const attribute of ['position', 'normal', 'uv'])
+        g.setAttribute(attribute, temp.getAttribute(attribute).clone());
+      g.setIndex(temp.index!.clone());
       temp.dispose();
       r.mesh.material = g.groups.map((group) =>
         r.library.create(

@@ -3,6 +3,7 @@ import type { Appearance, TextureAsset } from '../model/materials';
 export async function importTexture(
   file: File,
   dataMap = false,
+  lossless = false,
 ): Promise<{ id: string; asset: TextureAsset }> {
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
     throw new Error('Valitse PNG-, JPEG- tai WebP-kuva.');
@@ -17,11 +18,14 @@ export async function importTexture(
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
     canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const dataUrl = dataMap ? canvas.toDataURL('image/png') : canvas.toDataURL('image/webp', 0.9),
+    const dataUrl =
+        dataMap || lossless ? canvas.toDataURL('image/png') : canvas.toDataURL('image/webp', 0.9),
       digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(dataUrl));
     const id = Array.from(new Uint8Array(digest))
       .map((n) => n.toString(16).padStart(2, '0'))
       .join('');
+    if (dataUrl.length > 6_000_000)
+      throw new Error('Kuva on liian suuri. Pienennä se alle 6 Mt:n kokoiseksi.');
     return {
       id,
       asset: { name: file.name.slice(0, 200), dataUrl, width: canvas.width, height: canvas.height },

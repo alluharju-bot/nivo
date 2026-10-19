@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyLayerUV } from './layerUV';
 import { pbrMapUrl } from '../model/pbrCatalog';
 import { derivedCanvas, sourceSize } from './surfaceMaps';
 import { patinaCanvases } from './patina';
@@ -202,7 +203,11 @@ export function texturePlacement(texture: THREE.Texture, placement: TexturePlace
   texture.updateMatrix();
 }
 /** Shared local millimetre UVs: every PBR channel and both renderers use the same frame. */
-export function materialUV(geometry: THREE.BufferGeometry, body: Body) {
+export function materialUV(
+  geometry: THREE.BufferGeometry,
+  body: Body,
+  ranges: { start: number; count: number; index: number }[] = [],
+) {
   if (body.feature.type === 'mesh' && body.feature.uv) {
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(body.feature.uv, 2));
     return;
@@ -221,6 +226,7 @@ export function materialUV(geometry: THREE.BufferGeometry, body: Body) {
     uv.push(point.getComponent(axis === 0 ? 1 : 0), point.getComponent(axis === 2 ? 1 : 2));
   }
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  applyLayerUV(geometry, body, ranges, inverse);
 }
 
 export function disposeMaterial(material: THREE.Material) {
@@ -680,7 +686,10 @@ export function createMaterialLibrary(
       if (
         appearance.layers?.some(
           (layer) =>
-            layer.enabled && (layer.kind === 'paint' ? layer.amount < 1 : layer.amount > 0),
+            layer.enabled &&
+            (layer.kind === 'paint'
+              ? layer.amount < 1 || layer.maskMode === 'manual'
+              : layer.amount > 0),
         )
       ) {
         const masks: Partial<
@@ -705,9 +714,17 @@ export function createMaterialLibrary(
           masks[layer.kind] = { mask, normal };
         }
         const baseMap = material.map;
-        layers.apply(material, appearance, domain, masks, Promise.all([...pending]), (color) => {
-          if (baseMap) colorTints.get(baseMap)?.(color);
-        });
+        layers.apply(
+          material,
+          appearance,
+          domain,
+          masks,
+          Promise.all([...pending]),
+          (color) => {
+            if (baseMap) colorTints.get(baseMap)?.(color);
+          },
+          assets,
+        );
       }
       return material;
     },

@@ -1,3 +1,4 @@
+import { layerAssetIds } from './decals';
 import { revolutionSchema } from './revolution';
 import { animationSchema } from './animationSchema';
 import { motionSchema, motionError } from './motion';
@@ -600,11 +601,7 @@ export const projectSchema = z
       ...p.bodies.flatMap((b) => Object.values(b.faceMaterials ?? {}).map((m) => m.appearance)),
       ...(p.materials ?? []).map((m) => m.appearance),
     ])
-      if (
-        [appearance?.assetId, ...Object.values(appearance?.maps ?? {})].some(
-          (id) => id && !p.assets?.[id],
-        )
-      )
+      if (layerAssetIds(appearance).some((id) => id && !p.assets?.[id]))
         ctx.addIssue({ code: 'custom', message: 'Tekstuurin kuva puuttuu projektista.' });
     const groups = new Map(p.groups.map((g) => [g.id, g]));
     for (const group of p.groups) {

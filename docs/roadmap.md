@@ -2,6 +2,27 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.54.0 — tarrat, kuviot ja maalattava kuluma
+
+- P-työkalun Tarrat ja kuviot: muokattava teksti kolmella mukana toimitetulla
+  OFL-kirjasimella, kuvat (myös turvallisesti rasteroitu SVG) ja piirrokset.
+  Kynä, viiva, suorakulmio, soikio, neljän pisteen Bézier, täyttö ja kumitus.
+- Napsautettava tasopinta, sijainti millimetreinä, koko/kierto, sävy, peittävyys,
+  kiilto, kuluma ja kohouma. Sama materiaaliyhdistely mallissa, renderissä ja
+  GLB-/UV-viennissä. Kerroksia voi piilottaa, järjestää ja poistaa.
+- Kuluman automaattinen, käsin maalattu ja yhdistelmätila. Fyysinen siveltimen
+  koko, kovuus, voimakkuus, kumitus sekä yksi Undo-vaihe vetoa kohden.
+  Pinnankohtaiset UV-maskit, tasoille ja analyyttisille sylinteripinnoille.
+  Yksikäsitteinen sylinterikartoitus estää jäljen toistumisen vastapuolelle. UV-saumat katkaisevat
+  vedon turvallisesti; seuraava pinta valitaan erikseen.
+- Uudet proseduraaliset hiilikuitu ja lohkeillut metallipaneeli. Nykyiset
+  musta rauta ja kumit säilyvät. Vektori-/tekstilähteet pysyvät projektissa;
+  yhdistetyn pintakartan muistibudjetti noin 4 Mp / 48 MiB ennen mip-tasoja.
+- Jatkoon: kaarevan tarran asettelu ja usean pinnan yli maalaus samalla
+  vedolla, paikalliset suuritarkkuuksiset tarrakartat laajoille seinille,
+  omien fonttien tuonti, kirjainten vektorimuokkaus ja fontin tallennus.
+  Fonttieditori on käyttäjän pyynnöstä siirretty myöhemmäksi.
+
 ## V0.53.0 — kohdistus ja profiilin pyöräytys
 
 - **Kohdista** oikeasta paneelista, kontekstivalikosta tai komentohausta.

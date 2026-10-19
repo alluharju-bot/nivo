@@ -1,5 +1,6 @@
 import type { Appearance } from './materials';
 import type { Body } from './project';
+import { defaultDecal } from './decals';
 import { defaultAppearance } from './materials';
 import { faceMaterialBody } from './faceMaterials';
 
@@ -11,7 +12,39 @@ export const layerNames: Record<SurfaceLayer['kind'], string> = {
   fingerprints: 'Sormenjäljet',
   water: 'Vesijäljet',
   paint: 'Lohkeileva maali',
+  decal: 'Tarra / kuvio',
 };
+/** Preserve concurrent text/placement edits made before the previous commit finished. */
+export function patchSurfaceLayer(
+  current: SurfaceLayer,
+  patch: Partial<SurfaceLayer>,
+  observed?: SurfaceLayer,
+): SurfaceLayer {
+  const next = { ...current, ...patch };
+  if (
+    patch.decal &&
+    current.decal &&
+    observed?.decal &&
+    patch.decal.type === observed.decal.type &&
+    current.decal.type === observed.decal.type
+  ) {
+    next.decal = {
+      ...current.decal,
+      ...Object.fromEntries(
+        Object.entries(patch.decal).filter(
+          ([key, value]) =>
+            JSON.stringify(value) !==
+            JSON.stringify((observed.decal as unknown as Record<string, unknown>)[key]),
+        ),
+      ),
+    } as SurfaceLayer['decal'];
+  }
+  if (patch.center && current.center && observed?.center)
+    next.center = patch.center.map((n, i) =>
+      n !== observed.center![i] ? n : current.center![i],
+    ) as [number, number];
+  return next;
+}
 export function newSurfaceLayer(kind: SurfaceLayer['kind']): SurfaceLayer {
   const size = kind === 'fingerprints' ? 120 : kind === 'water' ? 180 : 300;
   return {
@@ -25,6 +58,18 @@ export function newSurfaceLayer(kind: SurfaceLayer['kind']): SurfaceLayer {
     color: kind === 'paint' ? '#537c78' : kind === 'dust' ? '#b9b1a0' : '#d5d1c5',
     seed: 1,
     ...(kind === 'paint' ? { chipSize: 30, roughness: 0.65 } : {}),
+    ...(kind === 'decal'
+      ? {
+          decal: defaultDecal(),
+          width: 160,
+          height: 60,
+          amount: 1,
+          color: '#ffffff',
+          roughness: 0.8,
+          wear: 0,
+          relief: 0,
+        }
+      : {}),
   };
 }
 
@@ -36,7 +81,13 @@ export function changeLayerBase(
   face?: number,
 ): Body {
   const update = (source: Appearance | undefined) =>
-    withSurfaceLayers(appearance, source?.layers ?? []);
+    withSurfaceLayers(
+      {
+        ...appearance,
+        ...(source?.surfaceMapping ? { surfaceMapping: source.surfaceMapping } : {}),
+      },
+      source?.layers ?? [],
+    );
   if (face !== undefined) {
     const source = faceMaterialBody(body, face);
     return {

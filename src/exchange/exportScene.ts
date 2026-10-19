@@ -111,7 +111,7 @@ export async function exportScene(
       geometry.setAttribute('position', new Float32BufferAttribute(data.vertices, 3));
       geometry.setAttribute('normal', new Float32BufferAttribute(data.normals, 3));
       geometry.setIndex(data.triangles);
-      materialUV(geometry, body);
+      materialUV(geometry, body, data.faces);
       const paint: MeshPhysicalMaterial[] = [];
       for (const range of faceMaterialGroups(geometry, body, data)) {
         const b = range.source;

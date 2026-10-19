@@ -1,3 +1,6 @@
+import { textureFrameMatrix } from './render/materials';
+import { layerAssetIds } from './model/decals';
+import type { TextureAsset } from './model/materials';
 import { AlignmentPanel } from './ui/AlignmentPanel';
 import { RevolvePanel, type AxisPicker } from './ui/RevolvePanel';
 import { Matrix4, Vector3 } from 'three';
@@ -9,6 +12,7 @@ import { SurfaceLayersPanel } from './ui/SurfaceLayersPanel';
 import {
   changeLayerBase,
   changeSurfaceLayers,
+  patchSurfaceLayer,
   newSurfaceLayer,
   type SurfaceLayer,
 } from './model/surfaceLayers';
@@ -788,10 +792,23 @@ export default function App() {
   const [paintAll, setPaintAll] = useState(true);
   const [paintLinked, setPaintLinked] = useState(true);
   const [lightLinked, setLightLinked] = useState(false);
-  const [paintMode, setPaintMode] = useState<'paint' | 'texture' | 'layers' | 'light'>('paint');
+  const [paintMode, setPaintMode] = useState<'paint' | 'texture' | 'layers' | 'decals' | 'light'>(
+    'paint',
+  );
   const [layerKind, setLayerKind] = useState<SurfaceLayer['kind']>('dust');
   const [layerTarget, setLayerTarget] = useState<{ id: string; face?: number }>();
   const [layerPlacing, setLayerPlacing] = useState<false | 'new' | string>(false);
+  const [decalDraft, setDecalDraft] = useState(() => newSurfaceLayer('decal'));
+  const pendingDecalAssets = useRef<Record<string, TextureAsset>>({});
+  const layerEdits = useRef<Promise<unknown>>(Promise.resolve());
+  const pendingLayerEdits = useRef(0);
+  const [wearBrush, setWearBrush] = useState<{
+    layerId?: string;
+    radius: number;
+    strength: number;
+    hardness: number;
+    erase: boolean;
+  }>({ radius: 15, strength: 1, hardness: 0.7, erase: false });
   const [paintScope, setPaintScope] = useState<PaintScope>('body');
   const [paintPick, setPaintPick] = useState(false);
   const [sampledBrush, setSampledBrush] = useState(false);
@@ -4743,6 +4760,10 @@ export default function App() {
         return;
       }
       if (event.key === 'Escape') {
+        if (tool === 'paint' && wearBrush.layerId) {
+          setWearBrush((b) => ({ ...b, layerId: undefined }));
+          return;
+        }
         if (!renderOpen && tool === 'paint' && paintMode === 'light' && light.aiming) {
           event.preventDefault();
           light.cancel();
@@ -4804,11 +4825,7 @@ export default function App() {
       const key = event.key.toLowerCase();
       if ((event.ctrlKey || event.metaKey) && key === 's') {
         event.preventDefault();
-        downloadFile(
-          JSON.stringify(project, null, 2),
-          `${safeFilename(project.name)}.nivo`,
-          'application/json',
-        );
+        void saveProjectFile();
         return;
       }
       if (busy) return;
@@ -5224,24 +5241,115 @@ export default function App() {
     ids = layerIds,
     face = layerFace,
   ) => {
-    if (busy || !ids.length) return;
-    const bodies = project.bodies.map((b) => {
-      if (!ids.includes(b.id)) return b;
-      return {
-        ...changeSurfaceLayers(
-          b,
-          (layers) => {
-            const next = change(layers);
-            if (next.length > 8)
-              throw new Error('Pinnalle mahtuu kahdeksan kerrosta. Poista ensin jokin nykyisistä.');
-            return next;
+    if (!ids.length || (busy && !pendingLayerEdits.current)) return;
+    const projectId = project.id;
+    pendingLayerEdits.current++;
+    const task = layerEdits.current
+      .then(async () => {
+        const latest = editor.currentProject();
+        if (latest.id !== projectId) return false;
+        if (latest.bodies.some((b) => ids.includes(b.id) && bodyLocked(b, latest.groups))) {
+          editor.setError('Poista osan tai ryhmän Hold-lukitus ennen pinnan muokkausta.');
+          return false;
+        }
+        const bodies = latest.bodies.map((b) => {
+          if (!ids.includes(b.id)) return b;
+          let next = {
+            ...changeSurfaceLayers(
+              b,
+              (layers) => {
+                const changed = change(layers);
+                if (changed.length > 8)
+                  throw new Error(
+                    'Pinnalle mahtuu kahdeksan kerrosta. Poista ensin jokin nykyisistä.',
+                  );
+                return changed;
+              },
+              face,
+            ),
+            localMaterial: !paintLinked,
+          };
+          const mesh = editor.meshes.find((m) => m.id === b.id);
+          const inverse = textureFrameMatrix(b).invert();
+          for (const surface of mesh?.faces ?? []) {
+            if (!surface.cylinder || (face !== undefined && surface.index !== face)) continue;
+            const source = faceMaterialBody(next, surface.index);
+            if (
+              source.appearance?.surfaceMapping ||
+              !source.appearance?.layers?.some((l) => l.maskMode && l.maskMode !== 'automatic')
+            )
+              continue;
+            const cylinder = surface.cylinder;
+            const origin = new Vector3(...cylinder.origin).applyMatrix4(inverse);
+            const axis = new Vector3(...cylinder.axis).transformDirection(inverse);
+            const vertex = mesh!.triangles[surface.start];
+            const radial = new Vector3()
+              .fromArray(mesh!.vertices, vertex * 3)
+              .applyMatrix4(inverse)
+              .sub(origin);
+            radial.addScaledVector(axis, -radial.dot(axis)).normalize();
+            next = {
+              ...next,
+              faceMaterials: {
+                ...next.faceMaterials,
+                [surface.index]: {
+                  color: source.color,
+                  appearance: {
+                    ...source.appearance!,
+                    surfaceMapping: {
+                      kind: 'cylinder' as const,
+                      origin: origin.toArray(),
+                      axis: axis.toArray(),
+                      uAxis: radial.toArray(),
+                      radius: cylinder.radius,
+                    },
+                  },
+                },
+              },
+            };
+          }
+          return next;
+        });
+        const usedAssets = new Set(
+          bodies.flatMap((b) => [
+            ...layerAssetIds(b.appearance),
+            ...Object.values(b.faceMaterials ?? {}).flatMap((f) => layerAssetIds(f.appearance)),
+          ]),
+        );
+        const addedAssets = Object.fromEntries(
+          Object.entries(pendingDecalAssets.current).filter(
+            ([id]) => usedAssets.has(id) && !latest.assets?.[id],
+          ),
+        );
+        return editor.transact(
+          {
+            ...latest,
+            bodies,
+            ...(Object.keys(addedAssets).length
+              ? { assets: { ...latest.assets, ...addedAssets } }
+              : {}),
           },
-          face,
-        ),
-        localMaterial: !paintLinked,
-      };
-    });
-    return editor.transact({ ...project, bodies }, label);
+          label,
+        );
+      })
+      .catch((error) => {
+        editor.setError((error as Error).message);
+        return false;
+      })
+      .finally(() => {
+        pendingLayerEdits.current--;
+      });
+    layerEdits.current = task;
+    return task;
+  };
+  const saveProjectFile = async () => {
+    await layerEdits.current;
+    const saved = editor.currentProject();
+    downloadFile(
+      JSON.stringify(saved, null, 2),
+      `${safeFilename(saved.name)}.nivo`,
+      'application/json',
+    );
   };
   const addLayer = () => {
     const layer = newSurfaceLayer(layerKind);
@@ -5261,7 +5369,7 @@ export default function App() {
         light.pick(id, face);
       return;
     }
-    if (paintMode === 'layers' && !paintPick) {
+    if ((paintMode === 'layers' || paintMode === 'decals') && !paintPick) {
       if (
         busy ||
         !inAssembly(project, id, openedAssembly) ||
@@ -5280,7 +5388,12 @@ export default function App() {
           editor.setMessage('Valitse uusi paikka samalta pinnalta.');
           return;
         }
-        const layer = { ...newSurfaceLayer(layerKind), center: uv };
+        const layer = {
+          ...(layerKind === 'decal'
+            ? { ...decalDraft, id: crypto.randomUUID() }
+            : newSurfaceLayer(layerKind)),
+          center: uv,
+        };
         try {
           void updateLayers(
             (layers) =>
@@ -6619,7 +6732,7 @@ export default function App() {
         ? light.aiming
           ? 'Napsauta valon kohdetta. Esc peruu suuntaamisen.'
           : 'Valitse osa tai pinta ja säädä sen valoa.'
-        : paintMode === 'layers'
+        : paintMode === 'layers' || paintMode === 'decals'
           ? layerPlacing
             ? 'Napsauta tasopintaa jäljen asettamiseksi. Esc peruu.'
             : 'Napsauta osaa tai pintaa muokataksesi sen pintakerroksia.'
@@ -7126,13 +7239,7 @@ export default function App() {
               aria-label="Tallenna tiedosto"
               title="Tallenna tiedosto"
               disabled={!ready || busy}
-              onClick={() =>
-                downloadFile(
-                  JSON.stringify(project, null, 2),
-                  `${safeFilename(project.name)}.nivo`,
-                  'application/json',
-                )
-              }
+              onClick={() => void saveProjectFile()}
             >
               <Download size={17} />
             </button>
@@ -8207,6 +8314,46 @@ export default function App() {
               editingBodyId={geometryBody && tool === 'boolean' ? undefined : editingBodyId}
               scopeIds={scopeIds}
               onPaint={paintBody}
+              wearBrush={
+                tool === 'paint' &&
+                (paintMode === 'layers' || paintMode === 'decals') &&
+                wearBrush.layerId &&
+                shownLayers.some(
+                  (l) =>
+                    l.id === wearBrush.layerId &&
+                    l.enabled &&
+                    l.maskMode &&
+                    l.maskMode !== 'automatic',
+                ) &&
+                !busy &&
+                !movementBlocked
+                  ? {
+                      ...wearBrush,
+                      layerId: wearBrush.layerId,
+                      bodyId: layerBody?.id,
+                      face: layerFace,
+                      onUnavailable: editor.setMessage,
+                      onStroke: (id, face, stroke) => {
+                        void updateLayers(
+                          (layers) =>
+                            layers.map((l) => {
+                              if (l.id !== wearBrush.layerId) return l;
+                              if ((l.strokes?.length ?? 0) >= 128)
+                                throw new Error(
+                                  'Kerrokseen mahtuu 128 siveltimenvetoa. Lisää uusi kerros jatkaaksesi.',
+                                );
+                              return { ...l, strokes: [...(l.strokes ?? []), stroke] };
+                            }),
+                          'Kuluma maalattu.',
+                          [id],
+                          face,
+                        );
+                        setPaintScope('face');
+                        setLayerTarget({ id, face });
+                      },
+                    }
+                  : undefined
+              }
               lightEditing={light.viewport}
               paintPick={paintPick}
               paintScope={paintMode === 'texture' ? 'body' : layerPlacing ? 'face' : paintScope}
@@ -9204,11 +9351,24 @@ export default function App() {
                       aria-pressed={paintMode === 'layers'}
                       onClick={() => {
                         setPaintMode('layers');
+                        if (layerKind === 'decal') setLayerKind('dust');
                         setPaintPick(false);
                         setLayerTarget(undefined);
                       }}
                     >
                       Pintakerrokset
+                    </button>
+                    <button
+                      aria-pressed={paintMode === 'decals'}
+                      onClick={() => {
+                        setPaintMode('decals');
+                        setLayerKind('decal');
+                        setPaintPick(false);
+                        setLayerPlacing(false);
+                        setWearBrush((b) => ({ ...b, layerId: undefined }));
+                      }}
+                    >
+                      Tarrat ja kuviot
                     </button>
                     <button
                       aria-pressed={paintMode === 'light'}
@@ -9229,8 +9389,21 @@ export default function App() {
                       linked={lightLinked}
                       onLinked={setLightLinked}
                     />
-                  ) : paintMode === 'layers' ? (
+                  ) : paintMode === 'layers' || paintMode === 'decals' ? (
                     <SurfaceLayersPanel
+                      draft={decalDraft}
+                      onDraft={(next) =>
+                        setDecalDraft((current) => patchSurfaceLayer(current, next, decalDraft))
+                      }
+                      assets={{ ...project.assets, ...pendingDecalAssets.current }}
+                      onAsset={(id, asset) => {
+                        pendingDecalAssets.current[id] = asset;
+                      }}
+                      brush={wearBrush}
+                      onBrush={(brush) => {
+                        setWearBrush(brush);
+                        setLayerPlacing(false);
+                      }}
                       name={
                         layerBody && (paintScope === 'body' || layerFace !== undefined)
                           ? `${layerBody.name}${layerFace !== undefined ? ' · pinta' : ''}`
@@ -9283,11 +9456,23 @@ export default function App() {
                       onLinked={setPaintLinked}
                       placing={!!layerPlacing}
                       onAdd={addLayer}
-                      onPlace={() => setLayerPlacing(layerPlacing ? false : 'new')}
+                      onPlace={() => {
+                        setWearBrush((b) => ({ ...b, layerId: undefined }));
+                        setLayerPlacing(layerPlacing ? false : 'new');
+                      }}
                       onMove={setLayerPlacing}
                       onChange={(id, patch) =>
                         void updateLayers(
-                          (layers) => layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+                          (layers) =>
+                            layers.map((l) =>
+                              l.id === id
+                                ? patchSurfaceLayer(
+                                    l,
+                                    patch,
+                                    shownLayers.find((old) => old.id === id),
+                                  )
+                                : l,
+                            ),
                           'Pintakerros päivitetty.',
                         )
                       }

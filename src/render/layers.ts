@@ -1,3 +1,5 @@
+import { drawDecal, canvasSample, drawWearMask } from './decals';
+import type { TextureAsset } from '../model/materials';
 import * as THREE from 'three';
 import { appearancePreset, type Appearance, type TexturePlacement } from '../model/materials';
 import type { SampleTexture } from '../surface/bake';
@@ -131,9 +133,12 @@ export function createLayerComposer(
       >,
       baseReady: Promise<unknown>,
       onTint: (color: THREE.Color) => void,
+      assets: Record<string, TextureAsset> = {},
     ) {
       const active = appearance.layers?.filter(
-        (l) => l.enabled && (l.kind === 'paint' ? l.amount < 1 : l.amount > 0),
+        (l) =>
+          l.enabled &&
+          (l.kind === 'paint' ? l.amount < 1 || l.maskMode === 'manual' : l.amount > 0),
       );
       if (!active?.length) return;
       const region = domain ?? {
@@ -170,14 +175,28 @@ export function createLayerComposer(
           ),
         ),
       );
-      const width = Math.max(
-        64,
-        Math.round(resolution * Math.min(1, region.width / region.height)),
+      const hasDecals = active.some((l) => l.kind === 'decal');
+      const desired = hasDecals
+        ? Math.min(
+            4096,
+            Math.max(
+              resolution,
+              ...active
+                .filter((l) => l.kind === 'decal')
+                .map(
+                  (l) =>
+                    (Math.max(region.width, region.height) / Math.min(l.width, l.height)) * 256,
+                ),
+            ),
+          )
+        : resolution;
+      // Bound one composed material to four megapixels, even for tiny labels on large walls.
+      const quality = Math.min(
+        desired,
+        Math.sqrt(4194304 * Math.max(region.width / region.height, region.height / region.width)),
       );
-      const height = Math.max(
-        64,
-        Math.round(resolution * Math.min(1, region.height / region.width)),
-      );
+      const width = Math.max(64, Math.round(quality * Math.min(1, region.width / region.height)));
+      const height = Math.max(64, Math.round(quality * Math.min(1, region.height / region.width)));
       // Source maps remain alive until the asynchronous bake has read them.
       const owned = [
         ...Object.values(base),
@@ -227,7 +246,23 @@ export function createLayerComposer(
           const tint = requested.toArray();
           entry.done = baseReady.then(async () => {
             if (disposed) return;
+            const decals: Record<string, SampleTexture> = {},
+              paintedMasks: Record<string, SampleTexture> = {};
+            for (const layer of active) {
+              if (layer.kind === 'decal' && layer.decal) {
+                const c = document.createElement('canvas');
+                c.width = Math.max(16, Math.round(2048 * Math.min(1, layer.width / layer.height)));
+                c.height = Math.max(16, Math.round(2048 * Math.min(1, layer.height / layer.width)));
+                await drawDecal(c, layer.decal, assets);
+                decals[layer.id] = canvasSample(c, true);
+              }
+              if (layer.maskMode && layer.maskMode !== 'automatic' && layer.strokes?.length)
+                paintedMasks[layer.id] = drawWearMask(layer.strokes, region, width, height);
+            }
+            if (disposed) return;
             const pixels = await run({
+              decals,
+              paintedMasks,
               domain: region,
               width,
               height,

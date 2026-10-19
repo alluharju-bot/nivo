@@ -1,4 +1,5 @@
 import type { Scaling } from '../model/scaling';
+import type { WearBrush } from './wearBrush';
 import type { Markup, AreaMarkup, NoteMarkup } from '../model/project';
 import type { GuideEndpoint } from '../model/guideEditing';
 import type { ColorPreview } from '../model/colorPreview';
@@ -120,6 +121,7 @@ export interface ViewportProps {
   scopeIds?: string[];
   paintScope?: 'body' | 'face';
   paintPick?: boolean;
+  wearBrush?: WearBrush;
   onPaint: (id: string, face: number, uv?: [number, number]) => void;
   onContextMenu: (target: {
     x: number;

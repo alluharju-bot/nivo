@@ -1,3 +1,5 @@
+import { faceMaterialBody } from '../model/faceMaterials';
+import { installWearBrush } from './wearBrush';
 import { scaleHandles, factorsFor, scaleAxes, scalingFactor, type Scaling } from '../model/scaling';
 import { faceColors } from './faceFeedback';
 import { markupInteractions } from './markupInteractions';
@@ -5541,6 +5543,43 @@ export function installInteractions({
       current().onCloseBodyEdit();
     emptySelectionClicks = 0;
   };
+  const wear = installWearBrush(
+    canvas,
+    scene,
+    () => current().wearBrush,
+    (event) => {
+      const picked = faceAt(event);
+      if (
+        !picked?.hit.uv ||
+        current().bodies.find((b) => b.id === picked.target.bodyId)?.locked ||
+        (current().editingBodyId && current().editingBodyId !== picked.target.bodyId)
+      )
+        return;
+      const body = current().bodies.find((b) => b.id === picked.target.bodyId)!;
+      if (
+        (body.feature.type === 'mesh' && body.feature.uv) ||
+        (!picked.face.planar &&
+          !faceMaterialBody(body, picked.face.index).appearance?.surfaceMapping)
+      ) {
+        if (event.type === 'pointerdown')
+          current().wearBrush?.onUnavailable?.(
+            'Kulumaa voi tässä versiossa maalata tasopinnoille ja sylinteripinnoille. UV-kartoitetulle verkolle käytä Verkko ja pinta -työtilaa.',
+          );
+        return;
+      }
+      const normal =
+        picked.hit.face?.normal.clone().transformDirection(picked.hit.object.matrixWorld) ??
+        new THREE.Vector3(0, 0, 1);
+      return {
+        id: picked.target.bodyId,
+        face: picked.face.index,
+        uv: picked.hit.uv.toArray(),
+        point: picked.hit.point,
+        normal,
+      };
+    },
+    render,
+  );
   canvas.addEventListener('contextmenu', contextEvent);
   canvas.addEventListener('dblclick', doubleClick);
   canvas.addEventListener('pointerleave', leave);
@@ -5571,9 +5610,13 @@ export function installInteractions({
   return {
     pickReferencePoint: (event: PointerEvent | MouseEvent) =>
       referenceAt(event as PointerEvent)?.point,
-    sync,
+    sync: () => {
+      sync();
+      wear.sync();
+    },
     movePreview,
     dispose() {
+      wear.dispose();
       markups.dispose();
       canvas.removeEventListener('contextmenu', contextEvent);
       canvas.removeEventListener('dblclick', doubleClick);

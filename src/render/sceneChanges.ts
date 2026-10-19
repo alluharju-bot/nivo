@@ -1,6 +1,7 @@
 import type { Body } from '../model/project';
 import type { BodyMesh } from '../cad/protocol';
 import { emissionSettings, defaultAppearance } from '../model/materials';
+import { layerUVKey } from './layerUV';
 
 export type RenderModel = {
   bodies: Body[];
@@ -18,6 +19,7 @@ const topology = (body: Body) => {
     body.origin,
     body.feature,
     body.textureFrame,
+    layerUVKey(body),
     body.appearance?.preset === 'mirror',
     body.appearance?.mirrorSide,
     Object.entries(body.faceMaterials ?? {}).map(([index, surface]) => {

@@ -259,6 +259,8 @@ export function useEditor() {
     saveStatus,
     flushSave,
     transact,
+    /** Latest committed snapshot for serialized non-geometric edits. */
+    currentProject: () => history.current,
     undo,
     redo,
     canRestoreAction: (actionId: string) => !!history.beforeAction(actionId),

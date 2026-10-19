@@ -1,3 +1,4 @@
+import { layerUVKey } from '../render/layerUV';
 import { createAnimationPreview } from './animation';
 import { createMotionPreview } from './motions';
 import { createLightHelper } from './lightEditing';
@@ -517,7 +518,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       // away instead; depth testing still hides the sketch behind real foreground parts.
       const surfaceRenderOrder = surfacePriority ? 1 + surfacePriority / (surfacePriority + 1) : 0;
       const old = bodyNodes.get(body.id);
-      const uv = JSON.stringify(body.textureFrame);
+      const uv = layerUVKey(body);
       const style = JSON.stringify([
         body.color,
         previewIds.has(body.id),
@@ -568,7 +569,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
         geometry.setIndex(data.triangles);
-        materialUV(geometry, body);
+        materialUV(geometry, body, data.faces);
         edges.setAttribute('position', new THREE.Float32BufferAttribute(data.edges, 3));
       }
       geometry.clearGroups();
@@ -1901,6 +1902,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           locateHighlight.group,
           scene.getObjectByName('interaction-overlays'),
           scene.getObjectByName('geometry-editing-overlays'),
+          scene.getObjectByName('wear-brush-overlays'),
           scene.getObjectByName('section-handles'),
           scene.getObjectByName('light-direction-helper'),
         ]

@@ -1,3 +1,4 @@
+import { layerAssetIds } from './decals';
 import { equalJson } from './sharing';
 import type { Body, Project } from './project';
 import { bodyGeometryKey } from '../cad/meshKey';
@@ -40,9 +41,7 @@ function surface(project: Project, body: Body) {
     body.appearance,
     ...Object.values(body.faceMaterials ?? {}).map((f) => f.appearance),
   ];
-  const assets = appearances.flatMap((a) =>
-    a ? [a.assetId, ...Object.values(a.maps ?? {})].filter((s): s is string => !!s) : [],
-  );
+  const assets = appearances.flatMap((a) => layerAssetIds(a));
   return [
     body.color,
     body.material,

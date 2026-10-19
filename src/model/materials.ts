@@ -14,6 +14,16 @@ export const texturePlacementSchema = z.object({
 });
 export const appearanceSchema = z.object({
   layers: z.array(surfaceLayerSchema).max(8).optional(),
+  /** Stable local millimetre mapping for hand-authored marks on analytic cylinders. */
+  surfaceMapping: z
+    .object({
+      kind: z.literal('cylinder'),
+      origin: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
+      axis: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
+      uAxis: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
+      radius: z.number().positive().max(1000000),
+    })
+    .optional(),
   /** Portable, baked-at-runtime multiscale facade maps. Absent keeps legacy surfaces unchanged. */
   procedural: z
     .object({
@@ -129,7 +139,7 @@ export type MaterialPreset = {
   grainAxis?: 'u' | 'v';
   /** Correlated colour, relief, roughness and metalness for oxidized metals. */
   patina?: 'copper' | 'iron-rust' | 'iron-polished' | 'iron-black';
-  polymer?: 'fine' | 'pebbled' | 'ribbed';
+  polymer?: 'fine' | 'pebbled' | 'ribbed' | 'carbon';
   pattern?:
     | 'polymer'
     | 'oak'
@@ -383,6 +393,18 @@ export const materialPresets: MaterialPreset[] = [
   },
   ...experimentalMaterials,
   ...polymerMaterials,
+  {
+    id: 'painted-metal-chipped',
+    name: 'Metallipaneeli · lohkeillut maali',
+    category: 'Metallit',
+    color: '#ffffff',
+    roughness: 1,
+    metalness: 1,
+    pattern: 'patina',
+    patina: 'iron-rust',
+    size: [400, 400],
+    relief: 0.05,
+  },
   {
     id: 'granite',
     name: 'Graniitti',
@@ -854,6 +876,25 @@ export function appearancePreset(appearance: Appearance): MaterialPreset {
 }
 export const defaultAppearance = (preset = 'matte'): Appearance => ({
   preset,
+  ...(preset === 'painted-metal-chipped'
+    ? {
+        layers: [
+          {
+            id: 'preset-chipped-paint',
+            kind: 'paint' as const,
+            enabled: true,
+            amount: 0.28,
+            width: 400,
+            height: 400,
+            rotation: 0,
+            color: '#7c918b',
+            seed: 17,
+            chipSize: 22,
+            roughness: 0.68,
+          },
+        ],
+      }
+    : {}),
   ...(findPreset(preset).procedural ? { procedural: { ...findPreset(preset).procedural! } } : {}),
   ...(findPreset(preset).pbr || findPreset(preset).pattern === 'patina'
     ? { textureTint: 'colorize' as const }

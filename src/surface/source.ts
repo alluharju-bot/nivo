@@ -1,3 +1,4 @@
+import { materialFaceRanges } from '../render/layerUV';
 import { layerDomain } from '../render/layers';
 import { Float32BufferAttribute, SRGBColorSpace, type Texture } from 'three';
 import type { Body, Project } from '../model/project';
@@ -44,6 +45,7 @@ export async function bakeSource(
       body.feature.type === 'mesh'
         ? { ...body, feature: { ...body.feature, uv: undefined } }
         : body,
+      materialFaceRanges(mesh.faces),
     );
   const materials = new Map(
     [...new Set(mesh.faces)].map((face) => [
@@ -54,7 +56,15 @@ export async function bakeSource(
   try {
     await library.ready();
     return {
-      mesh: { ...mesh, uv: Array.from(g.getAttribute('uv').array) },
+      mesh: {
+        ...mesh,
+        positions: Array.from(g.getAttribute('position').array).map(
+          (n, i) => n - body.origin[i % 3],
+        ),
+        normals: Array.from(g.getAttribute('normal').array),
+        indices: Array.from(g.index!.array),
+        uv: Array.from(g.getAttribute('uv').array),
+      },
       materials: Object.fromEntries(
         [...materials].map(([face, m]) => [
           face,

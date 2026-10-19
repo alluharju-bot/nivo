@@ -3,6 +3,20 @@ import type { MaterialPreset } from './materials';
 /** Visual surface presets; no mechanical properties are implied. */
 export const polymerMaterials: MaterialPreset[] = [
   {
+    id: 'carbon-fiber',
+    name: 'Hiilikuitu · kudottu',
+    category: 'Muovit',
+    color: '#ffffff',
+    roughness: 0.36,
+    metalness: 0,
+    clearcoat: 0.55,
+    pattern: 'polymer',
+    polymer: 'carbon',
+    size: [32, 32],
+    relief: 0.07,
+    seed: 105,
+  },
+  {
     id: 'rubber-fine',
     name: 'Kumi · hienorakeinen',
     category: 'Kumit',

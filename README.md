@@ -3,6 +3,41 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.54.0** lisää **P → Tarrat ja kuviot** sekä käsin maalattavan kuluman.
+Teksti, PNG/JPG/WebP-kuva, SVG-vektorikuva tai kynällä/perusmuodoilla/Bézierillä
+piirretty kuvio asetetaan napsauttamalla tasopintaa. Teksti ja piirrot säilyvät
+muokattavina; kokoa, paikkaa, kiertoa, sävyä, kiiltoa, kulumaa ja pintakohoumaa
+voi säätää myöhemmin. Mukana ovat paikallisesti ladattavat Saira Stencil-,
+Barlow- ja IBM Plex Mono -kirjasimet; omien kirjainten piirtäminen ei kuulu
+vielä tähän versioon. SVG tuodaan läpinäkyväksi kuvaksi (polut ja perusmuodot).
+
+**P → Pintakerrokset → Kulumakuvion ohjaus** tarjoaa valinnat **Automaattinen**,
+**Maalaa itse** ja **Yhdistelmä**. Valitse kerros, käynnistä sivellin ja vedä
+pinnalla. Koko, voimakkuus, kovuus ja kumitus ovat säädettävissä. Yksi veto
+kumoutuu yhdellä Perulla; Esc peruu keskeneräisen vedon ja lopettaa siveltimen.
+Kumitus poistaa itse maalattua maskia, automaattinen kuvio säilyy erikseen.
+Lohkeilevassa maalissa sivellin paljastaa pohjamateriaalin. Naarmuissa, pölyssä
+ja muissa jäljissä sivellin rajaa kerroksen näkyvyyttä. Yhdistelmä lisää omat
+jäljet automaattisen kuvion päälle. Valitse seuraava pinta lopettamalla
+sivellin, napsauttamalla pintaa ja käynnistämällä sivellin uudelleen.
+
+Käsin maalaus toimii tasopinnoilla ja analyyttisillä sylinteripinnoilla. Yksi veto kuuluu yhdelle
+pinnalle; UV-sauman ylitys ei vedä viivaa koko pinnan yli. Muut kaarevat pinnat ja
+tarran automaattinen kääriminen usean pinnan yli ovat jatkotyötä. Valmiiksi
+UV-kartoitetun verkon maalaus tapahtuu edelleen Verkko ja pinta -työtilassa. Kerrosjärjestys määrää esimerkiksi
+sen, jääkö tarra pölyn alle. Tekstit ja kuviot rasteroidaan vain esitystä varten:
+yksi yhdistetty pinta on enintään noin 4 megapikseliä, pisin sivu 4096 pikseliä.
+Hyvin pienet merkinnät suurella seinällä voivat siksi vaatia erillisen
+pinta-alueen. Pinnalla on enintään 8 kerrosta ja maskissa 128 siveltimenvetoa.
+Projektin, pilven ja osakirjaston tallennus säilyttää muokattavat lähteet;
+GLB ja UV-bake käyttävät samoja yhdistettyjä materiaalikarttoja kuin renderi.
+
+Materiaaleihin lisättiin **Hiilikuitu · kudottu** ja **Metallipaneeli ·
+lohkeillut maali**. Hiilikuidulla on proseduraalinen kudos, normal-/karheuskartta
+ja lakkapinta. Metallipaneeli käyttää ruostunutta rautaa ja erikseen muokattavaa
+maalikerrosta. **Musta rauta**, hienorakeinen kumi ja uritettu kumi säilyvät
+omissa materiaaliryhmissään; nekin ovat proseduraalisia.
+
 Versio **0.53.0** lisää **Kohdista**- ja **Muodot → Pyöräytä** -työkalut.
 Keskitys ja reunojen sovitus toimivat valituilla maailman tai vertailuosan
 akseleilla. Useat osat siirtyvät yhdessä ja vertailuosa säilyy paikallaan.

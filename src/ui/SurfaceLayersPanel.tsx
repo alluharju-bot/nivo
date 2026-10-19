@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { DecalEditor } from './DecalEditor';
+import { defaultDecal } from '../model/decals';
+import type { TextureAsset } from '../model/materials';
+import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { layerNames, type SurfaceLayer } from '../model/surfaceLayers';
 import type { PaintScope as Scope } from '../model/faceMaterials';
@@ -92,7 +95,25 @@ export function SurfaceLayersPanel({
   count,
   basePreset,
   onBase,
+  draft,
+  onDraft,
+  assets,
+  onAsset,
+  brush,
+  onBrush,
 }: {
+  draft: SurfaceLayer;
+  onDraft: (layer: SurfaceLayer) => void;
+  assets: Record<string, TextureAsset>;
+  onAsset: (id: string, asset: TextureAsset) => void;
+  brush: { layerId?: string; radius: number; strength: number; hardness: number; erase: boolean };
+  onBrush: (brush: {
+    layerId?: string;
+    radius: number;
+    strength: number;
+    hardness: number;
+    erase: boolean;
+  }) => void;
   name?: string;
   layers: SurfaceLayer[];
   busy: boolean;
@@ -114,6 +135,15 @@ export function SurfaceLayersPanel({
   onBase: (preset: string) => void;
 }) {
   const [opened, setOpened] = useState<string>();
+  const [draftOpen, setDraftOpen] = useState(!layers.some((l) => l.kind === 'decal'));
+  const layerCount = useRef(layers.length);
+  useEffect(() => {
+    if (layers.length > layerCount.current && layers.at(-1)?.kind === 'decal') {
+      setDraftOpen(false);
+      setOpened(layers.at(-1)!.id);
+    }
+    layerCount.current = layers.length;
+  }, [layers]);
   return (
     <section className="surface-layers-panel" aria-label="Pintakerrokset">
       <PaintScope value={scope} onChange={onScope} />
@@ -161,17 +191,60 @@ export function SurfaceLayersPanel({
           ))}
         </select>
       </label>
+      {kind === 'decal' && (
+        <details
+          className="decal-new"
+          open={draftOpen}
+          onToggle={(e) => setDraftOpen(e.currentTarget.open)}
+        >
+          <summary>Uusi tarra</summary>
+          <DecalEditor
+            value={draft.decal ?? defaultDecal()}
+            assets={assets}
+            disabled={busy}
+            onAsset={onAsset}
+            onChange={(decal) => onDraft({ ...draft, decal })}
+          />
+          <div className="layer-two-columns">
+            <NumberField
+              label="Tarran leveys (mm)"
+              value={draft.width}
+              min={1}
+              disabled={busy}
+              onChange={(width) => onDraft({ ...draft, width })}
+            />
+            <NumberField
+              label="Tarran korkeus (mm)"
+              value={draft.height}
+              min={1}
+              disabled={busy}
+              onChange={(height) => onDraft({ ...draft, height })}
+            />
+          </div>
+          <LayerColor
+            layer={draft}
+            busy={busy}
+            onChange={(_, patch) => onDraft({ ...draft, ...patch })}
+          />
+        </details>
+      )}
       <div className="layer-add-actions">
-        <button className="button outlined" disabled={busy || !name} onClick={onAdd}>
-          Lisää kerros
-        </button>
+        {kind !== 'decal' && (
+          <button className="button outlined" disabled={busy || !name} onClick={onAdd}>
+            Lisää kerros
+          </button>
+        )}
         <button
           className={`button ${placing ? 'primary' : 'outlined'}`}
           aria-pressed={placing}
           disabled={busy}
           onClick={onPlace}
         >
-          {placing ? 'Napsauta jäljen paikkaa' : 'Aseta paikallinen jälki'}
+          {placing
+            ? 'Napsauta jäljen paikkaa'
+            : kind === 'decal'
+              ? 'Aseta tarra pinnalle'
+              : 'Aseta paikallinen jälki'}
         </button>
       </div>
       {placing && <small>Jälki rajautuu napsautettuun tasopintaan. Esc peruu asettelun.</small>}
@@ -196,11 +269,14 @@ export function SurfaceLayersPanel({
                 aria-expanded={opened === layer.id || layers.length === 1}
                 onClick={() => setOpened(opened === layer.id ? undefined : layer.id)}
               >
-                {layerNames[layer.kind]}
+                {layer.kind === 'decal' && layer.decal?.type === 'text'
+                  ? layer.decal.text.slice(0, 30) || 'Tekstitarra'
+                  : layerNames[layer.kind]}
                 <small>
                   {layer.center ? 'Paikallinen jälki' : 'Koko pinta'} ·{' '}
-                  {layer.kind === 'paint' ? 'kuluma ' : ''}
-                  {Math.round(layer.amount * 100)} %
+                  {layer.maskMode === 'manual'
+                    ? `maalattu · ${layer.strokes?.length ?? 0} vetoa`
+                    : `${layer.kind === 'paint' ? 'kuluma ' : ''}${Math.round(layer.amount * 100)} %`}
                 </small>
               </button>
               <button
@@ -214,6 +290,130 @@ export function SurfaceLayersPanel({
             </div>
             {(opened === layer.id || layers.length === 1) && (
               <div className="surface-layer-settings">
+                {layer.kind === 'decal' && (
+                  <>
+                    <DecalEditor
+                      value={layer.decal ?? defaultDecal()}
+                      assets={assets}
+                      disabled={busy}
+                      onAsset={onAsset}
+                      onChange={(decal) => onChange(layer.id, { decal })}
+                    />
+                    <div className="layer-two-columns">
+                      <NumberField
+                        label="Tarran kiilto (%)"
+                        value={Math.round((1 - (layer.roughness ?? 0.8)) * 100)}
+                        max={96}
+                        disabled={busy}
+                        onChange={(n) => onChange(layer.id, { roughness: 1 - n / 100 })}
+                      />
+                      <NumberField
+                        label="Tarran kuluma (%)"
+                        value={Math.round((layer.wear ?? 0) * 100)}
+                        max={100}
+                        disabled={busy}
+                        onChange={(n) => onChange(layer.id, { wear: n / 100 })}
+                      />
+                    </div>
+                    <NumberField
+                      label="Pintakohouma (mm)"
+                      value={layer.relief ?? 0}
+                      min={-2}
+                      max={2}
+                      step={0.01}
+                      disabled={busy}
+                      onChange={(relief) => onChange(layer.id, { relief })}
+                    />
+                  </>
+                )}
+                {layer.kind !== 'decal' && (
+                  <>
+                    <label>
+                      Kulumakuvion ohjaus
+                      <select
+                        aria-label="Kulumakuvion ohjaus"
+                        value={layer.maskMode ?? 'automatic'}
+                        disabled={busy}
+                        onChange={(e) => {
+                          onChange(layer.id, { maskMode: e.target.value as 'manual' });
+                          if (e.target.value === 'automatic')
+                            onBrush({ ...brush, layerId: undefined });
+                        }}
+                      >
+                        <option value="automatic">Automaattinen</option>
+                        <option value="manual">Maalaa itse</option>
+                        <option value="combined">Yhdistelmä</option>
+                      </select>
+                    </label>
+                    {layer.maskMode && layer.maskMode !== 'automatic' && (
+                      <>
+                        <button
+                          className={`button ${brush.layerId === layer.id ? 'primary' : 'outlined'}`}
+                          disabled={busy || !layer.enabled}
+                          aria-pressed={brush.layerId === layer.id}
+                          onClick={() =>
+                            onBrush({
+                              ...brush,
+                              layerId: brush.layerId === layer.id ? undefined : layer.id,
+                            })
+                          }
+                        >
+                          {brush.layerId === layer.id
+                            ? 'Lopeta kuluman maalaus'
+                            : 'Maalaa kulumaa pinnalle'}
+                        </button>
+                        {brush.layerId === layer.id && (
+                          <>
+                            <small>
+                              Vedä sivellintä pinnalla. Esc lopettaa. Valitse pinta ennen maalausta.
+                            </small>
+                            <div className="layer-two-columns">
+                              <NumberField
+                                label="Siveltimen koko (mm)"
+                                value={brush.radius * 2}
+                                min={0.2}
+                                max={20000}
+                                step={1}
+                                disabled={busy}
+                                onChange={(n) => onBrush({ ...brush, radius: n / 2 })}
+                              />
+                              <NumberField
+                                label="Siveltimen voimakkuus (%)"
+                                value={brush.strength * 100}
+                                min={1}
+                                max={100}
+                                disabled={busy}
+                                onChange={(n) => onBrush({ ...brush, strength: n / 100 })}
+                              />
+                            </div>
+                            <NumberField
+                              label="Siveltimen kovuus (%)"
+                              value={brush.hardness * 100}
+                              max={100}
+                              disabled={busy}
+                              onChange={(n) => onBrush({ ...brush, hardness: n / 100 })}
+                            />
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={brush.erase}
+                                onChange={(e) => onBrush({ ...brush, erase: e.target.checked })}
+                              />
+                              Kumita maalattua kulumaa
+                            </label>
+                          </>
+                        )}
+                        <button
+                          className="button subtle"
+                          disabled={busy || !layer.strokes?.length}
+                          onClick={() => onChange(layer.id, { strokes: [] })}
+                        >
+                          Tyhjennä käsin maalattu maski
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
                 {layer.kind === 'paint' && (
                   <div className="layer-two-columns">
                     <LayerColor layer={layer} busy={busy} onChange={onChange} />
@@ -227,26 +427,30 @@ export function SurfaceLayersPanel({
                   </div>
                 )}
                 <div className={layer.kind === 'paint' ? 'layer-two-columns' : undefined}>
-                  <NumberField
-                    label={layer.kind === 'paint' ? 'Kuluma (%)' : 'Voimakkuus (%)'}
-                    value={Math.round(layer.amount * 100)}
-                    max={100}
-                    onChange={(n) => onChange(layer.id, { amount: n / 100 })}
-                    disabled={busy}
-                  />
-                  {layer.kind === 'paint' && (
-                    <NumberField
-                      label="Lohkeen koko (mm)"
-                      value={layer.chipSize ?? 30}
-                      min={0.5}
-                      max={10000}
-                      step={0.5}
-                      onChange={(chipSize) => onChange(layer.id, { chipSize })}
-                      disabled={busy}
-                    />
+                  {!(layer.kind === 'paint' && layer.maskMode === 'manual') && (
+                    <>
+                      <NumberField
+                        label={layer.kind === 'paint' ? 'Kuluma (%)' : 'Voimakkuus (%)'}
+                        value={Math.round(layer.amount * 100)}
+                        max={100}
+                        onChange={(n) => onChange(layer.id, { amount: n / 100 })}
+                        disabled={busy}
+                      />
+                      {layer.kind === 'paint' && (
+                        <NumberField
+                          label="Lohkeen koko (mm)"
+                          value={layer.chipSize ?? 30}
+                          min={0.5}
+                          max={10000}
+                          step={0.5}
+                          onChange={(chipSize) => onChange(layer.id, { chipSize })}
+                          disabled={busy}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
-                {layer.kind === 'paint' && (
+                {layer.kind === 'paint' && layer.maskMode !== 'manual' && (
                   <>
                     <small>0 %: ehjä maali · 100 %: paljas pohjamateriaali</small>
                     <button

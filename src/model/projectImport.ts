@@ -1,3 +1,4 @@
+import { layerAssetIds } from './decals';
 import { pruneAnimation } from './animation';
 import {
   freshProject,
@@ -161,10 +162,7 @@ export function selectionProject(project: Project, ids: string[], name: string):
       b.appearance,
       ...Object.values(b.faceMaterials ?? {}).map((f) => f.appearance),
     ]) {
-      if (appearance?.assetId) assets.add(appearance.assetId);
-      Object.values(appearance?.maps ?? {}).forEach((id) => {
-        if (id) assets.add(id);
-      });
+      layerAssetIds(appearance).forEach((id) => assets.add(id));
     }
   return reidentifyProject(
     projectSchema.parse({

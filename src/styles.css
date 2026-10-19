@@ -10342,3 +10342,64 @@ p {
   border: 1px solid #cad9cf;
   border-radius: 6px;
 }
+
+/* Editable markings share the P workspace and stay readable on narrow panels. */
+.paint-workspace-tabs {
+  flex-wrap: wrap;
+}
+.decal-editor {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.decal-editor textarea {
+  min-height: 66px;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border, #c5cec8);
+  border-radius: 7px;
+  padding: 8px;
+  font: inherit;
+}
+.decal-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2;
+  height: auto;
+  border: 1px solid #687781;
+  border-radius: 8px;
+  background: repeating-conic-gradient(#34414c 0 25%, #3e4d59 0 50%) 0 / 20px 20px;
+}
+.decal-canvas.drawing {
+  cursor: crosshair;
+  touch-action: none;
+}
+.decal-options {
+  display: flex;
+  gap: 18px;
+}
+.decal-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.decal-file-input {
+  display: none;
+}
+.decal-new {
+  padding: 8px;
+  border: 1px solid #d4ddd3;
+  border-radius: 8px;
+}
+.decal-new > summary {
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.decal-new[open] > summary {
+  margin-bottom: 8px;
+}
+.decal-new > label,
+.decal-new > .layer-two-columns {
+  margin-top: 8px;
+}

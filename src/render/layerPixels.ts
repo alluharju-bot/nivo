@@ -15,6 +15,8 @@ export type LayerInput = {
   transmission: number;
   normalScale: number[];
   maps: Partial<Record<'color' | 'normal' | 'roughness' | 'metalness', SampleTexture>>;
+  decals?: Record<string, SampleTexture>;
+  paintedMasks?: Record<string, SampleTexture>;
   masks: Partial<Record<SurfaceLayer['kind'], { mask: SampleTexture; normal?: SampleTexture }>>;
 };
 export type LayerPixels = Record<'color' | 'normal' | 'surface', Uint8ClampedArray>;
@@ -38,9 +40,11 @@ export function layerSample(
   v: number,
   out: number[],
   fallback = 1,
+  premultiply = false,
 ) {
   if (!t) {
     out[0] = out[1] = out[2] = fallback;
+    out[3] = fallback;
     return out;
   }
   const m = t.matrix;
@@ -56,10 +60,21 @@ export function layerSample(
       t.pixels[
         (wrapped(iy + dy, t.height, t.wrapT) * t.width + wrapped(ix + dx, t.width, t.wrapS)) * 4 + c
       ] / 255;
-    return t.srgb ? linear(n) : n;
+    if (c === 3) return n;
+    const value = t.srgb ? linear(n) : n;
+    return premultiply
+      ? (value *
+          t.pixels[
+            (wrapped(iy + dy, t.height, t.wrapT) * t.width + wrapped(ix + dx, t.width, t.wrapS)) *
+              4 +
+              3
+          ]) /
+          255
+      : value;
   };
-  for (let c = 0; c < 3; c++)
+  for (let c = 0; c < 4; c++)
     out[c] = mix(mix(p(0, 0, c), p(1, 0, c), fx), mix(p(0, 1, c), p(1, 1, c), fx), fy);
+  if (premultiply && out[3] > 0) for (let c = 0; c < 3; c++) out[c] /= out[3];
   return out;
 }
 /** One finite mark is feathered before clipping; cover patterns repeat. */
@@ -71,7 +86,11 @@ export function layerCoordinates(layer: SurfaceLayer, u: number, v: number) {
     y = v - (layer.center?.[1] ?? 0);
   const a = (c * x + s * y) / layer.width,
     b = (-s * x + c * y) / layer.height;
-  const edge = layer.center ? clamp((0.5 - Math.max(Math.abs(a), Math.abs(b))) * 12) : 1;
+  const edge = layer.center
+    ? layer.kind === 'decal'
+      ? Number(Math.max(Math.abs(a), Math.abs(b)) <= 0.5)
+      : clamp((0.5 - Math.max(Math.abs(a), Math.abs(b))) * 12)
+    : 1;
   return [a + (layer.center ? 0.5 : 0), b + (layer.center ? 0.5 : 0), edge] as const;
 }
 function procedural(kind: SurfaceLayer['kind'], u: number, v: number, seed: number) {
@@ -93,22 +112,45 @@ export function composeLayerPixels(input: LayerInput): LayerPixels {
     ['color', 'normal', 'surface'].map((k) => [k, new Uint8ClampedArray(width * height * 4)]),
   ) as LayerPixels;
   const layers = input.layers
-    .filter((l) => l.enabled && (l.kind === 'paint' ? l.amount < 1 : l.amount > 0))
+    .filter(
+      (l) =>
+        l.enabled && (l.kind === 'paint' ? l.amount < 1 || l.maskMode === 'manual' : l.amount > 0),
+    )
     .map((l) => ({
       ...l,
+      wearSource: l.kind === 'decal' ? { ...l, amount: l.wear ?? 0 } : l,
       tint: [1, 3, 5].map((i) => linear(parseInt(l.color.slice(i, i + 2), 16) / 255)),
-      coverage: l.kind === 'paint' ? new Float32Array(width * height) : undefined,
+      coverage:
+        l.kind === 'paint' || l.kind === 'decal' ? new Float32Array(width * height) : undefined,
     }));
   const du = domain.width / width,
     dv = domain.height / height;
+  const paintMask = (layer: SurfaceLayer, x: number, y: number) =>
+    (input.paintedMasks?.[layer.id]?.pixels[(y * width + x) * 4 + 3] ?? 0) / 255;
+  const sample = [0, 0, 0, 0];
   for (const layer of layers) {
     if (!layer.coverage) continue;
     for (let y = 0; y < height; y++)
       for (let x = 0; x < width; x++) {
         const u = domain.x + (x + 0.5) * du,
           v = domain.y + domain.height - (y + 0.5) * dv;
-        layer.coverage[y * width + x] =
-          layerCoordinates(layer, u, v)[2] * paintCoverage(layer, u, v, Math.max(du, dv));
+        const [lu, lv, edge] = layerCoordinates(layer, u, v);
+        const manual = paintMask(layer, x, y);
+        if (layer.kind === 'decal') {
+          const source = input.decals?.[layer.id];
+          const alpha = source && edge ? layerSample(source, lu, lv, sample)[3] : 0;
+          layer.coverage[y * width + x] =
+            edge * alpha * layer.amount * paintCoverage(layer.wearSource, u, v, Math.max(du, dv));
+        } else {
+          const automatic = paintCoverage(layer, u, v, Math.max(du, dv));
+          layer.coverage[y * width + x] =
+            edge *
+            (layer.maskMode === 'manual'
+              ? 1 - manual
+              : layer.maskMode === 'combined'
+                ? Math.min(automatic, 1 - manual)
+                : automatic);
+        }
       }
   }
   const col = [1, 1, 1],
@@ -146,27 +188,43 @@ export function composeLayerPixels(input: LayerInput): LayerPixels {
       for (const layer of layers) {
         if (layer.coverage) {
           const coverage = layer.coverage[y * width + x];
-          for (let c = 0; c < 3; c++) col[c] = mix(col[c], layer.tint[c], coverage);
+          let ink = layer.tint;
+          if (layer.kind === 'decal') {
+            const [lu, lv] = layerCoordinates(layer, u, v);
+            layerSample(input.decals?.[layer.id], lu, lv, sample, 0, true);
+            for (let c = 0; c < 3; c++) sample[c] *= layer.tint[c];
+            ink = sample;
+          }
+          for (let c = 0; c < 3; c++) col[c] = mix(col[c], ink[c], coverage);
           rough = mix(rough, layer.roughness ?? 0.65, coverage);
           metal *= 1 - coverage;
           // Opaque dielectric paint also masks the substrate's coat and transmission.
           coat *= 1 - coverage;
-          nx *= 1 - coverage * 0.8;
-          ny *= 1 - coverage * 0.8;
+          nx *= 1 - coverage * (layer.kind === 'decal' ? 0.1 : 0.8);
+          ny *= 1 - coverage * (layer.kind === 'decal' ? 0.1 : 0.8);
           const at = (a: number, b: number) =>
             layer.coverage![
               Math.max(0, Math.min(height - 1, b)) * width + Math.max(0, Math.min(width - 1, a))
             ];
           // A thin paint film, not displaced geometry. Derivatives use physical millimetres.
-          nx -= ((at(x + 1, y) - at(x - 1, y)) * 0.08) / (2 * du);
-          ny -= ((at(x, y - 1) - at(x, y + 1)) * 0.08) / (2 * dv);
+          const relief = layer.kind === 'decal' ? (layer.relief ?? 0) : 0.08;
+          nx -= ((at(x + 1, y) - at(x - 1, y)) * relief) / (2 * du);
+          ny -= ((at(x, y - 1) - at(x, y + 1)) * relief) / (2 * dv);
           continue;
         }
         const [lu, lv, edge] = layerCoordinates(layer, u, v);
         if (!edge) continue;
         const source = input.masks[layer.kind];
+        const manual = paintMask(layer, x, y);
+        const maskStrength =
+          layer.maskMode === 'manual'
+            ? manual
+            : layer.maskMode === 'combined'
+              ? Math.max(layer.amount, manual) / Math.max(0.0001, layer.amount)
+              : 1;
         const amount =
           edge *
+          maskStrength *
           layer.amount *
           (source
             ? layerSample(source.mask, lu, lv, mask)[0]

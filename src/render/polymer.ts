@@ -6,6 +6,16 @@ type Finish = NonNullable<MaterialPreset['polymer']>;
 /** Periodic height and micrograin share a scale; colour is deliberately almost uniform. */
 export function polymerSample(finish: Finish, u: number, v: number, seed: number) {
   const grain = facadeNoise(u, v, 96, 96, seed + 1);
+  if (finish === 'carbon') {
+    // Two-over/two-under twill with alternating fiber direction; the full tile is periodic.
+    const tu = (((u * 8) % 1) + 1) % 1,
+      tv = (((v * 8) % 1) + 1) % 1;
+    const over = (((Math.floor(u * 8) - Math.floor(v * 8)) % 4) + 4) % 4 < 2;
+    const across = over ? tu : tv;
+    const bundle = Math.sin(across * Math.PI) ** 0.5;
+    const strands = 0.5 + 0.5 * Math.cos(across * Math.PI * 16);
+    return { height: bundle * 0.65 + strands * 0.25 + grain * 0.1, grain };
+  }
   const texture = facadeNoise(
     u,
     v,
@@ -31,7 +41,8 @@ export function polymerPixels(finish: Finish, seed: number, size = 512) {
       const sample = polymerSample(finish, x / size, y / size, seed),
         i = (y * size + x) * 4;
       for (let c = 0; c < 3; c++) {
-        color[i + c] = 248 + sample.grain * 7;
+        color[i + c] =
+          finish === 'carbon' ? 26 + sample.height * 28 + sample.grain * 4 : 248 + sample.grain * 7;
         height[i + c] = sample.height * 255;
         // Multiply the chosen finish by a restrained texture. Never turn rubber metallic.
         roughness[i + c] = 230 + (1 - sample.height * 0.6 + sample.grain * 0.1) * 25;
