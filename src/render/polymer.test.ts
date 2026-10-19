@@ -51,8 +51,11 @@ it('ships nonmetallic, tintable presets with physical relief and portable placem
   expect(parseProject(JSON.stringify({ ...freshProject(), bodies })).bodies).toEqual(bodies);
 });
 
-it('composes every overlay over rubber and plastic without changing the original maps or making them metallic', () => {
-  for (const preset of polymerMaterials) {
+// Each preset has its own execution budget on shared CI runners; keep the
+// full overlay matrix and original-map checks for every material.
+it.each(polymerMaterials)(
+  'composes every overlay over $id without changing the original maps or making it metallic',
+  (preset) => {
     const maps = polymerPixels(preset.polymer!, preset.seed!, 128);
     const normals = normalPixels(maps.height, 128, 128, {
       width: preset.size![0],
@@ -99,5 +102,5 @@ it('composes every overlay over rubber and plastic without changing the original
       );
     }
     expect(maps).toEqual(polymerPixels(preset.polymer!, preset.seed!, 128));
-  }
-});
+  },
+);
