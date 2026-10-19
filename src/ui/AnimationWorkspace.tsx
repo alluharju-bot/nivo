@@ -33,6 +33,13 @@ import {
   type PoseMap,
 } from '../model/animation';
 import { animationPicking } from '../model/animationPose';
+import {
+  animationKeyToken,
+  selectedAnimationKeys,
+  shiftAnimationKeys,
+  editAnimationKeys,
+  type AnimationKeyRef,
+} from '../model/animationKeys';
 
 export interface AnimationViewport {
   data: AnimationData;
@@ -64,7 +71,11 @@ export function useAnimationWorkspace(
   const [drafts, setDrafts] = useState<PoseMap>({}),
     [error, setError] = useState(''),
     [picking, setPicking] = useState(false);
-  const [keyId, setKeyId] = useState<string>(),
+  const [keySelection, setKeySelection] = useState<{
+      clipId: string;
+      refs: AnimationKeyRef[];
+      primary?: AnimationKeyRef;
+    }>(),
     [clipboard, setClipboard] = useState<AnimationKey>();
   const timeRef = useRef(0),
     timeOutput = useRef<HTMLOutputElement>(null),
@@ -75,6 +86,21 @@ export function useAnimationWorkspace(
     [open, project.animation, project.bodies, project.groups],
   );
   const clip = data?.clips.find((c) => c.id === clipId) ?? data?.clips[0];
+  const selectedKeys = useMemo(
+    () =>
+      clip && keySelection?.clipId === clip.id
+        ? selectedAnimationKeys(clip, keySelection.refs)
+        : [],
+    [clip, keySelection],
+  );
+  const primaryKey =
+    selectedKeys.find(
+      (e) =>
+        animationKeyToken(e) === (keySelection?.primary && animationKeyToken(keySelection.primary)),
+    ) ?? selectedKeys[0];
+  const selectKeys = (refs: AnimationKeyRef[], primary = refs.at(-1)) =>
+    setKeySelection(clip ? { clipId: clip.id, refs, primary } : undefined);
+  const clearKeys = () => setKeySelection(undefined);
   const active = selectedGroupId
     ? data?.nodes.find((n) => n.groupId === selectedGroupId)
     : data?.nodes.find((n) => n.bodyId === selectedIds[0]);
@@ -99,7 +125,7 @@ export function useAnimationWorkspace(
     setPlaying(false);
     setPicking(false);
     setDrafts({});
-    if (clearKey) setKeyId(undefined);
+    if (clearKey) clearKeys();
   };
   const close = () => {
     reset();
@@ -119,9 +145,9 @@ export function useAnimationWorkspace(
   useEffect(() => {
     timeRef.current = time;
   }, [time]);
-  const seek = (value: number) => {
+  const seek = (value: number, clearSelection = true) => {
     if (!Number.isFinite(value)) return;
-    reset();
+    reset(clearSelection);
     const next = Math.max(0, Math.min(clip?.duration ?? 0, value));
     timeRef.current = next;
     setTime(next);
@@ -139,17 +165,46 @@ export function useAnimationWorkspace(
   const saveClip = (value: AnimationClip, label: string) =>
     data &&
     commitData({ ...data, clips: data.clips.map((c) => (c.id === value.id ? value : c)) }, label);
-  const moveKey = async (nodeId: string, key: AnimationKey, time: number) => {
-    if (!clip || !Number.isFinite(time) || time < 0 || time > clip.duration) return;
-    const next = putKey(clip, nodeId, { ...key, time });
-    if (await saveClip(next, 'Animaatioavaimen ajoitus muutettu.')) {
-      seek(time);
-      setKeyId(
-        next.tracks
-          .find((t) => t.nodeId === nodeId)
-          ?.keys.find((k) => Math.abs(k.time - time) < 1e-6)?.id,
-      );
+  const shiftKeys = async (
+    refs: AnimationKeyRef[],
+    delta: number,
+    primary: AnimationKeyRef | undefined = primaryKey,
+  ) => {
+    if (!clip || busy || playing) return;
+    try {
+      const result = shiftAnimationKeys(clip, refs, delta);
+      if (result.clip === clip) return;
+      const count = selectedAnimationKeys(clip, refs).length;
+      if (await saveClip(result.clip, `Animaation ajoitus muutettu · ${count} avainta`)) {
+        const reference = primary && selectedAnimationKeys(result.clip, [primary])[0];
+        // The clip can grow beyond its old duration; do not clamp against the stale closure.
+        const nextTime = reference?.key.time ?? Math.min(time, result.clip.duration);
+        timeRef.current = nextTime;
+        setTime(nextTime);
+        selectKeys(refs, primary);
+      }
+    } catch (e) {
+      setError((e as Error).message);
     }
+  };
+  const moveKey = (nodeId: string, key: AnimationKey, nextTime: number) =>
+    shiftKeys([{ nodeId, keyId: key.id }], nextTime - key.time, { nodeId, keyId: key.id });
+  const changeKeyInterpolation = async (interpolation: AnimationKey['interpolation']) => {
+    if (!clip || busy || playing) return;
+    await saveClip(
+      editAnimationKeys(clip, selectedKeys, (key) => ({ ...key, interpolation })),
+      'Animaation interpolointi muutettu.',
+    );
+  };
+  const deleteKeys = async () => {
+    if (!clip || !selectedKeys.length || busy || playing) return;
+    if (
+      await saveClip(
+        editAnimationKeys(clip, selectedKeys, () => undefined),
+        `Animaatioavaimet poistettu · ${selectedKeys.length}`,
+      )
+    )
+      clearKeys();
   };
   const createClip = async () => {
     const next = ensureAnimationNodes(project);
@@ -209,7 +264,7 @@ export function useAnimationWorkspace(
     guard(nodeIds);
     setPlaying(false);
     setDrafts(transformAnimationNodes(data, clip, time, drafts, nodeIds, delta));
-    setKeyId(undefined);
+    clearKeys();
   };
   const changePose = (pose: Pose) => {
     try {
@@ -289,8 +344,7 @@ export function useAnimationWorkspace(
         : undefined,
     [open, data, clip, time, playing, speed, posed, picking, evaluation],
   );
-  const key =
-    active && clip?.tracks.find((t) => t.nodeId === active.id)?.keys.find((k) => k.id === keyId);
+  const key = selectedKeys.length === 1 ? selectedKeys[0].key : undefined;
   return {
     open,
     start: () => {
@@ -327,8 +381,13 @@ export function useAnimationWorkspace(
     saveClip,
     commitData,
     key,
-    keyId,
-    setKeyId,
+    selectedKeys,
+    primaryKey,
+    selectKeys,
+    clearKeys,
+    shiftKeys,
+    changeKeyInterpolation,
+    deleteKeys,
     clipboard,
     setClipboard,
     setClipId,
@@ -403,18 +462,6 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
   if (!s.open) return null;
   const pose = s.active && s.evaluation?.local.get(s.active.id),
     rotation = pose && poseDegrees(pose);
-  const deleteKey = () =>
-    s.clip &&
-    s.key &&
-    s.saveClip(
-      {
-        ...s.clip,
-        tracks: s.clip.tracks
-          .map((t) => ({ ...t, keys: t.keys.filter((k) => k.id !== s.key!.id) }))
-          .filter((t) => t.keys.length),
-      },
-      'Animaatioavain poistettu.',
-    );
   return (
     <aside
       className="inspector animation-inspector"
@@ -424,7 +471,13 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
       <header>
         <div>
           <small>ANIMAATIO</small>
-          <h2>{s.active ? animationNodeName(s.active, a.project) : 'Valitse liikkuva osa'}</h2>
+          <h2>
+            {s.selectedKeys.length > 1
+              ? 'Ajoituksen muokkaus'
+              : s.active
+                ? animationNodeName(s.active, a.project)
+                : 'Valitse liikkuva osa'}
+          </h2>
         </div>
         <button
           aria-label="Sulje animaatio"
@@ -448,7 +501,7 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
           </button>
         ))}
       </div>
-      {a.operation}
+      {s.selectedKeys.length < 2 && a.operation}
       {!s.clip ? (
         <button className="button dark" onClick={() => void s.createClip()} disabled={a.busy}>
           <Plus size={16} /> Luo animaatioklippi
@@ -479,7 +532,7 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
                 ))}
             </select>
           </label>
-          {s.active && pose && rotation && (
+          {s.active && pose && rotation && s.selectedKeys.length < 2 && (
             <>
               <button
                 disabled={s.dirty || a.busy || s.playing}
@@ -548,6 +601,56 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
               </button>
             </div>
           )}
+          {s.selectedKeys.length > 1 && (
+            <fieldset className="animation-key-editor" disabled={a.busy || s.playing}>
+              <legend>
+                {s.selectedKeys.length} avainta ·{' '}
+                {new Set(s.selectedKeys.map((k) => k.nodeId)).size} raitaa
+              </legend>
+              <label>
+                Siirrä valintaa (s)
+                <CommitInput
+                  key={s.selectedKeys.map((e) => `${animationKeyToken(e)}:${e.key.time}`).join('|')}
+                  label="Valittujen avainten siirtymä"
+                  type="number"
+                  step="0.01"
+                  value={0}
+                  onCommit={(text) => void s.shiftKeys(s.selectedKeys, Number(text))}
+                />
+              </label>
+              <label>
+                Liike seuraavaan avaimeen
+                <select
+                  aria-label="Valittujen avainten interpolointi"
+                  value={
+                    s.selectedKeys.every(
+                      (e) => e.key.interpolation === s.selectedKeys[0].key.interpolation,
+                    )
+                      ? s.selectedKeys[0].key.interpolation
+                      : ''
+                  }
+                  onChange={(e) =>
+                    void s.changeKeyInterpolation(e.target.value as AnimationKey['interpolation'])
+                  }
+                >
+                  <option value="" disabled>
+                    Useita arvoja
+                  </option>
+                  <option value="step">Step · välitön</option>
+                  <option value="linear">Linear · tasainen</option>
+                  <option value="smooth">Smooth · pehmeä</option>
+                </select>
+              </label>
+              <p className="muted">
+                Vedä yhtä valittua avainta: kaikki siirtyvät yhtä paljon. Klippi pitenee
+                tarvittaessa.
+              </p>
+              <button onClick={() => void s.deleteKeys()}>
+                <Trash2 size={14} /> Poista valitut avaimet
+              </button>
+              <button onClick={s.clearKeys}>Tyhjennä avainvalinta</button>
+            </fieldset>
+          )}
           {s.key && (
             <fieldset className="animation-key-editor">
               <legend>Valittu avain · {s.key.time.toFixed(2)} s</legend>
@@ -557,13 +660,13 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
                   label="Avaimen aika"
                   type="number"
                   min={0}
-                  max={s.clip.duration}
+                  max={3600}
                   step="0.01"
                   value={s.key.time}
                   onCommit={(text) => {
                     const t = Number(text);
-                    if (Number.isFinite(t) && t >= 0 && t <= s.clip!.duration)
-                      void s.moveKey(s.active!.id, s.key!, t);
+                    if (Number.isFinite(t) && t >= 0 && t <= 3600)
+                      void s.moveKey(s.primaryKey!.nodeId, s.key!, t);
                   }}
                 />
               </label>
@@ -572,14 +675,9 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
                 <select
                   aria-label="Avaimen interpolointi"
                   value={s.key.interpolation}
+                  disabled={a.busy || s.playing}
                   onChange={(e) =>
-                    void s.saveClip(
-                      putKey(s.clip!, s.active!.id, {
-                        ...s.key!,
-                        interpolation: e.target.value as AnimationKey['interpolation'],
-                      }),
-                      'Animaation interpolointi muutettu.',
-                    )
+                    void s.changeKeyInterpolation(e.target.value as AnimationKey['interpolation'])
                   }
                 >
                   <option value="step">Step · välitön</option>
@@ -591,7 +689,7 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
                 <button onClick={() => s.setClipboard(structuredClone(s.key!))}>
                   <Copy size={14} /> Kopioi avain
                 </button>
-                <button onClick={() => void deleteKey()}>
+                <button disabled={a.busy || s.playing} onClick={() => void s.deleteKeys()}>
                   <Trash2 size={14} /> Poista avain
                 </button>
               </div>
@@ -732,35 +830,52 @@ function TimelineKey({
   entry,
   duration,
   selected,
+  previewTime,
+  invalid,
+  disabled,
   activate,
-  move,
+  start,
+  preview,
+  finish,
+  cancel,
 }: {
   entry: AnimationKey;
   duration: number;
   selected: boolean;
-  activate: () => void;
-  move: (time: number) => void;
+  previewTime?: number;
+  invalid: boolean;
+  disabled: boolean;
+  activate: (additive: boolean) => void;
+  start: (additive: boolean) => boolean;
+  preview: (delta: number) => void;
+  finish: (delta?: number) => void;
+  cancel: () => void;
 }) {
-  const [dragTime, setDragTime] = useState<number>();
   const drag = useRef<
-    { x: number; width: number; time: number; value: number; moved: boolean } | undefined
+    | { x: number; width: number; duration: number; time: number; delta: number; moved: boolean }
+    | undefined
   >(undefined);
   return (
     <button
-      className={`animation-key ${selected ? 'selected' : ''} ${entry.interpolation}`}
+      className={`animation-key ${selected ? 'selected' : ''} ${entry.interpolation} ${invalid ? 'invalid' : ''}`}
       data-testid={`animation-key-${entry.id}`}
       aria-label={`Avain ${entry.time.toFixed(2)} s · ${entry.interpolation}`}
-      style={{ left: `${(100 * (dragTime ?? entry.time)) / duration}%` }}
+      aria-pressed={selected}
+      disabled={disabled}
+      style={{
+        left: `${Math.min(100, Math.max(0, (100 * (previewTime ?? entry.time)) / duration))}%`,
+      }}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.stopPropagation();
-        activate();
+        if (!start(e.shiftKey || e.ctrlKey || e.metaKey)) return;
         const box = e.currentTarget.parentElement!.getBoundingClientRect();
         drag.current = {
           x: e.clientX,
           width: box.width,
+          duration,
           time: entry.time,
-          value: entry.time,
+          delta: 0,
           moved: false,
         };
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -769,50 +884,159 @@ function TimelineKey({
         const d = drag.current;
         if (!d) return;
         if (Math.abs(e.clientX - d.x) > 3) d.moved = true;
-        d.value = Math.max(
-          0,
-          Math.min(
-            duration,
-            Math.round((d.time + ((e.clientX - d.x) / d.width) * duration) * 100) / 100,
-          ),
-        );
-        if (d.moved) setDragTime(d.value);
+        // Snap the grabbed key to hundredths, preserving every other key's offset.
+        d.delta =
+          Math.round((d.time + ((e.clientX - d.x) / d.width) * d.duration) * 100) / 100 - d.time;
+        if (d.moved) preview(d.delta);
       }}
       onPointerUp={(e) => {
         e.stopPropagation();
         const d = drag.current;
         drag.current = undefined;
-        setDragTime(undefined);
-        if (d?.moved && d.value !== entry.time) move(d.value);
+        if (d) finish(d.moved ? d.delta : undefined);
+        else cancel();
       }}
       onPointerCancel={() => {
         drag.current = undefined;
-        setDragTime(undefined);
+        cancel();
+      }}
+      onLostPointerCapture={() => {
+        drag.current = undefined;
+        cancel();
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          activate();
+          e.stopPropagation();
+          activate(e.shiftKey || e.ctrlKey || e.metaKey);
         }
       }}
-      title={`${(dragTime ?? entry.time).toFixed(2)} s · ${entry.interpolation}`}
+      title={`${(previewTime ?? entry.time).toFixed(2)} s · ${entry.interpolation} · Shift: lisää/poista valinnasta`}
     >
       ◆
     </button>
   );
 }
 export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Actions) {
+  const [additiveSelection, setAdditiveSelection] = useState(false);
+  const [dragPreview, setDragPreview] = useState<{
+    tokens: Set<string>;
+    delta: number;
+    duration: number;
+    invalid: boolean;
+  }>();
+  const drag = useRef<
+    | {
+        clip: AnimationClip;
+        refs: AnimationKeyRef[];
+        primary: AnimationKeyRef;
+        toggleOnClick: boolean;
+      }
+    | undefined
+  >(undefined);
+  const cancelDrag = () => {
+    drag.current = undefined;
+    setDragPreview(undefined);
+  };
+  useEffect(() => {
+    cancelDrag();
+  }, [s.clip, a.busy, s.playing, s.open]);
+  useEffect(() => {
+    window.addEventListener('blur', cancelDrag);
+    return () => window.removeEventListener('blur', cancelDrag);
+  }, []);
   if (!s.open) return null;
   const selectNode = (id: string) => {
     const n = s.data!.nodes.find((n) => n.id === id)!;
     a.onResetGesture();
     a.onSelect(nodeBodyIds(s.data!, id), n.groupId);
   };
+  const selectedTokens = new Set(s.selectedKeys.map(animationKeyToken));
+  const activateKey = (ref: AnimationKeyRef, additive: boolean, preserve = false) => {
+    cancelDrag();
+    const selected = selectedTokens.has(animationKeyToken(ref));
+    const refs =
+      preserve && selected
+        ? s.selectedKeys
+        : additive || additiveSelection
+          ? selected
+            ? s.selectedKeys.filter((k) => animationKeyToken(k) !== animationKeyToken(ref))
+            : [...s.selectedKeys, ref]
+          : [ref];
+    const included = refs.some((k) => animationKeyToken(k) === animationKeyToken(ref));
+    s.selectKeys(refs, included ? ref : refs.at(-1));
+    const key = selectedAnimationKeys(s.clip!, [ref])[0]?.key;
+    if (included && key) {
+      selectNode(ref.nodeId);
+      s.seek(key.time, false);
+    }
+    return { refs, included };
+  };
+  const previewMove = (delta: number) => {
+    const d = drag.current;
+    if (!d || d.clip !== s.clip) return;
+    try {
+      const result = shiftAnimationKeys(d.clip, d.refs, delta);
+      setDragPreview({
+        tokens: new Set(d.refs.map(animationKeyToken)),
+        delta: result.delta,
+        duration: result.clip.duration,
+        invalid: false,
+      });
+    } catch {
+      setDragPreview({
+        tokens: new Set(d.refs.map(animationKeyToken)),
+        delta,
+        duration: s.clip!.duration,
+        invalid: true,
+      });
+    }
+  };
+  const finishMove = (delta?: number) => {
+    const d = drag.current;
+    cancelDrag();
+    if (!d || d.clip !== s.clip) return;
+    if (delta === undefined) {
+      if (d.toggleOnClick)
+        s.selectKeys(d.refs.filter((k) => animationKeyToken(k) !== animationKeyToken(d.primary)));
+    } else void s.shiftKeys(d.refs, delta, d.primary);
+  };
+  const selectTrack = (nodeId: string, additive: boolean) => {
+    cancelDrag();
+    selectNode(nodeId);
+    s.pause();
+    const refs = s
+      .clip!.tracks.find((t) => t.nodeId === nodeId)!
+      .keys.map((k) => ({ nodeId, keyId: k.id }));
+    const all = refs.every((ref) => selectedTokens.has(animationKeyToken(ref)));
+    const next =
+      additive || additiveSelection
+        ? all
+          ? s.selectedKeys.filter((k) => k.nodeId !== nodeId)
+          : [...s.selectedKeys.filter((k) => k.nodeId !== nodeId), ...refs]
+        : refs;
+    s.selectKeys(next);
+  };
   return (
     <section
       className="animation-timeline"
       aria-label="Animaation aikajana"
       data-testid="animation-timeline"
+      onKeyDown={(e) => {
+        if ((e.target as HTMLElement).closest('input,select,textarea')) return;
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          cancelDrag();
+          s.clearKeys();
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          e.stopPropagation();
+          cancelDrag();
+          void s.deleteKeys();
+        }
+      }}
     >
       <div className="animation-transport">
         <select
@@ -944,7 +1168,22 @@ export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Act
       {s.clip && (
         <>
           <div className="animation-ruler">
-            <span>Raidat</span>
+            <span className="animation-selection-controls">
+              <button
+                aria-pressed={additiveSelection}
+                onClick={() => setAdditiveSelection((v) => !v)}
+                title="Shift tai tämä painike: lisää avaimia ja raitoja valintaan"
+              >
+                Monivalinta
+              </button>
+              <span data-testid="animation-selection-count">
+                {s.selectedKeys.length === 1
+                  ? '1 avain'
+                  : s.selectedKeys.length
+                    ? `${s.selectedKeys.length} avainta`
+                    : 'Shift: lisää'}
+              </span>
+            </span>
             <input
               ref={s.scrubber}
               aria-label="Kelaa animaatiota"
@@ -959,6 +1198,16 @@ export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Act
               }}
             />
           </div>
+          {dragPreview && (
+            <div
+              className={`animation-drag-feedback ${dragPreview.invalid ? 'invalid' : ''}`}
+              role="status"
+            >
+              {dragPreview.invalid
+                ? 'Ajassa on jo avain — siirtoa ei tallenneta.'
+                : `${dragPreview.delta >= 0 ? '+' : ''}${dragPreview.delta.toFixed(2)} s${dragPreview.duration > s.clip.duration ? ` · klipin kesto ${dragPreview.duration.toFixed(2)} s` : ''}`}
+            </div>
+          )}
           <div className="animation-tracks">
             <div className="animation-playhead-area">
               <div
@@ -972,12 +1221,17 @@ export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Act
               return (
                 <div
                   key={track.nodeId}
-                  className={`animation-track ${s.active?.id === node.id ? 'active' : ''}`}
+                  className={`animation-track ${s.active?.id === node.id ? 'active' : ''} ${s.selectedKeys.some((k) => k.nodeId === node.id) ? 'keys-selected' : ''}`}
+                  data-node-id={node.id}
                 >
                   <button
                     className="animation-track-name"
-                    onClick={() => selectNode(node.id)}
-                    title={animationNodeName(node, a.project)}
+                    aria-pressed={track.keys.every((key) =>
+                      selectedTokens.has(animationKeyToken({ nodeId: node.id, keyId: key.id })),
+                    )}
+                    disabled={a.busy || s.playing}
+                    onClick={(e) => selectTrack(node.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+                    title={`${animationNodeName(node, a.project)} · Valitse raidan avaimet · Shift: lisää/poista valinnasta`}
                   >
                     {node.groupId ? '▣ ' : ''}
                     {animationNodeName(node, a.project)}
@@ -987,6 +1241,7 @@ export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Act
                     onPointerDown={(e) => {
                       if (e.target !== e.currentTarget) return;
                       const box = e.currentTarget.getBoundingClientRect();
+                      cancelDrag();
                       a.onResetGesture();
                       s.seek(((e.clientX - box.left) / box.width) * s.clip!.duration);
                     }}
@@ -996,15 +1251,43 @@ export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Act
                         key={key.id}
                         entry={key}
                         duration={s.clip!.duration}
-                        selected={key.id === s.keyId}
-                        activate={() => {
-                          selectNode(node.id);
-                          s.seek(key.time);
-                          s.setKeyId(key.id);
+                        selected={selectedTokens.has(
+                          animationKeyToken({ nodeId: node.id, keyId: key.id }),
+                        )}
+                        previewTime={
+                          dragPreview?.tokens.has(
+                            animationKeyToken({ nodeId: node.id, keyId: key.id }),
+                          )
+                            ? key.time + dragPreview.delta
+                            : undefined
+                        }
+                        invalid={
+                          !!dragPreview?.invalid &&
+                          dragPreview.tokens.has(
+                            animationKeyToken({ nodeId: node.id, keyId: key.id }),
+                          )
+                        }
+                        disabled={a.busy || s.playing}
+                        activate={(additive) => {
+                          activateKey({ nodeId: node.id, keyId: key.id }, additive);
                         }}
-                        move={(time) => {
-                          void s.moveKey(node.id, key, time);
+                        start={(additive) => {
+                          const ref = { nodeId: node.id, keyId: key.id };
+                          const { refs, included } = activateKey(ref, additive, true);
+                          if (included)
+                            drag.current = {
+                              clip: s.clip!,
+                              refs,
+                              primary: ref,
+                              toggleOnClick:
+                                selectedTokens.has(animationKeyToken(ref)) &&
+                                (additive || additiveSelection),
+                            };
+                          return included;
                         }}
+                        preview={previewMove}
+                        finish={finishMove}
+                        cancel={cancelDrag}
                       />
                     ))}
                   </div>

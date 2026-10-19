@@ -1,6 +1,6 @@
 # Mechanical Animation v0.1 — arkkitehtuuriauditointi
 
-## Toteutus 0.52.0 — käyttö
+## Toteutus 0.52.1 — käyttö
 
 **Animaatio** yläpalkissa avaa aikajanan samaan mallinäkymään.
 
@@ -22,6 +22,25 @@ Luonnosasento on selvästi merkitty. Ajan vaihtaminen hylkää tallentamattoman
 luonnoksen. Esikatselun kelaaminen/toistaminen ei kirjoita historiaa, pilveä
 tai geometriaa; avainmuutokset käyttävät normaalia Undo/Redo-historiaa.
 Sarana-/liukutyökalun kahden asennon toiminnot ovat paneelin alareunassa.
+
+### Usean raidan ajoitus
+
+- Napsauta avainta ja lisää muita **Shift + napsautus** -valinnalla.
+  Uusi Shift-napsautus poistaa avaimen valinnasta. Ctrl/⌘ toimii samoin.
+  Aikajanan **Monivalinta**-painike tarjoaa saman ilman näppäimistöä.
+- Vedä yhtä valittua avainta: kaikki valitut siirtyvät samalla aikamäärällä.
+  Esimerkiksi kahden Blast Door -ovilehden samanaikaiset avaimet pysyvät yhdessä,
+  ja tarkoituksellinen pieni ajoitusero säilyy myös siirrossa.
+- Raidan nimeä napsauttamalla valitset sen kaikki avaimet. Shiftillä voit
+  lisätä muita raitoja. Oranssi väri näyttää valitut avaimet ja niiden raidat.
+- Oikean paneelin **Siirrä valintaa (s)** hyväksyy myös tarkan yhteisen siirtymän.
+  Samasta paneelista muutat seuraavan avainvälin interpoloinnin tai poistat
+  kaikki valitut avaimet. Koko muutos on yksi Undo/Redo-askel.
+- Klippi pitenee tarvittaessa. Nollan ja 3 600 sekunnin rajoilla koko valinta
+  pysähtyy yhdessä. Samalla raidalla jo olevaan avaimeen osuva siirto estetään
+  kokonaan, eikä olemassa olevia avaimia korvata. Tapahtumamerkit eivät siirry.
+- Esc peruu keskeneräisen vedon ja tyhjentää avainvalinnan. Aikajanan tyhjää
+  kohtaa napsauttamalla tyhjennät valinnan ja siirrät toistopäätä.
 
 [Blast Door -testimalli](../public/examples/blast-door.nivo): 13 osaa,
 kuusi raitaa, 3,5 sekuntia, eri aikaan liikkuvat ovilehdet ja lukitustapit,

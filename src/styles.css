@@ -10232,3 +10232,51 @@ p {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+
+.animation-selection-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.animation-selection-controls button {
+  padding: 4px 6px;
+  font: inherit;
+  border: 1px solid #d3ddd5;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.animation-selection-controls button[aria-pressed='true'] {
+  background: #fff2db;
+  border-color: #dda76a;
+  color: #96541c;
+}
+.animation-track.keys-selected .animation-track-name {
+  box-shadow: inset 3px 0 #cf762e;
+}
+.animation-drag-feedback {
+  position: absolute;
+  right: 24px;
+  bottom: 8px;
+  z-index: 5;
+  pointer-events: none;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: #fff3df;
+  color: #8c4e20;
+  box-shadow: 0 1px 4px #243e3520;
+}
+.animation-key.invalid,
+.animation-drag-feedback.invalid {
+  background: #fae4df;
+  color: #a13729;
+}
+@media (max-width: 900px) {
+  .animation-selection-controls {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+}

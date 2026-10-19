@@ -2,6 +2,17 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.52.1 — animaatioavainten ja raitojen monivalinta
+
+- Shift/Ctrl/⌘ lisää ja poistaa avaimia eri raidoilta. Raidan nimi valitsee
+  kaikki sen avaimet; Shift lisää seuraavan raidan. Monivalinta-painike
+  mahdollistaa saman ilman näppäimistöä.
+- Yhteinen veto näyttää kaikkien valittujen avainten siirtymän. Aikaerot
+  säilyvät, klipin kesto pitenee tarvittaessa ja koko muutos kumoutuu kerralla.
+- Oikeassa paneelissa yhteinen siirtymä sekunteina, interpolointi ja poisto.
+  Esc peruu keskeneräisen vedon. Päällekkäisyys saman raidan avaimen kanssa
+  estää koko siirron: mitään avainta ei korvata tai pudoteta.
+
 ## V0.52.0 — mekaaninen animaatio
 
 - Toteutettu klipit, paikallinen TRS, parent-hierarkia ja pivotit, Step/Linear/Smooth,
@@ -11,7 +22,7 @@
 - GLB-hierarkia ja TRS-kanavat, JSON-vienti, tapahtumamerkit ja Blast Door -esimerkki.
   Vanha sarana/liuku säilyy. [Käyttö ja rajat](mechanical-animation-audit.fi.md).
 - Seuraavat: todellinen Unreal-tuonnin toistotesti, perityn liikkeen leivonta
-  parent-vaihdossa, animaatioraitojen laajempi monivalinta, tapahtumien integraatio
+  parent-vaihdossa, tapahtumien integraatio
   kohdeohjelmaan. Ei luustoanimointia, IK:ta tai fysiikkasimulaatiota tässä versiossa.
 
 ## V0.51.6 — offsetin toisto ja animaation arkkitehtuuriauditointi

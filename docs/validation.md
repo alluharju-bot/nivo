@@ -4,6 +4,24 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.52.1 — animaation monivalinta
+
+- Koko yksikkö-/geometriasetti: **802 hyväksyttyä**, 6 ennestään ohitettua.
+  Viisi uutta testiä varmistaa yhteisen siirtymän kymmenelle raidalle,
+  aikaerojen säilymisen, rajat, päällekkäisyyden atomisen hylkäyksen,
+  interpoloinnin, poiston ja Undo/Redo-toiminnon.
+- Monivalinnan viisi selaintapausta desktopilla ja tabletin Chromium-emuloinnissa:
+  kahden ja kymmenen raidan valinta, yhteinen näkyvä veto, Shift-togglaus,
+  koko raidan valinta, numeerinen siirtymä, interpolointi, poisto ja kumoaminen.
+  Tabletin Monivalinta ja avaimet valitaan kosketustapahtumilla.
+- Klipin pidentäminen vedolla ja kentästä, myös yksittäisellä avaimella.
+  Ristiriitainen siirto ja Esc eivät muuta projektia. Valitut avaimet säilyvät
+  ajoituksen kumoamisessa/palautuksessa, eikä perusmallin geometria muutu.
+- Lisäksi 12 aiemman animaatioeditorin selaintapausta hyväksytty: TRS,
+  hierarkia, pivotit, toisto, tallennus, GLB-vienti ja Blast Door -esimerkki.
+- TypeScript, tuotantobuild, muotoilu ja diff tarkistettu. Monivalinta ei
+  muuta projektin tai animaatio-osion skeemaa. Käyttöliittymäkuvat tarkastettu.
+
 ## V0.52.0 — Mechanical Animation
 
 - Koko yksikkö-/geometriasetti: **797 hyväksyttyä**, 6 ennestään ohitettua.

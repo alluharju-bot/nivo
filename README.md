@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.52.1** lisää animaatioavainten monivalinnan. Valitse avaimia eri
+raidoilta **Shiftillä** ja vedä niitä yhdessä: keskinäiset aikaerot säilyvät.
+Raidan nimi valitsee sen kaikki avaimet. **Monivalinta**-painike toimii myös
+ilman näppäimistöä. Yhteinen siirtymä, interpolointi ja poisto onnistuvat
+oikeasta paneelista; jokainen muutos on yksi kumottava toiminto.
+Klippi pitenee tarvittaessa, eikä siirto korvaa muita avaimia huomaamatta.
+
 Versio **0.52.0** tuo **Animaatio**-tilaan mekaanisten liikkeiden aikajanan.
 Valitse osa tai ryhmä, aseta aika, muuta asentoa tutuilla **M / R / L**
 -työkaluilla ja paina **Lisää / päivitä avain**. Position, quaternion-kierto
