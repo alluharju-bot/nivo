@@ -13,6 +13,7 @@ import { circleLineIntersections } from './curveSnap';
 import { fromUV, toUV, ontoFrame, type SketchFrame } from './sketch';
 import { add, scale, dot, sub } from './geometry';
 import { surfaceCenters } from './surfaceCenters';
+import { pointProximity } from './pointProximity';
 export const snapRanks = {
   vertex: 0,
   midpoint: 1,
@@ -275,11 +276,15 @@ export function modelSnapPoints(
       let points = surfacePoints.get(mesh);
       if (!points) {
         const faceCenters = surfaceCenters(mesh);
+        const isSurfaceCenter = pointProximity(
+          faceCenters.map((center) => center.point),
+          1e-7,
+        );
         points = [
           ...modelSnapPoints([body], meshes).filter(
             (point) =>
               (!mesh.faces.length || !point.key.endsWith(':center')) &&
-              !faceCenters.some((center) => distance(center.point, point.point) < 1e-7),
+              !isSurfaceCenter(point.point),
           ),
           ...faceCenters,
         ];

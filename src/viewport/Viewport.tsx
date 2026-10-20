@@ -11,7 +11,7 @@ import { markupSvg, updateMarkupSvg } from './markupSvg';
 import { createOpeningPreview } from './openingPreview';
 import { installKnife } from './knife';
 import { captureModelView } from './capture';
-import { annotationText } from '../model/annotationStyle';
+import { createGuideAnnotation } from './guideAnnotation';
 import { installTextureEditing } from './textureEditing';
 import { bodyDisplayMode, bodyGhostOpacity } from '../model/display';
 import { sampleBezier, throughPoints } from '../model/bezier';
@@ -32,7 +32,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { add, scale } from '../model/geometry';
 import { bounds, featureIsSolid, type Vec3, type View } from '../model/project';
-import { guidePoints, guideMeasurement } from '../model/guides';
 import { formatLength } from '../model/units';
 import { installInteractions } from './interactions';
 import type { ViewportProps as Props, CameraCommand } from './types';
@@ -1413,104 +1412,63 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       ).length,
     );
   };
+  const guideAnnotations = new Map<string, ReturnType<typeof createGuideAnnotation>>();
+  let annotatedMeshes: Props['meshes'] | undefined;
+  let annotatedSelection = '';
+  let savedPenMarkers: ReturnType<typeof pointMarker>[] = [];
   const annotations = () => {
-    disposeGroup(guides);
-    labels.forEach((l) => l.element.remove());
-    labels.length = 0;
     const props = current(),
       all = props.guides.filter((g) => !g.hidden && g.id !== props.guidePreview?.id);
     if (props.guidePreview) all.push(props.guidePreview);
+    const ids = new Set(all.map((g) => g.id));
+    for (const [id, entry] of guideAnnotations)
+      if (!ids.has(id)) {
+        entry.dispose();
+        guideAnnotations.delete(id);
+      }
+    labels.length = 0;
     for (const guide of all) {
-      const points = guidePoints(props.bodies, guide);
-      if (!points) continue;
-      const vectors = points.map((p) => new THREE.Vector3(...p));
-      const isGuide = guide.mode === 'guide';
-      const xray = props.guideXray || !!guide.xray;
-      const selected = props.selectedGuideIds.includes(guide.id);
-      const color = selected ? '#df741f' : '#487b91';
-      const makeLine = (points: THREE.Vector3[], dashed: boolean, width: number, opacity = 1) => {
-        const geometry = new LineGeometry();
-        geometry.setPositions(points.flatMap((p) => p.toArray()));
-        const result = new Line2(
-          geometry,
-          new LineMaterial({
-            color,
-            linewidth: width,
-            dashed,
-            dashSize: 14,
-            gapSize: 8,
-            depthTest: !xray,
-            depthWrite: false,
-            transparent: opacity < 1,
-            opacity,
-            resolution: new THREE.Vector2(container.clientWidth, container.clientHeight),
-          }),
-        );
-        result.computeLineDistances();
-        return result;
-      };
-      const line = makeLine(vectors, isGuide, selected ? 4 : 2);
-      line.computeLineDistances();
-      line.renderOrder = 80;
-      line.userData = { guideId: guide.id, xray };
-      guides.add(line);
-      for (const point of points) {
-        const marker = pointMarker(point, color, selected ? 14 : 12);
-        marker.userData = { annotationPoint: true, xray };
-        guides.add(marker);
+      let entry = guideAnnotations.get(guide.id);
+      if (!entry) {
+        entry = createGuideAnnotation(container, guides);
+        guideAnnotations.set(guide.id, entry);
       }
-      if (isGuide) {
-        const direction = vectors[1].clone().sub(vectors[0]).normalize();
-        const extension = makeLine(
-          [
-            vectors[0].clone().addScaledVector(direction, -20000),
-            vectors[1].clone().addScaledVector(direction, 20000),
-          ],
-          true,
-          selected ? 3 : 1.5,
-          selected ? 1 : 0.8,
-        );
-        extension.computeLineDistances();
-        extension.userData = { guideId: guide.id, xray };
-        extension.renderOrder = 79;
-        guides.add(extension);
+      if (
+        entry.update(
+          guide,
+          props.bodies,
+          props.selectedGuideIds.includes(guide.id),
+          props.guideXray || !!guide.xray,
+        )
+      )
+        labels.push(entry.label);
+      else {
+        entry.dispose();
+        guideAnnotations.delete(guide.id);
       }
-      const element = document.createElement('div');
-      element.className = 'guide-label';
-      element.dataset.xray = String(xray);
-      element.dataset.testid = 'guide-label';
-      element.dataset.guideId = guide.id;
-      element.dataset.selected = String(selected);
-      const measured = guideMeasurement(props.bodies, guide)!.map((p) => new THREE.Vector3(...p));
-      const value = measured[0].distanceTo(measured[1]);
-      element.textContent = annotationText(
-        guide,
-        value,
-        `${formatLength(value)} mm${isGuide && !guide.offset ? ' · ' + formatLength(guide.angle) + '°' : ''}`,
-      );
-      element.title = guide.offset ? 'Etäisyys lähtökohdasta' : 'Pituus';
-      if (isGuide && guide.offset) {
-        const dimension = makeLine(measured, false, 1.5);
-        dimension.renderOrder = 81;
-        guides.add(dimension);
-      }
-      container.append(element);
-      labels.push({
-        element,
-        point: measured[0].clone().add(measured[1]).multiplyScalar(0.5),
-        xray,
-      });
     }
     // Finished open pen paths keep their actual CAD vertices visible too.
     // Avoid tessellation points on circles, fillets and solid model edges.
-    for (const mesh of props.meshes) {
-      if (mesh.faces.length && !(mesh.curveStations && props.selectedIds.includes(mesh.id)))
-        continue;
-      for (const vertex of mesh.verticesCAD) {
-        const marker = pointMarker(vertex.point, '#237b65', 12);
-        marker.userData = { annotationPoint: true, xray: false };
-        guides.add(marker);
+    const selection = props.selectedIds.join('|');
+    if (annotatedMeshes !== props.meshes || annotatedSelection !== selection) {
+      for (const marker of savedPenMarkers) {
+        guides.remove(marker);
+        marker.geometry.dispose();
+        disposeMaterial(marker.material);
       }
+      savedPenMarkers = [];
+      for (const mesh of props.meshes) {
+        if (mesh.faces.length && !(mesh.curveStations && props.selectedIds.includes(mesh.id)))
+          continue;
+        for (const vertex of mesh.verticesCAD) {
+          const marker = pointMarker(vertex.point, '#237b65', 12);
+          marker.userData = { annotationPoint: true, xray: false };
+          guides.add(marker);
+          savedPenMarkers.push(marker);
+        }
+      }
+      annotatedMeshes = props.meshes;
+      annotatedSelection = selection;
     }
     annotationCount();
     render();
@@ -1850,6 +1808,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       controls.enabled = enabled;
     },
   });
+  let interactionSource: Props | undefined;
+  let interactionProps: Props;
   const interactions = installInteractions({
     container,
     canvas: renderer.domElement,
@@ -1859,12 +1819,18 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     camera: () => camera,
     current: () => {
       const props = current();
-      return {
-        ...props,
-        bodies: props.animation?.bodies ?? props.bodies,
-        meshes: props.animation?.meshes ?? props.meshes,
-        modalOpen: props.modalOpen || props.geometryActive || props.animation?.playing,
-      };
+      // Reference picking reads current state thousands of times. Adapt an immutable
+      // React snapshot once, not once per edge, point and visibility test.
+      if (props !== interactionSource) {
+        interactionSource = props;
+        interactionProps = {
+          ...props,
+          bodies: props.animation?.bodies ?? props.bodies,
+          meshes: props.animation?.meshes ?? props.meshes,
+          modalOpen: props.modalOpen || props.geometryActive || props.animation?.playing,
+        };
+      }
+      return interactionProps;
     },
     render,
   });
@@ -1964,6 +1930,8 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       controls.dispose();
       knife.dispose();
       interactions.dispose();
+      guideAnnotations.forEach((entry) => entry.dispose());
+      guideAnnotations.clear();
       disposeGroup(guides);
       disposeGroup(penGuides);
       labels.forEach((l) => l.element.remove());

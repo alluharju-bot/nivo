@@ -1,6 +1,57 @@
 import { expect, it } from 'vitest';
 import { OrthographicCamera, PerspectiveCamera, Ray, Vector3 } from 'three';
-import { cameraSnapPenalty, cylinderHit, projectedSegmentPoint } from './picking';
+import {
+  cameraSnapPenalty,
+  cylinderHit,
+  projectedSegmentPoint,
+  screenProjector,
+  sameScreenProjection,
+} from './picking';
+
+it('does not rebase a drag for automatic depth clipping, but does for zoom and view changes', () => {
+  for (const camera of [new PerspectiveCamera(), new OrthographicCamera()]) {
+    const original = camera.projectionMatrix.clone();
+    camera.near = 0.5;
+    camera.far = 2_000_000;
+    camera.updateProjectionMatrix();
+    expect(sameScreenProjection(original, camera.projectionMatrix)).toBe(true);
+    camera.zoom = 2;
+    camera.updateProjectionMatrix();
+    expect(sameScreenProjection(original, camera.projectionMatrix)).toBe(false);
+  }
+  expect(
+    sameScreenProjection(
+      new PerspectiveCamera().projectionMatrix,
+      new OrthographicCamera().projectionMatrix,
+    ),
+  ).toBe(false);
+});
+
+it('batched point projection preserves screen pixels and depth in perspective and orthographic views', () => {
+  for (const camera of [
+    new PerspectiveCamera(37, 1.7, 0.1, 100000),
+    new OrthographicCamera(-300, 300, 200, -200, 0.1, 100000),
+  ]) {
+    camera.position.set(500, -200, 100);
+    camera.up.set(0, 0, 1);
+    camera.lookAt(-50, 30, 0);
+    camera.zoom = 1.7;
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    const project = screenProjector(camera, 1072, 863);
+    for (const point of [
+      [0, 0, 0],
+      [-11000, 30000, 16800],
+      [1000, -500, 200],
+    ] as [number, number, number][]) {
+      const expected = new Vector3(...point).project(camera);
+      const actual = project(point);
+      expect(actual.x).toBeCloseTo(((expected.x + 1) * 1072) / 2, 7);
+      expect(actual.y).toBeCloseTo(((1 - expected.y) * 863) / 2, 7);
+      expect(actual.z).toBeCloseTo(expected.z, 10);
+    }
+  }
+});
 
 it('picks a long foreshortened edge at the actual screen location even when its near end is behind the camera', () => {
   const camera = new PerspectiveCamera(50, 1, 0.1, 10000);

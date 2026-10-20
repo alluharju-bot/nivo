@@ -3,6 +3,12 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.54.1** keventää mittaamisen, kynän ja tartuntahaun toimintaa
+monireunaisissa kappaleissa. Mittaviivan veto päivittää vain muuttuvan viivan;
+tallennetut viivat, tekstit ja grafiikkaresurssit säilyvät. Kameran automaattinen
+syvyysraja ei enää nollaa pursotuksen ensimmäistä liikettä.
+[Suorituskykymittaukset ja rajaukset](docs/performance.md).
+
 Versio **0.54.0** lisää **P → Tarrat ja kuviot** sekä käsin maalattavan kuluman.
 Teksti, PNG/JPG/WebP-kuva, SVG-vektorikuva tai kynällä/perusmuodoilla/Bézierillä
 piirretty kuvio asetetaan napsauttamalla tasopintaa. Teksti ja piirrot säilyvät

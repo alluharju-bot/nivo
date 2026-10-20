@@ -24,6 +24,8 @@ import {
   contextualFace,
   directionFromScreen,
   projectedSegmentPoint,
+  screenProjector,
+  sameScreenProjection,
 } from './picking';
 import {
   projectSelectionBounds,
@@ -908,6 +910,7 @@ export function installInteractions({
       rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
+    const project = screenProjector(camera(), rect.width, rect.height);
     const nearMeshes = nearby(event);
     const nearBodies = nearMeshes.map((mesh) => bodyById.get(mesh.id)!).filter(Boolean);
     const points = verticesOnly
@@ -938,12 +941,15 @@ export function installInteractions({
         ];
     const ranked = points
       .filter((p) => accepts(p.point, p.key) && (!surfaceOnly || !p.key.endsWith(':center')))
-      .map((p) => ({
-        ...p,
-        distance: Math.hypot(screen(p.point).x - x, screen(p.point).y - y),
-        depth: screen(p.point).z,
-        priority: snapPriority(p),
-      }))
+      .map((p) => {
+        const q = project(p.point);
+        return {
+          ...p,
+          distance: Math.hypot(q.x - x, q.y - y),
+          depth: q.z,
+          priority: snapPriority(p),
+        };
+      })
       .filter(
         (p) =>
           p.distance < snapRadius(event, p.priority === snapRanks.midpoint ? 'mid' : 'point') &&
@@ -1523,6 +1529,7 @@ export function installInteractions({
     const rect = canvas.getBoundingClientRect(),
       x = event.clientX - rect.left,
       y = event.clientY - rect.top;
+    const project = screenProjector(camera(), rect.width, rect.height);
     const candidates = referenceEdges(event)
       .filter(acceptsEdge)
       .map(({ mesh, edge, synthetic, curve, key }) => {
@@ -1534,7 +1541,7 @@ export function installInteractions({
           point,
         );
         if (edge.circle) point.set(...onCurve(point.toArray() as Vec3, edge));
-        const projected = screen(point.toArray() as Vec3);
+        const projected = project(point.toArray() as Vec3);
         return {
           edge,
           mesh,
@@ -1644,8 +1651,9 @@ export function installInteractions({
       rect = container.getBoundingClientRect();
     const x = event.clientX - rect.left,
       y = event.clientY - rect.top;
+    const project = screenProjector(camera(), rect.width, rect.height);
     const distance = (point: Vec3) => {
-      const p = screen(point);
+      const p = project(point);
       return p.z >= -1 && p.z <= 1 ? Math.hypot(p.x - x, p.y - y) : Infinity;
     };
     const visible = (point: Vec3, xray: boolean) => {
@@ -1749,7 +1757,29 @@ export function installInteractions({
           });
       }
     if (near.length) {
-      for (const { mesh, edge, synthetic, curve, key } of referenceEdges(event, excludedBodies))
+      const view = camera();
+      const projection = new THREE.Matrix4().multiplyMatrices(
+        view.projectionMatrix,
+        view.matrixWorldInverse,
+      );
+      const radius = snapRadius(event, 'point');
+      for (const { mesh, edge, synthetic, curve, key } of referenceEdges(event, excludedBodies)) {
+        // Every straight-edge crossing (including Shift's projected reference)
+        // lies on that real segment. Cull distant segments before testing guides.
+        // An analytic arc can extend beyond its endpoint chord: keep those exact.
+        if (!edge.circle) {
+          const pick = projectedSegmentPoint(
+            edge.start,
+            edge.end,
+            view,
+            rect.width,
+            rect.height,
+            x,
+            y,
+            projection,
+          );
+          if (!pick || pick.distance > radius + 1) continue;
+        }
         for (const guide of near) {
           const crossing = guideEdgeIntersection(guide.source, edge);
           const projected =
@@ -1794,6 +1824,7 @@ export function installInteractions({
                   },
           });
         }
+      }
     }
     return candidates
       .map((c) => ({ ...c, distance: distance(c.point) }))
@@ -4301,7 +4332,7 @@ export function installInteractions({
     if (
       !force &&
       gestureCamera.equals(c.matrixWorld) &&
-      gestureProjection.equals(c.projectionMatrix)
+      sameScreenProjection(gestureProjection, c.projectionMatrix)
     )
       return false;
     gestureCamera.copy(c.matrixWorld);

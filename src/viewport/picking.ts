@@ -5,6 +5,21 @@ import { Camera, Matrix4, Ray, Triangle, Vector3, Vector4 } from 'three';
 import type { CadFace } from '../cad/protocol';
 import { circleLineIntersections } from '../model/curveSnap';
 
+/** One camera/layout snapshot per pick; never read DOM layout for each candidate. */
+export function screenProjector(camera: Camera, width: number, height: number) {
+  const matrix = new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  const point = new Vector3();
+  return (position: Vec3) => {
+    point.set(...position).applyMatrix4(matrix);
+    return { x: ((point.x + 1) * width) / 2, y: ((1 - point.y) * height) / 2, z: point.z };
+  };
+}
+
+/** Depth clipping changes do not change the pointer's X/Y mapping. */
+export function sameScreenProjection(a: Matrix4, b: Matrix4) {
+  return a.elements.every((value, i) => i % 4 === 2 || value === b.elements[i]);
+}
+
 export function cylinderHit(ray: Ray, surface: NonNullable<CadFace['cylinder']>, near: Vector3) {
   const axis = new Vector3(...surface.axis),
     center = new Vector3(...surface.origin);

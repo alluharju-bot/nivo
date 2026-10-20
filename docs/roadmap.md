@@ -2,6 +2,27 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.54.1 — tartuntahaun ja mittaviivan vedon nopeutus
+
+- Yksi kameramuunnos pisteelle ja yksi näkymän kokoluku hakua kohden.
+  Pintakeskipisteiden päällekkäisyydet etsitään paikallisista hakusoluista.
+  Apuviivan risteystesti ohittaa kohdistimesta kaukana olevat suorat reunat;
+  analyyttiset kaaret käsitellään edelleen tarkasti.
+- Tallennettuja apu-/mittaviivoja, niiden tekstejä, pistekuvia ja grafiikkaohjelmia
+  ei rakenneta uudelleen aktiivisen viivan jokaisella liikkeellä.
+- Automaattinen kameran syvyysrajan muutos ei nollaa pursotuksen vetoa.
+  Oikea kameran liike ja zoomaus säilyttävät työkalun nykyisen mitan.
+- **Jatkotarkistus:** nykyinen noin 18 000 kolmion Kerrostalo-pilviversio.
+  Tämän passin mittaukset käyttävät 17.10.2026 paikallista pilvikopiota
+  (3 550 kolmiota). Uusimman version lukeminen odottaa pilvikirjautumista;
+  erityisesti kuoren varsinaisen CAD-pursotuksen laskenta-aikaa ei vielä
+  ole todennettu uusimmasta mallista.
+- **Erillinen vanha regressio:** `pen-guide-crossing`-kokeen pystysuoran
+  apuviivan ylempi reunaristeys voi tyhjentyä ensimmäisen kynäpisteen jälkeen
+  etunäkymässä. Toistuu sekä muuttamattomassa 0.54.0:ssa että tässä versiossa;
+  vapaan mittaviivan ja vinon näkymän vastaava koe toimii. Selvitettävä
+  erikseen; testiä ei poisteta tai heikennetä.
+
 ## V0.54.0 — tarrat, kuviot ja maalattava kuluma
 
 - P-työkalun Tarrat ja kuviot: muokattava teksti kolmella mukana toimitetulla

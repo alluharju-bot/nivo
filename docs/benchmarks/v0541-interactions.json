@@ -1,0 +1,187 @@
+{
+  "fixture": "Private Kerrostalo cloud copy, 2026-10-17 revision 1; NOT current 18000-triangle model",
+  "environment": "M1 Pro / Chromium headed / production / 1440x960 DPR1 / right view",
+  "method": "100 pointermoves per tool, one per requestAnimationFrame; first 10 omitted from warm statistics; CPU profiler enabled; drag cancelled without committing CAD",
+  "beforeVersion": "0.54.0",
+  "afterVersion": "0.54.1",
+  "before": {
+    "parts": 9,
+    "results": {
+      "t": {
+        "frames": {
+          "median": 17,
+          "p95": 25.599999999999454,
+          "max": 33.30000000000018,
+          "over32": 1
+        },
+        "events": {
+          "median": 16.300000190734863,
+          "p95": 22.200000286102295,
+          "max": 25.800000190734863,
+          "over32": 0
+        },
+        "firstEvent": 192.80000019073486,
+        "targets": 73,
+        "triangles": "4470",
+        "calls": "90",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      },
+      "k": {
+        "frames": {
+          "median": 25.799999999999272,
+          "p95": 34.19999999999891,
+          "max": 42,
+          "over32": 43
+        },
+        "events": {
+          "median": 25,
+          "p95": 31.200000286102295,
+          "max": 32.5,
+          "over32": 3
+        },
+        "firstEvent": 24.800000190734863,
+        "targets": 1,
+        "triangles": "5518",
+        "calls": "92",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      },
+      "e-drag": {
+        "frames": {
+          "median": 8.399999999999636,
+          "p95": 16.69999999999891,
+          "max": 17.200000000000728,
+          "over32": 0
+        },
+        "events": {
+          "median": 0.7999997138977051,
+          "p95": 0.9000000953674316,
+          "max": 1.1999998092651367,
+          "over32": 0
+        },
+        "firstEvent": 1.3999996185302734,
+        "targets": 1,
+        "triangles": "6566",
+        "calls": "97",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      },
+      "t-drag": {
+        "frames": {
+          "median": 50,
+          "p95": 58.30000000000109,
+          "max": 66.69999999999891,
+          "over32": 90
+        },
+        "events": {
+          "median": 25.399999618530273,
+          "p95": 36.80000019073486,
+          "max": 44.10000038146973,
+          "over32": 6
+        },
+        "firstEvent": 33.799999713897705,
+        "targets": 4,
+        "triangles": "4488",
+        "calls": "94",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      }
+    },
+    "errors": []
+  },
+  "after": {
+    "parts": 9,
+    "results": {
+      "t": {
+        "frames": {
+          "median": 8.300000000000182,
+          "p95": 16.600000000000364,
+          "max": 16.699999999999818,
+          "over32": 0
+        },
+        "events": {
+          "median": 5.300000190734863,
+          "p95": 7.900000095367432,
+          "max": 13,
+          "over32": 0
+        },
+        "firstEvent": 42.59999990463257,
+        "targets": 73,
+        "triangles": "4470",
+        "calls": "90",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      },
+      "k": {
+        "frames": {
+          "median": 8.700000000000728,
+          "p95": 17.100000000000364,
+          "max": 17.600000000000364,
+          "over32": 0
+        },
+        "events": {
+          "median": 6.900000095367432,
+          "p95": 9.5,
+          "max": 10.600000381469727,
+          "over32": 0
+        },
+        "firstEvent": 8.099999904632568,
+        "targets": 1,
+        "triangles": "5518",
+        "calls": "92",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      },
+      "e-drag": {
+        "frames": {
+          "median": 8.300000000000182,
+          "p95": 9.300000000000182,
+          "max": 16.699999999999818,
+          "over32": 0
+        },
+        "events": {
+          "median": 0.19999980926513672,
+          "p95": 0.3000001907348633,
+          "max": 0.3000001907348633,
+          "over32": 0
+        },
+        "firstEvent": 0.7999997138977051,
+        "targets": 1,
+        "triangles": "6566",
+        "calls": "97",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      },
+      "t-drag": {
+        "frames": {
+          "median": 9.200000000000728,
+          "p95": 17.100000000000364,
+          "max": 17.5,
+          "over32": 0
+        },
+        "events": {
+          "median": 8.599999904632568,
+          "p95": 9.700000286102295,
+          "max": 10.099999904632568,
+          "over32": 0
+        },
+        "firstEvent": 10.800000190734863,
+        "targets": 4,
+        "triangles": "4488",
+        "calls": "94",
+        "builds": "9",
+        "width": 1072,
+        "height": 863
+      }
+    },
+    "errors": []
+  }
+}

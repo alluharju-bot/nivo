@@ -1,5 +1,58 @@
 # Suorituskyky
 
+## V0.54.1 — kuoren tartuntahaku ja mittaviivan veto
+
+Vertailu käyttää **Kerrostalon 17.10.2026 paikallista pilvikopiota**, ei käyttäjän
+20.10. mainitsemaa uusinta noin 18 000 kolmion tallennusta. Uusin pilviversio
+odottaa kirjautumista. Vanha kopio sisältää 9 osaa, 18 apuviivaa ja 3 550
+mallikolmiota; kuori yksin sisältää 695 CAD-pintaa ja 2 076 reunasegmenttiä.
+Pelkkä kameran pyöritystesti ei mittaa työkalujen tartuntahaun kustannusta.
+
+Näkyvä Chromium, M1 Pro, 1440 × 960 ikkuna, DPR 1, 1072 × 863 piirtoalue.
+Tuotantobuildit 0.54.0 ja 0.54.1, oikea sivunäkymä, sama sovitus ja
+100 osoitintapahtumaa per työkalu, yksi kerrallaan animaatiokehyksessä.
+Ensimmäiset 10 jätetään lämpimien mediaani-/P95-lukujen ulkopuolelle.
+CPU-profileri on mukana molemmissa; luvut ovat tämän ajon mittauksia,
+eivät yleisiä FPS-lupauksia tai mittauksia käyttäjän toisella tietokoneella.
+
+| Toiminto                                      |   0.54.0 |  0.54.1 |
+| --------------------------------------------- | -------: | ------: |
+| Mittatyökalun osoitinhaku, mediaani           |  16,3 ms |  5,3 ms |
+| Kynän osoitinhaku, mediaani                   |  25,0 ms |  6,9 ms |
+| Mittatyökalun ensimmäinen haku                | 192,8 ms | 42,6 ms |
+| Aktiivisen mittaviivan päivitysväli, mediaani |  50,0 ms |  9,2 ms |
+| Aktiivisen mittaviivan päivitysväli, P95      |  58,3 ms | 17,1 ms |
+| Aktiivisen mittaviivan yli 32 ms välit        |  90 / 90 |  0 / 90 |
+| Pursotuksen vedon päivitysväli, mediaani      |   8,4 ms |  8,3 ms |
+
+Tartuntapisteen kameramuunnos laskettiin kolmesti ja näkymän koko luettiin
+DOM:sta jokaiselle pisteelle. Lisäksi vuorovaikutuksen tilakopiota rakennettiin
+jokaisella apufunktion kutsulla. Nyt näkymä otetaan kerran hakua kohden ja
+Reactin tilasovitus kerran muuttunutta tilaa kohden. Pintakeskipisteiden
+päällekkäisyyshaku käyttää paikallisia hakusoluja entisen piste × pinta
+-vertailun sijaan. Tarkka etäisyysraja ja tartuntapisteiden pisteytys säilyvät.
+Apuviivaristeysten laskenta rajataan kohdistimen lähellä oleviin suoriin
+reunoihin; oikeita kaaria ei rajata niiden päätepisteiden jänteellä.
+
+Aktiivinen mittaviiva rakensi aiemmin kaikki viivat, HTML-tekstit, pisteiden
+kuvat ja materiaalit uudelleen joka liikkeellä. Osa GPU-ohjelmista vapautui
+ja valmisteltiin uudestaan. Nyt jokaisella viivalla on säilyvä esitys,
+ja vain muuttuvan viivan koordinaatit sekä teksti päivittyvät. Selaintesti
+varmistaa säilyvät tekstisolmut ja nolla shader-käännöstä 20 peräkkäisen
+vedon päivityksessä sekä ilman vanhoja viivoja että 12 vanhalla viivalla.
+
+Kameran automaattinen near/far-rajojen säätö aiheutti lisäksi väärän
+"kamera liikkui" -tulkinnan ja saattoi niellä pursotuksen ensimmäisen
+osoitinliikkeen. Vain ruudun X/Y-kartoitukseen vaikuttava projektiomuutos
+nollaa nyt vedon vertailupisteen. Oikea orbit, pan ja zoom tarkistetaan erikseen.
+
+**Rajaus:** vanhassa mallissa pursotuksen veto oli jo nopea. Tämä mittaus
+peruu vedon, eikä mittaa varsinaisen CAD-operaation hyväksynnän kestoa.
+Uusimman kuoren pursotus, lähietäisyyden valinta ja mahdollinen
+projektikohtainen lisähitaus on edelleen toistettava nykyisestä pilvimallista.
+Yksityistä mallia tai sen kuvia ei lisätä repositorioon. Mittauskomento on
+`scripts/performance-interactions.mjs` ja hyväksyy vain paikallisen palvelimen.
+
 ## V0.47.6 — renderiohjelman koko ja ylimääräiset käännökset
 
 Käyttäjän Windows/Chrome/RTX 2060 Super odottaa edelleen minuutteja

@@ -1,8 +1,35 @@
-# Validointi — 19.10.2026
+# Validointi — 20.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.54.1 — tartuntahaku ja mittaviivan esikatselu
+
+- Yksikkö-/geometriakokeet: 826 hyväksyttyä ja 6 ennestään ohitettua
+  koko ajossa; yksi ennestään oleva 60-sivuisen sylinterin offset-koe ylitti
+  5 s aikarajansa rinnakkaisen selain-/build-kuorman aikana. Sama koe
+  läpäisi erikseen 2,37 s kokonaisajossa. Yhteensä kaikki 827 koetta hyväksytty.
+- Uudet yksikkökokeet vertaavat kameramuunnoksen pikseleitä ja syvyyttä,
+  keskipistehaun tiukkaa etäisyysrajaa negatiivisissa/suurissa koordinaateissa
+  sekä near/far-muutoksen erottamista zoomista ja projektion vaihdosta.
+- 39 kohdennetusta desktop-selaintapauksesta **38 hyväksyttyä**. Mittaviivan
+  veto säilyttää DOM-solmut ja shader-ohjelmat, hyväksyntä/peruminen toimii;
+  myös valinta, piilotus, x-rayn käyttöön liittyvät tartunnat, alempana olevan
+  ympyrän Shift-viite, vapaa viiva ja pursotuksen orbit/pan/zoom tarkistettu.
+- **Yksi vanha epäonnistuminen:** `pen-guide-crossing` pystysuoran apuviivan
+  ylempi reunaristeys palauttaa tyhjän tartuntapisteen ensimmäisen kynäpisteen
+  jälkeen suorassa etunäkymässä. Sama virhe toistettiin muuttamattomassa
+  0.54.0-worktreessä. Testi ja odotus säilyvät; jatkotyö kirjattu roadmapiin.
+- Lisäksi molemmat uudet mittaviivan resurssitestit hyväksytty tabletin
+  Chromium-emuloinnissa, kaksi animaation poseeraus-/valintakoetta desktopilla
+  sekä viisi lattian ja seinän apuviivatartunnan aiempaa desktop-koetta.
+- Aiempi `face-target`-koe epäonnistui myös muuttamattomassa 0.54.0:ssa:
+  automaattinen syvyysraja söi pursotuksen ensimmäisen liikkeen. Korjaus
+  läpäisee alkuperäisen kokeen sekä oikean kameraliikkeen säilyvyyskokeet.
+- TypeScript ja tuotantobuild hyväksytty. Yksityisen mallin ajot käyttävät
+  17.10.2026 pilvikopiota, eivät uusinta noin 18 000 kolmion tallennusta.
+  [Menetelmä, mitatut luvut ja rajat](performance.md).
 
 ## V0.52.1 — animaation monivalinta
 
