@@ -92,6 +92,7 @@ import { cross } from '../model/transforms';
 import { penAxisHint, penAngle, penAngleDirection } from '../model/penInput';
 import { edgeIntersectionPoints } from './edgeIntersections';
 import { surfaceIntersections } from './surfaceIntersections';
+import { pointerRay } from './pointerRay';
 import type { ViewportProps } from './types';
 
 export function installInteractions({
@@ -117,8 +118,7 @@ export function installInteractions({
     id === current().editingBodyId || bodyDisplayMode(current().modelDisplay, id) !== 'ghost';
   const occludingBody = (id: string) =>
     !['ghost', 'wireframe'].includes(bodyDisplayMode(current().modelDisplay, id));
-  const raycaster = new THREE.Raycaster(),
-    pointer = new THREE.Vector2();
+  const raycaster = new THREE.Raycaster();
   const hint = document.createElement('div');
   hint.className = 'snap-hint';
   hint.dataset.testid = 'snap-hint';
@@ -599,30 +599,11 @@ export function installInteractions({
       distance,
     };
   };
-  let areaRay: PointerEvent | undefined;
-  let areaQuery = false;
-  const withAreaRay = <T>(event: PointerEvent, query: () => T): T => {
-    areaQuery = true;
-    areaRay = undefined;
-    try {
-      return query();
-    } finally {
-      areaQuery = false;
-      areaRay = undefined;
-    }
+  const withRay = <T>(event: PointerEvent, query: () => T): T => {
+    setRay(event);
+    return query();
   };
-  const setRay = (event: PointerEvent) => {
-    if (areaQuery && areaRay === event) return;
-    if (areaQuery) areaRay = event;
-    const rect = canvas.getBoundingClientRect();
-    pointer.set(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      (-(event.clientY - rect.top) / rect.height) * 2 + 1,
-    );
-    camera().updateMatrixWorld();
-    scene.updateMatrixWorld();
-    raycaster.setFromCamera(pointer, camera());
-  };
+  const setRay = pointerRay(canvas, scene, camera, raycaster);
   const normalPlane = (normal: Vec3): WorkPlane => {
     const [x, y, z] = normal.map(Math.abs);
     return z >= x && z >= y ? 'XY' : y >= x ? 'XZ' : 'YZ';
@@ -2260,7 +2241,7 @@ export function installInteractions({
     canvas,
     pick: dimensionPick,
     start: (event) =>
-      withAreaRay(event, () => {
+      withRay(event, () => {
         const props = current(),
           hit = faceAt(event, true);
         // A directly aimed floor/wall owns the drawing plane. A nearby corner of
@@ -2319,7 +2300,7 @@ export function installInteractions({
         return { point, frame, automaticNormal };
       }),
     pointOnFrame: (event, frame, grid) =>
-      withAreaRay(event, () => {
+      withRay(event, () => {
         if (grid) {
           // One screen-space reference query, filtered before scoring. No semantic
           // anchor or second world-space snap search is needed for an area corner.

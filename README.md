@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.54.2** nopeuttaa suuren mallin tartuntahakua ja kuoren pursotuksen
+esikatselua. Saman osoitintapahtuman haut jakavat näkymän matriisipäivityksen,
+pintojen risteyshaku rajataan lähekkäisiin pintoihin ja pursotuksen korostus
+säilyttää geometria- ja grafiikkaresurssinsa vedon ajan.
+
 Versio **0.54.1** keventää mittaamisen, kynän ja tartuntahaun toimintaa
 monireunaisissa kappaleissa. Mittaviivan veto päivittää vain muuttuvan viivan;
 tallennetut viivat, tekstit ja grafiikkaresurssit säilyvät. Kameran automaattinen

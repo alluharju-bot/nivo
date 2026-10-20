@@ -1,8 +1,28 @@
-# Validointi — 20.10.2026
+# Validointi — 21.10.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.54.2 — uusimman Kerrostalon tartunta ja esikatselu
+
+- Uusin pilvirevisio 143 testattu paikallisena kopiona (546 osaa, 40 viivaa,
+  16 372 mallikolmiota). Pilvimallia ei muokattu. Näkyvän Chromiumin
+  suorituskykyvertailu kattaa valinnan, E/T/K-osoitinhaun sekä kuoren vedon.
+- Kuoren +100 mm pursotus hyväksytty normaalin käyttöliittymän kautta:
+  muuttui vain kuori, muut 545 osaa säilyivät. Peru palautti kaikkien
+  osien tiedot täsmälleen. Ei JavaScript-virheitä.
+- Uudet yksikkökokeet varmistavat jaetun osoitinhaun päivittymisen kameran
+  liikkeen/zoomin ja myöhemmän tapahtuman jälkeen; pursotuspinnan siirtymän
+  molempiin suuntiin, resurssien säilymisen, topologian vaihdon ja siivouksen.
+  Kolme aiempaa pintojen risteyskoetta varmistavat aukot ja siirretyt pinnat.
+- Kaikki 33 kohdennettua desktop-selaintestiä hyväksytty: Shift-viitteet,
+  alempana olevat reunat/ympyrät, apuviivoista aloittaminen, pursotuksen ja
+  siirron orbit/pan/zoom, ruudukon alittavat siirtymät sekä kynällä luodut
+  kaatopinnat. Uusi esikatselutesti varmistaa nolla shader-käännöstä 20
+  vedon päivityksessä sekä Esc-perumisen. Viisi kohdennettua yksikkö-/CAD-koetta,
+  TypeScript, tuotantobuild ja muutettujen tiedostojen muotoilu hyväksytty.
+- [Mittausmenetelmä, tulokset ja jäljellä oleva CAD-laskennan kustannus](performance.md).
 
 ## V0.54.1 — tartuntahaku ja mittaviivan esikatselu
 

@@ -75,6 +75,23 @@ function box(mesh: BodyMesh) {
   return value;
 }
 const cache = new WeakMap<BodyMesh, WeakMap<BodyMesh, SurfaceIntersection[]>>();
+const faceBounds = new WeakMap<BodyMesh, Map<CadFace, Box3>>();
+function boxes(mesh: BodyMesh) {
+  let bounds = faceBounds.get(mesh);
+  if (!bounds) {
+    bounds = new Map();
+    const point = new Vector3();
+    for (const face of mesh.faces) {
+      if (!face.planar) continue;
+      const bound = new Box3();
+      for (let i = face.start; i < face.start + face.count; i++)
+        bound.expandByPoint(point.fromArray(mesh.vertices, mesh.triangles[i] * 3));
+      bounds.set(face, bound.expandByScalar(epsilon));
+    }
+    faceBounds.set(mesh, bounds);
+  }
+  return bounds;
+}
 
 /** Reference geometry only: never splits a solid or changes its CAD topology. Mesh identity invalidates the cache. */
 export function surfaceIntersections(a: BodyMesh, b: BodyMesh): SurfaceIntersection[] {
@@ -88,9 +105,14 @@ export function surfaceIntersections(a: BodyMesh, b: BodyMesh): SurfaceIntersect
   const result: SurfaceIntersection[] = [];
   pairs.set(b, result);
   if (!box(a).intersectsBox(box(b))) return result;
+  const aBounds = boxes(a),
+    bBounds = boxes(b);
   for (const first of a.faces)
     for (const second of b.faces) {
       if (!first.planar || !second.planar) continue;
+      // A large shell overlaps many parts, but almost all of its individual
+      // faces are elsewhere. Keep the exact hole/concavity clipping below.
+      if (!aBounds.get(first)!.intersectsBox(bBounds.get(second)!)) continue;
       const n1 = new Vector3(...first.normal),
         n2 = new Vector3(...second.normal);
       const direction = n1.clone().cross(n2);

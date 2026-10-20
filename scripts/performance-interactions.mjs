@@ -41,7 +41,13 @@ try {
     if (active) {
       const r = await canvas.boundingBox();
       // The long facade's wall between window rows / top edge, respectively.
-      await page.mouse.move(r.x + r.width * 0.65, r.y + r.height * (tool[0] === 'e' ? 0.46 : 0.32));
+      const start = (
+        process.env[tool[0] === 'e' ? 'NIVO_PERF_EXTRUDE_START' : 'NIVO_PERF_MEASURE_START'] ||
+        (tool[0] === 'e' ? '0.65,0.46' : '0.65,0.32')
+      )
+        .split(',')
+        .map(Number);
+      await page.mouse.move(r.x + r.width * start[0], r.y + r.height * start[1]);
       if (tool[0] === 'e') await expect(canvas).not.toHaveAttribute('data-hover-face', '');
       await page.mouse.down();
       await expect(page.getByTestId('dynamic-input')).toBeVisible();
@@ -104,6 +110,10 @@ try {
     const { profile } = await client.send('Profiler.stop');
     await writeFile(`${out}/${tool}.cpuprofile`, JSON.stringify(profile));
     results[tool] = metrics;
+    await writeFile(
+      `${out}/metrics.json`,
+      JSON.stringify({ parts: project.bodies.length, results, errors }, null, 2),
+    );
     console.log(tool, JSON.stringify(metrics));
     if (active) {
       await page.screenshot({ path: `${out}/${tool}.png` });

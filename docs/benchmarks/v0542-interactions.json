@@ -1,0 +1,171 @@
+{
+  "fixture": "Private Kerrostalo cloud revision 143; 546 parts, 40 guides, 16372 model triangles",
+  "environment": "M1 Pro / Chromium headed / production / 1440x960 DPR1 / right view",
+  "method": "100 pointermoves per tool, one per requestAnimationFrame; first 10 omitted; CPU profiler enabled; drag cancelled; separate +100 mm facade commit/undo test",
+  "beforeVersion": "0.54.1",
+  "afterVersion": "0.54.2",
+  "before": {
+    "note": "Selected metrics transcribed from baseline profiler output; measurement-drag start missed the new model, so no baseline measurement-drag result is reported.",
+    "t": {
+      "eventMedianMs": 16.90000009536743,
+      "frameMedianMs": 25.100000000000364,
+      "frameP95Ms": 49.899999999999636,
+      "framesOver32": 30,
+      "firstEventMs": 56.80000019073486,
+      "targets": 64
+    },
+    "k": {
+      "eventMedianMs": 16.90000009536743,
+      "frameMedianMs": 25.100000000000364,
+      "frameP95Ms": 34.20000000000073,
+      "framesOver32": 29,
+      "targets": 5
+    },
+    "e-drag": {
+      "eventMedianMs": 0.20000028610229492,
+      "frameMedianMs": 16.69999999999891,
+      "frameP95Ms": 17.5
+    }
+  },
+  "after": {
+    "parts": 546,
+    "results": {
+      "v": {
+        "frames": {
+          "median": 8.300000000000182,
+          "p95": 9,
+          "max": 9.300000000000182,
+          "over32": 0
+        },
+        "events": {
+          "median": 0.9000000953674316,
+          "p95": 1.200000286102295,
+          "max": 1.3999996185302734,
+          "over32": 0
+        },
+        "firstEvent": 1.5,
+        "targets": 3,
+        "triangles": "34940",
+        "calls": "367",
+        "builds": "546",
+        "width": 1072,
+        "height": 863
+      },
+      "e": {
+        "frames": {
+          "median": 8.300000000000182,
+          "p95": 9.199999999999818,
+          "max": 9.399999999999636,
+          "over32": 0
+        },
+        "events": {
+          "median": 0.8000001907348633,
+          "p95": 1.0999999046325684,
+          "max": 1.299999713897705,
+          "over32": 0
+        },
+        "firstEvent": 0.5999999046325684,
+        "targets": 3,
+        "triangles": "34940",
+        "calls": "367",
+        "builds": "546",
+        "width": 1072,
+        "height": 863
+      },
+      "t": {
+        "frames": {
+          "median": 16.700000000000728,
+          "p95": 25.200000000000728,
+          "max": 41.80000000000109,
+          "over32": 3
+        },
+        "events": {
+          "median": 8.100000381469727,
+          "p95": 18.09999990463257,
+          "max": 37.80000019073486,
+          "over32": 1
+        },
+        "firstEvent": 41.59999990463257,
+        "targets": 64,
+        "triangles": "35004",
+        "calls": "370",
+        "builds": "546",
+        "width": 1072,
+        "height": 863
+      },
+      "k": {
+        "frames": {
+          "median": 17.200000000000728,
+          "p95": 25.200000000000728,
+          "max": 49.5,
+          "over32": 3
+        },
+        "events": {
+          "median": 10,
+          "p95": 18.40000009536743,
+          "max": 44.59999990463257,
+          "over32": 1
+        },
+        "firstEvent": 7.199999809265137,
+        "targets": 5,
+        "triangles": "36052",
+        "calls": "372",
+        "builds": "546",
+        "width": 1072,
+        "height": 863
+      },
+      "e-drag": {
+        "frames": {
+          "median": 8.399999999999636,
+          "p95": 16.700000000000728,
+          "max": 17.5,
+          "over32": 0
+        },
+        "events": {
+          "median": 0.20000028610229492,
+          "p95": 0.3000001907348633,
+          "max": 0.40000009536743164,
+          "over32": 0
+        },
+        "firstEvent": 0.5,
+        "targets": 1,
+        "triangles": "37036",
+        "calls": "379",
+        "builds": "546",
+        "width": 1072,
+        "height": 863
+      },
+      "t-drag": {
+        "frames": {
+          "median": 16.799999999999272,
+          "p95": 25.299999999999272,
+          "max": 25.700000000000728,
+          "over32": 0
+        },
+        "events": {
+          "median": 10.700000286102295,
+          "p95": 12.699999809265137,
+          "max": 14.599999904632568,
+          "over32": 0
+        },
+        "firstEvent": 11.5,
+        "targets": 5,
+        "triangles": "34958",
+        "calls": "373",
+        "builds": "546",
+        "width": 1072,
+        "height": 863
+      }
+    },
+    "errors": []
+  },
+  "commit": {
+    "parts": 546,
+    "changedParts": ["Kerrostalo"],
+    "selectMs": 114.62225000000035,
+    "commitMs": 4877.232209000001,
+    "undoMs": 415.6764579999999,
+    "restoredBodies": true,
+    "errors": []
+  }
+}

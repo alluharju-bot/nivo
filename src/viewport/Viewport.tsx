@@ -1,3 +1,4 @@
+import { extrusionPreview } from './extrusionPreview';
 import { layerUVKey } from '../render/layerUV';
 import { createAnimationPreview } from './animation';
 import { createMotionPreview } from './motions';
@@ -142,6 +143,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const navigationSurfaces = () => [
     bodies,
     ...ghost.children.filter((object) => object.userData.orbitSurface),
+    ...facePreview.surfaces(),
   ];
   let navigation = installCameraNavigation(controls, renderer.domElement, navigationSurfaces);
   let viewCube: ReturnType<typeof createViewCube> | undefined;
@@ -879,8 +881,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   let movePreviewKey = '';
   const scalePreview = scalingPreview(scene);
+  const facePreview = extrusionPreview(scene);
   const resolveRotationGrip = createRotationGripResolver();
   const preview = () => {
+    if (current().tool !== 'extrude' || !current().faceTarget) facePreview.clear();
     rotationRings = undefined;
     const scaling = current().scaling;
     scalePreview.update(scaling, workingBodies(), bodyNodes, current().animation?.matrices);
@@ -1138,50 +1142,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       const data = current().meshes.find((m) => m.id === target.bodyId),
         face = data?.faces.find((f) => f.ref === target.face);
       if (data && face) {
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.vertices, 3));
-        geometry.setIndex(data.triangles.slice(face.start, face.start + face.count));
-        const mesh = new THREE.Mesh(
-          geometry,
-          new THREE.MeshBasicMaterial({
-            color: faceColors.tool,
-            toneMapped: false,
-            transparent: true,
-            opacity: 0.45,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-            polygonOffset: true,
-            polygonOffsetFactor: -3,
-            polygonOffsetUnits: -3,
-          }),
-        );
-        mesh.position.set(...target.normal).multiplyScalar(current().faceDistance);
-        // At zero depth the orange selected surface must remain unambiguous.
-        mesh.visible = !(
-          current().selected === target.bodyId &&
-          current().selectedFace === target.face &&
-          Math.abs(current().faceDistance) < 1e-6
-        );
-        mesh.userData.orbitSurface = true;
-        ghost.add(mesh);
-        const wire = new THREE.LineSegments(
-          new THREE.EdgesGeometry(geometry),
-          new THREE.LineBasicMaterial({ color: '#0069c8', depthTest: false }),
-        );
-        wire.position.copy(mesh.position);
-        ghost.add(wire);
-        const segments: number[] = [];
-        for (const i of new Set(data.triangles.slice(face.start, face.start + face.count))) {
-          const p = data.vertices.slice(i * 3, i * 3 + 3);
-          segments.push(...p, ...p.map((n, j) => n + target.normal[j] * current().faceDistance));
-        }
-        ghost.add(
-          new THREE.LineSegments(
-            new THREE.BufferGeometry().setAttribute(
-              'position',
-              new THREE.Float32BufferAttribute(segments, 3),
-            ),
-            new THREE.LineBasicMaterial({ color: '#0069c8', depthTest: false }),
+        facePreview.update(
+          data,
+          face,
+          target,
+          current().faceDistance,
+          !(
+            current().selected === target.bodyId &&
+            current().selectedFace === target.face &&
+            Math.abs(current().faceDistance) < 1e-6
           ),
         );
         const span = current().faceSpan;
@@ -1252,7 +1221,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
               distance < 0 ? '#bd5a30' : '#1268b2',
             );
         }
-      }
+      } else facePreview.clear();
       render();
       return;
     }
@@ -1940,6 +1909,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       disposeGroup(pickPreview);
       openingPreview.dispose();
       scalePreview.dispose();
+      facePreview.dispose();
       disposeGroup(bodies);
       disposeGroup(ghost);
       workspaceViews?.dispose();

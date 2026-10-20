@@ -1,10 +1,58 @@
 # Suorituskyky
 
+## V0.54.2 — uusin Kerrostalo, 546 osaa
+
+Kirjautumisen jälkeen ladattiin pilvirevisio 143 (tallennettu 20.10.2026).
+Paikallinen tutkimuskopio sisältää 546 osaa, 40 apu-/mittaviivaa ja 16 372
+mallikolmiota. Renderer raportoi enemmän kolmioita, koska lasin läpäisy ja
+korostukset piirtävät osan geometriasta uudelleen. Yksityinen malli, kuvat ja
+CPU-profiilit eivät kuulu julkiseen repositorioon.
+
+Näkyvä Chromium / M1 Pro, 1440 × 960, DPR 1, 1072 × 863 piirtoalue;
+oikea sivunäkymä ja sama sovitus. Tuotantobuildit, 100 osoitintapahtumaa
+per työkalu ja ensimmäiset 10 pois lämpimistä tunnusluvuista. CPU-profilointi
+mukana kummassakin ajossa. Mittaus koskee tätä laitetta ja mallia.
+
+| Toiminto                                    |  0.54.1 |  0.54.2 |
+| ------------------------------------------- | ------: | ------: |
+| Mittauksen osoitinhaun mediaani             | 16,9 ms |  8,1 ms |
+| Kynän osoitinhaun mediaani                  | 16,9 ms | 10,0 ms |
+| Mittauksen päivitysvälin mediaani           | 25,1 ms | 16,7 ms |
+| Mittauksen päivitysvälin P95                | 49,9 ms | 25,2 ms |
+| Mittauksen yli 32 ms päivitysvälit          | 30 / 90 |  3 / 90 |
+| Kuoren pursotusvedon päivitysvälin mediaani | 16,7 ms |  8,4 ms |
+
+Osoittimen siirtyminen mallin yli aiheutti jokaiselle apuviivalle erikseen
+koko scenen matriisien päivityksen. Nyt saman tapahtuman kyselyt jakavat sen.
+Välimuisti päättyy mikrotehtävässä; myös kameran asento/projektio tarkistetaan,
+jotta uusi näkymä ja myöhemmin uudelleen käytetty osoitin eivät jää vanhaan tilaan.
+
+Suuren kuoren rajalaatikko osuu moniin muihin osiin, vaikka yksittäiset
+pinnat ovat kaukana toisistaan. Pintakohtaiset rajalaatikot estävät näiden
+parien tarpeettoman tarkan kolmioleikkauksen. Tarkka aukkojen/koveruuksien
+leikkaus säilyy oikeasti kohtaaville pinnoille.
+
+Pursotus rakensi joka päivityksessä valitun pinnan geometrian, EdgesGeometryn
+ja materiaalit uudelleen. Osa shader-ohjelmista käännettiin uudestaan vedon
+aikana. Nyt sama pinta/mesh-identiteetti säilyttää resurssit; vain siirtymä
+ja sivusegmenttien koordinaatit päivittyvät. Liikkuva pinta säilyy myös kameran
+orbitin ja zoomin kohteena.
+
+**CAD-hyväksyntä on erillinen kustannus:** kuoren +100 mm muutos valmistui
+noin 4,9 sekunnissa. Muuttui vain kuori, muiden 545 osan tiedot säilyivät.
+Peruminen palautti kaikkien osien tiedot täsmälleen (noin 0,42 s, mukaan lukien
+palautuksen tallennustarkistus). Hyväksynnän CPU-profiilissa pääsäie odotti
+suurimman osan ajasta CAD-työntekijää. Tätä passia ei pidä tulkita CAD-laskennan
+nopeutukseksi eikä yleiseksi FPS-lupaukseksi.
+
+Mittaus: `scripts/performance-interactions.mjs`; uusimman mallin apuviivan
+aloituspisteelle `NIVO_PERF_MEASURE_START=0.266,0.333`. Varsinainen mallinnusdata
+säilytetään vain yksityisessä paikallisessa kopiossa.
+
 ## V0.54.1 — kuoren tartuntahaku ja mittaviivan veto
 
 Vertailu käyttää **Kerrostalon 17.10.2026 paikallista pilvikopiota**, ei käyttäjän
-20.10. mainitsemaa uusinta noin 18 000 kolmion tallennusta. Uusin pilviversio
-odottaa kirjautumista. Vanha kopio sisältää 9 osaa, 18 apuviivaa ja 3 550
+20.10. mainitsemaa uusinta noin 18 000 kolmion tallennusta. Uusin pilviversio tutkittiin myöhemmin versiossa 0.54.2 (yllä). Vanha kopio sisältää 9 osaa, 18 apuviivaa ja 3 550
 mallikolmiota; kuori yksin sisältää 695 CAD-pintaa ja 2 076 reunasegmenttiä.
 Pelkkä kameran pyöritystesti ei mittaa työkalujen tartuntahaun kustannusta.
 
@@ -48,8 +96,7 @@ nollaa nyt vedon vertailupisteen. Oikea orbit, pan ja zoom tarkistetaan erikseen
 
 **Rajaus:** vanhassa mallissa pursotuksen veto oli jo nopea. Tämä mittaus
 peruu vedon, eikä mittaa varsinaisen CAD-operaation hyväksynnän kestoa.
-Uusimman kuoren pursotus, lähietäisyyden valinta ja mahdollinen
-projektikohtainen lisähitaus on edelleen toistettava nykyisestä pilvimallista.
+Uusimman kuoren jatkotutkimus toteutettiin versiossa 0.54.2 (yllä).
 Yksityistä mallia tai sen kuvia ei lisätä repositorioon. Mittauskomento on
 `scripts/performance-interactions.mjs` ja hyväksyy vain paikallisen palvelimen.
 

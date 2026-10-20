@@ -2,6 +2,21 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.54.2 — suuren Kerrostalon vuorovaikutus
+
+- Uusin pilvitallenne, revisio 143, tutkittu paikallisena kopiona: 546 osaa,
+  40 apu-/mittaviivaa ja 16 372 mallikolmiota. Pilvitallennetta ei muutettu.
+- Kaikki saman osoitintapahtuman tartuntakyselyt jakavat yhden näkymän
+  matriisipäivityksen. Kameran liike, zoom ja seuraava tapahtuma päivittävät haun.
+- Pintojen risteysten tarkkaa leikkausta edeltää pintakohtainen rajaus.
+  Aukkojen ja koverien pintojen oikeat risteykset säilyvät.
+- Pursotuksen esikatselun pinta, reunaviivat ja materiaalit säilyvät vedon ajan.
+  Geometrian muuttuessa esikatselu rakennetaan uudelleen; Esc vapauttaa resurssit.
+- Kuoren +100 mm pursotus muuttaa vain kuorta ja Peru palauttaa kaikki osat
+  täsmälleen. Varsinainen CAD-hyväksyntä kesti tässä mallissa noin 4,9 s;
+  sen erillinen nopeutus jää jatkotyöksi. Osoitin/esikatselu on mitattu erikseen.
+- [Vertailu ja mittausrajaukset](performance.md).
+
 ## V0.54.1 — tartuntahaun ja mittaviivan vedon nopeutus
 
 - Yksi kameramuunnos pisteelle ja yksi näkymän kokoluku hakua kohden.
@@ -12,11 +27,8 @@
   ei rakenneta uudelleen aktiivisen viivan jokaisella liikkeellä.
 - Automaattinen kameran syvyysrajan muutos ei nollaa pursotuksen vetoa.
   Oikea kameran liike ja zoomaus säilyttävät työkalun nykyisen mitan.
-- **Jatkotarkistus:** nykyinen noin 18 000 kolmion Kerrostalo-pilviversio.
-  Tämän passin mittaukset käyttävät 17.10.2026 paikallista pilvikopiota
-  (3 550 kolmiota). Uusimman version lukeminen odottaa pilvikirjautumista;
-  erityisesti kuoren varsinaisen CAD-pursotuksen laskenta-aikaa ei vielä
-  ole todennettu uusimmasta mallista.
+- Uusimman Kerrostalon jatkotarkistus valmistui versiossa 0.54.2 (yllä).
+  Tämän aiemman passin mittaukset koskevat edelleen 17.10. paikallista kopiota.
 - **Erillinen vanha regressio:** `pen-guide-crossing`-kokeen pystysuoran
   apuviivan ylempi reunaristeys voi tyhjentyä ensimmäisen kynäpisteen jälkeen
   etunäkymässä. Toistuu sekä muuttamattomassa 0.54.0:ssa että tässä versiossa;
