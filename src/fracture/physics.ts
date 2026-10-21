@@ -1,51 +1,74 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { meshBounds } from '../surface/mesh';
-import type { FractureResult, Obstacle, Pose } from './types';
+import type { Vec3 } from '../model/project';
+import type { FractureResult, FractureMotion, Obstacle, Pose } from './types';
+import { fragmentVelocity, validateMotion } from './motion';
 
 let initialized: Promise<void> | undefined;
 /** The solver uses metres and Z-up. Render/export meshes remain in local millimetres. */
 export async function createSimulation(
   result: FractureResult,
   obstacles: Obstacle[],
-  ground: number,
+  ground: number | undefined,
   kick: number,
+  motion?: FractureMotion,
+  worldOrigin: Vec3 = [0, 0, 0],
 ) {
   if (
-    !Number.isFinite(ground) ||
+    (ground !== undefined && (!Number.isFinite(ground) || Math.abs(ground) > 200000)) ||
     !Number.isFinite(kick) ||
-    Math.abs(ground) > 200000 ||
     kick < 0 ||
     kick > 3
   )
     throw new Error('Tarkista lattian korkeus ja tönäisy (0–3 m/s).');
+  if (motion) validateMotion(motion);
+  if (!worldOrigin.every(Number.isFinite)) throw new Error('Osan sijainti ei kelpaa.');
   await (initialized ??= RAPIER.init());
-  const world = new RAPIER.World({ x: 0, y: 0, z: -9.81 });
-  world.timestep = 1 / 60;
+  const gravity = motion?.gravity ?? [0, 0, -9.81];
+  const world = new RAPIER.World({ x: gravity[0], y: gravity[1], z: gravity[2] });
+  world.timestep = motion ? 1 / 120 : 1 / 60;
+  world.maxCcdSubsteps = 4;
   world.numSolverIterations = 8;
+  // The metre-scale default predicts contacts 20 mm ahead. In a flush cutout
+  // that creates false blocking contacts. CCD handles fast travel; contacts
+  // use modelling-scale tolerances and the clearance below.
+  world.integrationParameters.normalizedPredictionDistance = 0.0001;
+  world.integrationParameters.normalizedAllowedLinearError = 0.00005;
   const coordinates = (vertices: number[]) => new Float32Array(vertices.map((n) => n / 1000));
   try {
     const bounds = result.fragments.map((p) => meshBounds(p.mesh));
     const lo = [0, 1].map((a) => Math.min(...bounds.map((b) => b.min[a])) / 1000);
     const hi = [0, 1].map((a) => Math.max(...bounds.map((b) => b.max[a])) / 1000);
-    const floor = RAPIER.ColliderDesc.cuboid(
-      Math.max(20, hi[0] - lo[0] + 10),
-      Math.max(20, hi[1] - lo[1] + 10),
-      0.1,
-    )
-      .setTranslation((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, ground / 1000 - 0.1)
-      .setFriction(0.75);
-    world.createCollider(floor);
+    if (ground !== undefined) {
+      const floor = RAPIER.ColliderDesc.cuboid(
+        Math.max(20, hi[0] - lo[0] + 10),
+        Math.max(20, hi[1] - lo[1] + 10),
+        0.1,
+      )
+        .setTranslation((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, ground / 1000 - 0.1)
+        .setFriction(0.75);
+      world.createCollider(floor);
+    }
     for (const obstacle of obstacles)
       world.createCollider(
         RAPIER.ColliderDesc.trimesh(
           coordinates(obstacle.vertices),
           new Uint32Array(obstacle.triangles),
+          RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES_TWO_SIDED,
         ).setFriction(0.75),
       );
+    let dynamicIndex = 0;
+    const dynamicCount = result.fragments.filter((p) => !p.fixed).length;
     const bodies = result.fragments.map((fragment, i) => {
       const center = bounds[i].center;
+      // A newly cut piece fits its neighbors exactly. Give its collision envelope
+      // a sub-millimetre clearance so CCD does not treat tangential launch contact
+      // as an impact at t=0. The actual mesh and saved geometry remain unchanged.
+      const radius = Math.hypot(...bounds[i].size) / 2;
+      const clearance = Math.min(0.2, Math.min(...bounds[i].size) * 0.001);
+      const colliderScale = fragment.fixed ? 1 : 1 - clearance / Math.max(radius, 0.001);
       const vertices = new Float32Array(
-        fragment.mesh.positions.map((n, a) => (n - center[a % 3]) / 1000),
+        fragment.mesh.positions.map((n, a) => ((n - center[a % 3]) / 1000) * colliderScale),
       );
       const description = (
         fragment.fixed ? RAPIER.RigidBodyDesc.fixed() : RAPIER.RigidBodyDesc.dynamic()
@@ -55,7 +78,11 @@ export async function createSimulation(
       const body = world.createRigidBody(description);
       // Fixed remainder retains its openings. Dynamic pieces use convex collision envelopes.
       const collider = fragment.fixed
-        ? RAPIER.ColliderDesc.trimesh(vertices, new Uint32Array(fragment.mesh.indices))
+        ? RAPIER.ColliderDesc.trimesh(
+            vertices,
+            new Uint32Array(fragment.mesh.indices),
+            RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES_TWO_SIDED,
+          )
         : fragment.convex
           ? RAPIER.ColliderDesc.convexHull(vertices)
           : RAPIER.ColliderDesc.convexDecomposition(
@@ -68,7 +95,10 @@ export async function createSimulation(
           'Yhdelle palalle ei saatu ehjää törmäysmuotoa. Kokeile suurempaa palakokoa.',
         );
       world.createCollider(collider.setDensity(2200).setFriction(0.75).setRestitution(0.05), body);
-      if (!fragment.fixed && kick) {
+      if (!fragment.fixed && motion && motion.speed > 0) {
+        const v = fragmentVelocity(motion, dynamicIndex++, dynamicCount);
+        body.setLinvel({ x: v[0], y: v[1], z: v[2] }, true);
+      } else if (!fragment.fixed && kick) {
         const angle = i * 2.399963229728653;
         body.setLinvel(
           { x: Math.cos(angle) * kick, y: Math.sin(angle) * kick, z: kick * 0.25 },
@@ -77,29 +107,50 @@ export async function createSimulation(
       }
       return body;
     });
-    let time = 0;
+    let time = 0,
+      limitReached = false;
+    const readPoses = (): Pose[] =>
+      bodies.map((b, i) => {
+        if (result.fragments[i].fixed)
+          return { position: bounds[i].center, rotation: [0, 0, 0, 1] };
+        const p = b.translation(),
+          q = b.rotation();
+        return { position: [p.x * 1000, p.y * 1000, p.z * 1000], rotation: [q.x, q.y, q.z, q.w] };
+      });
+    let safePoses = readPoses();
+    const radii = bounds.map((b) => Math.hypot(...b.size) / 2);
     return {
+      stepsPerFrame: motion ? 4 : 2,
       step() {
+        if (limitReached) return;
         world.step();
+        const next = readPoses();
+        limitReached = next.some(
+          (p, i) =>
+            !result.fragments[i].fixed &&
+            p.position.some(
+              (v, a) => !Number.isFinite(v) || Math.abs(v + worldOrigin[a]) + radii[i] > 99900,
+            ),
+        );
+        if (limitReached) return; // Retain the last saveable pose, not an invalid far-away mesh.
+        safePoses = next;
         time += world.timestep;
+      },
+      get limitReached() {
+        return limitReached;
       },
       get time() {
         return time;
       },
       get stopped() {
         return (
+          limitReached ||
           time >= 30 ||
           (time > 0.5 && bodies.every((b, i) => result.fragments[i].fixed || b.isSleeping()))
         );
       },
       poses(): Pose[] {
-        return bodies.map((b, i) => {
-          if (result.fragments[i].fixed)
-            return { position: bounds[i].center, rotation: [0, 0, 0, 1] } as Pose;
-          const p = b.translation(),
-            q = b.rotation();
-          return { position: [p.x * 1000, p.y * 1000, p.z * 1000], rotation: [q.x, q.y, q.z, q.w] };
-        });
+        return safePoses.map((p) => ({ position: [...p.position], rotation: [...p.rotation] }));
       },
       dispose() {
         world.free();

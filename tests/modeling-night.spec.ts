@@ -143,6 +143,7 @@ test('knife Bézier and freehand support curved cuts without losing either side'
   await expect(page.getByTestId('viewport')).toHaveAttribute('data-mesh-count', '2');
   await page.getByRole('button', { name: 'Peru', exact: true }).click();
   expect((await save(page)).bodies).toEqual([body]);
+  await page.getByRole('button', { name: 'Leikkaa', exact: true }).click();
   await page.getByRole('combobox', { name: 'Veitsen reitti' }).selectOption('free');
   const start = p(300, -80, 100);
   await page.mouse.move(start.x, start.y);

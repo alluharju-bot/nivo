@@ -80,20 +80,13 @@ export function insertFragments(project: Project, source: Body, bodies: Body[]) 
     },
   };
 }
-/** Only nearby, visible scene geometry enters the physics world. Never truncate colliders silently. */
+/** Visible scene geometry collides at any distance, including below Z=0. Never truncate silently. */
 export function fractureObstacles(source: Body, meshes: BodyMesh[], project: Project): Obstacle[] {
   const obstacles: Obstacle[] = [];
-  const sourceMesh = meshes.find((m) => m.id === source.id);
-  if (!sourceMesh) return obstacles;
-  const min = [Infinity, Infinity, Infinity],
-    max = [-Infinity, -Infinity, -Infinity];
-  sourceMesh.vertices.forEach((n, i) => {
-    min[i % 3] = Math.min(min[i % 3], n);
-    max[i % 3] = Math.max(max[i % 3], n);
-  });
+  const bodies = new Map(project.bodies.map((b) => [b.id, b]));
   let triangles = 0;
   for (const mesh of meshes) {
-    const body = project.bodies.find((b) => b.id === mesh.id);
+    const body = bodies.get(mesh.id);
     if (
       !body ||
       body.id === source.id ||
@@ -102,18 +95,10 @@ export function fractureObstacles(source: Body, meshes: BodyMesh[], project: Pro
       body.purpose === 'drawing'
     )
       continue;
-    const lo = [Infinity, Infinity, Infinity],
-      hi = [-Infinity, -Infinity, -Infinity];
-    mesh.vertices.forEach((n, i) => {
-      lo[i % 3] = Math.min(lo[i % 3], n);
-      hi[i % 3] = Math.max(hi[i % 3], n);
-    });
-    if ([0, 1].some((a) => hi[a] < min[a] - 4000 || lo[a] > max[a] + 4000) || lo[2] > max[2] + 4000)
-      continue;
     triangles += mesh.triangles.length / 3;
     if (triangles > 150000)
       throw new Error(
-        'Lähistöllä on yli 150 000 törmäyskolmiota. Piilota tarpeettomia osia ennen simulointia.',
+        'Näkyvissä on yli 150 000 törmäyskolmiota. Piilota tarpeettomia osia ennen simulointia.',
       );
     obstacles.push({
       vertices: mesh.vertices.map((n, i) => n - source.origin[i % 3]),

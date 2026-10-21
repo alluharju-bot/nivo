@@ -181,3 +181,33 @@ test('gravity uses metres, hits the floor and leaves the fixed remainder in plac
     sim.dispose();
   }
 });
+
+test('a flush knife cutout can leave its surrounding wall through the opening', async () => {
+  const g = new BoxGeometry(400, 150, 600).translate(500, 75, 1100);
+  const cutout = readGeometry(g);
+  g.dispose();
+  const result = fractureMesh(api, cutout, { ...options, count: 6 });
+  const obstacles = [
+    [300, 150, 2000, 150, 75, 1000],
+    [300, 150, 2000, 850, 75, 1000],
+    [400, 150, 800, 500, 75, 400],
+    [400, 150, 600, 500, 75, 1700],
+  ].map(([w, d, h, x, y, z]) => {
+    const g = new BoxGeometry(w, d, h).translate(x, y, z),
+      mesh = readGeometry(g);
+    g.dispose();
+    return { vertices: mesh.positions, triangles: mesh.indices };
+  });
+  const sim = await createSimulation(result, obstacles, undefined, 0, {
+    direction: [0, 1, 0],
+    speed: 2,
+    spread: 0,
+    gravity: [0, 0, 0],
+  });
+  try {
+    for (let i = 0; i < 120; i++) sim.step();
+    for (const pose of sim.poses()) expect(pose.position[1]).toBeGreaterThan(1500);
+  } finally {
+    sim.dispose();
+  }
+});

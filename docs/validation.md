@@ -4,6 +4,35 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.56.0 — Veitsi → Murenna ja heitä
+
+- Koko yksikkö-/geometriasetti: **842 hyväksyttyä, 6 ennestään ohitettua**
+  (156 hyväksyttyä testitiedostoa, 4 ohitettua). Fracture-kokonaisuus sisältää
+  13 koetta: aiempien lisäksi suunnattu kartio kaikissa akselisuunnissa,
+  erillinen painovoima, toistettavuus, nopean palan törmäys ohueen seinään,
+  kellarin lattia, kaukaiset törmäyspinnat ja mallinnusalueen rajapysäytys.
+- Tiiviisti seinän aukkoon sopivan leikkauspalan jumittuminen toistettiin
+  erillisessä geometriakokeessa. Korjattu toleranssi ja törmäyskuoren välys
+  päästävät kaikki palat aukosta; myös seinän törmäykset pysyvät toiminnassa.
+- Kahdeksan selainkoetta hyväksytty sekä kehitys- että tuotantobuildilla:
+  neljä tapausta desktopissa ja tabletin Chromium-emuloinnissa. Veitsen
+  siluetti, yhden palan valinta, suunnattu heitto, lukitus, palan poistaminen,
+  pudotus, tauko, palautus, tallennus/uudelleenavaus sekä Undo/Redo.
+  Leikkaamaton seinä ja kellarin lattia säilyvät täsmälleen ennallaan.
+- Viisi aiempaa veitsitestiä hyväksytty desktopissa: valinnan rajaus,
+  suljettu siluetti, Bézier/vapaa viilto, perspektiivi ja laskennan peruminen.
+- Tuotantotestit tehty **/nivo/**-polulla; Manifold ja fysiikkatyöntekijä
+  latautuvat myös ilman kehityspalvelinta. TypeScript, tuotantobuild,
+  Prettier ja diff tarkistettu. Esikatselun käyttöliittymäkuvat tarkastettu.
+- Miinuskulman kirjoitus näppäin kerrallaan ja heittosuunnan palautus
+  akselipainikkeella tarkistettu vielä tuotantobuildissa molemmilla näyttökoilla
+  koko leikkaus–heitto–tallennus–Undo/Redo-ketjun yhteydessä.
+- Laajemman vanhan `modeling-night.spec.ts`-ajon kaksi tähän muutokseen
+  liittymätöntä testiä pysähtyivät vanhoihin käyttöliittymäkohdistimiin:
+  `Muodon käyttö` -combobox ja `Pehmennä reunat…` -menuitem. Molemmat
+  toistettiin **edellisen 0.55.0-tuotantobuildin** kanssa samoissa kohdissa.
+  Niitä ei lasketa hyväksytyiksi; testien ajantasaistus jää erilliseksi työksi.
+
 ## V0.55.0 — rikkominen ja painovoima
 
 - Koko yksikkö-/geometriasetti: 836 hyväksyttyä, 6 ennestään ohitettua.

@@ -1,5 +1,6 @@
 import {
   AmbientLight,
+  ArrowHelper,
   Box3,
   BufferGeometry,
   Color,
@@ -30,6 +31,8 @@ export class FractureStage {
   private controls: OrbitControls;
   private objects = new Group();
   private context = new Group();
+  private launchArrow = new ArrowHelper(new Vector3(1, 0, 0), new Vector3(), 1, '#ffad55');
+  private gravityArrow = new ArrowHelper(new Vector3(0, 0, -1), new Vector3(), 1, '#83c9ff');
   private region = new Mesh(
     new PlaneGeometry(1, 1),
     new MeshStandardMaterial({
@@ -51,7 +54,7 @@ export class FractureStage {
     private canvas: HTMLCanvasElement,
     private body: Body,
     private mesh: SurfaceMesh,
-    private pick: (normal: Vec3, point: Vec3) => void,
+    private pick: (normal: Vec3, point: Vec3, sourceHit: boolean) => void,
   ) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -72,7 +75,25 @@ export class FractureStage {
     this.grid = new GridHelper(span * 6, 30, '#546778', '#354756');
     this.grid.rotation.x = Math.PI / 2;
     this.grid.position.set(box.center[0], box.center[1], -body.origin[2]);
-    this.scene.add(this.grid, this.context, this.objects, this.region);
+    this.scene.add(
+      this.grid,
+      this.context,
+      this.objects,
+      this.region,
+      this.launchArrow,
+      this.gravityArrow,
+    );
+    for (const arrow of [this.launchArrow, this.gravityArrow]) {
+      arrow.visible = false;
+      for (const object of [arrow.line, arrow.cone]) {
+        object.renderOrder = 10;
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((m) => {
+          m.depthTest = false;
+          m.depthWrite = false;
+        });
+      }
+    }
     this.region.visible = false;
     this.resetCamera();
     this.show(undefined, '#a49c8e');
@@ -98,13 +119,14 @@ export class FractureStage {
     this.down = event.button === 0 ? [event.clientX, event.clientY] : undefined;
   };
   private pointerUp = (event: PointerEvent) => {
+    const down = this.down;
+    this.down = undefined;
     if (
-      !this.source ||
-      !this.down ||
-      Math.hypot(event.clientX - this.down[0], event.clientY - this.down[1]) > 4
+      event.button !== 0 ||
+      !down ||
+      Math.hypot(event.clientX - down[0], event.clientY - down[1]) > 4
     )
       return;
-    this.down = undefined;
     const rect = this.canvas.getBoundingClientRect(),
       ray = new Raycaster();
     ray.setFromCamera(
@@ -114,12 +136,22 @@ export class FractureStage {
       ),
       this.camera,
     );
-    const hit = ray.intersectObject(this.source)[0];
-    if (hit?.face) this.pick(hit.face.normal.toArray(), hit.point.toArray());
+    const hit = ray.intersectObjects(
+      [...this.objects.children, ...this.context.children],
+      false,
+    )[0];
+    if (hit?.face)
+      this.pick(
+        hit.face.normal.clone().transformDirection(hit.object.matrixWorld).toArray(),
+        hit.point.toArray(),
+        hit.object === this.source,
+      );
   };
   resetCamera() {
     const box = new Box3().setFromObject(this.objects);
     const original = meshBounds(this.mesh);
+    box.expandByPoint(new Vector3(...original.min));
+    box.expandByPoint(new Vector3(...original.max));
     const center = box.isEmpty() ? new Vector3(...original.center) : box.getCenter(new Vector3());
     const span = Math.max(
       ...original.size,
@@ -219,8 +251,24 @@ export class FractureStage {
     this.region.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), normal);
     this.region.scale.setScalar(Math.max(...box.size) * 1.4);
   }
-  setGround(z: number) {
-    this.grid.position.z = z;
+  setGround(z?: number) {
+    this.grid.visible = z !== undefined;
+    if (z !== undefined) this.grid.position.z = z;
+  }
+  setDirections(launch?: Vec3, gravity?: Vec3) {
+    const box = meshBounds(this.mesh),
+      span = Math.max(...box.size, 100);
+    const center = new Vector3(...box.center);
+    for (const [arrow, direction] of [
+      [this.launchArrow, launch],
+      [this.gravityArrow, gravity],
+    ] as const) {
+      arrow.visible = !!direction && Math.hypot(...direction) > 0.001;
+      if (!direction || !arrow.visible) continue;
+      arrow.position.copy(center);
+      arrow.setDirection(new Vector3(...direction).normalize());
+      arrow.setLength(span * 0.7, span * 0.12, span * 0.07);
+    }
   }
   setObstacles(obstacles: Obstacle[]) {
     this.clear(this.context);
@@ -256,6 +304,8 @@ export class FractureStage {
     this.clear(this.context);
     this.region.geometry.dispose();
     this.region.material.dispose();
+    this.launchArrow.dispose();
+    this.gravityArrow.dispose();
     this.grid.geometry.dispose();
     (Array.isArray(this.grid.material) ? this.grid.material : [this.grid.material]).forEach((m) =>
       m.dispose(),

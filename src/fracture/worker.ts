@@ -18,13 +18,13 @@ function play() {
   timer = setInterval(() => {
     if (!simulation) return;
     try {
-      simulation.step();
-      simulation.step();
+      for (let i = 0; i < simulation.stepsPerFrame; i++) simulation.step();
       send({
         type: 'poses',
         poses: simulation.poses(),
         time: simulation.time,
         stopped: simulation.stopped,
+        limitReached: simulation.limitReached,
       });
       if (simulation.stopped) pause();
     } catch (e) {
@@ -37,7 +37,13 @@ self.onmessage = async ({ data }: MessageEvent<FractureRequest>) => {
   if (data.type === 'pause') {
     pause();
     if (simulation)
-      send({ type: 'poses', poses: simulation.poses(), time: simulation.time, stopped: true });
+      send({
+        type: 'poses',
+        poses: simulation.poses(),
+        time: simulation.time,
+        stopped: true,
+        limitReached: simulation.limitReached,
+      });
     return;
   }
   if (data.type === 'resume') {
@@ -60,7 +66,14 @@ self.onmessage = async ({ data }: MessageEvent<FractureRequest>) => {
       );
       send({ type: 'result', result });
     } else {
-      const next = await createSimulation(data.result, data.obstacles, data.ground, data.kick);
+      const next = await createSimulation(
+        data.result,
+        data.obstacles,
+        data.ground,
+        data.kick,
+        data.motion,
+        data.worldOrigin,
+      );
       if (token !== generation) {
         next.dispose();
         return;

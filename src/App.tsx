@@ -387,7 +387,7 @@ const instructions: Record<Tool, string> = {
   scale:
     'L · Vedä kulmakahvasta tasaisesti tai sivukahvasta yhdellä akselilla. X/Y/Z valitsee akselin. Kirjoita kerroin tai tavoitemitta. Enter tai vapautus hyväksyy, Esc peruu.',
   knife:
-    'Piirrä leikkaus nykyisestä näkymästä. Molemmat puolet säilyvät. Esc peruu reitin; seuraava Esc päättää työkalun.',
+    'Piirrä leikkaus nykyisestä näkymästä. Valitse sitten pala: poista tai murenna ja heitä. Leikkaa jatkaa viiltoa. Esc peruu reitin; seuraava Esc päättää työkalun.',
   paint:
     'P · Valitse materiaali ja napsauta osia maalataksesi. Kohdevalinta kertoo, maalataanko koko valinta. Esc päättää.',
   detail:
@@ -558,6 +558,8 @@ export default function App() {
   const rotationRef = useRef<Omit<Rotation, 'angle'> | undefined>(undefined);
   const [popup, setPopup] = useState<[number, number]>();
   const [knifeMode, setKnifeMode] = useState<'line' | 'polyline' | 'curve' | 'free'>('line');
+  const [knifePicking, setKnifePicking] = useState(false);
+  const [knifeDirection, setKnifeDirection] = useState<Vec3>([0, 1, 0]);
   const [knifeUnique, setKnifeUnique] = useState(false);
   const [knifeCommand, setKnifeCommand] = useState<{ id: number; action: 'finish' | 'clear' }>();
   const [penMode, setPenMode] = useState<'line' | 'bezier'>('line');
@@ -591,6 +593,7 @@ export default function App() {
     body: Body;
     mesh: BodyMesh;
     projectId: string;
+    launchDirection?: Vec3;
   }>();
   const geometrySession = useRef<GeometrySession | undefined>(undefined);
   const [geometryNextTool, setGeometryNextTool] = useState<Tool>();
@@ -2008,7 +2011,10 @@ export default function App() {
       return;
     }
     if (next === 'knife' || next === 'paint') {
-      if (next === 'knife') setKnifeUnique(false);
+      if (next === 'knife') {
+        setKnifeUnique(false);
+        setKnifePicking(false);
+      }
       setPanelOpen(true);
       return;
     }
@@ -3483,8 +3489,15 @@ export default function App() {
         finishOperation(pieces[0]);
         setEditingBodyId(undefined);
         setSurfaceMode('new');
-        setSelected(pieces[0]);
-        setSelectedIds(pieces);
+        setSelected(undefined);
+        setSelectedIds([]);
+        setSelectedFace(undefined);
+        setSelectedGroupId(undefined);
+        setKnifePicking(true);
+        setKnifeDirection(rays[0].direction);
+        editor.setMessage(
+          'Valitse leikattu pala: poista tai murenna ja heitä. Leikkaa jatkaa veitsellä.',
+        );
       }
     } finally {
       committing.current = false;
@@ -6266,7 +6279,12 @@ export default function App() {
     setGeometryStage(undefined);
     setTool('select');
     setActionMenu(undefined);
-    setFractureSource({ body: target, mesh, projectId: project.id });
+    setFractureSource({
+      body: target,
+      mesh,
+      projectId: project.id,
+      launchDirection: tool === 'knife' ? knifeDirection : undefined,
+    });
   };
   const openSurfaceWorkspace = () => {
     if (animation.open) {
@@ -6475,7 +6493,8 @@ export default function App() {
       id: 'fracture',
       label: 'Riko ja pudota',
       group: 'Muokkaa',
-      keywords: 'riko fragmentaatio rubble rauniot murtuma painovoima fysiikka pääty',
+      keywords:
+        'riko murenna heitto räjäytys veitsi fragmentaatio rubble rauniot murtuma painovoima fysiikka pääty',
       reason: busy
         ? 'Odota laskentaa.'
         : !geometryTarget
@@ -6845,13 +6864,15 @@ export default function App() {
                       : tool === 'detail'
                         ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
                         : tool === 'knife'
-                          ? knifeMode === 'free'
-                            ? 'Vedä viilto. Vapautus leikkaa.'
-                            : knifeMode === 'curve'
-                              ? 'Napsauta alku, kaksi ohjauspistettä ja loppu.'
-                              : knifeMode === 'polyline'
-                                ? 'Napsauta reitin pisteet. Enter leikkaa.'
-                                : 'Vedä leikkausviiva osien yli.'
+                          ? knifePicking
+                            ? 'Napsauta leikattua palaa: poista tai murenna ja heitä.'
+                            : knifeMode === 'free'
+                              ? 'Vedä viilto. Vapautus leikkaa.'
+                              : knifeMode === 'curve'
+                                ? 'Napsauta alku, kaksi ohjauspistettä ja loppu.'
+                                : knifeMode === 'polyline'
+                                  ? 'Napsauta reitin pisteet. Enter leikkaa.'
+                                  : 'Vedä leikkausviiva osien yli.'
                           : tool === 'erase'
                             ? 'Napsauta pintojen jakoviivaa tai apuviivaa.'
                             : tool === 'boolean'
@@ -8520,7 +8541,7 @@ export default function App() {
               }}
               selectedGroupId={selectedGroupId}
               selectedFace={selectedFace}
-              tool={openingDraft ? 'select' : tool}
+              tool={openingDraft || (tool === 'knife' && knifePicking) ? 'select' : tool}
               opening={
                 openingDraft
                   ? {
@@ -8571,7 +8592,10 @@ export default function App() {
               reference={reference}
               pickReference={pickReference}
               epoch={epoch}
-              onSelect={select}
+              onSelect={(id, face, additive) => {
+                if (tool === 'knife' && knifePicking) select(id, undefined, false, true);
+                else select(id, face, additive);
+              }}
               onSelectMany={(ids, additive, guideIds = [], dimensionIds = [], markupIds = []) => {
                 if (alignmentDraft) {
                   const id = ids.find((id) => !alignmentDraft.ids.includes(id));
@@ -9777,47 +9801,103 @@ export default function App() {
                 </section>
               ) : tool === 'knife' ? (
                 <section className="knife-panel" aria-label="Veitsen asetukset">
-                  <p className="knife-targets">
-                    {selectedIds.length ? 'Valitut osat' : 'Näkyvät osat'} · {knifeTargets.length}{' '}
-                    muokattavaa kohdetta
-                  </p>
-                  <label className="modeling-field">
-                    Reitti
-                    <select
-                      aria-label="Veitsen reitti"
-                      value={knifeMode}
-                      onChange={(e) => setKnifeMode(e.target.value as typeof knifeMode)}
+                  <div className="fracture-buttons">
+                    <button
+                      className="button outlined"
+                      aria-pressed={!knifePicking}
+                      onClick={() => setKnifePicking(false)}
                     >
-                      <option value="line">Suora</option>
-                      <option value="polyline">Taitettu / siluetti</option>
-                      <option value="curve">Bézier-kaari</option>
-                      <option value="free">Vapaa viilto</option>
-                    </select>
-                  </label>
-                  <p className="tool-consequence">Molemmat puolet säilyvät erillisinä osina.</p>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={knifeUnique}
-                      disabled={busy}
-                      onChange={(e) => setKnifeUnique(e.target.checked)}
-                    />
-                    Tee kohteista uniikkeja · muuta vain valittuja
-                  </label>
-                  <button
-                    className="button dark full"
-                    disabled={busy}
-                    onClick={() => setKnifeCommand({ id: performance.now(), action: 'finish' })}
-                  >
-                    Leikkaa reitti · Enter
-                  </button>
-                  <button
-                    className="button outlined full"
-                    disabled={busy}
-                    onClick={() => setKnifeCommand({ id: performance.now(), action: 'clear' })}
-                  >
-                    Tyhjennä reitti
-                  </button>
+                      Leikkaa
+                    </button>
+                    <button
+                      className="button outlined"
+                      aria-pressed={knifePicking}
+                      onClick={() => {
+                        setKnifePicking(true);
+                        setEditingBodyId(undefined);
+                        setSelectedFace(undefined);
+                        setKnifeCommand({ id: performance.now(), action: 'clear' });
+                      }}
+                    >
+                      Valitse pala
+                    </button>
+                  </div>
+                  {knifePicking ? (
+                    <>
+                      <p className="tool-consequence">
+                        Napsauta yhtä palaa mallissa. Voit poistaa sen tai murentaa ja heittää sen
+                        sirpaleina.
+                      </p>
+                      <p className="knife-targets">
+                        {selectedIds.length === 1 ? body?.name : 'Valitse yksi osa'}
+                      </p>
+                      <button
+                        className="button dark full"
+                        disabled={
+                          busy || !geometryTarget || bodyLocked(geometryTarget, project.groups)
+                        }
+                        onClick={openFracture}
+                      >
+                        Murenna ja heitä…
+                      </button>
+                      <button
+                        className="button outlined full"
+                        disabled={
+                          busy ||
+                          selectedIds.length !== 1 ||
+                          !body ||
+                          bodyLocked(body, project.groups)
+                        }
+                        onClick={() => void removeBody()}
+                      >
+                        Poista pala
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="knife-targets">
+                        {selectedIds.length ? 'Valitut osat' : 'Näkyvät osat'} ·{' '}
+                        {knifeTargets.length} muokattavaa kohdetta
+                      </p>
+                      <label className="modeling-field">
+                        Reitti
+                        <select
+                          aria-label="Veitsen reitti"
+                          value={knifeMode}
+                          onChange={(e) => setKnifeMode(e.target.value as typeof knifeMode)}
+                        >
+                          <option value="line">Suora</option>
+                          <option value="polyline">Taitettu / siluetti</option>
+                          <option value="curve">Bézier-kaari</option>
+                          <option value="free">Vapaa viilto</option>
+                        </select>
+                      </label>
+                      <p className="tool-consequence">Molemmat puolet säilyvät erillisinä osina.</p>
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={knifeUnique}
+                          disabled={busy}
+                          onChange={(e) => setKnifeUnique(e.target.checked)}
+                        />
+                        Tee kohteista uniikkeja · muuta vain valittuja
+                      </label>
+                      <button
+                        className="button dark full"
+                        disabled={busy}
+                        onClick={() => setKnifeCommand({ id: performance.now(), action: 'finish' })}
+                      >
+                        Leikkaa reitti · Enter
+                      </button>
+                      <button
+                        className="button outlined full"
+                        disabled={busy}
+                        onClick={() => setKnifeCommand({ id: performance.now(), action: 'clear' })}
+                      >
+                        Tyhjennä reitti
+                      </button>
+                    </>
+                  )}
                 </section>
               ) : tool === 'detail' ? (
                 <EdgeDetailPanel
@@ -11509,9 +11589,16 @@ export default function App() {
         <FractureWorkspace
           source={fractureSource.body}
           mesh={fractureSource.mesh}
+          launchDirection={fractureSource.launchDirection}
           meshes={editor.meshes}
           project={project}
-          onClose={() => setFractureSource(undefined)}
+          onClose={() => {
+            if (fractureSource.launchDirection) {
+              setTool('knife');
+              setKnifePicking(true);
+            }
+            setFractureSource(undefined);
+          }}
           onSave={async (bodies) => {
             if (project.id !== fractureSource.projectId)
               throw new Error('Projekti on vaihtunut. Avaa rikkominen uudelleen.');
@@ -11519,7 +11606,7 @@ export default function App() {
             activityHistory.prepare(actionContext);
             const ok = await editor.transact(
               next.project,
-              `Riko ja pudota · ${bodies.length} osaa`,
+              `${fractureSource.launchDirection ? 'Veitsi · murenna ja heitä' : 'Riko ja pudota'} · ${bodies.length} osaa`,
             );
             if (ok) {
               setEditingBodyId(undefined);

@@ -347,7 +347,7 @@ export const toolGuides = [
       step('Vedä leikkausviiva', 'Viilto kulkee nykyisen kameran näkymän läpi.'),
       step('Vapauta veto', 'Molemmat puolet säilyvät erillisinä osina.'),
     ],
-    tip: 'Reitti voi olla myös taitettu, Bézier-kaari tai vapaa viilto. Enter viimeistelee pisteistä piirretyn reitin. Hold suojaa leikkaukselta.',
+    tip: 'Reitti voi olla myös taitettu, Bézier-kaari tai vapaa viilto. Leikkauksen jälkeen valitse pala: Poista pala tai Murenna ja heitä. Heiton ja painovoiman suunnat säädetään erikseen. Leikkaa jatkaa viiltoja. Hold suojaa leikkaukselta.',
   },
   {
     id: 'guide',

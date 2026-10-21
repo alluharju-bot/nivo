@@ -2,6 +2,31 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.56.0 — veitsellä rajattu mureneminen ja suunnattu heitto
+
+- Veitsen Leikkaa / Valitse pala -vaiheet. Onnistuneen leikkauksen jälkeen
+  valitaan yksittäinen pala mallissa: Poista pala tai Murenna ja heitä.
+  Tavallinen suora, taitettu, Bézier- ja vapaa viilto säilyvät käytössä.
+- Heiton oletus on veitsen näkymäsäteen suunta. Akselit, suunta-/korkeuskulmat,
+  pinnan normaalin poiminta ja suunnan kääntö. Nopeus 0–20 m/s, hajonta 0–90°.
+- Erillinen painovoiman suunta ja voimakkuus 0–30 m/s². Oranssi heittonuoli,
+  sininen painovoimanuoli. Tauko, jatkaminen ja palautus ennen hyväksyntää.
+- Kaikki näkyvät malliosat törmäävät 150 000 kolmion budjetin puitteissa;
+  vanha 4 m rajaus poistettu. Apulattia valinnainen, ilman huomaamatonta
+  Z=0-estettä kun mallissa on muita rakenteita.
+- Tiiviin leikkauspalan väärät ennakoivat kontaktit korjattu: 0,1 mm
+  ennakointiväli, enintään 0,2 mm välys vain törmäyskuoressa. Tallennettu
+  geometria pysyy alkuperäisen kokoisena. Kolmiopintojen sisäreunat käsitellään
+  yhtenäisinä törmäyksissä. 120 Hz simulointi ja CCD nopealle liikkeelle.
+- Laskenta pysähtyy mallinnusalueen rajalla ja säilyttää viimeisen tallennettavan
+  asennon. Siemenestä toistettava sirpalejako ja deterministinen heittokartio.
+- Esikatselu ei muuta projektia; mureneminen hyväksytään yhtenä erillisenä
+  historiatoimintona. Leikkaamattomat seinät, lattiat ja muut osat säilyvät.
+- Jatkoon: usean palan yhteinen murentaminen, suoraan pintaan piirrettävä
+  rosoreunainen vaurioalue, materiaalikohtaiset murtopinnat ja simulaation
+  tallennus animaatioklipiksi. Nykyinen heitto on visualisointia, ei
+  ballistiikka- tai rakenteiden lujuuslaskentaa.
+
 ## V0.55.0 — Riko ja pudota
 
 - Yksi suljettu CAD- tai kolmiomalliosa: koko tilavuus tai pinnasta/akselista

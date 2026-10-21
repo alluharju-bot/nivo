@@ -3,19 +3,29 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.55.0** lisää **Valitse osa → Riko ja pudota** -työnkulun.
-Riko koko kappale tai napsauta sen pintaa ja rajaa päädyn syvyys. Säädä
-palamäärää, epäsäännöllisyyttä ja murtopinnan väriä; rosoinen murtoreuna
-säilyttää päädyssä lohjenneen muodon. Irtopalat voi poistaa tai pudottaa
-painovoimalla. Tauko, jatkaminen ja palautus toimivat ennen hyväksyntää.
-**Hyväksy nykyinen asento** tallentaa palat tavallisiksi kolmiomalliosiksi
-uuteen ryhmään. Alkuperäinen osa jää piilotettuna talteen; yksi Peru palauttaa
-koko muutoksen. Linkitetyt kopiot säilyvät ennallaan. Työkalu löytyy myös hausta.
+Versio **0.56.0** tuo murenemisen **Veitsi (N)** -työkaluun.
+Leikkaa suora, kaari, vapaa viilto tai suljettu siluetti. Leikkauksen jälkeen
+napsauta haluamaasi palaa ja valitse **Poista pala** tai **Murenna ja heitä…**.
+**Leikkaa** jatkaa uuden viillon piirtämistä; **Valitse pala** toimii myös
+olemassa olevalla osalla.
 
-Ensiversio käsittelee yhden suljetun osan kerrallaan, 2–80 palan tavoitteella.
-Esikatselun levitys ei tallennu. Simulaatio käyttää lähistön näkyviä osia,
-säädettävää lattiaa ja yksinkertaistettuja törmäysmuotoja. Tallennus säilyttää
-lopullisen asennon; putoamisen animaatioklippi on jatkokehitystä.
+Murenemisessa säädät palamäärän, epäsäännöllisyyden ja murtopinnan värin.
+Heiton lähtösuunta seuraa veitsen katselusuuntaa. Suunnan voi vaihtaa
+akseleilla, kulmilla tai pinnasta poimimalla. Oranssi nuoli näyttää heiton,
+sininen painovoiman: suunta ja voimakkuus säädetään toisistaan riippumatta.
+Näkyvät osat toimivat törmäyspintoina myös kauempana ja Z=0-tason alapuolella.
+Erillinen apulattia on valinnainen; se on oletuksena pois, kun ympärillä on
+malligeometriaa. Painovoiman voi myös kytkeä pois antamalla voimakkuudeksi 0.
+
+**Hyväksy nykyinen asento** tallentaa sirpaleet tavallisiksi kolmiomalliosiksi
+omaan ryhmään. Alkuperäinen pala jää piilotettuna talteen. Yksi Peru palauttaa
+murenemisen, toinen veitsileikkauksen. Pelkkä esikatselu ei muuta projektia.
+**Riko ja pudota** toimii edelleen myös suoraan valitulle osalle tai päädylle.
+
+Yksi suljettu osa kerrallaan, 2–80 palan tavoite. Heitto on visuaalinen
+jäykkien kappaleiden simulaatio yksinkertaistetuilla törmäysmuodoilla.
+Ulkomateriaalit ja UV:t säilyvät; murtopinnalla on oma mattaväri.
+Tallennus säilyttää lopullisen asennon; animaatioklipin tallennus on jatkokehitystä.
 
 Versio **0.54.2** nopeuttaa suuren mallin tartuntahakua ja kuoren pursotuksen
 esikatselua. Saman osoitintapahtuman haut jakavat näkymän matriisipäivityksen,

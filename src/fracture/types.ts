@@ -28,19 +28,29 @@ export interface Obstacle {
   vertices: number[];
   triangles: number[];
 }
+export interface FractureMotion {
+  /** World-space direction; speed in m/s, cone half-angle in degrees. */
+  direction: Vec3;
+  speed: number;
+  spread: number;
+  /** Acceleration in m/s². Zero disables gravity. */
+  gravity: Vec3;
+}
 export type FractureRequest =
   | { type: 'fracture'; mesh: SurfaceMesh; options: FractureOptions }
   | {
       type: 'simulate';
       result: FractureResult;
       obstacles: Obstacle[];
-      ground: number;
+      ground?: number;
       kick: number;
+      motion?: FractureMotion;
+      worldOrigin?: Vec3;
     }
   | { type: 'pause' }
   | { type: 'resume' };
 export type FractureReply =
   | { type: 'progress'; value: number }
   | { type: 'result'; result: FractureResult }
-  | { type: 'poses'; poses: Pose[]; time: number; stopped: boolean }
+  | { type: 'poses'; poses: Pose[]; time: number; stopped: boolean; limitReached?: boolean }
   | { type: 'error'; message: string };
