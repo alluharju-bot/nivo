@@ -4,6 +4,26 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.55.0 — rikkominen ja painovoima
+
+- Koko yksikkö-/geometriasetti: 836 hyväksyttyä, 6 ennestään ohitettua.
+
+- Seitsemän uutta yksikkökoetta: siemenen toistettavuus, suljetut palat,
+  tilavuuden säilyminen, materiaalien ja UV:n säilyminen, tasainen ja rosoinen
+  paikallinen pääty, reiällinen kaareva kappale, avoimen pinnan ja virheellisen
+  rajauksen hylkäys, kiinteä jäännös, painovoima ja lattia sekä tallennus,
+  linkitetyn kopion koskemattomuus ja lukitussuojaus.
+- Neljä selaintapausta hyväksytty desktopissa ja tabletin Chromium-emuloinnissa:
+  esikatselu, pudotus, tauko, palautus, peruminen ilman projektimuutosta,
+  hyväksyntä, yksi Undo/Redo ja pudonneen kasan tallennus/uudelleenavaus.
+  Pudonnut malli avataan tavallisina kolmiomalliosina; alkuperäinen on tallessa.
+- Tuotantobuildin molemmat desktop-kokeet hyväksytty myös /nivo/-polulla:
+  Manifold-WASM ja fysiikkatyöntekijä latautuvat ilman kehityspalvelinta.
+  TypeScript, build, muotoilu ja diff tarkistettu.
+- Esikatselun ja pudonneen kasan käyttöliittymäkuvat tarkastettu.
+  Tablettiprofiili testaa asettelun samalla selainautomaatiossa käytetyllä
+  osoittimella; fyysistä kosketuslaitetta ei testattu.
+
 ## V0.54.2 — uusimman Kerrostalon tartunta ja esikatselu
 
 - Uusin pilvirevisio 143 testattu paikallisena kopiona (546 osaa, 40 viivaa,

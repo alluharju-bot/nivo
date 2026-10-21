@@ -3,6 +3,20 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.55.0** lisää **Valitse osa → Riko ja pudota** -työnkulun.
+Riko koko kappale tai napsauta sen pintaa ja rajaa päädyn syvyys. Säädä
+palamäärää, epäsäännöllisyyttä ja murtopinnan väriä; rosoinen murtoreuna
+säilyttää päädyssä lohjenneen muodon. Irtopalat voi poistaa tai pudottaa
+painovoimalla. Tauko, jatkaminen ja palautus toimivat ennen hyväksyntää.
+**Hyväksy nykyinen asento** tallentaa palat tavallisiksi kolmiomalliosiksi
+uuteen ryhmään. Alkuperäinen osa jää piilotettuna talteen; yksi Peru palauttaa
+koko muutoksen. Linkitetyt kopiot säilyvät ennallaan. Työkalu löytyy myös hausta.
+
+Ensiversio käsittelee yhden suljetun osan kerrallaan, 2–80 palan tavoitteella.
+Esikatselun levitys ei tallennu. Simulaatio käyttää lähistön näkyviä osia,
+säädettävää lattiaa ja yksinkertaistettuja törmäysmuotoja. Tallennus säilyttää
+lopullisen asennon; putoamisen animaatioklippi on jatkokehitystä.
+
 Versio **0.54.2** nopeuttaa suuren mallin tartuntahakua ja kuoren pursotuksen
 esikatselua. Saman osoitintapahtuman haut jakavat näkymän matriisipäivityksen,
 pintojen risteyshaku rajataan lähekkäisiin pintoihin ja pursotuksen korostus

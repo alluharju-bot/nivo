@@ -2,6 +2,33 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.55.0 — Riko ja pudota
+
+- Yksi suljettu CAD- tai kolmiomalliosa: koko tilavuus tai pinnasta/akselista
+  poimittu pääty ja syvyys. Rosoinen murtoreuna säilyttää osan siihen liittyvistä
+  sirpaleista ehjän jäännöksen yhteydessä. Tasainen rajaus on valittavissa.
+- Siemenestä toistettava tilavuuden pilkkominen suljetuiksi paloiksi,
+  2–80 palan tavoite ja epäsäännöllisyys. Tilavuus tarkistetaan; avoimia
+  pintoja ei muuteta huomaamatta umpikappaleiksi. Manifold-laskenta workerissa.
+- Ulkopintojen värit, materiaalit ja olemassa olevat UV:t säilyvät. Uusille
+  murtopinnoille oma mattaväri. Materiaalin esikatseluväri päivittyy rakentamatta
+  geometriaa uudelleen. Irtopalat voi jättää pois lopputuloksesta.
+- Rapier-painovoima, törmäykset, kitka, tönäisy, tauko/jatka/palauta ja
+  automaattinen pysäytys. Kiinteä jäännös säilyttää tarkan lähtöasentonsa.
+  Kupertuja paloja käsitellään kuperilla törmäysmuodoilla, koverat jaetaan
+  rajatusti kuperiin osiin. Kiinteät ympäristökappaleet säilyttävät aukkonsa.
+- Yksi hyväksyntä ja historiatoiminto. Alkuperäinen piilotetaan, palat ovat
+  uniikkeja kolmiomalleja omassa kansioryhmässään. Preview ei muuta projektia
+  tai synkronoi ruutukohtaisia asentoja. Lukitus ja muuttunut lähde tarkistetaan.
+- Rajat: 60 000 lähtökolmiota, 150 000 lähistön törmäyskolmiota, 45 s laskennan
+  aikaraja, 30 s simulaatio. Ympäristö rajataan alkuperäisen osan ympärille
+  vaakasuunnassa 4 m marginaalilla. Ei lujuuslaskentaa eikä liimasaumojen
+  murtumisfysiikkaa. Tavoitemäärä voi ylittyä irrallisissa/koverissa muodoissa.
+- Jatkoon: maalattava paikallinen vaurioalue, usean osan rikkominen,
+  materiaalipohjaiset murtopinnat ja rakenteet, halkeamien hienompi pinta,
+  simulaation tallentaminen animaatioklipiksi ja vienti. Nykyinen tallennus
+  on lopullinen staattinen malli nykyisessä .nivo-/mesh-vientiputkessa.
+
 ## V0.54.2 — suuren Kerrostalon vuorovaikutus
 
 - Uusin pilvitallenne, revisio 143, tutkittu paikallisena kopiona: 546 osaa,

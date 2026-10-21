@@ -23,6 +23,8 @@ import type { GeometrySelection } from './model/geometryEditing';
 // Keep the core editor loaded: a deploy can remove old lazy chunk URLs while modeling.
 import { GeometryEditor, type GeometrySession } from './ui/GeometryEditor';
 import SurfaceWorkspace from './surface/SurfaceWorkspace';
+import FractureWorkspace from './fracture/FractureWorkspace';
+import { insertFragments } from './fracture/project';
 import { useTreeExpansion } from './ui/useTreeExpansion';
 import { setGroupHold, setSelectionHold } from './model/groups';
 import { useCloud } from './cloud/useCloud';
@@ -225,7 +227,7 @@ import {
 } from './model/groups';
 import { useEdgeDetailPreview } from './ui/useEdgeDetailPreview';
 import { EdgeDetailPanel } from './ui/EdgeDetailPanel';
-import type { EdgeDetailTarget, SplitResult } from './cad/protocol';
+import type { BodyMesh, EdgeDetailTarget, SplitResult } from './cad/protocol';
 import { GroupActions } from './ui/GroupActions';
 import { Viewport, type CameraCommand, type Tool } from './viewport/Viewport';
 import { RenderStage } from './render/RenderStage';
@@ -585,6 +587,11 @@ export default function App() {
   const [geometrySelection, setGeometrySelection] = useState<GeometrySelection>('points');
   const [geometryStage, setGeometryStage] = useState<GeometryStageProps>();
   const [surfaceSource, setSurfaceSource] = useState<{ body: Body; projectId: string }>();
+  const [fractureSource, setFractureSource] = useState<{
+    body: Body;
+    mesh: BodyMesh;
+    projectId: string;
+  }>();
   const geometrySession = useRef<GeometrySession | undefined>(undefined);
   const [geometryNextTool, setGeometryNextTool] = useState<Tool>();
   const [geometryClosing, setGeometryClosing] = useState(false);
@@ -4624,6 +4631,7 @@ export default function App() {
       if (
         event.defaultPrevented ||
         surfaceSource ||
+        fractureSource ||
         cabinetOpen ||
         actionMenu ||
         revisionsOpen ||
@@ -6235,6 +6243,31 @@ export default function App() {
     setRenderOpen(false);
     setPanelOpen(true);
   };
+  const openFracture = () => {
+    const target = geometryBody ?? geometryTarget;
+    if (!target || busy) return;
+    if (animation.open || motion.open || geometrySession.current?.pending) {
+      editor.setError(
+        'Sulje animaatio tai hyväksy keskeneräinen geometriamuutos ennen rikkomista.',
+      );
+      return;
+    }
+    if (bodyLocked(target, project.groups)) {
+      editor.setError('Vapauta osan tai ryhmän lukitus ennen rikkomista.');
+      return;
+    }
+    const mesh = editor.meshes.find((m) => m.id === target.id);
+    if (!mesh) {
+      editor.setError('Odota osan geometrian valmistumista.');
+      return;
+    }
+    resetGesture();
+    setGeometryBodyId(undefined);
+    setGeometryStage(undefined);
+    setTool('select');
+    setActionMenu(undefined);
+    setFractureSource({ body: target, mesh, projectId: project.id });
+  };
   const openSurfaceWorkspace = () => {
     if (animation.open) {
       animation.setError('Sulje animaatio ennen geometrian muokkaamista.');
@@ -6438,6 +6471,22 @@ export default function App() {
     setLoftOpen(true);
   };
   const commands: Command[] = [
+    {
+      id: 'fracture',
+      label: 'Riko ja pudota',
+      group: 'Muokkaa',
+      keywords: 'riko fragmentaatio rubble rauniot murtuma painovoima fysiikka pääty',
+      reason: busy
+        ? 'Odota laskentaa.'
+        : !geometryTarget
+          ? 'Valitse yksi osa.'
+          : bodyLocked(geometryTarget, project.groups)
+            ? 'Vapauta osan lukitus.'
+            : animation.open || motion.open
+              ? 'Palaa mallinnustilaan.'
+              : undefined,
+      run: openFracture,
+    },
     {
       id: 'align',
       label: 'Kohdista',
@@ -10528,6 +10577,15 @@ export default function App() {
                       Verkko ja pinta
                     </button>
                   )}
+                  {geometryTarget && (
+                    <button
+                      className="button subtle full"
+                      disabled={busy || bodyLocked(geometryTarget, project.groups)}
+                      onClick={openFracture}
+                    >
+                      Riko ja pudota…
+                    </button>
+                  )}
                   {canDivideSurface && surfaceActions}
                   {body?.feature.type === 'brep' &&
                     body.feature.surfaceLevels &&
@@ -11447,6 +11505,36 @@ export default function App() {
         />
       )}
 
+      {fractureSource && (
+        <FractureWorkspace
+          source={fractureSource.body}
+          mesh={fractureSource.mesh}
+          meshes={editor.meshes}
+          project={project}
+          onClose={() => setFractureSource(undefined)}
+          onSave={async (bodies) => {
+            if (project.id !== fractureSource.projectId)
+              throw new Error('Projekti on vaihtunut. Avaa rikkominen uudelleen.');
+            const next = insertFragments(project, fractureSource.body, bodies);
+            activityHistory.prepare(actionContext);
+            const ok = await editor.transact(
+              next.project,
+              `Riko ja pudota · ${bodies.length} osaa`,
+            );
+            if (ok) {
+              setEditingBodyId(undefined);
+              setSurfaceMode('new');
+              setSelected(next.bodies[0].id);
+              setSelectedIds(next.bodies.map((b) => b.id));
+              setSelectedGroupId(next.group.id);
+              setSelectedFace(undefined);
+              setPanelOpen(true);
+            }
+            return ok;
+          }}
+        />
+      )}
+
       {surfaceSource && (
         <SurfaceWorkspace
           body={surfaceSource.body}
@@ -11681,7 +11769,7 @@ export default function App() {
           meshes={editor.meshes}
           visible={visibleBodies}
           selected={selectedIds}
-          busy={busy || !!surfaceSource || !!geometrySession.current?.pending}
+          busy={busy || !!surfaceSource || !!fractureSource || !!geometrySession.current?.pending}
           onOpen={() => setExportOpen('lod')}
         />
         <span className="status-right">
