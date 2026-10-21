@@ -5151,6 +5151,14 @@ export function installInteractions({
           markupIds,
         );
       } else if (props.tool === 'select' && !moved) {
+        if (props.onImpactPick) {
+          const picked = faceAt(event);
+          if (picked && !editBlocked(event, picked.target.bodyId))
+            props.onImpactPick(picked.target);
+          pointers.delete(event.pointerId);
+          drag = undefined;
+          return;
+        }
         // Remember modifiers from press time too: releasing Shift just before the
         // mouse button must not replace the selection the user was extending.
         const extend = !!active.extendSelection || event.shiftKey || event.ctrlKey || event.metaKey;

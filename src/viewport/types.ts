@@ -266,6 +266,7 @@ export interface ViewportProps {
   onReferencePicked: () => void;
   onStart: () => void;
   onMoveTarget: (id: string) => string[] | undefined;
+  onImpactPick?: (target: FaceTarget) => void;
   onFaceTarget: (target: FaceTarget) => void;
   onFaceHover: (target?: FaceTarget) => void;
   onSelectGuide: (id: string, additive?: boolean) => void;

@@ -14,7 +14,7 @@ test('knife silhouette selects one piece, throws it, bakes the rubble and undoes
   const at = await view(page, [wall, floor], 'front');
   await click(page, at(500, 0, 1000));
   await page.keyboard.press('n');
-  await page.getByLabel('Veitsen reitti').selectOption('polyline');
+  await page.getByLabel('Veitsen reitti', { exact: true }).selectOption('polyline');
   for (const [x, z] of [
     [300, 800],
     [700, 800],
@@ -41,7 +41,7 @@ test('knife silhouette selects one piece, throws it, bakes the rubble and undoes
   const remainder = pieces.find((b) => b.id !== cutout.id)!;
   await panel.getByRole('button', { name: 'Murenna ja heitä…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Murenna ja heitä', exact: true });
-  await dialog.getByLabel('Palojen määrä').fill('6');
+  await dialog.getByLabel('Palojen määrä', { exact: true }).fill('6');
   await dialog.getByRole('button', { name: 'Muodosta palat', exact: true }).click();
   await expect(dialog.getByText('6 irtopalaa', { exact: true })).toBeVisible();
   await expect(dialog.getByLabel('Apulattia', { exact: true })).not.toBeChecked();
@@ -57,10 +57,10 @@ test('knife silhouette selects one piece, throws it, bakes the rubble and undoes
   await azimuth.press('Tab');
   await expect(azimuth).toHaveValue('-45');
   await dialog.getByRole('button', { name: 'Heiton suunta Y+', exact: true }).click();
-  await dialog.getByLabel('Heiton hajonta').fill('0');
-  await dialog.getByLabel('Heiton nopeus').fill('2');
+  await dialog.getByLabel('Heiton hajonta', { exact: true }).fill('0');
+  await dialog.getByLabel('Heiton nopeus', { exact: true }).fill('2');
   await dialog.getByText('Painovoima · 9.81 m/s²', { exact: true }).click();
-  await dialog.getByLabel('Painovoiman voimakkuus').fill('0');
+  await dialog.getByLabel('Painovoiman voimakkuus', { exact: true }).fill('0');
   await dialog.getByRole('button', { name: 'Heitä palat', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Tauko', exact: true })).toBeEnabled();
   await page.waitForTimeout(900);

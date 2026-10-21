@@ -4,6 +4,34 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.57.0 — Räjähdys seinän pinnasta
+
+- Koko yksikkö-/geometriasetti: **847 hyväksyttyä, 6 ennestään ohitettua**,
+  157 hyväksyttyä ja 4 ohitettua testitiedostoa. Lisäksi erillinen koveran,
+  reiällisen sirpaleen kuperan hajotelman regressiokoe hyväksytty: aiempi
+  20 000:n resoluutio kaatoi WASM-laskennan, rajattu 48:n asetus toimii.
+- Kuusi osumakohdan geometriakoetta: suljettu leikkuri, tilavuuden säilyminen,
+  seinään jäävä aukko, kaikkien irtopalojen poistuminen aukosta, rajattu syvyys,
+  seinän reunan yli ulottuva rajaus, vastakkaisen huoneseinän säilyminen,
+  vino seinä negatiivisissa koordinaateissa, virheellisten syötteiden hylkäys
+  sekä edellä mainittu koveran sirpaleen simulaatio. Fracture-testiperheessä
+  nyt yhteensä 19 testiä.
+- **12 selainkoetta hyväksytty** kehitysbuildilla ja uudelleen tuotantobuildilla
+  **/nivo/**-polulla: desktop + tabletin Chromium-emulointi. Seinän napsautus,
+  halkaisija/syvyys, sliderin ja numerokentän yhteistoiminta molempiin suuntiin,
+  heitto ja erillinen painovoima, pysäytys, hyväksyntä, Undo/Redo, lukitus ja
+  peruminen. Aiemmat veitsi–palavalinta–heitto sekä painovoimatyönkulut säilyvät.
+- Alueen uudelleenmuodostus keskeneräisen suunnan poiminnan jälkeen tarkistettu
+  vielä erikseen molemmissa näyttökoissa (2 tuotantokoetta): poimintatila
+  päättyy ja heitto, hyväksyntä sekä Undo/Redo toimivat uudella alueella.
+- Manifold- ja Rapier-työntekijät latautuvat tuotantoversiossa. Esikatselukuvat
+  tarkastettu desktopissa ja tabletin emuloinnissa; osuma-alueen syvyysvälke
+  korjattu piirtotason siirrolla. TypeScript, build, Prettier ja diff tarkistettu.
+- Rajaus: yksi lähdeosa, enintään 80 tavoitesirpaletta ja aiemmat laskentabudjetit.
+  Läpimeno mittaa seinän ensimmäisen takapinnan osuman keskeltä; epätasainen
+  paksuus voi vaatia oman syvyyden. Esikatselu ja varsinainen leikkaus käyttävät
+  samaa tilavuutta. Heitto on visuaalista jäykän kappaleen liikettä.
+
 ## V0.56.0 — Veitsi → Murenna ja heitä
 
 - Koko yksikkö-/geometriasetti: **842 hyväksyttyä, 6 ennestään ohitettua**

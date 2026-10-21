@@ -1,11 +1,20 @@
 import type { Vec3 } from '../model/project';
 import type { SurfaceMesh } from '../surface/mesh';
 
+export interface ImpactRegion {
+  point: Vec3;
+  normal: Vec3;
+  diameter: number;
+  /** Omit for a through cut through the first wall at the hit point. */
+  depth?: number;
+}
+
 export interface FractureOptions {
   count: number;
   seed: number;
   irregularity: number;
   ragged?: boolean;
+  impact?: ImpactRegion;
   /** Local half space: dot(normal, point) >= offset is fractured. */
   region?: { normal: Vec3; offset: number };
 }

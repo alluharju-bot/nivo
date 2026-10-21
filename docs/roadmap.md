@@ -2,6 +2,27 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.57.0 — seinästä poimittu räjähdys ja liukusäätimet
+
+- Veitsi → Räjähdys: napsauta pintaa. Paikallinen epäsäännöllinen leikkaustilavuus,
+  halkaisija ja läpimeno / annettu syvyys. Sama tilavuus näkyy punaisessa
+  esikatselussa ja toimii todellisena leikkurina. Reunan yli ulottuva osuma
+  rajautuu osaan; muu seinä säilyy kiinteänä, suljettuna kappaleena.
+- Läpimenosyvyys ensimmäiseen takapintaan osumakohdassa, ei huonekuoren kaikkiin
+  seiniin. Oletusheitto pinnan sisään; suunta on vaihdettavissa.
+- Kaikki murenemisen numeroarvot liukusäätimellä ja tarkalla syötteellä.
+  Geometria lasketaan Muodosta palat -painikkeella; rajauksen esikatselu seuraa
+  koon säätöä heti ilman raskasta sirpalelaskentaa.
+- Rosoisille tähtimäisille sirpaleille täsmällinen tetraedreihin perustuva
+  törmäysmuoto. Muissa koverissa muodoissa rajattu kupera hajotelma; sen
+  liian suuri ruudukkoresoluutio korjattu. Kosketustoleranssia tarkennettu,
+  jotta tuoreeseen aukkoon sopivat palat eivät jumitu vääriin kontakteihin.
+- Yksi hyväksyntä ja Undo/Redo, piilotettu alkuperäinen, lukitussuojaus ja
+  mallin muiden osien säilyminen. Veitsen aiempi leikkaus/palavalinta säilyy.
+- Jatkoon: vapaasti maalattu vaurioalue (napsautettava osuma nyt valmis),
+  usean osan yhteinen vaurio, kapeneva murtokartio, materiaalikohtaiset
+  murtopinnat sekä simulaation tallennus animaatioklipiksi.
+
 ## V0.56.0 — veitsellä rajattu mureneminen ja suunnattu heitto
 
 - Veitsen Leikkaa / Valitse pala -vaiheet. Onnistuneen leikkauksen jälkeen
@@ -22,8 +43,8 @@
   asennon. Siemenestä toistettava sirpalejako ja deterministinen heittokartio.
 - Esikatselu ei muuta projektia; mureneminen hyväksytään yhtenä erillisenä
   historiatoimintona. Leikkaamattomat seinät, lattiat ja muut osat säilyvät.
-- Jatkoon: usean palan yhteinen murentaminen, suoraan pintaan piirrettävä
-  rosoreunainen vaurioalue, materiaalikohtaiset murtopinnat ja simulaation
+- Jatkoon: usean palan yhteinen murentaminen, vapaasti pintaan maalattava
+  vaurioalue, materiaalikohtaiset murtopinnat ja simulaation
   tallennus animaatioklipiksi. Nykyinen heitto on visualisointia, ei
   ballistiikka- tai rakenteiden lujuuslaskentaa.
 

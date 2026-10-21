@@ -1,5 +1,6 @@
 import type { Manifold, ManifoldToplevel } from 'manifold-3d';
 import { Vector3 } from 'three';
+import { impactCutter } from './impact';
 import type { SurfaceMesh } from '../surface/mesh';
 import type { Fragment, FractureOptions, FractureResult } from './types';
 
@@ -81,6 +82,24 @@ export function fractureMesh(
     const sourceVolume = source.volume();
     let active = source;
     const fixed: Manifold[] = [];
+    if (options.impact && options.region) throw new Error('Valitse vain yksi rikottava alue.');
+    if (options.impact) {
+      const cutter = impactCutter(mesh, options.impact, options.seed, options.irregularity);
+      const tool = own(
+        new api.Manifold(
+          new api.Mesh({
+            numProp: 3,
+            vertProperties: new Float32Array(cutter.positions),
+            triVerts: new Uint32Array(cutter.indices),
+          }),
+        ),
+      );
+      const [part, rest] = source.split(tool).map(own);
+      active = part;
+      if (!rest.isEmpty()) fixed.push(rest);
+      if (part.isEmpty() || part.volume() < sourceVolume * 1e-8)
+        throw new Error('Osumakohta ei leikkaa osaa. Poimi pinta uudelleen.');
+    }
     if (options.region) {
       const { normal, offset } = options.region;
       if (![...normal, offset].every(Number.isFinite) || new Vector3(...normal).length() < 0.99)
@@ -97,7 +116,9 @@ export function fractureMesh(
         'Osassa on jo enemmän irrallisia paloja kuin valittu määrä. Kasvata palamäärää.',
       );
     const retainCount =
-      fixed.length && options.ragged ? Math.max(1, Math.floor(options.count / 4)) : 0;
+      fixed.length && options.region && options.ragged
+        ? Math.max(1, Math.floor(options.count / 4))
+        : 0;
     const targetCount = options.count + retainCount;
     let attempts = 0;
     const blocked = new Set<Manifold>();
@@ -203,7 +224,7 @@ export function fractureMesh(
         }
       }
       const hull = own(api.Manifold.hull([solid]));
-      const convex = hull.volume() <= solid.volume() * 1.01;
+      const convex = hull.volume() <= solid.volume() * 1.000001;
       release(hull);
       return { mesh: out, fixed: isFixed, volume: solid.volume(), convex };
     };

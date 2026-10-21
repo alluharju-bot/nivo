@@ -15,7 +15,7 @@ test('fracture preview, gravity, cancel, commit and undo preserve the original',
   await page.getByRole('button', { name: 'Riko ja pudota…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Riko ja pudota', exact: true });
   await expect(dialog).toBeVisible();
-  await dialog.getByLabel('Palojen määrä').fill('8');
+  await dialog.getByLabel('Palojen määrä', { exact: true }).fill('8');
   await dialog.getByRole('button', { name: 'Muodosta palat', exact: true }).click();
   await expect(dialog.getByText('8 irtopalaa', { exact: true })).toBeVisible({ timeout: 45000 });
   await dialog.getByRole('button', { name: 'Pudota', exact: true }).click();
@@ -31,8 +31,8 @@ test('fracture preview, gravity, cancel, commit and undo preserve the original',
   expect((await save(page)).bodies).toEqual([source]);
   await page.getByRole('button', { name: 'Riko ja pudota…', exact: true }).click();
   await dialog.getByRole('button', { name: 'Pääty', exact: true }).click();
-  await dialog.getByLabel('Rikkomisen syvyys').fill('300');
-  await dialog.getByLabel('Palojen määrä').fill('8');
+  await dialog.getByLabel('Rikkomisen syvyys', { exact: true }).fill('300');
+  await dialog.getByLabel('Palojen määrä', { exact: true }).fill('8');
   await dialog.getByRole('button', { name: 'Muodosta palat', exact: true }).click();
   await expect(dialog.getByText('8 irtopalaa', { exact: true })).toBeVisible({ timeout: 45000 });
   await page.screenshot({ path: '/private/tmp/nivo-fracture-preview.png' });
@@ -68,7 +68,7 @@ test('fallen rubble is saved at the preview poses and opens as ordinary mesh par
   await page.mouse.click(point.x, point.y);
   await page.getByRole('button', { name: 'Riko ja pudota…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Riko ja pudota', exact: true });
-  await dialog.getByLabel('Palojen määrä').fill('8');
+  await dialog.getByLabel('Palojen määrä', { exact: true }).fill('8');
   await dialog.getByRole('button', { name: 'Muodosta palat', exact: true }).click();
   await expect(dialog.getByText('8 irtopalaa', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Pudota', exact: true }).click();

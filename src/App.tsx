@@ -559,6 +559,7 @@ export default function App() {
   const [popup, setPopup] = useState<[number, number]>();
   const [knifeMode, setKnifeMode] = useState<'line' | 'polyline' | 'curve' | 'free'>('line');
   const [knifePicking, setKnifePicking] = useState(false);
+  const [knifeImpactPicking, setKnifeImpactPicking] = useState(false);
   const [knifeDirection, setKnifeDirection] = useState<Vec3>([0, 1, 0]);
   const [knifeUnique, setKnifeUnique] = useState(false);
   const [knifeCommand, setKnifeCommand] = useState<{ id: number; action: 'finish' | 'clear' }>();
@@ -594,6 +595,7 @@ export default function App() {
     mesh: BodyMesh;
     projectId: string;
     launchDirection?: Vec3;
+    impact?: { point: Vec3; normal: Vec3 };
   }>();
   const geometrySession = useRef<GeometrySession | undefined>(undefined);
   const [geometryNextTool, setGeometryNextTool] = useState<Tool>();
@@ -2014,6 +2016,7 @@ export default function App() {
       if (next === 'knife') {
         setKnifeUnique(false);
         setKnifePicking(false);
+        setKnifeImpactPicking(false);
       }
       setPanelOpen(true);
       return;
@@ -3494,6 +3497,7 @@ export default function App() {
         setSelectedFace(undefined);
         setSelectedGroupId(undefined);
         setKnifePicking(true);
+        setKnifeImpactPicking(false);
         setKnifeDirection(rays[0].direction);
         editor.setMessage(
           'Valitse leikattu pala: poista tai murenna ja heitä. Leikkaa jatkaa veitsellä.',
@@ -6256,8 +6260,10 @@ export default function App() {
     setRenderOpen(false);
     setPanelOpen(true);
   };
-  const openFracture = () => {
-    const target = geometryBody ?? geometryTarget;
+  const openFractureAt = (hit?: FaceTarget) => {
+    const target = hit
+      ? project.bodies.find((b) => b.id === hit.bodyId)
+      : (geometryBody ?? geometryTarget);
     if (!target || busy) return;
     if (animation.open || motion.open || geometrySession.current?.pending) {
       editor.setError(
@@ -6283,9 +6289,17 @@ export default function App() {
       body: target,
       mesh,
       projectId: project.id,
-      launchDirection: tool === 'knife' ? knifeDirection : undefined,
+      launchDirection: hit
+        ? (hit.normal.map((n) => -n) as Vec3)
+        : tool === 'knife'
+          ? knifeDirection
+          : undefined,
+      impact: hit
+        ? { point: hit.point.map((n, i) => n - target.origin[i]) as Vec3, normal: hit.normal }
+        : undefined,
     });
   };
+  const openFracture = () => openFractureAt();
   const openSurfaceWorkspace = () => {
     if (animation.open) {
       animation.setError('Sulje animaatio ennen geometrian muokkaamista.');
@@ -6864,15 +6878,17 @@ export default function App() {
                       : tool === 'detail'
                         ? 'Valitse reunat tai vedä reunasta säätääksesi kokoa.'
                         : tool === 'knife'
-                          ? knifePicking
-                            ? 'Napsauta leikattua palaa: poista tai murenna ja heitä.'
-                            : knifeMode === 'free'
-                              ? 'Vedä viilto. Vapautus leikkaa.'
-                              : knifeMode === 'curve'
-                                ? 'Napsauta alku, kaksi ohjauspistettä ja loppu.'
-                                : knifeMode === 'polyline'
-                                  ? 'Napsauta reitin pisteet. Enter leikkaa.'
-                                  : 'Vedä leikkausviiva osien yli.'
+                          ? knifeImpactPicking
+                            ? 'Napsauta seinää: säädä osumakohta ja räjähdyksen suunta.'
+                            : knifePicking
+                              ? 'Napsauta leikattua palaa: poista tai murenna ja heitä.'
+                              : knifeMode === 'free'
+                                ? 'Vedä viilto. Vapautus leikkaa.'
+                                : knifeMode === 'curve'
+                                  ? 'Napsauta alku, kaksi ohjauspistettä ja loppu.'
+                                  : knifeMode === 'polyline'
+                                    ? 'Napsauta reitin pisteet. Enter leikkaa.'
+                                    : 'Vedä leikkausviiva osien yli.'
                           : tool === 'erase'
                             ? 'Napsauta pintojen jakoviivaa tai apuviivaa.'
                             : tool === 'boolean'
@@ -8750,6 +8766,11 @@ export default function App() {
               onFaceHover={(target) => {
                 hoveredFaceRef.current = target;
               }}
+              onImpactPick={
+                tool === 'knife' && knifeImpactPicking
+                  ? (target) => openFractureAt(target)
+                  : undefined
+              }
               onFaceTarget={(target) => {
                 if (editingBodyId && target.bodyId !== editingBodyId) return;
                 faceRef.current = target;
@@ -9805,15 +9826,19 @@ export default function App() {
                     <button
                       className="button outlined"
                       aria-pressed={!knifePicking}
-                      onClick={() => setKnifePicking(false)}
+                      onClick={() => {
+                        setKnifePicking(false);
+                        setKnifeImpactPicking(false);
+                      }}
                     >
                       Leikkaa
                     </button>
                     <button
                       className="button outlined"
-                      aria-pressed={knifePicking}
+                      aria-pressed={knifePicking && !knifeImpactPicking}
                       onClick={() => {
                         setKnifePicking(true);
+                        setKnifeImpactPicking(false);
                         setEditingBodyId(undefined);
                         setSelectedFace(undefined);
                         setKnifeCommand({ id: performance.now(), action: 'clear' });
@@ -9821,8 +9846,26 @@ export default function App() {
                     >
                       Valitse pala
                     </button>
+                    <button
+                      className="button outlined"
+                      aria-pressed={knifeImpactPicking}
+                      onClick={() => {
+                        setKnifeImpactPicking(true);
+                        setKnifePicking(true);
+                        setEditingBodyId(undefined);
+                        setSelectedFace(undefined);
+                        setKnifeCommand({ id: performance.now(), action: 'clear' });
+                      }}
+                    >
+                      Räjähdys
+                    </button>
                   </div>
-                  {knifePicking ? (
+                  {knifeImpactPicking ? (
+                    <p className="tool-consequence">
+                      Napsauta seinän tai muun osan pintaa. Säädä osumakohta ja palojen heittosuunta
+                      esikatselussa.
+                    </p>
+                  ) : knifePicking ? (
                     <>
                       <p className="tool-consequence">
                         Napsauta yhtä palaa mallissa. Voit poistaa sen tai murentaa ja heittää sen
@@ -11590,12 +11633,14 @@ export default function App() {
           source={fractureSource.body}
           mesh={fractureSource.mesh}
           launchDirection={fractureSource.launchDirection}
+          initialImpact={fractureSource.impact}
           meshes={editor.meshes}
           project={project}
           onClose={() => {
             if (fractureSource.launchDirection) {
               setTool('knife');
               setKnifePicking(true);
+              setKnifeImpactPicking(!!fractureSource.impact);
             }
             setFractureSource(undefined);
           }}

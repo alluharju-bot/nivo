@@ -11,6 +11,7 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
+  MeshBasicMaterial,
   PerspectiveCamera,
   PlaneGeometry,
   Raycaster,
@@ -41,6 +42,19 @@ export class FractureStage {
       opacity: 0.25,
       side: DoubleSide,
       depthWrite: false,
+    }),
+  );
+  private impact = new Mesh(
+    new BufferGeometry(),
+    new MeshBasicMaterial({
+      color: '#ff5648',
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+      side: DoubleSide,
     }),
   );
   private grid: GridHelper;
@@ -80,6 +94,7 @@ export class FractureStage {
       this.context,
       this.objects,
       this.region,
+      this.impact,
       this.launchArrow,
       this.gravityArrow,
     );
@@ -95,6 +110,7 @@ export class FractureStage {
       }
     }
     this.region.visible = false;
+    this.impact.visible = false;
     this.resetCamera();
     this.show(undefined, '#a49c8e');
     this.resize = new ResizeObserver(() => {
@@ -251,11 +267,19 @@ export class FractureStage {
     this.region.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), normal);
     this.region.scale.setScalar(Math.max(...box.size) * 1.4);
   }
+  setImpact(cutter?: { positions: number[]; indices: number[] }) {
+    this.impact.visible = !!cutter;
+    this.impact.geometry.dispose();
+    this.impact.geometry = new BufferGeometry();
+    if (!cutter) return;
+    this.impact.geometry.setAttribute('position', new Float32BufferAttribute(cutter.positions, 3));
+    this.impact.geometry.setIndex(cutter.indices);
+  }
   setGround(z?: number) {
     this.grid.visible = z !== undefined;
     if (z !== undefined) this.grid.position.z = z;
   }
-  setDirections(launch?: Vec3, gravity?: Vec3) {
+  setDirections(launch?: Vec3, gravity?: Vec3, origin?: Vec3) {
     const box = meshBounds(this.mesh),
       span = Math.max(...box.size, 100);
     const center = new Vector3(...box.center);
@@ -265,7 +289,7 @@ export class FractureStage {
     ] as const) {
       arrow.visible = !!direction && Math.hypot(...direction) > 0.001;
       if (!direction || !arrow.visible) continue;
-      arrow.position.copy(center);
+      arrow.position.copy(origin ? new Vector3(...origin) : center);
       arrow.setDirection(new Vector3(...direction).normalize());
       arrow.setLength(span * 0.7, span * 0.12, span * 0.07);
     }
@@ -304,6 +328,8 @@ export class FractureStage {
     this.clear(this.context);
     this.region.geometry.dispose();
     this.region.material.dispose();
+    this.impact.geometry.dispose();
+    this.impact.material.dispose();
     this.launchArrow.dispose();
     this.gravityArrow.dispose();
     this.grid.geometry.dispose();

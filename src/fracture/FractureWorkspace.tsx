@@ -7,6 +7,9 @@ import { fromBodyMesh, meshBounds } from '../surface/mesh';
 import { fractureObstacles, fragmentBodies, restPoses } from './project';
 import { FractureStage } from './FractureStage';
 import { DirectionControl } from './DirectionControl';
+import { RangeNumber } from './RangeNumber';
+import { impactCutter } from './impact';
+import type { ImpactRegion } from './types';
 import type { FractureReply, FractureRequest, FractureResult, Pose } from './types';
 import './fracture.css';
 
@@ -16,6 +19,7 @@ export default function FractureWorkspace({
   meshes,
   project,
   launchDirection,
+  initialImpact,
   onClose,
   onSave,
 }: {
@@ -24,6 +28,7 @@ export default function FractureWorkspace({
   meshes: BodyMesh[];
   project: Project;
   launchDirection?: Vec3;
+  initialImpact?: Pick<ImpactRegion, 'point' | 'normal'>;
   onClose: () => void;
   onSave: (bodies: Body[]) => Promise<boolean>;
 }) {
@@ -37,8 +42,15 @@ export default function FractureWorkspace({
   const [count, setCount] = useState(24),
     [seed, setSeed] = useState(1),
     [irregularity, setIrregularity] = useState(0.8);
-  const [local, setLocal] = useState(false),
-    [normal, setNormal] = useState<Vec3>([1, 0, 0]);
+  const [area, setArea] = useState<'whole' | 'end' | 'impact'>(initialImpact ? 'impact' : 'whole');
+  const local = area === 'end';
+  const [impact, setImpact] = useState(initialImpact);
+  const [diameter, setDiameter] = useState(Math.max(1, Math.min(600, Math.max(...box.size) * 0.3)));
+  const [through, setThrough] = useState(true);
+  const [impactDepth, setImpactDepth] = useState(100);
+  const [previewError, setPreviewError] = useState('');
+  const [normal, setNormal] = useState<Vec3>([1, 0, 0]);
+
   const [end, setEnd] = useState(box.max[0]),
     [depth, setDepth] = useState(Math.max(1, box.size[0] * 0.3));
   const [result, setResult] = useState<FractureResult>(),
@@ -82,6 +94,7 @@ export default function FractureWorkspace({
     setStarted(false);
     setSeconds(0);
     setAtLimit(false);
+    setPickingDirection(false);
     setError('');
   };
   pick.current = (n, point, sourceHit) => {
@@ -91,9 +104,16 @@ export default function FractureWorkspace({
       setPickingDirection(false);
       return;
     }
+    if (area === 'impact' && !result && sourceHit) {
+      invalidate();
+      setImpact({ point, normal: n });
+      setDirection(n.map((v) => -v) as Vec3);
+      setDirected(true);
+      return;
+    }
     if (!local || result || !sourceHit) return;
     invalidate();
-    setLocal(true);
+    setArea('end');
     setNormal(n);
     setEnd(new Vector3(...n).dot(new Vector3(...point)));
   };
@@ -131,14 +151,39 @@ export default function FractureWorkspace({
     stage.current?.setRegion(local && !result ? { normal, offset: end - depth } : undefined);
   }, [local, normal, end, depth, result]);
   useEffect(() => {
+    setPreviewError('');
+    if (area !== 'impact' || !impact || result) {
+      stage.current?.setImpact();
+      return;
+    }
+    try {
+      stage.current?.setImpact(
+        impactCutter(
+          input,
+          {
+            ...impact,
+            diameter,
+            depth: through ? undefined : impactDepth,
+          },
+          seed,
+          irregularity,
+        ),
+      );
+    } catch (e) {
+      stage.current?.setImpact();
+      setPreviewError((e as Error).message);
+    }
+  }, [area, impact, diameter, through, impactDepth, result, seed, irregularity, input]);
+  useEffect(() => {
     stage.current?.setGround(auxiliaryFloor ? ground - source.origin[2] : undefined);
   }, [ground, auxiliaryFloor]);
   useEffect(() => {
     stage.current?.setDirections(
       directed ? direction : undefined,
       gravityStrength ? gravityDirection : undefined,
+      area === 'impact' ? impact?.point : undefined,
     );
-  }, [directed, direction, gravityDirection, gravityStrength]);
+  }, [directed, direction, gravityDirection, gravityStrength, impact, area]);
   const post = (message: FractureRequest) => worker.current?.postMessage(message);
   const startWorker = () => {
     stopWorker();
@@ -194,6 +239,14 @@ export default function FractureWorkspace({
         seed: nextSeed,
         irregularity,
         region: local ? { normal, offset: end - depth } : undefined,
+        impact:
+          area === 'impact' && impact
+            ? {
+                ...impact,
+                diameter,
+                depth: through ? undefined : impactDepth,
+              }
+            : undefined,
       },
     });
   };
@@ -263,7 +316,9 @@ export default function FractureWorkspace({
     <dialog
       ref={dialog}
       className="fracture-dialog"
-      aria-label={launchDirection ? 'Murenna ja heitä' : 'Riko ja pudota'}
+      aria-label={
+        initialImpact ? 'Räjähdys' : launchDirection ? 'Murenna ja heitä' : 'Riko ja pudota'
+      }
       onCancel={(e) => {
         e.preventDefault();
         if (!saving) onClose();
@@ -271,7 +326,9 @@ export default function FractureWorkspace({
     >
       <header>
         <div>
-          <strong>{launchDirection ? 'Murenna ja heitä' : 'Riko ja pudota'}</strong>
+          <strong>
+            {initialImpact ? 'Räjähdys' : launchDirection ? 'Murenna ja heitä' : 'Riko ja pudota'}
+          </strong>
           <span>{source.name}</span>
         </div>
         <button aria-label="Sulje rikkominen" disabled={saving} onClick={onClose}>
@@ -297,9 +354,11 @@ export default function FractureWorkspace({
           <div className="fracture-caption">
             {result
               ? `${result.fragments.filter((p) => !p.fixed).length} irtopalaa${started ? ` · ${seconds.toFixed(1)} s` : ''}`
-              : local
-                ? 'Poimi rikottava pääty napsauttamalla pintaa. Vedä kiertääksesi näkymää.'
-                : 'Valittu osa murennetaan. Vedä kiertääksesi näkymää.'}
+              : area === 'impact'
+                ? 'Punainen alue murennetaan. Napsauta pintaa vaihtaaksesi osumakohtaa.'
+                : local
+                  ? 'Poimi rikottava pääty napsauttamalla pintaa. Vedä kiertääksesi näkymää.'
+                  : 'Valittu osa murennetaan. Vedä kiertääksesi näkymää.'}
           </div>
         </div>
         <aside>
@@ -312,10 +371,10 @@ export default function FractureWorkspace({
               <legend>Rikottava alue</legend>
               <div className="fracture-buttons">
                 <button
-                  aria-pressed={!local}
+                  aria-pressed={area === 'whole'}
                   onClick={() => {
                     invalidate();
-                    setLocal(false);
+                    setArea('whole');
                   }}
                 >
                   Koko osa
@@ -324,12 +383,69 @@ export default function FractureWorkspace({
                   aria-pressed={local}
                   onClick={() => {
                     invalidate();
-                    setLocal(true);
+                    setArea('end');
                   }}
                 >
                   Pääty
                 </button>
+                <button
+                  aria-pressed={area === 'impact'}
+                  onClick={() => {
+                    invalidate();
+                    setArea('impact');
+                    setDirected(true);
+                  }}
+                >
+                  Osumakohta
+                </button>
               </div>
+              {area === 'impact' && (
+                <>
+                  <small>
+                    {impact
+                      ? 'Napsauta esikatselun pintaa vaihtaaksesi osumakohtaa.'
+                      : 'Napsauta rikottavaa pintaa esikatselussa.'}
+                  </small>
+                  <RangeNumber
+                    label="Halkaisija (mm)"
+                    ariaLabel="Osumakohdan halkaisija"
+                    min={1}
+                    max={100000}
+                    sliderMax={Math.max(100, ...box.size)}
+                    value={diameter}
+                    onChange={(n) => {
+                      invalidate();
+                      setDiameter(n);
+                    }}
+                  />
+                  <label className="fracture-check">
+                    <input
+                      type="checkbox"
+                      checked={through}
+                      onChange={(e) => {
+                        invalidate();
+                        setThrough(e.target.checked);
+                      }}
+                    />
+                    Seinän läpi
+                  </label>
+                  {!through && (
+                    <RangeNumber
+                      label="Syvyys (mm)"
+                      ariaLabel="Osumakohdan syvyys"
+                      min={0.1}
+                      step={0.1}
+                      max={100000}
+                      sliderMax={Math.max(100, ...box.size)}
+                      value={impactDepth}
+                      onChange={(n) => {
+                        invalidate();
+                        setImpactDepth(n);
+                      }}
+                    />
+                  )}
+                </>
+              )}
               {local && (
                 <>
                   <label>
@@ -356,21 +472,19 @@ export default function FractureWorkspace({
                       )}
                     </select>
                   </label>
-                  <label>
-                    Syvyys (mm)
-                    <input
-                      aria-label="Rikkomisen syvyys"
-                      type="number"
-                      min="0.1"
-                      max="100000"
-                      step="1"
-                      value={depth}
-                      onChange={(e) => {
-                        invalidate();
-                        setDepth(Number(e.target.value));
-                      }}
-                    />
-                  </label>
+                  <RangeNumber
+                    label="Syvyys (mm)"
+                    ariaLabel="Rikkomisen syvyys"
+                    min={0.1}
+                    step={0.1}
+                    max={100000}
+                    value={depth}
+                    sliderMax={Math.max(100, ...box.size)}
+                    onChange={(n) => {
+                      invalidate();
+                      setDepth(n);
+                    }}
+                  />
                 </>
               )}
               {local && (
@@ -386,35 +500,30 @@ export default function FractureWorkspace({
                   Rosoinen murtoreuna
                 </label>
               )}
-              <label>
-                Palojen määrä
-                <input
-                  aria-label="Palojen määrä"
-                  type="number"
-                  min="2"
-                  max="80"
-                  value={count}
-                  onChange={(e) => {
-                    invalidate();
-                    setCount(Number(e.target.value));
-                  }}
-                />
-              </label>
-              <label>
-                Epäsäännöllisyys
-                <input
-                  aria-label="Epäsäännöllisyys"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={irregularity}
-                  onChange={(e) => {
-                    invalidate();
-                    setIrregularity(Number(e.target.value));
-                  }}
-                />
-              </label>
+              <RangeNumber
+                label="Palojen määrä"
+                ariaLabel="Palojen määrä"
+                min={2}
+                max={80}
+                step={1}
+                value={count}
+                onChange={(n) => {
+                  invalidate();
+                  setCount(n);
+                }}
+              />
+              <RangeNumber
+                label="Epäsäännöllisyys"
+                ariaLabel="Epäsäännöllisyys"
+                min={0}
+                max={1}
+                step={0.05}
+                value={irregularity}
+                onChange={(n) => {
+                  invalidate();
+                  setIrregularity(n);
+                }}
+              />
               <label>
                 Murtopinnan väri
                 <input
@@ -425,11 +534,16 @@ export default function FractureWorkspace({
                 />
               </label>
               <div className="fracture-buttons">
-                <button className="fracture-primary" onClick={() => generate()}>
+                <button
+                  className="fracture-primary"
+                  disabled={area === 'impact' && (!impact || !!previewError)}
+                  onClick={() => generate()}
+                >
                   Muodosta palat
                 </button>
                 <button
                   title="Vaihda rikkomiskuvion satunnaislukua"
+                  disabled={area === 'impact' && (!impact || !!previewError)}
                   onClick={() => {
                     setSeed(seed + 1);
                     generate(seed + 1);
@@ -445,17 +559,14 @@ export default function FractureWorkspace({
               <fieldset disabled={busy || saving || running}>
                 <legend>Palat</legend>
                 {!started && (
-                  <label>
-                    Esikatselun levitys
-                    <input
-                      type="range"
-                      min="0"
-                      max="0.5"
-                      step="0.01"
-                      value={spread}
-                      onChange={(e) => setSpread(Number(e.target.value))}
-                    />
-                  </label>
+                  <RangeNumber
+                    label="Esikatselun levitys"
+                    min={0}
+                    max={0.5}
+                    step={0.01}
+                    value={spread}
+                    onChange={setSpread}
+                  />
                 )}
                 <label className="fracture-check">
                   <input
@@ -502,43 +613,38 @@ export default function FractureWorkspace({
                           Käännä heitto
                         </button>
                       </div>
-                      <label>
-                        Nopeus (m/s)
-                        <input
-                          aria-label="Heiton nopeus"
-                          type="number"
-                          min="0"
-                          max="20"
-                          step="0.5"
-                          value={speed}
-                          onChange={(e) => setSpeed(Number(e.target.value))}
-                        />
-                      </label>
-                      <label>
-                        Hajonta °
-                        <input
-                          aria-label="Heiton hajonta"
-                          type="number"
-                          min="0"
-                          max="90"
-                          step="5"
-                          value={cone}
-                          onChange={(e) => setCone(Number(e.target.value))}
-                        />
-                      </label>
+                      <RangeNumber
+                        label="Nopeus (m/s)"
+                        ariaLabel="Heiton nopeus"
+                        min={0}
+                        max={20}
+                        step={0.1}
+                        value={speed}
+                        onChange={(n) => {
+                          setSpeed(n);
+                        }}
+                      />
+                      <RangeNumber
+                        label="Hajonta °"
+                        ariaLabel="Heiton hajonta"
+                        min={0}
+                        max={90}
+                        step={1}
+                        value={cone}
+                        onChange={(n) => {
+                          setCone(n);
+                        }}
+                      />
                     </>
                   ) : (
-                    <label>
-                      Tönäisy (m/s)
-                      <input
-                        type="number"
-                        min="0"
-                        max="3"
-                        step="0.1"
-                        value={kick}
-                        onChange={(e) => setKick(Number(e.target.value))}
-                      />
-                    </label>
+                    <RangeNumber
+                      label="Tönäisy (m/s)"
+                      min={0}
+                      max={3}
+                      step={0.1}
+                      value={kick}
+                      onChange={setKick}
+                    />
                   )}
                   <details className="fracture-gravity">
                     <summary>
@@ -549,18 +655,17 @@ export default function FractureWorkspace({
                       value={gravityDirection}
                       onChange={setGravityDirection}
                     />
-                    <label>
-                      Voimakkuus (m/s²)
-                      <input
-                        aria-label="Painovoiman voimakkuus"
-                        type="number"
-                        min="0"
-                        max="30"
-                        step="0.1"
-                        value={gravityStrength}
-                        onChange={(e) => setGravityStrength(Number(e.target.value))}
-                      />
-                    </label>
+                    <RangeNumber
+                      label="Voimakkuus (m/s²)"
+                      ariaLabel="Painovoiman voimakkuus"
+                      min={0}
+                      max={30}
+                      step={0.1}
+                      value={gravityStrength}
+                      onChange={(n) => {
+                        setGravityStrength(n);
+                      }}
+                    />
                     <button
                       onClick={() => {
                         setGravityDirection([0, 0, -1]);
@@ -579,16 +684,16 @@ export default function FractureWorkspace({
                     Apulattia
                   </label>
                   {auxiliaryFloor && (
-                    <label>
-                      Lattian korkeus Z (mm)
-                      <input
-                        type="number"
-                        min="-100000"
-                        max="100000"
-                        value={ground}
-                        onChange={(e) => setGround(Number(e.target.value))}
-                      />
-                    </label>
+                    <RangeNumber
+                      label="Lattian korkeus Z (mm)"
+                      min={-100000}
+                      max={100000}
+                      step={1}
+                      value={ground}
+                      sliderMin={Math.max(-100000, box.min[2] + source.origin[2] - 3000)}
+                      sliderMax={Math.min(100000, box.max[2] + source.origin[2] + 1000)}
+                      onChange={setGround}
+                    />
                   )}
                   <small>Näkyvät mallin osat toimivat törmäyspintoina.</small>
                 </fieldset>
@@ -622,7 +727,9 @@ export default function FractureWorkspace({
                 : `Muodostetaan paloja… ${Math.round(progress * 100)} %`}
             </p>
           )}
-          {(error || sceneError) && <p role="alert">{error || sceneError}</p>}
+          {(error || sceneError || previewError) && (
+            <p role="alert">{error || sceneError || previewError}</p>
+          )}
           {atLimit && (
             <p role="status">
               Simulaatio pysähtyi mallinnusalueen rajalle. Hyväksy nykyinen asento tai palauta

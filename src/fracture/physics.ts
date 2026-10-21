@@ -3,6 +3,9 @@ import { meshBounds } from '../surface/mesh';
 import type { Vec3 } from '../model/project';
 import type { FractureResult, FractureMotion, Obstacle, Pose } from './types';
 import { fragmentVelocity, validateMotion } from './motion';
+import { starCollider } from './collisionShape';
+import { BufferGeometry, Float32BufferAttribute } from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 let initialized: Promise<void> | undefined;
 /** The solver uses metres and Z-up. Render/export meshes remain in local millimetres. */
@@ -29,11 +32,11 @@ export async function createSimulation(
   world.timestep = motion ? 1 / 120 : 1 / 60;
   world.maxCcdSubsteps = 4;
   world.numSolverIterations = 8;
-  // The metre-scale default predicts contacts 20 mm ahead. In a flush cutout
-  // that creates false blocking contacts. CCD handles fast travel; contacts
-  // use modelling-scale tolerances and the clearance below.
-  world.integrationParameters.normalizedPredictionDistance = 0.0001;
-  world.integrationParameters.normalizedAllowedLinearError = 0.00005;
+  // The metre-scale default predicts contacts 20 mm ahead. Even 0.1 mm can
+  // jam an irregular flush cutout at grazing angles. Use micrometre prediction
+  // with sub-millimetre envelope clearance; CCD handles actual fast impacts.
+  world.integrationParameters.normalizedPredictionDistance = 0.000001;
+  world.integrationParameters.normalizedAllowedLinearError = 0.000001;
   const coordinates = (vertices: number[]) => new Float32Array(vertices.map((n) => n / 1000));
   try {
     const bounds = result.fragments.map((p) => meshBounds(p.mesh));
@@ -68,7 +71,9 @@ export async function createSimulation(
       const clearance = Math.min(0.2, Math.min(...bounds[i].size) * 0.001);
       const colliderScale = fragment.fixed ? 1 : 1 - clearance / Math.max(radius, 0.001);
       const vertices = new Float32Array(
-        fragment.mesh.positions.map((n, a) => ((n - center[a % 3]) / 1000) * colliderScale),
+        fragment.mesh.positions.map(
+          (n, a) => ((n - center[a % 3]) / 1000) * (fragment.convex ? colliderScale : 1),
+        ),
       );
       const description = (
         fragment.fixed ? RAPIER.RigidBodyDesc.fixed() : RAPIER.RigidBodyDesc.dynamic()
@@ -76,20 +81,40 @@ export async function createSimulation(
         .setTranslation(center[0] / 1000, center[1] / 1000, center[2] / 1000)
         .setCcdEnabled(true);
       const body = world.createRigidBody(description);
+      // Rendering duplicates vertices at material/normal seams. Collision shapes
+      // need a connected surface for adjacency and convex decomposition.
+      const geometry = new BufferGeometry().setAttribute(
+        'position',
+        new Float32BufferAttribute(vertices, 3),
+      );
+      geometry.setIndex(fragment.mesh.indices);
+      const welded = mergeVertices(geometry, 1e-7);
+      const collisionVertices = new Float32Array(welded.getAttribute('position').array);
+      const collisionIndices = new Uint32Array(welded.index!.array);
+      welded.dispose();
+      geometry.dispose();
       // Fixed remainder retains its openings. Dynamic pieces use convex collision envelopes.
       const collider = fragment.fixed
         ? RAPIER.ColliderDesc.trimesh(
-            vertices,
-            new Uint32Array(fragment.mesh.indices),
+            collisionVertices,
+            collisionIndices,
             RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES_TWO_SIDED,
           )
         : fragment.convex
           ? RAPIER.ColliderDesc.convexHull(vertices)
-          : RAPIER.ColliderDesc.convexDecomposition(
-              vertices,
-              new Uint32Array(fragment.mesh.indices),
-              { maxConvexHulls: 24, resolution: 20000, concavity: 0.01 },
-            );
+          : (starCollider(collisionVertices, collisionIndices, colliderScale) ??
+            RAPIER.ColliderDesc.convexDecomposition(
+              collisionVertices,
+              collisionIndices,
+              {
+                maxConvexHulls: 24,
+                // Rapier resolution is a grid side length, not a total voxel budget.
+                resolution: 48,
+                concavity: 0.001,
+                convexHullApproximation: false,
+              },
+              RAPIER.CompoundFlags.FIX_INTERNAL_EDGES,
+            ));
       if (!collider)
         throw new Error(
           'Yhdelle palalle ei saatu ehjää törmäysmuotoa. Kokeile suurempaa palakokoa.',

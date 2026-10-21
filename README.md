@@ -3,6 +3,29 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.57.0** lisää **Veitsi (N) → Räjähdys** -toiminnon.
+Napsauta seinän tai muun suljetun osan pintaa: punainen alue näyttää
+murennettavan kohdan. Säädä halkaisija ja valitse **Seinän läpi** tai oma
+syvyys. Osumakohtaa voi vaihtaa napsauttamalla esikatselun pintaa.
+**Koko osa** murentaa esimerkiksi koko seinän; **Pääty** rajaa päätyalueen.
+
+Valitse **Muodosta palat**, säädä heitto ja painovoima ja paina **Heitä palat**.
+Oletussuunta kulkee napsautetun pinnan sisään. Akselit, kulmat, pinnasta poiminta
+ja **Käännä heitto** muuttavat suuntaa. **Säilytä irtopalat** pois jättää vain
+vaurioituneen seinän. Tauota ja hyväksy, kun lopputulos on sopiva.
+
+Kaikissa murenemisen numeroasetuksissa on liukusäädin sekä tarkka numerokenttä:
+alueen koko/syvyys, palamäärä, epäsäännöllisyys, esikatselun levitys,
+heiton ja painovoiman kulmat, nopeus, hajonta, tönäisy sekä apulattian korkeus.
+Väri valitaan värivalitsimella, satunnaiskuvio **Uusi kuvio** -painikkeella.
+Rosoisten sirpaleiden törmäysmuotoja ja tiiviistä aukosta irtoamista on korjattu.
+
+Läpimenevän osuman syvyys haetaan napsautuskohdan ensimmäisestä takapinnasta,
+jotta saman osan vastakkainen huoneseinä säilyy. Epätasaisesti paksussa osassa
+voi tarvittaessa asettaa syvyyden itse. Nykyinen osuma on epäsäännöllinen
+suora leikkaustilavuus; paikallinen murtokartio ja materiaalien lujuusmalli
+ovat myöhempää kehitystä.
+
 Versio **0.56.0** tuo murenemisen **Veitsi (N)** -työkaluun.
 Leikkaa suora, kaari, vapaa viilto tai suljettu siluetti. Leikkauksen jälkeen
 napsauta haluamaasi palaa ja valitse **Poista pala** tai **Murenna ja heitä…**.
