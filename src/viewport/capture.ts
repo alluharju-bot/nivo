@@ -1,3 +1,13 @@
+/** Increase export detail without increasing the cost of the interactive viewport.
+ * Bound the extra allocation, but never reduce an already larger drawing buffer. */
+export function modelCaptureScale(width: number, height: number, maxDimension = 4096) {
+  if (width <= 0 || height <= 0) return 1;
+  return Math.max(
+    1,
+    Math.min(2, maxDimension / Math.max(width, height), Math.sqrt(8_000_000 / (width * height))),
+  );
+}
+
 /** Capture the drawing buffer immediately after rendering, before WebGL clears it.
  * Only persistent dimensions are composed over it; application chrome never enters the image. */
 export async function captureModelView(
@@ -7,6 +17,8 @@ export async function captureModelView(
 ) {
   if (!canvas.width || !canvas.height || !host.clientWidth || !host.clientHeight)
     throw new Error('Mallinnusnäkymä ei ole vielä valmis kuvattavaksi.');
+  const viewWidth = host.clientWidth,
+    viewHeight = host.clientHeight;
   const output = document.createElement('canvas');
   output.width = canvas.width;
   output.height = canvas.height;
@@ -14,8 +26,8 @@ export async function captureModelView(
   if (!ctx) throw new Error('Kuvan tallentaminen ei onnistu tässä selaimessa.');
   render();
   ctx.drawImage(canvas, 0, 0);
-  const scaleX = output.width / host.clientWidth,
-    scaleY = output.height / host.clientHeight;
+  const scaleX = output.width / viewWidth,
+    scaleY = output.height / viewHeight;
   const hostRect = host.getBoundingClientRect();
   ctx.scale(scaleX, scaleY);
   for (const label of host.querySelectorAll<HTMLElement>('.guide-label')) {
@@ -66,15 +78,17 @@ export async function captureModelView(
       ])
         (targets[i] as SVGElement).style.setProperty(property, style.getPropertyValue(property));
     });
-    copy.setAttribute('width', String(host.clientWidth));
-    copy.setAttribute('height', String(host.clientHeight));
+    if (!copy.hasAttribute('viewBox'))
+      copy.setAttribute('viewBox', `0 0 ${viewWidth} ${viewHeight}`);
+    copy.setAttribute('width', String(output.width));
+    copy.setAttribute('height', String(output.height));
     return new XMLSerializer().serializeToString(copy);
   });
   for (const svg of overlays) {
     const image = new Image();
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     await image.decode();
-    ctx.drawImage(image, 0, 0);
+    ctx.drawImage(image, 0, 0, viewWidth, viewHeight);
   }
   return new Promise<Blob>((resolve, reject) =>
     output.toBlob(

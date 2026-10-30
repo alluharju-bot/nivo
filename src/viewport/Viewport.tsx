@@ -11,7 +11,7 @@ import { createHoldLabels } from './holdLabels';
 import { markupSvg, updateMarkupSvg } from './markupSvg';
 import { createOpeningPreview } from './openingPreview';
 import { installKnife } from './knife';
-import { captureModelView } from './capture';
+import { captureModelView, modelCaptureScale } from './capture';
 import { createGuideAnnotation } from './guideAnnotation';
 import { installTextureEditing } from './textureEditing';
 import { bodyDisplayMode, bodyGhostOpacity } from '../model/display';
@@ -1830,31 +1830,51 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     capture: async () => {
       await materialLibrary.ready();
       if (disposed) throw new Error('Mallinnusnäkymä on suljettu.');
-      return captureModelView(renderer.domElement, container, () => {
-        renderNow();
-        const hidden = [
-          pickPreview,
-          locateHighlight.group,
-          scene.getObjectByName('interaction-overlays'),
-          scene.getObjectByName('geometry-editing-overlays'),
-          scene.getObjectByName('wear-brush-overlays'),
-          scene.getObjectByName('section-handles'),
-          scene.getObjectByName('light-direction-helper'),
-        ]
-          .filter((object): object is THREE.Object3D => !!object)
-          .map((object) => ({ object, visible: object.visible }));
-        try {
-          hidden.forEach(({ object }) => {
-            object.visible = false;
-          });
-          renderer.render(scene, camera);
-        } finally {
-          hidden.forEach(({ object, visible }) => {
-            object.visible = visible;
-          });
-          render();
-        }
-      });
+      const pixelRatio = renderer.getPixelRatio();
+      const gl = renderer.getContext();
+      const maxDimension = Math.min(
+        4096,
+        renderer.capabilities.maxTextureSize,
+        gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number,
+      );
+      const scale = modelCaptureScale(
+        renderer.domElement.width,
+        renderer.domElement.height,
+        maxDimension,
+      );
+      try {
+        renderer.setPixelRatio(pixelRatio * scale);
+        // captureModelView copies the pixels and overlays synchronously before decoding SVGs.
+        // Do not await it here: restore the interactive buffer before the next browser frame.
+        return captureModelView(renderer.domElement, container, () => {
+          renderNow();
+          const hidden = [
+            pickPreview,
+            locateHighlight.group,
+            scene.getObjectByName('interaction-overlays'),
+            scene.getObjectByName('geometry-editing-overlays'),
+            scene.getObjectByName('wear-brush-overlays'),
+            scene.getObjectByName('section-handles'),
+            scene.getObjectByName('light-direction-helper'),
+          ]
+            .filter((object): object is THREE.Object3D => !!object)
+            .map((object) => ({ object, visible: object.visible }));
+          try {
+            hidden.forEach(({ object }) => {
+              object.visible = false;
+            });
+            renderer.render(scene, camera);
+          } finally {
+            hidden.forEach(({ object, visible }) => {
+              object.visible = visible;
+            });
+            render();
+          }
+        });
+      } finally {
+        renderer.setPixelRatio(pixelRatio);
+        render();
+      }
     },
     motion: motionPreview.sync,
     animation: () => {

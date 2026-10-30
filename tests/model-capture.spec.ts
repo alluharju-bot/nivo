@@ -44,8 +44,20 @@ test('captures the current modeling view as PNG without changing the camera or p
   const image = await download;
   expect(image.suggestedFilename()).toMatch(/-nakyma\.png$/);
   const png = await readFile((await image.path())!);
-  expect(png.readUInt32BE(16)).toBe(size.width);
-  expect(png.readUInt32BE(20)).toBe(size.height);
+  // Export renders at higher resolution, while the live viewport keeps its original buffer.
+  const width = png.readUInt32BE(16),
+    height = png.readUInt32BE(20);
+  expect(width).toBeGreaterThan(size.width);
+  expect(height).toBeGreaterThan(size.height);
+  expect(width / height).toBeCloseTo(size.width / size.height, 2);
+  expect(Math.max(width, height)).toBeLessThanOrEqual(4096);
+  expect(width * height).toBeLessThanOrEqual(8_000_000);
+  expect(
+    await canvas.evaluate((c) => ({
+      width: (c as HTMLCanvasElement).width,
+      height: (c as HTMLCanvasElement).height,
+    })),
+  ).toEqual(size);
   expect(png.length).toBeGreaterThan(5000);
   await image.saveAs(info.outputPath('model-view.png'));
   const colors = await page.evaluate(async (base64) => {

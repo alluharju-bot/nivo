@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RenderSnapshot } from './snapshot';
 import { renderSnapshot, type RenderJobOptions, type RenderJobProgress } from './traceJob';
+import { downloadFile, safeFilename } from '../storage/projects';
 
 export type RenderJob = {
   state: 'working' | 'done' | 'cancelled' | 'error';
@@ -27,36 +28,46 @@ export function useRenderJob() {
     },
     [],
   );
-  const start = useCallback((snapshot: RenderSnapshot, options: RenderJobOptions, name: string) => {
-    if (controller.current) {
-      snapshot.dispose();
-      return;
-    }
-    clearImage();
-    const token = ++generation.current,
-      abort = new AbortController();
-    controller.current = abort;
-    setJob({ state: 'working', name });
-    void renderSnapshot(snapshot, options, abort.signal, (progress) => {
-      if (token === generation.current) setJob({ state: 'working', name, progress });
-    })
-      .then((blob) => {
-        if (token !== generation.current) return;
-        image.current = URL.createObjectURL(blob);
-        setJob((old) => ({ ...old!, state: 'done', blob, image: image.current }));
+  const start = useCallback(
+    (
+      snapshot: RenderSnapshot,
+      options: RenderJobOptions,
+      name: string,
+      downloadWhenReady = false,
+    ) => {
+      if (controller.current) {
+        snapshot.dispose();
+        return;
+      }
+      clearImage();
+      const token = ++generation.current,
+        abort = new AbortController();
+      controller.current = abort;
+      setJob({ state: 'working', name });
+      void renderSnapshot(snapshot, options, abort.signal, (progress) => {
+        if (token === generation.current) setJob({ state: 'working', name, progress });
       })
-      .catch((error: Error) => {
-        if (token !== generation.current) return;
-        setJob((old) => ({
-          ...old!,
-          state: error.name === 'AbortError' ? 'cancelled' : 'error',
-          error: error.message,
-        }));
-      })
-      .finally(() => {
-        if (token === generation.current) controller.current = undefined;
-      });
-  }, []);
+        .then((blob) => {
+          if (token !== generation.current) return;
+          image.current = URL.createObjectURL(blob);
+          setJob((old) => ({ ...old!, state: 'done', blob, image: image.current }));
+          if (downloadWhenReady)
+            downloadFile(blob, `${safeFilename(name)}-render.png`, 'image/png');
+        })
+        .catch((error: Error) => {
+          if (token !== generation.current) return;
+          setJob((old) => ({
+            ...old!,
+            state: error.name === 'AbortError' ? 'cancelled' : 'error',
+            error: error.message,
+          }));
+        })
+        .finally(() => {
+          if (token === generation.current) controller.current = undefined;
+        });
+    },
+    [],
+  );
   const cancel = () => controller.current?.abort();
   const dismiss = () => {
     if (controller.current) return;

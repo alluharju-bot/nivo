@@ -58,7 +58,12 @@ type Props = {
     color: string,
     sampled?: boolean,
   ) => Promise<boolean>;
-  onStartRender: (snapshot: RenderSnapshot, options: RenderJobOptions, name: string) => void;
+  onStartRender: (
+    snapshot: RenderSnapshot,
+    options: RenderJobOptions,
+    name: string,
+    downloadWhenReady?: boolean,
+  ) => void;
   renderJobActive: boolean;
   bodies: Body[];
   meshes: BodyMesh[];
@@ -488,6 +493,25 @@ export function RenderStage(props: Props) {
     try {
       const blob = await api.current.exportPNG(width);
       downloadFile(blob, `${safeFilename(props.name)}.png`, 'image/png');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
+  const startImageRender = async (samples: number, downloadWhenReady = false) => {
+    if (!api.current || exporting || props.renderJobActive) return;
+    setExporting(true);
+    setError('');
+    try {
+      api.current.trace.release();
+      const snapshot = await api.current.capture();
+      props.onStartRender(
+        snapshot,
+        { width, samples, denoise: traceOptions.denoise },
+        props.name,
+        downloadWhenReady,
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -1221,25 +1245,28 @@ export function RenderStage(props: Props) {
                       </button>
                       <button
                         className="button dark full"
-                        disabled={trace.samples < 1}
+                        disabled={
+                          busy ||
+                          exporting ||
+                          !bodies.length ||
+                          !!textureDraft ||
+                          props.renderJobActive ||
+                          trace.samples < 1
+                        }
                         onClick={() => {
-                          void api.current?.trace
-                            .exportPNG()
-                            .then((blob) =>
-                              downloadFile(
-                                blob,
-                                `${safeFilename(props.name)}-render.png`,
-                                'image/png',
-                              ),
-                            )
-                            .catch((e) => setError(e.message));
+                          // Keep at least the preview's accumulated sample count and the
+                          // export target, and calculate real detail at the selected width.
+                          void startImageRender(
+                            Math.min(4096, Math.max(jobSamples, Math.ceil(trace.samples))),
+                            true,
+                          );
                         }}
                       >
                         Tallenna tarkentuva kuva PNG
                       </button>
                       <p className="muted">
-                        Kamera- ja materiaalimuutokset aloittavat tarkennuksen uudelleen. Kuva
-                        tallentuu näkymän kokoisena.
+                        PNG lasketaan alla valitulla kuvan leveydellä ja ladataan valmistuttuaan.
+                        Voit jatkaa mallintamista laskennan aikana.
                       </p>
                     </>
                   )}
@@ -1312,23 +1339,7 @@ export function RenderStage(props: Props) {
                   disabled={
                     busy || exporting || !bodies.length || !!textureDraft || props.renderJobActive
                   }
-                  onClick={async () => {
-                    setExporting(true);
-                    try {
-                      api.current?.trace.release();
-                      const snapshot = await api.current?.capture();
-                      if (snapshot)
-                        props.onStartRender(
-                          snapshot,
-                          { width, samples: jobSamples, denoise: traceOptions.denoise },
-                          props.name,
-                        );
-                    } catch (e) {
-                      setError((e as Error).message);
-                    } finally {
-                      setExporting(false);
-                    }
-                  }}
+                  onClick={() => void startImageRender(jobSamples)}
                 >
                   {exporting
                     ? 'Valmistellaan kuvaa…'

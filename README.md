@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.57.1** tarkentaa PNG-tallennuksia. **Tallenna näkymä PNG** renderöi
+mallinnusnäkymän ja mitat tavallisesti kaksinkertaisella pikselitarkkuudella;
+lisätarkkuus lasketaan vain tallennettaessa ja kuvakokoa rajataan muistin säästämiseksi.
+**Tallenna tarkentuva kuva PNG** laskee kuvan valitulla leveydellä
+(oletuksena 2 400 px) ja lataa PNG:n automaattisesti valmistuttuaan.
+Mallintamista voi jatkaa kuvan laskennan aikana.
+
 Versio **0.57.0** lisää **Veitsi (N) → Räjähdys** -toiminnon.
 Napsauta seinän tai muun suljetun osan pintaa: punainen alue näyttää
 murennettavan kohdan. Säädä halkaisija ja valitse **Seinän läpi** tai oma
