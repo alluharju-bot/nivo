@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { needsReflectionGuides } from './reflectionGuides';
 
-it('omits the unused guide for matte paint and transmission but retains glossy and mapped regions', () => {
+it('omits the unused guide for matte paint but retains clear glass, glossy and mapped regions', () => {
   const scene = new THREE.Scene(),
     material = new THREE.MeshPhysicalMaterial({ roughness: 0.55 });
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(), material);
@@ -13,7 +13,10 @@ it('omits the unused guide for matte paint and transmission but retains glossy a
     material.roughness = 0.1;
     expect(needsReflectionGuides(scene)).toBe(true);
     material.transmission = 0.9;
+    expect(needsReflectionGuides(scene)).toBe(true);
+    material.roughness = 0.5;
     expect(needsReflectionGuides(scene)).toBe(false);
+    material.roughness = 0.1;
     material.transmissionMap = map;
     expect(needsReflectionGuides(scene)).toBe(true);
     material.transmission = 0;

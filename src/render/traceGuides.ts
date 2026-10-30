@@ -29,6 +29,9 @@ export type DenoiseGuides = {
   /** Ray-integrated geometric normal XY and view depth (metres). Matches the
    * actual subpixel coverage, unlike the raster guide's centre sample. */
   coverage?: THREE.Texture;
+  /** Secondary surface/background features. Albedo alpha: 0 unresolved,
+   * 1 reflection, 2 includes transmission. Normal alpha is path distance in
+   * metres, or 0 for background/environment. */
   reflection?: { albedo: THREE.Texture; normal: THREE.Texture };
 };
 

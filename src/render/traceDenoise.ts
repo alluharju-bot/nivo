@@ -69,6 +69,19 @@ export function traceDenoise() {
         return exp(-distance * distance);
       }
       float nivoLuminance(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+      float inverseDepthSlope(float center, float before, float after) {
+        if (before <= 0.0 && after <= 0.0) return 0.0;
+        float a = before > 0.0 ? 1.0 / center - 1.0 / before : 1e20;
+        float b = after > 0.0 ? 1.0 / after - 1.0 / center : 1e20;
+        return abs(a) < abs(b) ? a : b;
+      }
+      float transmissionDepthDelta(vec2 offset, float depth, float center, vec2 slope) {
+        if (depth <= 0.0 || center <= 0.0) return depth == center ? 0.0 : 1e10;
+        // Virtual path distance varies smoothly across a slanted surface.
+        // Compare to its local inverse-distance slope, not a front-facing plane.
+        float expected = 1.0 / center + dot(offset, slope);
+        return (1.0 / depth - expected) / (0.02 / center);
+      }
       vec3 reflectance(vec2 uv) {
         if (!useGuides) return vec3(1.0);
         vec4 a = texture2D(albedoMap, uv);
@@ -146,6 +159,19 @@ export function traceDenoise() {
         vec2 rightUv = clamp(vUv + vec2(pixel.x, 0.0), pixel * 0.5, 1.0 - pixel * 0.5);
         vec2 downUv = clamp(vUv - vec2(0.0, pixel.y), pixel * 0.5, 1.0 - pixel * 0.5);
         vec2 upUv = clamp(vUv + vec2(0.0, pixel.y), pixel * 0.5, 1.0 - pixel * 0.5);
+        vec4 secondaryAlbedo = lobe == 2 && useReflection ? texture2D(reflectionAlbedo, vUv) : vec4(0.0);
+        vec4 secondaryNormal = secondaryAlbedo.a > 0.5 ? texture2D(reflectionNormal, vUv) : vec4(0.0);
+        bool transmitted = secondaryAlbedo.a > 1.5;
+        vec2 secondarySlope = vec2(0.0);
+        if (transmitted && secondaryNormal.a > 0.0) {
+          secondarySlope = vec2(
+            inverseDepthSlope(secondaryNormal.a,
+              leftUv.x < vUv.x ? texture2D(reflectionNormal, leftUv).a : 0.0,
+              rightUv.x > vUv.x ? texture2D(reflectionNormal, rightUv).a : 0.0),
+            inverseDepthSlope(secondaryNormal.a,
+              downUv.y < vUv.y ? texture2D(reflectionNormal, downUv).a : 0.0,
+              upUv.y > vUv.y ? texture2D(reflectionNormal, upUv).a : 0.0));
+        }
         float dl = texture2D(normalMap, leftUv).a, dr = texture2D(normalMap, rightUv).a;
         float dd = texture2D(normalMap, downUv).a, du = texture2D(normalMap, upUv).a;
         bool rightSide = leftUv.x > vUv.x - pixel.x * 0.25 ||
@@ -164,6 +190,21 @@ export function traceDenoise() {
         // Preserve the accumulated coverage, flag it through the filter pyramid,
         // and exclude it from later interior filtering (negative variance).
         bool coverage = stepSize > 1.0 && center.a < 0.0;
+        bool transmissionEdge = false;
+        if (stepSize == 1.0 && transmitted) {
+          vec4 a0 = secondaryAlbedo, n0 = secondaryNormal;
+          // A center ray cannot describe subpixel coverage at a refracted
+          // seam/silhouette. Keep those pixels' accumulated antialiasing;
+          // guides may smooth noise only inside the resolved virtual surface.
+          for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+            vec2 uv = clamp(vUv + vec2(float(x), float(y)) * pixel, pixel * 0.5, 1.0 - pixel * 0.5);
+            vec4 a1 = texture2D(reflectionAlbedo, uv), n1 = texture2D(reflectionNormal, uv);
+            vec3 da = a1.rgb - a0.rgb, dn = n1.rgb - n0.rgb;
+            float depth = transmissionDepthDelta((uv - vUv) / pixel, n1.a, n0.a, secondarySlope);
+            if (a1.a < 1.5 || dot(da, da) > 0.0018 || dot(dn, dn) > 0.008 || abs(depth) > 1.0)
+              transmissionEdge = true;
+          }
+        }
         if (useGuides && stepSize == 1.0) {
           for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
             vec2 uv = clamp(vUv + vec2(float(i), float(j)) * pixel, pixel * 0.5, vec2(1.0) - pixel * 0.5);
@@ -171,8 +212,8 @@ export function traceDenoise() {
             if (surfaceWeight(uv, depth, normal.a, position, geometricNormal) < 0.05) coverage = true;
           }
         }
-        if (coverage) {
-          if(stepSize == 1.0 && useCoverage && useVariance)
+        if (coverage || transmissionEdge) {
+          if(stepSize == 1.0 && !transmissionEdge && useCoverage && useVariance)
             center.rgb = filterCoverage(pixel) / reflectance(vUv);
           gl_FragColor = vec4(center.rgb, finalPass ? texture2D(originalMap, vUv).a : -1.0);
           if (finalPass) gl_FragColor.rgb *= reflectance(vUv);
@@ -183,7 +224,7 @@ export function traceDenoise() {
         float y0 = max(nivoLuminance(center.rgb), 0.0);
         float confidence = useGuides ? albedo.a : 0.0;
         if (lobe == 1) confidence = 1.0;
-        bool reflected = lobe == 2 && useReflection && texture2D(reflectionAlbedo, vUv).a > 0.5;
+        bool reflected = secondaryAlbedo.a > 0.5;
         if (reflected) confidence = 0.55;
         // Measured uncertainty, not sample count, controls edge stopping. A
         // quiet surface retains lighting detail while sparse bright noise needs
@@ -247,11 +288,13 @@ export function traceDenoise() {
             weight *= exp(-dot(n.rgb - normal.rgb, n.rgb - normal.rgb) / 0.008);
             weight *= surfaceWeight(uv, n.a, normal.a, position, geometricNormal);
             if (reflected) {
-              vec4 a0 = texture2D(reflectionAlbedo, vUv), a1 = texture2D(reflectionAlbedo, uv);
-              vec4 n0 = texture2D(reflectionNormal, vUv), n1 = texture2D(reflectionNormal, uv);
+              vec4 a0 = secondaryAlbedo, a1 = texture2D(reflectionAlbedo, uv);
+              vec4 n0 = secondaryNormal, n1 = texture2D(reflectionNormal, uv);
               vec3 da = a1.rgb - a0.rgb, dn = n1.rgb - n0.rgb;
-              float depth = (n1.a - n0.a) / max(0.001, n0.a * 0.02);
-              weight *= a1.a * exp(-dot(da,da) / 0.0018 - dot(dn,dn) / 0.008 - depth*depth);
+              float depth = transmitted
+                ? transmissionDepthDelta((uv - vUv) / pixel, n1.a, n0.a, secondarySlope)
+                : (n1.a - n0.a) / max(0.001, n0.a * 0.02);
+              weight *= step(0.5, a1.a) * exp(-dot(da,da) / 0.0018 - dot(dn,dn) / 0.008 - depth*depth);
             }
           }
           sum += sampleColor * weight; total += weight; varianceSum += weight * weight * max(v0, v1);
@@ -310,7 +353,8 @@ export function traceDenoise() {
           const image = map.image as { width: number; height: number };
           // Five à-trous scales reuse two buffers. Carry uncertainty along with
           // radiance so later passes retain genuine light/shadow boundaries.
-          // Mirrors and glass use only the conservative first scale.
+          // Unresolved mirrors/glass use only the conservative first scale;
+          // resolved secondary guides allow the first three scales.
           intermediate ??= [0, 1].map(
             () =>
               new THREE.WebGLRenderTarget(image.width, image.height, {

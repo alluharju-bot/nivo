@@ -13,16 +13,16 @@ export function needsReflectionGuides(scene: THREE.Scene) {
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     needed = materials.some((material) => {
       const m = material as THREE.MeshPhysicalMaterial;
-      if (!m.visible || ((m.transmission ?? 0) > 0.05 && !m.transmissionMap)) return false;
+      if (!m.visible) return false;
       return typeof m.roughness !== 'number' || m.roughness < 0.4 || !!m.roughnessMap;
     });
   });
   return needed;
 }
 
-/** Center-ray features beyond a glossy surface, using the very same BVH,
- * textures and normal maps as the integrator. Evaluated once per settled view.
- * Transmission, silhouettes and unresolved chains stay conservatively filtered. */
+/** Center-ray features beyond glossy surfaces and clear glass, using the same
+ * BVH, textures, normals and refraction indices as the integrator. Evaluated
+ * once per settled view; rough glass and unresolved chains remain conservative. */
 export function reflectionGuides() {
   let target: THREE.WebGLRenderTarget | undefined;
   let material: THREE.ShaderMaterial | undefined;
@@ -79,13 +79,33 @@ export function reflectionGuides() {
               rng_initialize(gl_FragCoord.xy, 0);
               sobolPixelIndex = (uint(gl_FragCoord.x) << 16) | uint(gl_FragCoord.y);
               sobolPathIndex = 0u;
+              envRotation3x3 = mat3(environmentRotation);
               Ray ray = getCameraRay();
               RenderState state = initRenderState();
               float distance = 0.0;
               int surfaces = 0;
-              for (int i = 0; i < 8; i++) {
+              int reflections = 0;
+              bool transmitted = false;
+              for (int i = 0; i < 24; i++) {
                 SurfaceHit hit;
-                if (traceScene(ray, state.fogMaterial, hit) == NO_HIT) return;
+                if (traceScene(ray, state.fogMaterial, hit) == NO_HIT) {
+                  // Pure transmission sees the visible background; a reflected
+                  // path sees the lighting environment. They can be different.
+                  if (transmitted) {
+                    vec3 direction = envRotation3x3 * ray.direction;
+                    vec3 color = environmentIntensity * sampleEquirectColor(envMapInfo.map, direction);
+                    #if FEATURE_BACKGROUND_MAP
+                      if (reflections == 0)
+                        color = backgroundIntensity * sampleEquirectColor(backgroundMap,
+                          mat3(backgroundRotation) * ray.direction);
+                    #endif
+                    // Keep HDR gradients in the same bounded feature range as
+                    // surface albedo; this is a guide, never the displayed light.
+                    gl_FragColor = vec4(color / (vec3(1.0) + color), 2.0);
+                    nivoDiffuseOutput = vec4(ray.direction * 0.5 + 0.5, 0.0);
+                  }
+                  return;
+                }
                 uint index = uTexelFetch1D(materialIndexAttribute, hit.faceIndices.x).r;
                 Material m = readMaterialInfo(materials, index);
                 SurfaceRecord surf;
@@ -93,17 +113,39 @@ export function reflectionGuides() {
                   ray.origin = stepRayOrigin(ray.origin, ray.direction, -hit.faceNormal, hit.dist);
                   continue;
                 }
-                if (surf.volumeParticle || surf.transmission > 0.05) return;
+                if (surf.volumeParticle) return;
                 distance += hit.dist;
+                if (surf.transmission > 0.05) {
+                  // A center ray is only a reliable feature for clear glass.
+                  // Follow both faces of each pane rather than using its flat
+                  // front surface as the guide for everything visible behind it.
+                  if (surf.transmission < 0.5 || surf.roughness >= 0.04) return;
+                  vec3 direction = refract(ray.direction, surf.normal, surf.eta);
+                  if (dot(direction, direction) < 1e-8) {
+                    direction = reflect(ray.direction, surf.normal);
+                    if (++reflections > 3) return;
+                  } else {
+                    if (surf.thinFilm)
+                      direction = -refract(-direction, -surf.normal, 1.0 / surf.eta);
+                    if (dot(direction, direction) < 1e-8) return;
+                    transmitted = true;
+                  }
+                  bool below = dot(direction, surf.faceNormal) < 0.0;
+                  ray.origin = stepRayOrigin(ray.origin, ray.direction,
+                    below ? -surf.faceNormal : surf.faceNormal, hit.dist);
+                  ray.direction = normalize(direction);
+                  surfaces++;
+                  continue;
+                }
                 // Material roughness is squared in SurfaceRecord.
                 if (surfaces == 0 && surf.roughness >= 0.16) return;
                 if (surfaces > 0 && (surf.metalness < 0.5 || surf.roughness >= 0.16)) {
-                  gl_FragColor = vec4(surf.color, 1.0);
+                  gl_FragColor = vec4(surf.color, transmitted ? 2.0 : 1.0);
                   vec3 n = transpose(mat3(cameraWorldMatrix)) * surf.normal;
                   nivoDiffuseOutput = vec4(n * 0.5 + 0.5, distance * 0.001);
                   return;
                 }
-                if (surfaces >= 3) return;
+                if (++reflections > 3) return;
                 ray.origin = stepRayOrigin(ray.origin, ray.direction, surf.faceNormal, hit.dist);
                 ray.direction = normalize(reflect(ray.direction, surf.normal));
                 surfaces++;

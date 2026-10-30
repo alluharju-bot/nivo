@@ -169,12 +169,26 @@ test('emission and spot controls persist, and progressive rendering accumulates 
     .toBeGreaterThanOrEqual(1);
   await page.getByRole('button', { name: 'Tauota renderöinti', exact: true }).click();
   await expect(page.getByTestId('trace-status')).toContainText('Tauolla');
+  const canvas = page.getByTestId('render-canvas');
+  const samples = await canvas.getAttribute('data-trace-samples');
+  const rendered = await canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL());
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Tallenna tarkentuva kuva PNG' }).click();
-  expect((await readFile((await (await pending).path())!)).subarray(0, 8).toString('hex')).toBe(
-    '89504e470d0a1a0a',
-  );
+  const saved = await readFile((await (await pending).path())!);
+  expect(saved.equals(Buffer.from(rendered.split(',')[1], 'base64'))).toBe(true);
+  await expect(page.getByTestId('trace-status')).toContainText('Tauolla');
+  await expect(canvas).toHaveAttribute('data-trace-samples', samples!);
+  expect(await canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL())).toBe(rendered);
+  await expect(
+    page.getByRole('complementary', { name: 'Kuvan renderöinti', exact: true }),
+  ).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('progressive-render.png') });
+  await page.getByRole('button', { name: 'Jatka renderöintiä', exact: true }).click();
+  await expect
+    .poll(async () => Number(await canvas.getAttribute('data-trace-samples')), {
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(Number(samples));
   await page.getByRole('button', { name: 'Nopea', exact: true }).click();
   await page.getByRole('button', { name: 'Takaisin malliin', exact: true }).click();
   expect(errors).toEqual([]);

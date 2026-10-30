@@ -58,12 +58,7 @@ type Props = {
     color: string,
     sampled?: boolean,
   ) => Promise<boolean>;
-  onStartRender: (
-    snapshot: RenderSnapshot,
-    options: RenderJobOptions,
-    name: string,
-    downloadWhenReady?: boolean,
-  ) => void;
+  onStartRender: (snapshot: RenderSnapshot, options: RenderJobOptions, name: string) => void;
   renderJobActive: boolean;
   bodies: Body[];
   meshes: BodyMesh[];
@@ -499,19 +494,27 @@ export function RenderStage(props: Props) {
       setExporting(false);
     }
   };
-  const startImageRender = async (samples: number, downloadWhenReady = false) => {
+  const saveProgressiveImage = async () => {
+    if (!api.current || exporting) return;
+    setExporting(true);
+    setError('');
+    try {
+      const blob = await api.current.trace.exportPNG();
+      downloadFile(blob, `${safeFilename(props.name)}-render.png`, 'image/png');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
+  const startImageRender = async (samples: number) => {
     if (!api.current || exporting || props.renderJobActive) return;
     setExporting(true);
     setError('');
     try {
       api.current.trace.release();
       const snapshot = await api.current.capture();
-      props.onStartRender(
-        snapshot,
-        { width, samples, denoise: traceOptions.denoise },
-        props.name,
-        downloadWhenReady,
-      );
+      props.onStartRender(snapshot, { width, samples, denoise: traceOptions.denoise }, props.name);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -1253,20 +1256,13 @@ export function RenderStage(props: Props) {
                           props.renderJobActive ||
                           trace.samples < 1
                         }
-                        onClick={() => {
-                          // Keep at least the preview's accumulated sample count and the
-                          // export target, and calculate real detail at the selected width.
-                          void startImageRender(
-                            Math.min(4096, Math.max(jobSamples, Math.ceil(trace.samples))),
-                            true,
-                          );
-                        }}
+                        onClick={() => void saveProgressiveImage()}
                       >
                         Tallenna tarkentuva kuva PNG
                       </button>
                       <p className="muted">
-                        PNG lasketaan alla valitulla kuvan leveydellä ja ladataan valmistuttuaan.
-                        Voit jatkaa mallintamista laskennan aikana.
+                        Tallentaa jo lasketun kuvan näkymän tarkkuudella. Tarkennus ja kertyneet
+                        näytteet säilyvät. Suuremman kuvan voit laskea erikseen alla.
                       </p>
                     </>
                   )}
