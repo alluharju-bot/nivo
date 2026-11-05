@@ -4,6 +4,35 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## Renderin auditointi 5.11.2026 — ei tuotantomoottorin muutosta
+
+- Nykyinen `trace-fidelity-harness` ajettiin näkyvällä Chromiumilla,
+  ANGLE Metal Renderer / Apple M1 Pro. 256 × 256 px, 8 pomppua, sama kamera
+  ja materiaali; 64, 256, 1024 ja 4096 näytteen raakakuvat, suodatetut kuvat
+  sekä rasteriesikatselu tallennettiin. Tammi, kromi, kromin puuheijastus
+  ja karheampi puuheijastus: ei GL-virheitä.
+- 4096 näytteen suodatetun kuvan suhteellinen RMS-ero saman näytemäärän
+  raakakuvaan keskialueella: tammi 1,16 %, kromi 0,077 %, puuheijastus
+  0,62 %, karheampi heijastus 0,43 %. Vaakasuunnan vierekkäisten pikselien
+  erotusten energia suhteessa raakakuvaan: 97,63 %, 100,02 %, 99,79 % ja
+  99,17 %. Tämä on rajattu yksityiskohtamittari, ei yleinen laatuprosentti.
+- 256 näytteen tammikuvan virhe 4096 näytteen raakavertailuun pieneni
+  kohinanpoistolla 3,81 %:sta 1,19 %:iin. Pieni testi ei kumoa käyttäjän
+  havaintoa sisätiloista, pienistä saumoista tai suurista näytöistä.
+- 2K-tammitekstuurin siirtotesti yhdellä ja 39 tekstuurilla: suhteellinen
+  virhe noin 0,0097 %, yksityiskohtamittari noin 99,98 %. Atlasbudjetti
+  pysyi 128 MiB:ssä. Tämä ei mittaa suurten projektien koko renderiketjua.
+- Headless-ajossa tuli shader-virheitä ja WebGL-kontekstin menetys.
+  Sen tuloksia ei käytetty laatu- tai nopeuspäätelmiin. Näkyvän selaimen
+  vertailu onnistui. Pienen kuvan ajoaikoja ei yleistetä huonemalliin.
+- Esikatselun lähdekoodista varmistettu raja: 3 MP / enintään 2560 px sivu.
+  Mallinnusnäkymä voi käyttää suurempaa piirtoresoluutiota. Kuvan viennillä
+  on erillinen valittu resoluutio. Muistirajaa ei muutettu tässä auditissa.
+- Cycles/OIDN ja Eevee tutkittu. Selain-OIDN sekä riippuvuuden WebGPU-polku
+  tunnistettu prototyyppivaihtoehdoiksi; niitä ei integroitu tai nopeusmitattu.
+- Kuvat ja mittarit paikallisesti `/private/tmp/nivo-render-compare-hardware/`.
+  Julkaistun v0.57.4:n neljä mittasyöttökoetta hyväksytty myös Pagesia vasten.
+
 ## V0.57.4 — näyttönäppäimistö ei irrota mittakenttää
 
 - Vika toistettu ennen korjausta: tabletin näkymä 1280 × 752 → 1280 × 400

@@ -2,6 +2,34 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## Seuraava renderipassi — mallinnusnäkymän tarkkuus säilytettävä
+
+Suunniteltu 5.11.2026. Käyttäjän havainto: mallinnusnäkymän pinnat ja reunat
+näyttävät renderiä paremmilta; renderin hyöty jää valaistukseen. Auditointi
+ja rajatut vertailut tehty, seuraavat moottorimuutokset vielä toteuttamatta:
+
+- Sama kamera, materiaalit, valotus ja todellinen pikselikoko vertailuun:
+  rasteriesikatselu, raakatrace ja kohinanpoisto. Sisätila LED-valoilla,
+  puunsyyt, laattasaumat, kromi, peili ja lasi hyväksymiskohteiksi.
+- Esikatselun 3 MP / 2560 px raja voi tehdä renderistä mallinnusnäkymää
+  epätarkemman. Näytteet eivät korjaa tätä. Ratkaise lopullinen näyttötarkkuus
+  yhdessä GPU-muistin kanssa; älä vain poista rajaa aiempien kaatumisten jälkeen.
+- Mittaa kohinanpoiston GPU-aika erikseen valonlaskennasta. Nykyinen suodatin
+  käsittelee diffuusin ja heijastuvan valon viidellä mittakaavalla.
+- Prototypoi Open Image Denoise HDR-, albedo- ja normaalikuvilla nykyisen
+  suodattimen rinnalla. Säilytä terävät reunat, syyt ja pintastruktuuri.
+- Arvioi riippuvuudessa jo oleva WebGPUPathTracer/OIDNDenoiser erillään
+  tuotantopolusta. Varmista materiaalikerrokset, läpäisevyys, LEDit ja vienti.
+  WebGPU ei yksin takaa nopeutta tai RTX-kiihdytystä.
+- Mittaa Mac, Windows/RTX ja Android-tabletti; säilytä toimiva varapolku.
+  Eeveen ajallista uudelleenkäyttöä ja nopeaa valaistusesikatselua voi
+  hyödyntää kameran liikkuessa. Kuvanlaatua ei korvata sumennuksella.
+
+Lähteet: [Cycles/OIDN](https://github.com/blender/blender/blob/main/intern/cycles/integrator/denoiser_oidn_gpu.cpp),
+[Eevee](https://github.com/blender/blender/blob/main/source/blender/draw/engines/eevee/eevee_raytrace.cc),
+[selaimen OIDN](https://github.com/pissang/oidn-webgpu/blob/main/docs/web.md),
+[renderikirjaston WebGPU-rajapinta](https://github.com/gkjohnson/three-gpu-pathtracer/blob/master/src/webgpu/API.md).
+
 ## V0.57.4 — tabletin mittasyöttö ja näyttönäppäimistö
 
 - Asettelu valitaan leveyden perusteella. Näyttönäppäimistön madaltama
