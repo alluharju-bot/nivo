@@ -956,7 +956,8 @@ export default function App() {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [mobileStart, setMobileStart] = useState(
     () =>
-      matchMedia('(pointer: coarse)').matches &&
+      compact &&
+      matchMedia('(any-pointer: coarse)').matches &&
       localStorage.getItem('nivo-mobile-start') !== 'off' &&
       !matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches &&
       !(navigator as Navigator & { standalone?: boolean }).standalone,
@@ -7277,18 +7278,18 @@ export default function App() {
           <Search size={16} />
           <span className="command-search-label">Hae</span>
         </button>
-        {compact && (
-          <IconButton
-            label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
-            aria-pressed={fullscreen}
-            onClick={() => {
-              if (fullscreenSupported) void toggleFullscreen();
-              else setMobileStart(true);
-            }}
-          >
-            {fullscreen ? <Minimize /> : <Maximize />}
-          </IconButton>
-        )}
+        <IconButton
+          className="fullscreen-toggle"
+          label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
+          aria-pressed={fullscreen}
+          onClick={() => {
+            setHeaderMenuOpen(false);
+            if (fullscreenSupported) void toggleFullscreen();
+            else setMobileStart(true);
+          }}
+        >
+          {fullscreen ? <Minimize /> : <Maximize />}
+        </IconButton>
         <button
           className="icon-button header-menu-toggle"
           aria-label="Lisää toimintoja"
@@ -7543,16 +7544,6 @@ export default function App() {
                   {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
                 </IconButton>
               </>
-            )}
-            {!compact && (
-              <IconButton
-                label={fullscreen ? 'Poistu koko näytöstä' : 'Siirry koko näyttöön'}
-                disabled={!document.fullscreenEnabled}
-                aria-pressed={fullscreen}
-                onClick={() => void toggleFullscreen()}
-              >
-                {fullscreen ? <Minimize /> : <Maximize />}
-              </IconButton>
             )}
             <IconButton label="Käyttöohje" onClick={() => setHelp(true)}>
               <CircleHelp />
@@ -11421,7 +11412,7 @@ export default function App() {
         </Suspense>
       )}
       {shareOpen && <ProjectShare project={project} onClose={() => setShareOpen(false)} />}
-      {compact && mobileStart && (
+      {mobileStart && (
         <MobileStart
           supported={fullscreenSupported}
           onFullscreen={toggleFullscreen}

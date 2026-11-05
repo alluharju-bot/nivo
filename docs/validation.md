@@ -1,8 +1,30 @@
-# Validointi — 21.10.2026
+# Validointi — 5.11.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
+
+## V0.57.3 — tabletin tiiviimpi käyttöliittymä
+
+- Tabletin kosketusnäkymät 1280 × 752 ja 800 × 1232 CSS-pikseliä,
+  puhelimen pysty-/vaakanäkymät sekä hiirikäyttö 320–1680 px leveyksillä.
+  Chromiumin emulointi; fyysistä Samsung S7 -tablettia ei testattu.
+- 1280 px tabletissa yläpalkki 48 px, vasen palkki 72 px ja ominaisuudet
+  236 px. Piirtoalue 972 × 676 aiemman 900 × 655 sijasta. 800 px tabletissa
+  piirtoalue 752 px leveä; 248 px ominaisuuspaneeli avautuu sen päälle.
+- Uudet neljä selainkoetta: koko näytön painikkeen koko kosketusalue pysyy
+  ikkunassa, lisäkomennot avautuvat valikosta, muotovalikko toimii,
+  pystyasennon molemmat paneelit avautuvat, mittatyökalun tila säilyy
+  käännettäessä, kaikki neljä työkalupalkin sijaintia toimivat ja hiiridesktopin
+  palkkien perusmitat säilyvät. Päivitetty aiempi yläpalkkitesti.
+- **14 tuotantobuildin selainkoetta hyväksytty /nivo/-polulla**: edellisten
+  lisäksi puhelimen piirto → mittasyöttö → hyväksyntä, peruminen, työkalun
+  vaihto, kahden sormen navigointi, koko näytön fallback, projektin jakaminen,
+  renderipaneelin avaus sekä leveän tabletin kosketuspiirto. Kehitysbuildin
+  yläpalkkitesti tarkistettu myös tabletin omalla testiprofiililla.
+- TypeScript, tuotantobuild, Prettier ja diff tarkistettu. Tarkistuskuvat
+  katsottu sekä pysty- että vaakanäkymästä. Mallinnuksen geometrialaskentaa
+  tai tallennusmuotoa ei muutettu tässä korjauksessa.
 
 ## V0.57.0 — Räjähdys seinän pinnasta
 

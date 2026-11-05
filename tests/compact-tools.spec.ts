@@ -33,14 +33,18 @@ async function save(page: Page): Promise<Project> {
 test('one compact header, native fullscreen and narrow-screen actions', async ({ page }, info) => {
   await ready(page, [makeBody(400, 300, 40)]);
   const header = (await page.getByRole('banner').boundingBox())!;
-  expect(header.height).toBe(60);
-  expect((await page.getByTestId('viewport').boundingBox())!.y).toBe(60);
+  const touch = await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches);
+  expect(header.height).toBe(touch ? 48 : 60);
+  expect((await page.getByTestId('viewport').boundingBox())!.y).toBe(header.height);
+  await page.getByRole('button', { name: 'Lisää toimintoja', exact: true }).click();
   await page.getByRole('button', { name: 'Käyttöohje', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(
     await page.evaluate(() => !!document.elementFromPoint(20, 20)?.closest('.guide-backdrop')),
   ).toBe(true);
   await page.getByRole('button', { name: 'Sulje ohje', exact: true }).click();
+  if (!(await page.locator('#header-controls').isVisible()))
+    await page.getByRole('button', { name: 'Lisää toimintoja', exact: true }).click();
   for (const name of [
     'Malli',
     'Mittakuva',

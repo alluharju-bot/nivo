@@ -2,6 +2,22 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.57.3 — enemmän mallinnustilaa tabletilla
+
+- Kosketusnäytön palkit noin 20 % tiiviimmät: yläpalkki 60 → 48 px,
+  työkalupalkki 90 → 72 px, ominaisuuspaneeli 290 → 236 px. Myös mallilistan,
+  kuution, tilarivin ja painikkeiden välit tiivistetty. Numerokentät säilyvät
+  luettavina; työkalupainikkeet vähintään 44 × 44 px.
+- Pystyasentoinen tabletti (enintään 1000 px) käyttää avattavaa
+  ominaisuuspaneelia. 800 px leveässä näkymässä piirtoalue on 752 px leveä.
+- Koko näytön painike pysyy näkyvissä myös puhelimessa ja kapeassa
+  tietokoneikkunassa. Yläpalkin lisäkomennot avataan nykyisellä Lisää
+  toimintoja -painikkeella ennen kuin ne leikkautuisivat ikkunan ulkopuolelle.
+- Kaikki neljä työkalupalkin sijaintia, tabletin kääntäminen, kosketuspiirto,
+  mittasyöttö sekä selaimen koko näytön tilaan meno ja siitä poistuminen
+  tarkistettu Chromium-emuloinnissa. Fyysisen Samsung S7:n tarkistus jää
+  käyttäjän laitteelle.
+
 ## V0.57.0 — seinästä poimittu räjähdys ja liukusäätimet
 
 - Veitsi → Räjähdys: napsauta pintaa. Paikallinen epäsäännöllinen leikkaustilavuus,

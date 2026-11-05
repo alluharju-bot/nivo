@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 
 // Narrow windows also benefit from drawers. A mouse retains immediate acceptance.
-const query = '(max-width: 760px), (max-height: 540px) and (pointer: coarse)';
+// Portrait tablets need an overlay inspector as well: a 290px dock consumes
+// almost half of an 800px canvas. Wide tablets retain the ordinary workspace.
+const query =
+  '(max-width: 760px), (max-width: 1000px) and (any-pointer: coarse), (max-height: 540px) and (any-pointer: coarse)';
 export function useMobileWorkspace() {
   const [compact, setCompact] = useState(() => matchMedia(query).matches);
   useEffect(() => {

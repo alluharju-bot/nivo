@@ -3,6 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.57.3** tiivistää tabletin käyttöliittymää noin viidenneksellä.
+Vaakanäkymässä yläpalkki on 48 px, työkalupalkki 72 px ja ominaisuuspaneeli
+236 px. Pystyasennossa ominaisuudet avataan mallin päälle tarvittaessa.
+**Koko näyttö** pysyy yläpalkissa näkyvissä; muut yläpalkin komennot löytyvät
+kapeammissa ikkunoissa **Lisää toimintoja** -valikosta. Työkalupainikkeet,
+mallilista ja näkymäkuutio vievät vähemmän tilaa. Mittojen syöttökentät
+säilyvät luettavina, ja mallin piirtoalue kasvaa.
+
 Versio **0.57.2** palauttaa **Tallenna tarkentuva kuva PNG** -painikkeen tallentamaan
 jo lasketun kuvan. Tallennus säilyttää näkymän, näytteet ja taukotilan.
 Suuremman kuvan laskenta käynnistetään erikseen **Laske tarkka kuva** -painikkeella.

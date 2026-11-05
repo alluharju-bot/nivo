@@ -321,7 +321,9 @@ export function ToolRail({
                   title={t.shortcut ? `${t.label} (${t.shortcut})` : t.label}
                 >
                   {t.icon}
-                  <span>{t.label}</span>
+                  <span>
+                    {t.id === 'paint' ? 'Maalaa' : t.id === 'extrude' ? 'Push/pull' : t.label}
+                  </span>
                   {t.shortcut && <kbd>{t.shortcut}</kbd>}
                 </button>
               )}

@@ -1,0 +1,293 @@
+/* Fullscreen is a primary action, never part of the overflow menu. */
+.app-header > .fullscreen-toggle {
+  flex-shrink: 0;
+}
+.app-header .project-heading {
+  min-width: 0;
+}
+
+/* The complete command row needs more width than the old 1000px breakpoint.
+   Keep each command reachable in the existing menu instead of clipping it. */
+@media (max-width: 1560px) {
+  .app-shell[data-compact='false'] .header-menu-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .app-shell[data-compact='false'] .header-controls {
+    display: none;
+  }
+  .app-shell[data-compact='false'] .header-controls.is-open {
+    display: flex;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 8px;
+    width: min(320px, calc(100vw - 16px));
+    max-height: calc(100dvh - 80px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--paper);
+    box-shadow: 0 8px 30px #18382b26;
+  }
+  .app-shell[data-compact='false'] .header-controls .header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-shell[data-compact='false'] .header-controls .header-actions > .icon-button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 10px;
+  }
+  .app-shell[data-compact='false'] .header-controls .icon-button-label {
+    display: inline;
+    font-size: 12px;
+  }
+  .app-shell[data-compact='false'] .header-controls .history-controls {
+    flex-wrap: wrap;
+  }
+  .app-shell[data-compact='false'] .header-controls .history-controls .icon-button-label {
+    display: none;
+  }
+  .app-shell[data-compact='false'] .header-controls .download-project::after {
+    content: 'Tallenna tiedosto';
+    font-size: 12px;
+  }
+  .app-shell[data-compact='false'] .header-controls .viewport-settings-panel {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    width: min(340px, calc(100vw - 24px));
+    max-height: calc(100dvh - 84px);
+    overflow-y: auto;
+  }
+}
+
+/* About 80% of the former tablet chrome. Keep text readable and tool buttons
+   at least 44px; reduce spacing before reducing text. */
+@media (any-pointer: coarse) and (max-width: 1400px) {
+  .app-shell[data-compact] .app-header {
+    height: 48px;
+    padding-inline: 8px;
+    gap: 6px;
+  }
+  .app-shell[data-compact] .app-header > .icon-button {
+    width: 40px;
+    min-width: 40px;
+    height: 44px;
+    flex: 0 0 40px;
+  }
+  .app-header > .icon-button svg {
+    width: 17px;
+    height: 17px;
+  }
+  .app-header .brand > img {
+    width: 24px;
+    height: 24px;
+  }
+  .app-header .brand > span {
+    font-size: 24px;
+  }
+  .app-header .mode-switch {
+    padding: 2px;
+    gap: 0;
+  }
+  .app-header .mode-switch button {
+    min-height: 40px;
+    padding-inline: 10px;
+    gap: 5px;
+    font-size: 11px;
+  }
+  .app-header .mode-switch button svg {
+    width: 15px;
+    height: 15px;
+  }
+  .app-header .command-search-label {
+    display: none;
+  }
+  .workspace[data-dock] {
+    --rail: 72px;
+    --properties: 236px;
+  }
+  .workspace[data-dock='left'] {
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+  }
+  .workspace[data-dock='left'].panel-open {
+    grid-template-columns: var(--rail) minmax(0, 1fr) var(--properties);
+  }
+  .tool-rail {
+    padding: 4px;
+    gap: 1px;
+  }
+  .tool-grip {
+    min-height: 20px;
+  }
+  .tool-button {
+    width: 52px;
+    min-height: 46px;
+    padding: 3px 0;
+    gap: 2px;
+  }
+  .tool-button > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .tool-button > span {
+    font-size: 9px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .tool-button > kbd {
+    display: none;
+  }
+  .rail-section {
+    margin-top: 1px;
+    padding: 3px 0 1px;
+    font-size: 8px;
+  }
+  .measure-tool {
+    width: 64px;
+  }
+  .tool-button > .shape-chevron {
+    top: 15px;
+  }
+  .canvas-topbar {
+    top: 8px;
+    left: 10px;
+    right: 10px;
+    gap: 5px;
+  }
+  .canvas-topbar .icon-button,
+  .canvas-topbar .display-controls button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+  }
+  .canvas-topbar .view-actions {
+    gap: 3px;
+  }
+  .canvas-topbar .projection-button {
+    min-height: 40px;
+    padding-inline: 6px;
+    gap: 4px;
+    font-size: 10px;
+  }
+  .canvas-area .view-cube {
+    right: 10px;
+    transform: scale(0.8);
+    transform-origin: top right;
+  }
+  .canvas-area .model-browser {
+    width: 224px;
+  }
+  .canvas-area:has(.model-browser[data-expanded='true']) .guide-actions,
+  .canvas-area:has(.model-browser[data-expanded='true']) .section-notice {
+    left: 240px;
+    max-width: calc(100% - 256px);
+  }
+  .inspector .panel-title,
+  .inspector .tool-context {
+    padding: 14px 14px 10px;
+  }
+  .inspector .panel-title h2 {
+    font-size: 16px;
+    margin-top: 4px;
+  }
+  .inspector .selection-info,
+  .inspector .panel-description,
+  .inspector .tool-fields,
+  .inspector .inspector-shape-mode,
+  .inspector .inspector-reference {
+    padding-inline: 14px;
+  }
+  .inspector .tool-fields {
+    gap: 11px;
+  }
+  .inspector .tool-inspector > .tool-fields {
+    padding-block: 10px 14px;
+  }
+  .inspector .apply-actions {
+    padding: 14px 14px 8px;
+  }
+  .inspector .panel-footer {
+    padding: 12px 14px;
+  }
+  .render-workspace {
+    grid-template-columns: minmax(0, 1fr) 236px;
+  }
+  .drawing-studio {
+    grid-template-columns: minmax(0, 1fr) 236px;
+  }
+  .render-panel,
+  .drawing-controls {
+    padding: 14px;
+  }
+  .app-shell .status-bar {
+    height: 28px;
+    min-height: 28px;
+    padding-inline: 8px;
+  }
+
+  /* Narrow tablets use the existing drawers. Landscape keeps the side panel. */
+  .app-shell[data-compact='true'] .app-header {
+    height: 44px;
+    gap: 3px;
+    padding-inline: 6px;
+  }
+  .app-shell[data-compact='true'] .app-header > .icon-button {
+    height: 40px;
+  }
+  .app-shell[data-compact='true'] .mobile-workspace-select {
+    min-height: 40px;
+    width: 94px;
+  }
+  .app-shell[data-compact='true'] .header-controls.is-open {
+    top: calc(100% + 4px);
+  }
+  .app-shell[data-compact='true'] .workspace[data-dock],
+  .app-shell[data-compact='true'] .workspace[data-dock].panel-open {
+    --rail: 48px;
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .app-shell[data-compact='true'] .tool-rail {
+    padding: 3px 1px;
+    gap: 1px;
+  }
+  .app-shell[data-compact='true'] .tool-button,
+  .app-shell[data-compact='true'] .measure-tool,
+  .app-shell[data-compact='true'] .measure-tool .tool-button {
+    width: 44px;
+    min-height: 44px;
+  }
+  .app-shell[data-compact='true'] .tool-button > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .app-shell[data-compact='true'] .workspace > .inspector {
+    width: min(248px, calc(100% - 60px));
+  }
+  .app-shell[data-compact='true'] .model-browser {
+    width: min(248px, calc(100% - 12px));
+  }
+  .app-shell[data-compact='true'] .mobile-panel-close {
+    padding: 4px 12px;
+  }
+  .app-shell[data-compact='true'] .mobile-canvas-actions {
+    padding: 4px 6px;
+  }
+  .app-shell[data-compact='true'] .canvas-area .guide-actions,
+  .app-shell[data-compact='true'] .canvas-area .section-notice {
+    left: 8px;
+    max-width: calc(100% - 16px);
+  }
+  .app-shell[data-compact='true'] .drawing-studio {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+}
