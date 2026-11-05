@@ -5,7 +5,7 @@ import { WebGLPathTracer, GradientEquirectTexture } from 'three-gpu-pathtracer';
 import { configureTraceEnvironment } from './traceJob';
 import { configureEmitterSampling } from './emitterSampling';
 import { traceResources } from './traceResources';
-import { traceResolutions } from './traceResolution';
+import { traceResolutions, tracePreviewLimits } from './traceResolution';
 import { traceImage } from './traceImage';
 import { traceGuides } from './traceGuides';
 import { reflectionGuides } from './reflectionGuides';
@@ -73,6 +73,12 @@ export function progressiveRenderer(
   let preparation = new AbortController();
   const waiting = traceWaitWatchdog();
   const diagnostics = traceDiagnostics();
+  const limits = tracePreviewLimits({
+    coarsePointer: matchMedia('(pointer: coarse)').matches,
+    deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    floatBlend: renderer.extensions.has('EXT_float_blend'),
+    maxTextureSize: renderer.capabilities.maxTextureSize,
+  });
   const previousShaderError = renderer.debug.onShaderError;
   const shaderError: NonNullable<typeof previousShaderError> = (gl, program, vertex, fragment) => {
     const message = [
@@ -122,7 +128,7 @@ export function progressiveRenderer(
   };
   const resolutions = () => {
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-    return traceResolutions(size.x, size.y);
+    return traceResolutions(size.x, size.y, limits);
   };
   const quality = () => {
     if (!tracer || !resources) return;
@@ -136,6 +142,15 @@ export function progressiveRenderer(
     renderer.domElement.dataset.traceSize = `${size.width}x${size.height}`;
     renderer.domElement.dataset.traceResolutionStep = String(resolution);
     renderer.domElement.dataset.traceResolutionSteps = String(sizes.length);
+    const native = renderer.getDrawingBufferSize(new THREE.Vector2());
+    renderer.domElement.dataset.traceNativeSize = `${native.x}x${native.y}`;
+    renderer.domElement.dataset.traceResolutionLimited = String(sizes.at(-1)!.scale < 1);
+    renderer.domElement.dataset.traceTargetBudgetBytes = String(
+      limits.pixelBudget * limits.bytesPerPixel,
+    );
+    renderer.domElement.dataset.traceEstimatedTargetBytes = String(
+      size.width * size.height * limits.bytesPerPixel,
+    );
     guides.invalidate();
     reflections.invalidate();
     needsSize = false;
@@ -218,10 +233,22 @@ export function progressiveRenderer(
     tracer.filterGlossyFactor = 0;
     tracer.textureSize.set(1024, 1024);
   };
+  const updateQueueTimings = () => {
+    const data = renderer.domElement.dataset;
+    data.traceGpuMs = queue.milliseconds.toFixed(2);
+    data.traceGpuTimer = String(queue.timerAvailable);
+    const timings = JSON.stringify(queue.timings);
+    if (data.traceStageTimings !== timings) data.traceStageTimings = timings;
+  };
   const loop = () => {
     if (disposed || !enabled || !tracer) return;
     frame = requestAnimationFrame(loop);
     if (document.hidden || paused || complete) {
+      try {
+        if (queue.ready()) updateQueueTimings();
+      } catch (error) {
+        fail(error);
+      }
       waiting.reset();
       return;
     }
@@ -307,11 +334,13 @@ export function progressiveRenderer(
       let submitted = 0;
       for (let tile = 0; tile < queue.tiles; tile++) {
         const before = tracer.samples;
+        image.invalidateSource();
         tracer.renderSample();
         submitted++;
         const samples = Math.floor(tracer.samples);
         if (samples > Math.floor(before)) {
-          image.observe(renderer, tracer.target, samples);
+          const completedTarget = tracer.target;
+          queue.measure('presentation', () => image.observe(renderer, completedTarget, samples));
           // Denoising is a display cost, not a cost per path-tracing sample.
           // Keep the first, each refinement boundary and the final image exact.
           const boundary = samples === (resolution === 0 ? 4 : refinementSamples);
@@ -322,8 +351,10 @@ export function progressiveRenderer(
             samples === options.maxSamples ||
             performance.now() - lastPresented >= 80
           ) {
-            image.capture(renderer, tracer.target, samples);
-            present();
+            queue.measure('presentation', () => {
+              image.capture(renderer, completedTarget, samples);
+              present();
+            });
             diagnostics.firstFrame();
             lastPresented = performance.now();
             renderer.domElement.dataset.tracePresentedSamples = String(samples);
@@ -358,8 +389,7 @@ export function progressiveRenderer(
       }
       renderer.domElement.dataset.traceBatchTiles = String(submitted);
       queue.submit(submitted);
-      renderer.domElement.dataset.traceGpuMs = queue.milliseconds.toFixed(2);
-      renderer.domElement.dataset.traceGpuTimer = String(queue.timerAvailable);
+      updateQueueTimings();
       if (!complete && performance.now() - lastStatus > 400) {
         status(image.ready ? 'rendering' : 'loading');
         lastStatus = performance.now();

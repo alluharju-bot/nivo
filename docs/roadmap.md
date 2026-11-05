@@ -2,22 +2,47 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.57.5 — renderin näyttötarkkuus ja kuvan välimuisti
+
+- Työpöydän tarkentuva kuva etenee näytön todelliseen piirtoresoluutioon,
+  kun se mahtuu laitekohtaisesti rajattuun kuvamuistiin. Tavallinen 4K ja
+  Retina mahtuvat työpöydän budjettiin; tabletin ja vähämuistisen laitteen
+  raja on pienempi. Tekstuurikokoraja ja geometriabudjetti eivät muutu.
+- Valmiista näytteestä säilytetään tarkka float32-raakakuva ja suodatettu
+  näyttökuva. Diffuusi- ja geometriakanavia ei enää kopioida uudelleen koko
+  näytön kokoisiksi: kohinanpoisto lukee ne valmiin näytteen rajalla.
+- Valotuksen/kuvatyylin vaihto käyttää suodatettua välimuistia. Keskeneräistä
+  laskentalaattaa ei näytetä. Tarkkuusvaiheen vanha kuva poistuu kokonaan
+  kahdeksan uuden näytteen jälkeen eikä osallistu valon kertymiseen.
+- GPU-aikamittaus erottaa valonlaskennan ja kuvan käsittelyn. Ilman
+  ajastinlaajennusta CPU-lähetysaika ilmoitetaan erikseen; sitä ei esitetä
+  GPU-aikana. Renderin vianmääritysraportissa myös todellinen tarkkuus ja
+  kuvamuistin laskennallinen budjetti.
+- Selain-OIDN-prototyyppi testattu omilla HDR/albedo/normaali-kuvilla.
+  Rajatussa testissä puun tulos ei ollut yksiselitteisesti parempi kuin
+  nykyisen suodattimen. Uutta riippuvuutta tai oletussuodatinta ei siksi
+  lisätty tuotantoon. WebGPU-renderipolku ja sisätilojen laajempi OIDN-vertailu
+  jäävät seuraavaan vaiheeseen.
+
 ## Seuraava renderipassi — mallinnusnäkymän tarkkuus säilytettävä
 
 Suunniteltu 5.11.2026. Käyttäjän havainto: mallinnusnäkymän pinnat ja reunat
 näyttävät renderiä paremmilta; renderin hyöty jää valaistukseen. Auditointi
-ja rajatut vertailut tehty, seuraavat moottorimuutokset vielä toteuttamatta:
+ja rajatut vertailut tehty. Näyttötarkkuus, kuvan välimuisti, ajoitusmittaus
+ja ensimmäinen OIDN-vertailu toteutettu v0.57.5:ssä; alla säilyy laajempi suunnitelma:
 
 - Sama kamera, materiaalit, valotus ja todellinen pikselikoko vertailuun:
   rasteriesikatselu, raakatrace ja kohinanpoisto. Sisätila LED-valoilla,
   puunsyyt, laattasaumat, kromi, peili ja lasi hyväksymiskohteiksi.
-- Esikatselun 3 MP / 2560 px raja voi tehdä renderistä mallinnusnäkymää
-  epätarkemman. Näytteet eivät korjaa tätä. Ratkaise lopullinen näyttötarkkuus
-  yhdessä GPU-muistin kanssa; älä vain poista rajaa aiempien kaatumisten jälkeen.
-- Mittaa kohinanpoiston GPU-aika erikseen valonlaskennasta. Nykyinen suodatin
-  käsittelee diffuusin ja heijastuvan valon viidellä mittakaavalla.
-- Prototypoi Open Image Denoise HDR-, albedo- ja normaalikuvilla nykyisen
-  suodattimen rinnalla. Säilytä terävät reunat, syyt ja pintastruktuuri.
+- Auditissa löydetty aiempi 3 MP / 2560 px raja korjattu v0.57.5:ssä
+  muistibudjetin puitteissa. Jatka laitekohtaista muistivarmennusta;
+  lisänäytteet eivät korvaa puuttuvia pikseleitä.
+- GPU-mittaus erottaa nyt kuvan käsittelyn valonlaskennasta. Hyödynnä sitä
+  seuraavissa optimoinneissa; suodatin käsittelee diffuusin ja heijastuvan
+  valon viidellä mittakaavalla.
+- Selain-OIDN:n pieni HDR/albedo/normaali-vertailu tehty. Laajenna se
+  sisätiloihin ja suurempiin kuviin ennen mahdollista integraatiota.
+  Säilytä terävät reunat, syyt ja pintastruktuuri.
 - Arvioi riippuvuudessa jo oleva WebGPUPathTracer/OIDNDenoiser erillään
   tuotantopolusta. Varmista materiaalikerrokset, läpäisevyys, LEDit ja vienti.
   WebGPU ei yksin takaa nopeutta tai RTX-kiihdytystä.

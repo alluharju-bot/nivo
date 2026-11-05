@@ -68,12 +68,14 @@ export function exerciseTraceImage() {
   }
 }
 
-/** The real three-attachment path must copy every output. Geometry coverage
- * belongs to the new pixel footprint, even while coarse radiance fades out. */
+/** Complete-frame cache stays exact while a later GPU tile changes all three
+ * live attachments; switching display controls must not expose that partial tile. */
 export function exerciseTraceImageChannels() {
-  const renderer = new THREE.WebGLRenderer();
+  const renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true });
   renderer.setSize(8, 8);
-  const source = new THREE.WebGLRenderTarget(2, 2, {
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
+  const source = new THREE.WebGLRenderTarget(4, 4, {
     count: 3,
     type: THREE.FloatType,
     depthBuffer: false,
@@ -88,7 +90,7 @@ export function exerciseTraceImageChannels() {
       layout(location=1) out vec4 diffuse;
       layout(location=2) out vec4 coverage;
       void main(){
-        gl_FragColor=next?vec4(0,0,1,1):vec4(1,0,0,1);
+        gl_FragColor=next?vec4(0,0,1,1):vec4(1.234567,0,0,1);
         diffuse=next?vec4(0,0,0.5,1):vec4(0.25,0,0,1);
         coverage=next?vec4(-0.5,0.75,6,1):vec4(0.25,-0.5,1.25,1);
       }`,
@@ -96,32 +98,59 @@ export function exerciseTraceImageChannels() {
   const quad = new FullScreenQuad(material),
     image = traceImage();
   const setTarget = renderer.setRenderTarget.bind(renderer);
-  let copied: Parameters<typeof renderer.setRenderTarget>[0] = null;
+  let cached: Parameters<typeof renderer.setRenderTarget>[0] = null;
   renderer.setRenderTarget = (target, ...rest) => {
-    if (target && target !== source) copied = target;
+    if (target && target !== source) cached = target;
     setTarget(target, ...rest);
   };
-  const sample = (size: number, next: boolean, count: number) => {
-    source.setSize(size, size);
+  const paint = (next: boolean) => {
     material.uniforms.next.value = next;
     renderer.setRenderTarget(source);
     quad.render(renderer);
     renderer.setRenderTarget(null);
-    image.capture(renderer, source, count);
-    const channels = [0, 1, 2].map((index) => {
-      const pixels = new Float32Array(4);
-      renderer.readRenderTargetPixels(copied!, 0, 0, 1, 1, pixels, undefined, index);
-      return [...pixels];
-    });
-    return { channels, weight: image.historyWeight, error: renderer.getContext().getError() };
+  };
+  const screen = (smooth = false) => {
+    image.draw(renderer, smooth);
+    const p = new Uint8Array(4),
+      gl = renderer.getContext();
+    gl.readPixels(4, 4, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
+    return [...p];
   };
   try {
-    const initial = sample(2, false, 8);
-    const first = sample(4, true, 1);
-    const complete = sample(4, true, 8);
-    image.clear();
-    const reset = sample(2, false, 1);
-    return { initial, first, complete, reset };
+    paint(false);
+    image.capture(renderer, source, 8);
+    const raw = new Float32Array(4);
+    renderer.readRenderTargetPixels(cached!, 0, 0, 1, 1, raw);
+    const attachments = cached!.textures.length;
+    const channels = [0, 1, 2].map((index) => {
+      const p = new Float32Array(4);
+      renderer.readRenderTargetPixels(source, 0, 0, 1, 1, p, undefined, index);
+      return [...p];
+    });
+    const before = screen();
+    image.invalidateSource();
+    paint(true);
+    const during = screen(true);
+    image.capture(renderer, source, 9);
+    renderer.info.autoReset = false;
+    renderer.info.reset();
+    const after = screen(true);
+    const filterDraws = renderer.info.render.calls;
+    renderer.info.reset();
+    const repeated = screen(true);
+    const cachedDraws = renderer.info.render.calls;
+    return {
+      raw: [...raw],
+      attachments,
+      channels,
+      before,
+      during,
+      after,
+      repeated,
+      filterDraws,
+      cachedDraws,
+      error: renderer.getContext().getError(),
+    };
   } finally {
     image.dispose();
     source.dispose();

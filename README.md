@@ -3,6 +3,13 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.57.5** palauttaa tarkentuvan renderin näytön omaan tarkkuuteen
+työpöydällä muistibudjetin puitteissa, myös 4K-kokoluokassa. Aiempi kiinteä
+3 MP / 2560 px raja ei enää sumenna suurta näkymää suurentamalla pienempää kuvaa.
+Liikkuessa säilyy nopea esikatselu, ja tabletilla käytetään pienempää muistibudjettia.
+Valmiin kuvan välimuisti on kevyempi; valotuksen ja kuvatyylin muuttaminen
+käyttää jo käsiteltyä kuvaa ilman uutta kohinanpoistoa tai näytteiden nollaamista.
+
 Versio **0.57.4** korjaa tabletin mittakentän kohdistuksen.
 Näyttönäppäimistön avautuminen ei enää vaihda koko käyttöliittymää toiseen
 asetteluun ja irrota aktiivista kenttää. Push/pullin **Toteutuva kokonaismitta**

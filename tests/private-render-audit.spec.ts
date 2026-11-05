@@ -8,7 +8,9 @@ test('private large model refines at Retina resolution, resets promptly on navig
   page,
 }, info) => {
   test.skip(!modelPath, 'Private projects remain local and are never included in the repository.');
-  test.setTimeout(240000);
+  const targetSamples = process.env.NIVO_AUDIT_SAMPLES ?? '8';
+  const renderTimeout = targetSamples === '8' ? 150000 : 480000;
+  test.setTimeout(renderTimeout + 120000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -35,15 +37,22 @@ test('private large model refines at Retina resolution, resets promptly on navig
   const canvas = page.getByTestId('render-canvas');
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();
   if (camera) {
+    await page.getByRole('button', { name: 'Nopea', exact: true }).click();
     await page.locator('.saved-render-views > summary').click();
     await page.getByRole('button', { name: `Katso: ${camera.name}`, exact: true }).click();
+    await canvas.screenshot({ path: info.outputPath('private-preview.png') });
+    await page.getByRole('button', { name: 'Tarkentuva', exact: true }).click();
   }
-  await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption('8');
+  await page.getByLabel('Tarkennuksen tavoite', { exact: true }).selectOption(targetSamples);
   await expect(page.getByTestId('trace-status')).toContainText('Tavoite saavutettu', {
-    timeout: 150000,
+    timeout: renderTimeout,
   });
   const [w, h] = (await canvas.getAttribute('data-trace-size'))!.split('x').map(Number);
-  expect(w * h).toBeLessThanOrEqual(3_000_000);
+  expect(
+    Number(await canvas.getAttribute('data-trace-estimated-target-bytes')),
+  ).toBeLessThanOrEqual(Number(await canvas.getAttribute('data-trace-target-budget-bytes')));
+  if ((await canvas.getAttribute('data-trace-resolution-limited')) === 'false')
+    expect(`${w}x${h}`).toBe(await canvas.getAttribute('data-trace-native-size'));
   expect(w).toBeGreaterThan(640);
   await canvas.screenshot({ path: info.outputPath('private-refinement.png') });
   const box = (await canvas.boundingBox())!;

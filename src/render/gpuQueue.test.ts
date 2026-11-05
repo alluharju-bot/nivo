@@ -79,3 +79,55 @@ it('sizes batches from completed GPU time and releases timestamp queries', () =>
   expect(gl.endQuery).toHaveBeenCalledTimes(7);
   expect(gl.deleteQuery).toHaveBeenCalledTimes(7);
 });
+
+it('separates ray and presentation GPU costs without nesting queries, and discards disjoint measurements', () => {
+  const extension = { TIME_ELAPSED_EXT: 5, GPU_DISJOINT_EXT: 6 };
+  let active = false,
+    id = 0,
+    disjoint = false;
+  const gl = {
+    getExtension: () => extension,
+    isContextLost: () => false,
+    createQuery: () => ({ id: id++ }),
+    beginQuery: () => {
+      expect(active).toBe(false);
+      active = true;
+    },
+    endQuery: () => {
+      expect(active).toBe(true);
+      active = false;
+    },
+    deleteQuery: vi.fn(),
+    getParameter: () => disjoint,
+    getQueryParameter: (query: { id: number }, parameter: number) =>
+      parameter === 7 ? true : query.id === 1 ? 8e6 : 1e6,
+    fenceSync: () => ({}),
+    flush: vi.fn(),
+    deleteSync: vi.fn(),
+    clientWaitSync: () => 4,
+    TIMEOUT_EXPIRED: 1,
+    WAIT_FAILED: 2,
+    SYNC_GPU_COMMANDS_COMPLETE: 3,
+    QUERY_RESULT_AVAILABLE: 7,
+    QUERY_RESULT: 8,
+  };
+  const queue = gpuQueue(gl as unknown as WebGL2RenderingContext);
+  queue.begin();
+  expect(queue.measure('presentation', () => 42)).toBe(42);
+  queue.submit();
+  queue.ready();
+  expect(queue.milliseconds).toBe(10);
+  expect(queue.timings).toMatchObject({ pathGpuMs: 2, presentationGpuMs: 8, timedBatches: 1 });
+  disjoint = true;
+  queue.begin();
+  expect(() =>
+    queue.measure('presentation', () => {
+      throw new Error('cancel');
+    }),
+  ).toThrow('cancel');
+  queue.submit();
+  queue.ready();
+  expect(queue.timings).toMatchObject({ pathGpuMs: 2, presentationGpuMs: 8, timedBatches: 1 });
+  expect(gl.deleteQuery).toHaveBeenCalledTimes(6);
+  queue.dispose();
+});

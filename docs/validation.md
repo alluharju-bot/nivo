@@ -4,6 +4,52 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.57.5 — renderin näyttötarkkuus ja kuvan välimuisti
+
+- Koko yksikkö-/geometriasetti: **853 hyväksyttyä, 6 ennestään ohitettua**,
+  158 hyväksyttyä ja 4 ohitettua testitiedostoa. GPU-jonon kokeissa erilliset
+  valonlaskennan ja kuvan käsittelyn aikajaksot, virhetilanteen siivous ja
+  epäkelvon GPU-ajastintuloksen hylkäys.
+- **9 tuotantobuildin selainkoetta hyväksytty /nivo/-polulla**: 4K/PNG,
+  valmiin kuvan tyylinvaihto ja tallennus, taustarenderöinti, keskeytys,
+  perspektiivin ja ortografisen kameran käynnistys, tarkkuusvaiheet sekä
+  GPU:n kuvan välimuisti ja float-blend-varapolku. Testin projektitoiminnot
+  päivitetty käyttämään nykyistä yläpalkin lisävalikkoa. TypeScript,
+  tuotantobuild, lisenssit, Prettier ja diff tarkistettu.
+- Näkyvä Chromium / ANGLE Metal: 2620 × 1806 ja **3840 × 2160** piirtoalueet
+  tarkentuivat täyteen kokoon. PNG:n mitat vastasivat piirtoaluetta. Suodattimen
+  vaihto ei nollannut näytteitä; kameran liike palautti kevyen esikatselun ja
+  laskenta valmistui uudelleen. 4K:n kahdeksan näytteen testi sisälsi kaksi
+  kamerakulmaa, kuvatallennuksen ja suodattimen vaihdon.
+- 4K-kokeen tekstuuri-/renderbuffer-varausten huippu 1 478 444 664 tavua
+  (noin 1,38 GiB, mukaan lukien 96 MiB:n materiaaliatlas). Tämä on WebGL-
+  varausten instrumentointi, ei fyysisen VRAMin tai koko prosessin mittaus;
+  geometriapuskurit ja ajurin omat varaukset eivät sisälly siihen. Huippu
+  alitti kuvapuskureiden 1,5 GiB:n budjetin. Kosketuslaitteiden raja pysyy
+  noin kolmessa megapikselissä; vähämuistinen laite ja float-blend-varapolku
+  rajoitetaan erikseen. Järjestelmän RAM-lukemaa ei tulkita vapaaksi VRAMiksi.
+- Oikea yksityinen kylpyhuonemalli: 588 osaa, sisätilasta puu-, kivi- ja
+  laattapintoihin suunnattu kamera, 2300 × 1726 ja 64 näytettä. Valmistui
+  ilman selain-/GL-virheitä; kameran navigointikoe 140 ms ja renderin
+  konteksti vapautui poistuttaessa. Esikatselu ja lopputulos tarkastettu.
+  Mallia tai sen kuvia ei lisätty julkiseen repoon.
+- Neljä aiempaa 4096 näytteen materiaali-/heijastusvertailua hyväksytty
+  uudelleen: tammi, kromi, kromin puuheijastus ja karheampi heijastus.
+  Valonlaskentaa, materiaalien tekstuurisuodatusta tai kohinanpoiston
+  voimakkuutta ei muutettu tässä korjauksessa. Kolme esikatselu-/vientikierrosta
+  vapautti samat resurssit joka kerta, jäljellä 14 tekstuuria.
+- Selain-OIDN 0.6.0 testattu erillisessä WebGPU-prototyypissä samoilla
+  HDR/albedo/normaalikuvilla (256², FP32). Virhe 4096 näytteen raakavertailuun:
+  tammella 64/256 näytettä OIDN 1,85/1,59 %, nykyinen 1,26/1,19 %;
+  kromin puuheijastuksella OIDN 2,86/1,58 %, nykyinen 3,07/1,73 %.
+  Tulos ei tue yleistä suodattimen vaihtoa. Käynnistys 313 ms ja suodatus
+  44–122 ms tässä pienessä kokeessa; näitä ei yleistetä 4K-kuvaan tai huoneeseen.
+  OIDN:ää tai sen painoja ei lisätty tuotantoriippuvuuksiin.
+- Rajaus: fyysistä Windows/RTX-konetta tai Samsung-tablettia ei testattu.
+  Suurempi lopullinen pikselimäärä lisää valonlaskennan työtä; tämän korjauksen
+  tarkoitus on säilyttää yksityiskohdat ja vähentää tarpeetonta kuvan käsittelyä,
+  ei luvata kaikkien täysikokoisten kuvien valmistuvan aiempaa nopeammin.
+
 ## Renderin auditointi 5.11.2026 — ei tuotantomoottorin muutosta
 
 - Nykyinen `trace-fidelity-harness` ajettiin näkyvällä Chromiumilla,

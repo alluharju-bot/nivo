@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { decode } from 'fast-png';
 import { makeBody } from '../src/model/project';
 import { defaultAppearance } from '../src/model/materials';
-import { ready, save } from './helpers';
+import { headerAction, ready, save } from './helpers';
 
 test('a finite render continues in Model using its frozen scene and downloads a real PNG', async ({
   page,
@@ -35,7 +35,7 @@ test('a finite render continues in Model using its frozen scene and downloads a 
   const card = page.getByRole('complementary', { name: 'Kuvan renderöinti', exact: true });
   await expect(card).toHaveAttribute('data-state', 'working');
   await page.getByRole('button', { name: 'Takaisin malliin', exact: true }).click();
-  await page.getByRole('button', { name: 'Uusi projekti', exact: true }).click();
+  await headerAction(page, 'Uusi projekti');
   await expect(page.locator('.object-list .object-select')).toHaveCount(0);
   await expect(card).toHaveAttribute('data-state', 'done', { timeout: 150_000 });
   const pending = page.waitForEvent('download');

@@ -62,20 +62,16 @@ test('real GPU retains coarse radiance, fully retires it and clears it for a new
       }
     ).NivoTraceImageTest.exerciseTraceImageChannels(),
   );
-  expect(channels.initial.channels).toEqual([
-    [1, 0, 0, 1],
-    [0.25, 0, 0, 1],
-    [0.25, -0.5, 1.25, 1],
-  ]);
-  expect(channels.first.weight).toBeGreaterThan(0.9);
-  expect(channels.first.channels[2]).toEqual([-0.5, 0.75, 6, 1]);
-  expect(channels.first.channels[1][0]).toBeCloseTo(channels.first.weight * 0.25, 6);
-  expect(channels.first.channels[1][2]).toBeCloseTo((1 - channels.first.weight) * 0.5, 6);
-  expect(channels.complete.channels).toEqual([
-    [0, 0, 1, 1],
-    [0, 0, 0.5, 1],
-    [-0.5, 0.75, 6, 1],
-  ]);
-  expect(channels.reset.channels).toEqual(channels.initial.channels);
-  for (const sample of Object.values(channels)) expect(sample.error).toBe(0);
+  expect(channels.attachments).toBe(1);
+  expect(channels.raw).toEqual(channels.channels[0]);
+  expect(channels.raw[0]).toBeCloseTo(1.234567, 6);
+  expect(channels.channels[1]).toEqual([0.25, 0, 0, 1]);
+  expect(channels.channels[2]).toEqual([0.25, -0.5, 1.25, 1]);
+  expect(channels.before).toEqual([255, 0, 0, 255]);
+  expect(channels.during).toEqual(channels.before);
+  expect(channels.after).toEqual([0, 0, 255, 255]);
+  expect(channels.repeated).toEqual(channels.after);
+  expect(channels.filterDraws).toBeGreaterThan(1);
+  expect(channels.cachedDraws).toBe(1);
+  expect(channels.error).toBe(0);
 });

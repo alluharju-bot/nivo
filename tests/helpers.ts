@@ -79,9 +79,17 @@ export async function view(page: Page, bodies: Body[], side: 'top' | 'front' | '
 export async function click(page: Page, p: { x: number; y: number }) {
   await page.mouse.click(p.x, p.y);
 }
+export async function headerAction(page: Page, name: string) {
+  const action = page.getByRole('button', { name, exact: true });
+  const menu = page.getByRole('button', { name: 'Lisää toimintoja', exact: true });
+  const opened = !(await action.isVisible());
+  if (opened) await menu.click();
+  await action.click();
+  if (opened && (await menu.getAttribute('aria-expanded')) === 'true') await menu.click();
+}
 export async function save(page: Page): Promise<Project> {
   const pending = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Tallenna tiedosto', exact: true }).click();
+  await headerAction(page, 'Tallenna tiedosto');
   return JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
 }
 

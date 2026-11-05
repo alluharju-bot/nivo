@@ -5,145 +5,151 @@ import type { DenoiseGuides } from './traceGuides';
 import type { ImageLook } from './imageLook';
 import { coarseImageWeight } from './traceRefinement';
 
-/** Keep the last complete sample visible while the next one is computed in
- * small invisible batches, including across resolution increases. */
+/** Store only the complete beauty image, not a second full set of float32
+ * accumulators. Denoise the live lobes synchronously at a sample boundary;
+ * later display/tonemapping changes read the cached images, never a partial tile.
+ * The raw cache stays float32; filtered display radiance is half-float as before. */
 export function traceImage() {
-  let target: THREE.WebGLRenderTarget | undefined;
-  let coarse: THREE.WebGLRenderTarget | undefined;
-  let samples = 0;
+  let raw: THREE.WebGLRenderTarget | undefined;
   let filtered: THREE.WebGLRenderTarget | undefined;
+  let coarse: THREE.WebGLRenderTarget | undefined;
+  let composite: THREE.WebGLRenderTarget | undefined;
+  let source: THREE.WebGLRenderTarget | undefined;
+  let filteredCurrent = false;
+  let displayed: THREE.WebGLRenderTarget | undefined;
+  let samples = 0;
   let albedoGuide: THREE.Texture | undefined;
-  const copy = new THREE.ShaderMaterial({
+  const copy = new THREE.MeshBasicMaterial({
     depthTest: false,
     depthWrite: false,
     toneMapped: false,
-    uniforms: {
-      map: { value: null as THREE.Texture | null },
-      coarse: { value: null as THREE.Texture | null },
-      coarseWeight: { value: 0 },
-      diffuse: { value: null },
-      coarseDiffuse: { value: null },
-      coverage: { value: null },
-    },
-    vertexShader:
-      'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
-    fragmentShader: `
-      uniform sampler2D map;
-      uniform sampler2D coarse;
-      uniform float coarseWeight;
-      varying vec2 vUv;
-      uniform sampler2D diffuse, coarseDiffuse;
-      uniform sampler2D coverage;
-      layout(location = 1) out vec4 diffuseOutput;
-      layout(location = 2) out vec4 coverageOutput;
-      void main() {
-        gl_FragColor = mix(texture2D(map, vUv), texture2D(coarse, vUv), coarseWeight);
-        diffuseOutput = mix(texture2D(diffuse, vUv), texture2D(coarseDiffuse, vUv), coarseWeight);
-        // Geometry coverage belongs to the current pixel footprint. Coarse
-        // radiance is only a transient display estimate, never guide history.
-        coverageOutput = texture2D(coverage, vUv);
+  });
+  const display = new THREE.ShaderMaterial({
+    depthTest: false,
+    depthWrite: false,
+    uniforms: { map: { value: null }, coarse: { value: null }, weight: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}',
+    fragmentShader: `varying vec2 vUv; uniform sampler2D map, coarse; uniform float weight;
+      void main(){
+        gl_FragColor=mix(texture2D(map,vUv),texture2D(coarse,vUv),weight);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
   });
-  const display = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
   const quad = new FullScreenQuad(copy);
   const denoise = traceLighting();
+  const clear = () => {
+    albedoGuide = undefined;
+    source = undefined;
+    denoise.clear();
+    raw?.dispose();
+    filtered?.dispose();
+    coarse?.dispose();
+    composite?.dispose();
+    raw = filtered = coarse = composite = displayed = undefined;
+    filteredCurrent = false;
+    copy.map = null;
+    display.uniforms.map.value = display.uniforms.coarse.value = null;
+    samples = 0;
+  };
   return {
     get size() {
-      return target ? ([target.width, target.height] as const) : undefined;
+      return raw ? ([raw.width, raw.height] as const) : undefined;
     },
     get ready() {
-      return !!target;
+      return !!raw;
     },
     get historyWeight() {
       return coarse ? coarseImageWeight(samples) : 0;
     },
-    observe(renderer: THREE.WebGLRenderer, source: THREE.WebGLRenderTarget, count: number) {
-      denoise.observe(renderer, source, count, albedoGuide);
+    /** Called before another tile writes to the accumulator. A filter toggle
+     * may keep the raw cached frame until the next complete sample arrives. */
+    invalidateSource() {
+      source = undefined;
     },
-    capture(renderer: THREE.WebGLRenderer, source: THREE.WebGLRenderTarget, count: number) {
-      if (target && (target.width !== source.width || target.height !== source.height)) {
+    observe(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, count: number) {
+      denoise.observe(renderer, target, count, albedoGuide);
+    },
+    capture(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, count: number) {
+      if (raw && (raw.width !== target.width || raw.height !== target.height)) {
         coarse?.dispose();
-        coarse = target;
-        target = undefined;
+        coarse = displayed ?? raw;
+        if (raw !== coarse) raw.dispose();
+        if (filtered !== coarse) filtered?.dispose();
+        raw = filtered = displayed = undefined;
       }
-      target ??= new THREE.WebGLRenderTarget(source.width, source.height, {
-        count: source.textures.length,
+      raw ??= new THREE.WebGLRenderTarget(target.width, target.height, {
         type: THREE.FloatType,
         depthBuffer: false,
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
       });
-      target.setSize(source.width, source.height);
       const previous = renderer.getRenderTarget();
-      copy.uniforms.map.value = source.texture;
-      copy.uniforms.coarse.value = coarse?.texture ?? source.texture;
-      copy.uniforms.coarseWeight.value = coarse ? coarseImageWeight(count) : 0;
-      copy.uniforms.diffuse.value = source.textures[1] ?? source.texture;
-      copy.uniforms.coarseDiffuse.value =
-        coarse?.textures[1] ?? source.textures[1] ?? source.texture;
-      copy.uniforms.coverage.value = source.textures[2] ?? source.texture;
+      copy.map = target.texture;
       quad.material = copy;
-      renderer.setRenderTarget(target);
-      quad.render(renderer);
-      renderer.setRenderTarget(previous);
+      try {
+        renderer.setRenderTarget(raw);
+        quad.render(renderer);
+      } finally {
+        renderer.setRenderTarget(previous);
+      }
+      source = target;
       samples = count;
+      filteredCurrent = false;
       if (coarse && coarseImageWeight(count) === 0) {
         coarse.dispose();
         coarse = undefined;
-        copy.uniforms.coarse.value = null;
       }
     },
     draw(renderer: THREE.WebGLRenderer, smooth: boolean, look?: ImageLook, guides?: DenoiseGuides) {
-      if (!target) return;
+      if (!raw) return;
       albedoGuide = guides?.albedo;
-      if (look?.active) {
-        if (smooth) {
-          filtered ??= new THREE.WebGLRenderTarget(target.width, target.height, {
-            type: THREE.HalfFloatType,
-            depthBuffer: false,
-          });
-          filtered.setSize(target.width, target.height);
-          denoise.draw(renderer, target, samples, guides, filtered);
-          look.draw(renderer, filtered.texture);
+      if (smooth && !filteredCurrent && source) {
+        filtered ??= new THREE.WebGLRenderTarget(raw.width, raw.height, {
+          type: THREE.HalfFloatType,
+          depthBuffer: false,
+          minFilter: THREE.NearestFilter,
+          magFilter: THREE.NearestFilter,
+        });
+        denoise.draw(renderer, source, samples, guides, filtered);
+        filteredCurrent = true;
+      }
+      displayed = smooth && filteredCurrent ? filtered! : raw;
+      const weight = coarse ? coarseImageWeight(samples) : 0;
+      display.uniforms.map.value = displayed.texture;
+      display.uniforms.coarse.value = coarse?.texture ?? displayed.texture;
+      display.uniforms.weight.value = weight;
+      quad.material = display;
+      const previous = renderer.getRenderTarget();
+      try {
+        if (look?.active) {
+          if (weight) {
+            composite ??= new THREE.WebGLRenderTarget(raw.width, raw.height, {
+              type: THREE.HalfFloatType,
+              depthBuffer: false,
+            });
+            composite.setSize(raw.width, raw.height);
+            renderer.setRenderTarget(composite);
+            quad.render(renderer);
+            look.draw(renderer, composite.texture);
+          } else {
+            composite?.dispose();
+            composite = undefined;
+            look.draw(renderer, displayed.texture);
+          }
         } else {
-          filtered?.dispose();
-          filtered = undefined;
-          look.draw(renderer, target.texture);
-        }
-      } else {
-        filtered?.dispose();
-        filtered = undefined;
-        if (smooth) denoise.draw(renderer, target, samples, guides);
-        else {
-          display.map = target.texture;
-          quad.material = display;
-          const previous = renderer.getRenderTarget();
+          composite?.dispose();
+          composite = undefined;
           renderer.setRenderTarget(null);
           quad.render(renderer);
-          renderer.setRenderTarget(previous);
         }
+      } finally {
+        renderer.setRenderTarget(previous);
       }
     },
-    clear() {
-      albedoGuide = undefined;
-      denoise.clear();
-      target?.dispose();
-      coarse?.dispose();
-      filtered?.dispose();
-      filtered = undefined;
-      target = undefined;
-      coarse = undefined;
-      copy.uniforms.map.value = copy.uniforms.coarse.value = null;
-      display.map = null;
-      samples = 0;
-    },
+    clear,
     dispose() {
-      target?.dispose();
-      coarse?.dispose();
-      filtered?.dispose();
-      filtered = undefined;
-      target = undefined;
-      coarse = undefined;
+      clear();
       quad.dispose();
       copy.dispose();
       display.dispose();
