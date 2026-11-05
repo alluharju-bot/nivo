@@ -155,6 +155,7 @@ test('mouse desktop retains its rail, inspector and header sizes; fullscreen als
   await fullyInside(page, page.getByRole('button', { name: 'Siirry koko näyttöön', exact: true }));
   for (const width of [1440, 1280, 1024, 800, 390, 320]) {
     await page.setViewportSize({ width, height: 960 });
+    await expect(page.locator('.app-shell')).toHaveAttribute('data-compact', String(width <= 760));
     await fullyInside(
       page,
       page.getByRole('button', { name: 'Siirry koko näyttöön', exact: true }),

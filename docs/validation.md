@@ -4,6 +4,24 @@ Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on
 Chromiumin iPad Pro 11 -kosketusemulointi, ei fyysinen iPad tai Safari.
 
+## V0.57.4 — näyttönäppäimistö ei irrota mittakenttää
+
+- Vika toistettu ennen korjausta: tabletin näkymä 1280 × 752 → 1280 × 400
+  vaihtui puhelinasetteluun ja alkuperäinen kohdistettu mittakenttä irtosi DOMista.
+  Testi ei käytä kirjoittamiseen fill()-automaatiota, joka voisi piilottaa vian
+  kohdistamalla uuden kentän uudelleen.
+- Korjauksen jälkeen **17 tuotantobuildin selainkoetta hyväksytty /nivo/-polulla**.
+  Neljä uutta tapausta: Push/pullin kokonaismitta vedon jälkeen (150 mm) ja
+  pelkän pintanapautuksen jälkeen (148 mm), kenttien vaihto, oikean geometrian
+  tallentuminen ja Undo; suorakulmion 123 × 98 mm syöttö; hiiren sekä fyysisen
+  näppäimistön välitön numerosyöttö, Tab-siirto ja Enter-hyväksyntä.
+- Aiemmat mobiili-/tablettitapaukset kattavat yläpalkin, koko näytön,
+  kääntämisen, paneelit, kosketuspiirron, kahden sormen navigoinnin ja renderin
+  säätöpaneelin. Leveyden vaihtotestissä odotetaan nyt Reactin asettelupäivitys
+  ennen koordinaattien mittaamista.
+- TypeScript ja tuotantobuild hyväksytty. Näppäimistön layout-muutos emuloitu
+  Chromiumissa; fyysistä Android-näppäimistöä ei testattu.
+
 ## V0.57.3 — tabletin tiiviimpi käyttöliittymä
 
 - Tabletin kosketusnäkymät 1280 × 752 ja 800 × 1232 CSS-pikseliä,

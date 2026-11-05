@@ -2,6 +2,16 @@
 
 [Kokonaisvaatimus](requirements.fi.md).
 
+## V0.57.4 — tabletin mittasyöttö ja näyttönäppäimistö
+
+- Asettelu valitaan leveyden perusteella. Näyttönäppäimistön madaltama
+  näkymä ei enää siirrä mittakenttiä toiseen React-puuhun ja hävitä kohdistusta.
+- Push/pullin kokonaismitan ja pinnan siirtymän syöttö toimii sekä
+  vedon jälkeisessä tarkistuksessa että oikeaan paneeliin telakoidussa kentässä.
+- Regressiotestit tarkistavat alkuperäisen kentän säilymisen kohdistettuna,
+  kirjoitetun kokonaismitan toteutumisen, Undo-toiminnon, suorakulmion
+  kaksi mittaa ja tietokoneen Tab-/Enter-syötön.
+
 ## V0.57.3 — enemmän mallinnustilaa tabletilla
 
 - Kosketusnäytön palkit noin 20 % tiiviimmät: yläpalkki 60 → 48 px,

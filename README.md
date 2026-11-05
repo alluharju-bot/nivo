@@ -3,6 +3,11 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.57.4** korjaa tabletin mittakentän kohdistuksen.
+Näyttönäppäimistön avautuminen ei enää vaihda koko käyttöliittymää toiseen
+asetteluun ja irrota aktiivista kenttää. Push/pullin **Toteutuva kokonaismitta**
+ja muut mittakentät pysyvät kirjoitettavina myös näkymän korkeuden pienentyessä.
+
 Versio **0.57.3** tiivistää tabletin käyttöliittymää noin viidenneksellä.
 Vaakanäkymässä yläpalkki on 48 px, työkalupalkki 72 px ja ominaisuuspaneeli
 236 px. Pystyasennossa ominaisuudet avataan mallin päälle tarvittaessa.
