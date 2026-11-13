@@ -28,6 +28,21 @@ const key = (id: string, time: number, x: number, patch: Partial<CameraKey> = {}
 const route = (): CameraTrack => ({ keys: [key('a', 0, 0), key('b', 4, 2000), key('c', 8, 4000)] });
 
 describe('camera routes', () => {
+  it('honors independent zoom delay/duration and preserves the finished zoom for the rest of the stop', () => {
+    const a = key('a', 0, 0, {
+      hold: 6,
+      zoom: { target: [600, 0, 1600], focalLength: 85, start: 2, duration: 2 },
+    });
+    const track = { keys: [a] };
+    expect(evaluateCamera(track, 1)!.focalLength).toBe(35);
+    expect(evaluateCamera(track, 3)!.focalLength).toBe(60);
+    expect(evaluateCamera(track, 5)!.focalLength).toBe(85);
+    expect(validateCameraTrack(track, 6)).toBeUndefined();
+    expect(validateCameraTrack({ keys: [{ ...a, hold: 3 }] }, 6)).toMatch(/Zoomin/);
+    expect(cameraKeySchema.safeParse({ ...a, zoom: { ...a.zoom, duration: 0 } }).success).toBe(
+      false,
+    );
+  });
   it('holds exact arrivals and clamps outside the timeline', () => {
     const track = route();
     expect(evaluateCamera(undefined, 0)).toBeUndefined();

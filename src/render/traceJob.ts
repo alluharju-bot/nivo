@@ -20,6 +20,8 @@ export type RenderJobProgress = {
   elapsed: number;
   width: number;
   height: number;
+  frame?: number;
+  frames?: number;
 };
 
 export function configureTraceEnvironment(
@@ -53,6 +55,40 @@ export async function renderSnapshot(
   signal: AbortSignal,
   onProgress: (progress: RenderJobProgress) => void,
 ): Promise<Blob> {
+  let blob: Blob | undefined;
+  await renderFrames(
+    snapshot,
+    options,
+    signal,
+    onProgress,
+    1,
+    () => false,
+    async (canvas) => {
+      blob = await canvasPNG(canvas);
+    },
+  );
+  return blob!;
+}
+
+export const canvasPNG = (canvas: HTMLCanvasElement) =>
+  new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (value) => (value ? resolve(value) : reject(new Error('Kuvan tallennus epäonnistui.'))),
+      'image/png',
+    ),
+  );
+
+/** One owned scene and GPU session for the entire sequence. Camera-only frames
+ * reuse the BVH; animated geometry refreshes it before any samples are taken. */
+export async function renderFrames(
+  snapshot: RenderSnapshot,
+  options: RenderJobOptions,
+  signal: AbortSignal,
+  onProgress: (progress: RenderJobProgress) => void,
+  frames: number,
+  applyFrame: (index: number) => boolean,
+  saveFrame: (canvas: HTMLCanvasElement, index: number) => Promise<void>,
+): Promise<void> {
   let renderer: THREE.WebGLRenderer | undefined,
     tracer: WebGLPathTracer | undefined,
     environment: GradientEquirectTexture | undefined;
@@ -67,17 +103,21 @@ export async function renderSnapshot(
   const guides = traceGuides();
   const look = imageLook(snapshot.look);
   let filtered: THREE.WebGLRenderTarget | undefined;
+  let frame = 0;
+  let frameSampled = false;
   const check = () => {
     if (signal.aborted) throw new DOMException('Renderöinti keskeytettiin.', 'AbortError');
   };
   const report = (phase: RenderJobProgress['phase']) =>
     onProgress({
       phase,
-      samples: Math.min(target, Math.floor(tracer?.samples ?? 0)),
+      samples: frameSampled ? Math.min(target, Math.floor(tracer?.samples ?? 0)) : 0,
       target,
       elapsed: (performance.now() - started) / 1000,
       width,
       height,
+      frame,
+      frames,
     });
   try {
     check();
@@ -87,7 +127,10 @@ export async function renderSnapshot(
       width > 4096 ||
       !Number.isInteger(target) ||
       target < 1 ||
-      target > 4096 ||
+      target > 65536 ||
+      !Number.isInteger(frames) ||
+      frames < 1 ||
+      frames > 216000 ||
       !Number.isFinite(height) ||
       height > 4096 ||
       width * height > 12_000_000
@@ -146,6 +189,7 @@ export async function renderSnapshot(
       signal,
     );
     check();
+    applyFrame(0);
     disposeSnapshotGeometry = prepareTraceMaterials(snapshot.scene);
     configureTraceTextures(snapshot.scene, renderer, tracer);
     resources.prepareScene();
@@ -156,74 +200,90 @@ export async function renderSnapshot(
     let checkedFirstSample = false;
     const waiting = traceWaitWatchdog();
     queue = gpuQueue(renderer.getContext() as WebGL2RenderingContext);
-    while (tracer.samples < target) {
-      await animationFrame(signal);
+    for (frame = 0; frame < frames; frame++) {
       check();
-      if (document.hidden) {
+      frameSampled = false;
+      if (frame > 0) {
+        const geometryChanged = applyFrame(frame);
+        if (geometryChanged) {
+          snapshot.scene.updateMatrixWorld(true);
+          tracer.setScene(snapshot.scene, snapshot.camera);
+          // setScene updates geometry/uniforms but retains the already patched shader.
+        } else tracer.updateCamera();
+        denoise.clear();
+        guides.invalidate();
+        reflections.invalidate();
         waiting.reset();
-        continue;
+        report('preparing');
       }
-      if (renderer.getContext().isContextLost())
-        throw new Error('Näytönohjaimen yhteys katkesi. Kokeile pienempää kuvakokoa.');
-      // Do not let the refresh rate impose one animation frame per tiny tile.
-      // Keep batches short and wait without blocking for the previous GPU batch
-      // so a background export cannot build an unbounded command queue.
-      resources.checkCompilation();
-      if (!queue.ready()) {
-        waiting.check('gpu');
-        continue;
-      }
-      if (resources.compiling) {
-        waiting.check('compiling');
-        continue;
-      }
-      waiting.reset();
-      const batchStart = performance.now();
-      queue.begin();
-      let submitted = 0;
-      for (let tile = 0; tile < queue.tiles && tracer.samples < target; tile++) {
-        const before = Math.floor(tracer.samples);
-        tracer.renderSample();
-        submitted++;
-        const samples = Math.floor(tracer.samples);
-        if (samples > before) {
-          const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
-          denoise.observe(renderer, tracer.target, samples, guide.albedo);
+      while (!frameSampled || tracer.samples < target) {
+        await animationFrame(signal);
+        check();
+        if (document.hidden) {
+          waiting.reset();
+          continue;
         }
-        if (performance.now() - batchStart >= 6) break;
+        if (renderer.getContext().isContextLost())
+          throw new Error('Näytönohjaimen yhteys katkesi. Kokeile pienempää kuvakokoa.');
+        // Do not let the refresh rate impose one animation frame per tiny tile.
+        // Keep batches short and wait without blocking for the previous GPU batch
+        // so a background export cannot build an unbounded command queue.
+        resources.checkCompilation();
+        if (!queue.ready()) {
+          waiting.check('gpu');
+          continue;
+        }
+        if (resources.compiling) {
+          waiting.check('compiling');
+          continue;
+        }
+        waiting.reset();
+        const batchStart = performance.now();
+        queue.begin();
+        let submitted = 0;
+        for (
+          let tile = 0;
+          tile < queue.tiles && (!frameSampled || tracer.samples < target);
+          tile++
+        ) {
+          const before = frameSampled ? Math.floor(tracer.samples) : 0;
+          tracer.renderSample();
+          frameSampled = true;
+          submitted++;
+          const samples = Math.floor(tracer.samples);
+          if (samples > before && options.denoise !== false) {
+            const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
+            denoise.observe(renderer, tracer.target, samples, guide.albedo);
+          }
+          if (performance.now() - batchStart >= 6) break;
+        }
+        queue.submit(submitted);
+        if (!checkedFirstSample && tracer.samples >= 1) {
+          checkTraceUpload(renderer);
+          checkedFirstSample = true;
+        }
+        if (performance.now() - lastReport > 400) {
+          report('rendering');
+          lastReport = performance.now();
+        }
       }
-      queue.submit(submitted);
-      if (!checkedFirstSample && tracer.samples >= 1) {
-        checkTraceUpload(renderer);
-        checkedFirstSample = true;
-      }
-      if (performance.now() - lastReport > 400) {
-        report('rendering');
-        lastReport = performance.now();
-      }
+      report('saving');
+      if (options.denoise !== false) {
+        const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
+        guide.reflection = reflections.ensure(renderer, tracer, width, height);
+        if (look.active) {
+          filtered ??= new THREE.WebGLRenderTarget(width, height, {
+            type: THREE.HalfFloatType,
+            depthBuffer: false,
+          });
+          denoise.draw(renderer, tracer.target, target, guide, filtered);
+          look.draw(renderer, filtered.texture);
+        } else denoise.draw(renderer, tracer.target, target, guide);
+      } else look.draw(renderer, tracer.target.texture);
+      check();
+      await saveFrame(renderer.domElement, frame);
+      check();
     }
-    report('saving');
-    if (options.denoise !== false) {
-      const guide = guides.ensure(renderer, snapshot.scene, snapshot.camera, width, height);
-      guide.reflection = reflections.ensure(renderer, tracer, width, height);
-      if (look.active) {
-        filtered = new THREE.WebGLRenderTarget(width, height, {
-          type: THREE.HalfFloatType,
-          depthBuffer: false,
-        });
-        denoise.draw(renderer, tracer.target, target, guide, filtered);
-        look.draw(renderer, filtered.texture);
-      } else denoise.draw(renderer, tracer.target, target, guide);
-    } else look.draw(renderer, tracer.target.texture);
-    check();
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      renderer!.domElement.toBlob(
-        (value) => (value ? resolve(value) : reject(new Error('Kuvan tallennus epäonnistui.'))),
-        'image/png',
-      ),
-    );
-    check();
-    return blob;
   } finally {
     queue?.dispose();
     if (resources) resources.dispose();

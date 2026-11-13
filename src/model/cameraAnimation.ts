@@ -20,6 +20,8 @@ export const cameraKeySchema = renderViewSchema
           z.number().finite().min(-1e9).max(1e9),
         ]),
         focalLength: z.number().finite().min(12).max(200),
+        start: z.number().finite().min(0).max(3600).optional(),
+        duration: z.number().finite().positive().max(3600).optional(),
       })
       .optional(),
   })
@@ -42,6 +44,8 @@ export function validateCameraTrack(track: CameraTrack, duration: number): strin
     if (previous && k.time <= previous.time + previous.hold + 1e-8)
       return 'Pysähdysten väliin tarvitaan aikaa kameran liikkeelle.';
     if (k.zoom && k.hold <= 0) return 'Yksityiskohtazoom tarvitsee pysähdysajan.';
+    if (k.zoom && (k.zoom.start ?? 0) + (k.zoom.duration ?? k.hold) > k.hold + 1e-8)
+      return 'Zoomin alun ja keston pitää mahtua pysähdykseen.';
   }
 }
 
@@ -87,8 +91,11 @@ export function evaluateCamera(
   while (i + 1 < keys.length && keys[i + 1].time <= time) i++;
   const a = keys[i],
     b = keys[i + 1];
-  if (time <= a.time + a.hold && a.hold > 0)
-    return mix(a, endPose(a), smooth((time - a.time) / a.hold));
+  if (time <= a.time + a.hold && a.hold > 0) {
+    const start = a.zoom?.start ?? 0,
+      duration = a.zoom?.duration ?? a.hold;
+    return mix(a, endPose(a), smooth(Math.max(0, Math.min(1, (time - a.time - start) / duration))));
+  }
   if (!b) return endPose(a);
   const t = Math.max(0, Math.min(1, (time - a.time - a.hold) / (b.time - a.time - a.hold)));
   const u = a.interpolation === 'smooth' ? smooth(t) : t;

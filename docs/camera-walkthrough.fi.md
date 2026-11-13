@@ -1,4 +1,4 @@
-# Kamerakierros — ensimmäinen prototyyppi, 13.11.2026
+# Kamerakierros ja animaation renderöinti — 13.11.2026
 
 Tavoite on ohjattu esittely mallinnetun tilan sisällä: siirtymä tilasta toiseen,
 nimetty pysähdys, yksityiskohdan esittely ja objektien liike samalla aikajanalla.
@@ -34,8 +34,16 @@ Toteutus käyttää Nivon nykyistä animaatio- ja renderöintipohjaa.
   voi valita mallin osan keskipisteen. Tarkat kameran ja katseen XYZ-kentät
   ovat avattavassa lisäosiossa; mitat ovat millimetrejä.
 - **Yksityiskohtazoom** muuttaa polttoväliä ja katsesuuntaa pysähdyksen aikana.
-  Valitse kohde ja loppupolttoväli. Useita yksityiskohtia varten lisää useita
+  Valitse kohde ja loppupolttoväli. **Zoomin alku** lasketaan saapumisesta;
+  **Zoomin kesto** määrää lähennyksen ajan. Molempien tulee mahtua pysähdykseen.
+  Vanhoissa reiteissä zoom käyttää edelleen koko pysähdyksen. Useita yksityiskohtia varten lisää useita
   peräkkäisiä scenejä.
+- **Valitse kohdistettava kohta mallista** aloittaa pintapisteen valinnan hiirellä.
+  Zoomilla on oma vastaava painike. Osan keskipisteen voi edelleen valita listasta.
+- **Muokkaa kameraa reitillä** palauttaa ulkopuolisen mallinnusnäkymän.
+  Vedä näkyvää kameramerkkiä hiirellä: siirto tapahtuu katselusuuntaan nähden
+  poikittaisella tasolla ja säilyttää kameran katsesuunnan. Kamera tallennetaan
+  samaan sceneen; muutos on peruttavissa. XYZ-kentillä voi säätää kaikkia akseleita.
 - **Seuraa kameraa** näyttää aikajanan kameran. Ota seuranta pois, kun haluat
   tarkastella koko reittiä ulkopuolelta. **Näytä reitti** näyttää kaarteen ja
   sen pisteet mallin päällä. Kameran toisto piilottaa reittiapuviivat.
@@ -78,17 +86,55 @@ Renderöinti käyttää projektin lukittua WebGLPathTracer 0.0.26 -versiota;
 [kirjaston uusi päähaara](https://github.com/gkjohnson/three-gpu-pathtracer)
 on WebGPU-pohjainen eikä sitä vaihdettu tämän ominaisuuden mukana.
 
+## Renderöi valmis animaatio
+
+**Renderöity esikatselu → Renderöi animaatio · HD–4K** avaa vientiasetukset.
+
+- HD 1280 × 720, Full HD 1920 × 1080, 2K DCI 2048 × 1080, QHD 2560 × 1440
+  ja 4K UHD 3840 × 2160. Esikatselun kuvasuhde seuraa valintaa.
+- 24, 25, 30 tai 60 fps sekä klipin sisällä oleva alku- ja loppuaika.
+- 1–65 536 näytettä per ruutu ja valinnainen kohinanpoisto. Näytteiden
+  kasvattaminen vähentää kohinaa; resoluutio lisää pikseleitä. Kumpikaan ei
+  lupaa tiettyä laatua tai laskenta-aikaa kaikille materiaaleille ja valaistuksille.
+- **Testrenderöi nykyinen ruutu** tallentaa aikajanan nykyhetken PNG:nä
+  valitussa resoluutiossa ja laadussa. Arvioi kuvaa ennen pitkää renderöintiä.
+- **Renderöi animaatio** laskee jokaisen ruudun täyteen näytemäärään.
+  Kamera, zoom ja objektien/ryhmien tallennetut animaatiot käyttävät täsmälleen
+  samaa aikaa. Mallin keskeneräiset asentoluonnokset tulee ensin tallentaa avaimiksi.
+- MP4 käyttää selaimen H.264-koodausta korkealla laadulla. Tuki tarkistetaan
+  valitulle resoluutiolle ennen renderöintiä. Chrome/Edge voi tallentaa suoraan
+  valittuun tiedostoon; ilman tiedostotukea video ladataan lopuksi, enintään
+  256 Mt pakattua videota muistissa. PNG on vaihtoehto, jos koodekkituki puuttuu.
+- PNG-kuvasarja on häviötön 8-bittinen kuvavienti. Kansiotuen kanssa luodaan
+  uusi alikansio ja kuvat kirjoitetaan yksitellen. Muuten latautuvat noin 64 Mt:n
+  ZIP-osat, joissa on ruudut, ajoitusmanifesti ja FFmpeg-ohje. Selain saattaa
+  pyytää sallimaan useita latauksia; pitkissä töissä suora kansiovienti on suositeltu.
+- Keskeytys vapauttaa renderöintityön. Valmiit PNG-ruudut säilyvät, manifesti
+  kertoo valmistuneen määrän. Keskeneräinen MP4 ei ole valmis video.
+
+Renderöinti pitää välilehden näkyvissä; piilotettu välilehti tauottaa GPU-työtä.
+Pitkän työn automaattista jatkamista selaimen sulkemisen jälkeen ei vielä ole.
+Jäljellä oleva aika arvioidaan valmistuneista ruuduista ensimmäisen ruudun
+alustuksen jälkeen. Arvio tarkentuu työn aikana, eikä ole laatutakuu.
+
+Teknisesti yksi yksityinen tilannekuva ja yksi WebGL-renderöijä palvelevat koko
+työtä. Materiaalit, tekstuurit ja ohjelmat säilyvät ruutujen välillä. Kamera-ajo
+päivittää kameran; objektien liike päivittää myös geometrian BVH:n. Näytteet ja
+kohinanpoiston historia nollataan jokaiselle ruudulle. Videon aikaleima on
+ruutunumero / fps, joten GPU:n nopeus ei muuta videon nopeutta. Mediabunny 1.66.0
+hoitaa videon pakkaamisen ja MP4-säiliön; sen lisenssi on mukana jakelussa.
+
 ## Rajaus ja seuraava vaihe
 
 Ensiversio on kameraesittely. Siinä ei ole WASD-kävelijää, törmäysväistöä,
 automaattista oviaukkojen hakua, kameran rullauskulmaa, liikkuvan kohteen
-jatkuvaa seurantaa, videorenderöintiä tai kameran GLB-vientiä. Zoomin kohde on
+jatkuvaa seurantaa tai kameran GLB-vientiä. Zoomin kohde on
 valintahetken maailmanpiste: myöhemmin siirtyvä objekti ei vedä kameraa mukanaan.
 
-Seuraava hyödyllinen vaihe on reittipisteiden siirtäminen suoraan 3D-näkymän
-kahvoilla ja törmäysvaroitus. Sen jälkeen jatkuva kohteenseuranta ja erillinen
-offline-kuvasarjavienti mahdollistavat laadukkaat videot ilman vaatimusta
-renderöintitason reaaliaikaisesta kuvataajuudesta.
+Seuraavia mahdollisia vaiheita ovat törmäysvaroitukset, jatkuva kohteenseuranta,
+liike-epäterävyys, ruutujen välistä tietoa hyödyntävä kohinanpoisto ja renderöintityön
+jatkaminen sulkemisen jälkeen. Korkeakaan näytemäärä ei yksin korvaa materiaalien,
+valaistuksen ja sommittelun viimeistelyä.
 
 ## Varmennus
 

@@ -10,6 +10,7 @@ import { createRenderScene, renderDefaults } from '../render/scene';
 import { traceStatusLabel, type TraceStatus } from '../render/progressive';
 import { watchGraphicsContext, contextLostMessage } from '../viewport/graphicsContext';
 import type { AnimationWorkspaceState } from './AnimationWorkspace';
+import { AnimationExportPanel } from './AnimationExportPanel';
 import { downloadFile, safeFilename } from '../storage/projects';
 
 export function AnimationRenderPreview({
@@ -20,6 +21,7 @@ export function AnimationRenderPreview({
   project: Project;
 }) {
   const host = useRef<HTMLDivElement>(null),
+    stage = useRef<HTMLDivElement>(null),
     dialog = useRef<HTMLElement>(null);
   const api = useRef<ReturnType<typeof createRenderScene> | undefined>(undefined);
   const latest = useRef({ s, project });
@@ -29,6 +31,23 @@ export function AnimationRenderPreview({
     [error, setError] = useState('');
   const [samples, setSamples] = useState(64),
     [exporting, setExporting] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [aspect, setAspect] = useState(16 / 9);
+  useEffect(() => {
+    const fit = () => {
+      if (!stage.current || !host.current) return;
+      const width = Math.max(
+        1,
+        Math.min(stage.current.clientWidth, stage.current.clientHeight * aspect),
+      );
+      host.current.style.width = `${width}px`;
+      host.current.style.height = `${width / aspect}px`;
+    };
+    const observer = new ResizeObserver(fit);
+    if (stage.current) observer.observe(stage.current);
+    fit();
+    return () => observer.disconnect();
+  }, [aspect]);
   const slider = useRef<HTMLInputElement>(null),
     output = useRef<HTMLOutputElement>(null),
     sceneName = useRef<HTMLSpanElement>(null);
@@ -137,7 +156,11 @@ export function AnimationRenderPreview({
             e.preventDefault();
             close();
           }
-          if (e.key === ' ' && !(e.target as HTMLElement).closest('input,select,button')) {
+          if (
+            !rendering &&
+            e.key === ' ' &&
+            !(e.target as HTMLElement).closest('input,select,button')
+          ) {
             e.preventDefault();
             s.playing ? s.pause() : s.play();
           }
@@ -169,6 +192,7 @@ export function AnimationRenderPreview({
             <input
               type="checkbox"
               aria-label="Tarkenna pysähdyksissä"
+              disabled={rendering}
               checked={quality}
               onChange={(e) => setQuality(e.target.checked)}
             />{' '}
@@ -189,7 +213,7 @@ export function AnimationRenderPreview({
             </select>
           )}
           <button
-            disabled={exporting || s.playing || (quality && trace.samples < 1)}
+            disabled={rendering || exporting || s.playing || (quality && trace.samples < 1)}
             onClick={() => void savePNG()}
             title="Tallentaa pysäytetyn kuvakulman nykyisellä tarkennuksella"
           >
@@ -199,8 +223,10 @@ export function AnimationRenderPreview({
             <X size={18} />
           </button>
         </header>
-        <div ref={host} className="camera-render-host" />
-        <div className="camera-render-controls">
+        <div ref={stage} className="camera-render-stage">
+          <div ref={host} className="camera-render-host" />
+        </div>
+        <fieldset className="camera-render-controls" disabled={rendering}>
           <button
             disabled={!!error || exporting}
             aria-label={s.playing ? 'Tauota kierros' : 'Toista kierros'}
@@ -234,7 +260,24 @@ export function AnimationRenderPreview({
               </option>
             ))}
           </select>
-        </div>
+        </fieldset>
+        <AnimationExportPanel
+          state={s}
+          name={project.name}
+          onAspect={setAspect}
+          capture={async () => {
+            if (!api.current) throw new Error('Renderöintinäkymä ei ole valmis.');
+            return api.current.capture();
+          }}
+          onBusy={(busy) => {
+            setRendering(busy);
+            if (busy) {
+              s.pause();
+              setQuality(false);
+              api.current?.trace.stop();
+            }
+          }}
+        />
         <div className="camera-render-status" role={error ? 'alert' : 'status'}>
           {error ||
             (quality

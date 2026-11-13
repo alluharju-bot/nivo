@@ -209,6 +209,16 @@ export function CameraAnimationPanel({ state: s, project, busy }: Props) {
                 </select>
               </label>
               <button
+                aria-pressed={!s.cameraEnabled}
+                onClick={() => {
+                  s.setCameraEnabled(false);
+                  s.setShowRoute(true);
+                }}
+              >
+                Muokkaa kameraa reitillä
+              </button>
+              <small>Vedä reitin kameraa hiirellä. Tarkat XYZ-arvot ovat koordinaateissa.</small>
+              <button
                 onClick={() => {
                   const view = s.cameraBridge.current?.capture();
                   if (view) patch(view);
@@ -236,6 +246,18 @@ export function CameraAnimationPanel({ state: s, project, busy }: Props) {
                     ))}
                 </select>
               </label>
+              <button
+                aria-pressed={s.cameraPicking?.id === selected.id && !s.cameraPicking.zoom}
+                onClick={() => s.setCameraPicking({ id: selected.id, zoom: false })}
+              >
+                <Crosshair size={15} /> Valitse kohdistettava kohta mallista
+              </button>
+              {s.cameraPicking?.id === selected.id && (
+                <p role="status">
+                  Napsauta mallin pintaa.{' '}
+                  <button onClick={() => s.setCameraPicking(undefined)}>Peruuta valinta</button>
+                </p>
+              )}
               <details className="camera-coordinates">
                 <summary>Kameran ja katseen koordinaatit · mm</summary>
                 {(['position', 'target'] as const).map((field) => (
@@ -283,6 +305,45 @@ export function CameraAnimationPanel({ state: s, project, busy }: Props) {
                 </label>
                 {selected.zoom && (
                   <>
+                    <div className="camera-field-pair">
+                      <label>
+                        Zoom alkaa · s
+                        <CommitInput
+                          label="Zoomin alku"
+                          type="number"
+                          min={0}
+                          step="0.1"
+                          value={selected.zoom.start ?? 0}
+                          onCommit={(v) =>
+                            patch({
+                              zoom: {
+                                ...selected.zoom!,
+                                start: Number(v),
+                                duration:
+                                  selected.zoom!.duration ??
+                                  Math.max(0.1, selected.hold - Number(v)),
+                              },
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Zoomin kesto · s
+                        <CommitInput
+                          label="Zoomin kesto"
+                          type="number"
+                          min={0.1}
+                          step="0.1"
+                          value={selected.zoom.duration ?? selected.hold}
+                          onCommit={(v) =>
+                            patch({ zoom: { ...selected.zoom!, duration: Number(v) } })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <button onClick={() => s.setCameraPicking({ id: selected.id, zoom: true })}>
+                      <Crosshair size={15} /> Valitse zoomattava kohta mallista
+                    </button>
                     <label>
                       Zoomin loppupolttoväli · mm
                       <CommitInput
@@ -317,7 +378,8 @@ export function CameraAnimationPanel({ state: s, project, busy }: Props) {
                       </select>
                     </label>
                     <small>
-                      Zoom tapahtuu pysähdyksen aikana. Kohde tallennetaan kiinteänä pisteenä.
+                      {(selected.zoom.focalLength / selected.focalLength).toFixed(2)}× zoom. Alku
+                      lasketaan scenen saapumisesta. Kohde tallennetaan kiinteänä pisteenä.
                     </small>
                   </>
                 )}

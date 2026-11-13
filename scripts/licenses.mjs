@@ -40,6 +40,7 @@ const lines = [
   'See docs/architecture.md for integration and replacement instructions.',
   '',
   'Installed runtime dependencies:',
+  `Mediabunny ${app.dependencies.mediabunny}: unmodified MPL-2.0 library. Corresponding TypeScript source is included in https://registry.npmjs.org/mediabunny/-/mediabunny-${app.dependencies.mediabunny}.tgz (src/). Upstream: https://github.com/Vanilagy/mediabunny. See mediabunny-LICENSE.`,
 ];
 function collect(name) {
   if (visited.has(name)) return;

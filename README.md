@@ -3,7 +3,14 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
-Versio **0.58.0** lisää ensimmäisen **kamerakierroksen** animaatioikkunaan.
+Versio **0.59.0** lisää kamerakierrokselle **MP4- ja PNG-animaatiorenderöinnin**
+HD–4K-tarkkuudella. Kamera, zoom ja objektien animaatiot renderöidään yhteiseltä
+aikajanalta ruutu kerrallaan. Valittava näytemäärä, kohinanpoisto ja testruutu
+auttavat valitsemaan laadun; renderöinnillä ei ole ruutukohtaista aikarajaa.
+Kohdepisteen voi valita suoraan mallista, zoomilla on oma ajoitus, ja reitin
+kameramerkkejä voi siirtää hiirellä. Katso [käyttöohje ja rajaukset](docs/camera-walkthrough.fi.md).
+
+Versio **0.58.0** lisäsi ensimmäisen **kamerakierroksen** animaatioikkunaan.
 **Animaatio → Kamera & reitti**: tallenna kuvakulmia, nimeä scenet, määritä
 saapumisajat ja pysähdykset sekä valitse yksityiskohtazoom. Kamerareitti ja
 osien omat animaatiot toistuvat samalla aikajanalla. Renderöity esikatselu

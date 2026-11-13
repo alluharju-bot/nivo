@@ -421,7 +421,15 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       render();
     },
   );
-  const cameraRoute = createCameraRoute(scene);
+  const cameraRoute = createCameraRoute(scene, {
+    canvas: renderer.domElement,
+    camera: () => camera,
+    state: () => current().animation,
+    controls: (enabled) => {
+      controls.enabled = enabled;
+    },
+    render,
+  });
   let cameraHome:
     | {
         camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
@@ -463,7 +471,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       if (!current().animation?.renderPreview) render();
     },
     (time, matrices, state) => {
-      cameraRoute.sync(state?.clip?.camera, !!state?.showRoute && !state.playing);
+      cameraRoute.sync(
+        state?.clip?.camera,
+        !!state?.showRoute && !state.playing,
+        state?.cameraKeyId,
+      );
       const follow = !!state?.cameraEnabled && !!state.clip?.camera?.keys.length;
       if (follow) rememberAnimationCamera();
       if (!follow && cameraHome) {

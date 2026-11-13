@@ -4501,7 +4501,12 @@ export function installInteractions({
       highlightFace();
       highlightEdge();
       const hit = motionHit(event);
-      if (hit) show({ point: hit.point, key: 'animation-pivot', label: hit.label ?? 'Pivot' });
+      if (hit)
+        show({
+          point: hit.point,
+          key: 'animation-pivot',
+          label: props.animation.pickLabel ?? hit.label ?? 'Pivot',
+        });
       else show();
       return;
     }

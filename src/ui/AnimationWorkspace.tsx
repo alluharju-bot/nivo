@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Matrix4, Vector3 } from 'three';
 import { CameraAnimationPanel, CameraTimelineTrack } from './CameraAnimationPanel';
 import { AnimationRenderPreview } from './AnimationRenderPreview';
-import type { AnimationCameraBridge } from '../model/cameraAnimation';
+import { putCameraKey, type AnimationCameraBridge, type CameraKey } from '../model/cameraAnimation';
 import {
   Play,
   Pause,
@@ -54,12 +54,17 @@ export interface AnimationViewport {
   bodies: Project['bodies'];
   meshes: BodyMesh[];
   picking: boolean;
+  pickLabel?: string;
   onPick: (point: Vec3) => void;
   onFrame: (time: number) => void;
   onEnd: (time: number) => void;
   cameraEnabled: boolean;
   showRoute: boolean;
   renderPreview: boolean;
+  cameraKeyId?: string;
+  cameraEditable: boolean;
+  onCameraSelect: (id: string) => void;
+  onCameraMove: (id: string, position: Vec3, target: Vec3) => void;
   onSample: (time: number, matrices: Map<string, Matrix4>) => void;
 }
 export function useAnimationWorkspace(
@@ -83,6 +88,10 @@ export function useAnimationWorkspace(
   const [showRoute, setShowRoute] = useState(true);
   const [renderPreview, setRenderPreview] = useState(false);
   const [cameraKeyId, setCameraKeyId] = useState<string>();
+  const [cameraPicking, setCameraPicking] = useState<{ id: string; zoom: boolean }>();
+  useEffect(() => {
+    setCameraPicking(undefined);
+  }, [tab, cameraKeyId]);
   const cameraBridge = useRef<AnimationCameraBridge | undefined>(undefined);
   const renderFrame = useRef<((time: number, matrices: Map<string, Matrix4>) => void) | undefined>(
     undefined,
@@ -140,6 +149,7 @@ export function useAnimationWorkspace(
   const reset = (clearKey = true) => {
     setPlaying(false);
     setPicking(false);
+    setCameraPicking(undefined);
     setDrafts({});
     if (clearKey) clearKeys();
   };
@@ -190,6 +200,15 @@ export function useAnimationWorkspace(
       },
       label,
     );
+  const editCameraKey = async (key: CameraKey) => {
+    if (!clip || busy || playing) return;
+    try {
+      const changed = putCameraKey(clip.camera, key, clip.duration);
+      await saveClip({ ...clip, ...changed }, 'Kamera päivitetty.');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
   const shiftKeys = async (
     refs: AnimationKeyRef[],
     delta: number,
@@ -334,6 +353,7 @@ export function useAnimationWorkspace(
   };
   const play = () => {
     if (!clip) return;
+    setCameraPicking(undefined);
     setDrafts({});
     setPicking(false);
     const start =
@@ -357,12 +377,48 @@ export function useAnimationWorkspace(
             speed,
             matrices: evaluation.bodyMatrices,
             ...posed,
-            picking,
-            onPick: (point) => void changePivot(point),
+            picking: picking || !!cameraPicking,
+            pickLabel: cameraPicking
+              ? cameraPicking.zoom
+                ? 'Zoomin kohde'
+                : 'Kameran kohde'
+              : undefined,
+            onPick: (point) => {
+              if (!cameraPicking) {
+                void changePivot(point);
+                return;
+              }
+              const key = clip?.camera?.keys.find((k) => k.id === cameraPicking.id);
+              if (key)
+                void editCameraKey({
+                  ...key,
+                  ...(cameraPicking.zoom
+                    ? {
+                        hold: Math.max(key.hold, 1.5),
+                        zoom: {
+                          focalLength: Math.min(200, key.focalLength * 1.7),
+                          ...key.zoom,
+                          target: point,
+                        },
+                      }
+                    : { target: point }),
+                });
+              setCameraPicking(undefined);
+            },
             onFrame,
             cameraEnabled,
             showRoute: showRoute && tab === 'camera' && !renderPreview,
             renderPreview,
+            cameraKeyId,
+            cameraEditable: !busy && !playing,
+            onCameraSelect: (id) => {
+              setCameraKeyId(id);
+              setCameraEnabled(false);
+            },
+            onCameraMove: (id, position, target) => {
+              const key = clip?.camera?.keys.find((k) => k.id === id);
+              if (key) void editCameraKey({ ...key, position, target });
+            },
             onSample: (t, matrices) => renderFrame.current?.(t, matrices),
             onEnd: (next) => {
               setPlaying(false);
@@ -385,6 +441,9 @@ export function useAnimationWorkspace(
       showRoute,
       tab,
       renderPreview,
+      cameraPicking,
+      cameraKeyId,
+      busy,
     ],
   );
   const key = selectedKeys.length === 1 ? selectedKeys[0].key : undefined;
@@ -401,6 +460,8 @@ export function useAnimationWorkspace(
     renderFrame,
     cameraKeyId,
     setCameraKeyId,
+    cameraPicking,
+    setCameraPicking,
     meshes,
     currentTime: () => timeRef.current,
     seekAfterCameraEdit: (next: number) => {

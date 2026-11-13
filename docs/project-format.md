@@ -13,9 +13,13 @@ pudottaisi kameratiedot huomaamatta tallennettaessa.
 - Kamerapiste: `id`, `name`, `time` (saapuminen sekunteina), `hold` (pysähdys
   sekunteina), `position`, `target`, `focalLength` (12–200 mm),
   `interpolation: smooth | linear`. Interpolointi kuvaa lähtöä seuraavaan pisteeseen.
-- Valinnainen `zoom: { target, focalLength }` siirtää katsesuuntaa ja muuttaa
+- Valinnainen `zoom: { target, focalLength, start?, duration? }` siirtää katsesuuntaa ja muuttaa
   polttoväliä pysähdyksen aikana, kameran paikkaa muuttamatta. Kohde on kiinteä
   maailmanpiste, ei jatkuva objektiviite.
+  `start` on viive saapumisesta (oletus 0), `duration` zoomin kesto
+  (oletus koko pysähdys). Summan pitää mahtua pysähdykseen. Ennen v0.59.0:aa
+  tallennetut reitit säilyttävät vanhan ajoituksen. Vanhemmalla sovelluksella
+  uudelleen tallentaminen voi poistaa nämä valinnaiset ajoituskentät.
 - Enintään 500 pistettä/klippi. Saapumiset ovat järjestyksessä; edellisen
   pisteen pysähdyksen jälkeen on jäätävä positiivinen siirtymäaika. Pysähdyksen
   lopun pitää mahtua klippiin. Zoom tarvitsee positiivisen pysähdysajan.

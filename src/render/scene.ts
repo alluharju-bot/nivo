@@ -209,13 +209,14 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   // receiving pointerup. Never leave the refinement gate latched in that case.
   canvas.addEventListener('lostpointercapture', cameraEnd);
   window.addEventListener('blur', cameraEnd);
+  let animationFocalLength: number | undefined;
   const resize = () => {
     const width = host.clientWidth,
       height = host.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height);
     camera.aspect = width / height;
-    setCameraLens(camera, current().settings.focalLength);
+    setCameraLens(camera, animationFocalLength ?? current().settings.focalLength);
     progressive.resize();
     draw();
   };
@@ -647,6 +648,7 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
       matrices: Map<string, THREE.Matrix4>,
       playing: boolean,
     ) {
+      animationFocalLength = view?.focalLength;
       controls.enabled = false;
       let geometryChanged = false;
       for (const object of [...model.children, ...lights.children]) {

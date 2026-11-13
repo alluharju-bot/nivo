@@ -1,5 +1,48 @@
 # Validointi — 13.11.2026
 
+## V0.59.0 — muokattavat reittikamerat ja animaatiorenderöinti
+
+Windows / Chrome / NVIDIA RTX 2060 SUPER. Paikallinen Playwright CLI -varmennus.
+
+- TypeScript hyväksytty. Koko yksikkö-/geometriasarja: **868 hyväksyttyä,
+  6 ennestään ohitettua**, 160 hyväksyttyä ja 4 ohitettua tiedostoa.
+- Uudet kokeet: zoomin erillinen alku/kesto, aikavälin ja resoluution validointi,
+  täsmälliset ruutuajat ilman päätepisteen tuplausta sekä animoitujen materiaaliryhmien
+  ja osiin kiinnitettyjen valojen absoluuttisten asentojen palautus.
+- Kaksi olemassa olevaa `render-job.spec.ts`-selainkoetta hyväksytty: yksittäisen
+  kuvan muuttumaton tilannekuva, PNG-tallennus, keskeytys ja tarkennuksen palautuminen.
+- Kohdepiste valittu hiirellä mallista ja kameramerkkiä vedetty 3D-reitillä.
+  Paikka muuttui `[0,900,1650]` → `[652.07,1618.47,2124.67]`; katsesuunta säilyi.
+- Zoomin aluksi asetettu 0,5 s ja kestoksi 1,5 s käyttöliittymässä.
+- MP4 ladattu ja dekoodattu takaisin: **1280 × 720, 3 eri ruutua, 0,1 s**;
+  aikaleimat 0, 1/30 ja 2/30 s. Lähdeklipin väli 9–9,1 s sisältää liukuoven liikkeen.
+  Sama väli tallennettu häviöttömäksi PNG-ZIPiksi: kolme erilaista HD-kuvaa,
+  oikea manifesti ja onnistunut valmistumistila.
+- Suora MP4-kirjoitus testattu selaimen oikeaan FileSystemWritableFileStreamiin
+  OPFS-testihakemistossa (tiedostovalitsin korvattu testihandlella): 186 090 tavua,
+  0,1 s video, 8 näytettä/ruutu ja kohinanpoisto. PNG-kansioviennin keskeytys
+  ensimmäisen valmiin ruudun jälkeen säilytti kuvan ja `complete: false` -manifestin.
+- **3840 × 2160** PNG-testruutu valmistui alkuperäisessä resoluutiossa. Yhden
+  näytteen 5,2 s koe testasi kuvakoon ja viennin; se ei ole kuvanlaatumittaus.
+- Erillinen **HD / 256 näytettä / kohinanpoisto** -testruutu valmistui noin
+  **71,8 sekunnissa**. Kylmäkäynnistys, kohtaus ja näytönohjain vaikuttavat aikaan;
+  tätä ei pidä käyttää yleisenä nopeuslupauksena tai 4K-ennusteena.
+- 65 536 näytteen työn keskeytys ja uuden renderin käynnistys toimivat.
+- 1194 × 834 näkymässä esikatselu säilytti 32 mm objektiivin ja 2K DCI:n
+  kuvasuhteen (~1,896) resoluution/ikkunan koon vaihtuessa.
+- Lopullinen Vite-tuotantokäännös ja sen MP4-vienti hyväksytty osoitteessa
+  `http://127.0.0.1:4173/`: kolmen ruudun työ käytti yhtä vientiä varten luotua
+  WebGL-kontekstia, ei JavaScript- eikä konsolivirheitä. Kirjaston kaksoislatausvaroitusta
+  ei esiintynyt tuotannossa.
+
+Artefaktit ovat paikallisessa `output/playwright/`-hakemistossa: `camera-route-drag-v059.png`,
+`animation-compact-2k-v059.png`, `animation-quality-256.png`, `animation-native-4k.png`,
+`camera-offline-animated.mp4` ja `camera-offline-frames.zip`. Suuret testitulosteet eivät
+kuulu Gitiin. Vientiä ei ole vielä ajettu kokonaiselle pitkälle 4K-kierrokselle tai Macilla.
+Nykyiset Three/path tracer -vanhentumisvaroitukset säilyvät. Dekoodauksen testiharness
+aiheutti kehitysselaimeen Mediabunnyn kaksoislatausvaroituksen suoran moduulituonnin vuoksi;
+tuotantosovellus tuo kirjaston vain yhdestä, laiskasti ladattavasta kohdasta.
+
 ## V0.58.0 — kamerakierroksen prototyyppi
 
 Windows / Node 22.20.0 / Chrome / ANGLE D3D11 / NVIDIA RTX 2060 SUPER.
