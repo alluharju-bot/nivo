@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AnimationMixer, LoopOnce, Matrix4, Quaternion, Vector3, type Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { ready, save, view } from './helpers';
+import { ready, save, view, headerAction } from './helpers';
 import { projected } from './precision-helpers';
 import { freshProject, makeBody, type Project } from '../src/model/project';
 import {
@@ -96,13 +96,13 @@ test('authors independent door and child tracks, scrubs, undoes, plays and resto
   expect(saved.bodies.map((b) => b.origin)).toEqual(p.bodies.map((b) => b.origin));
   const builds = await page.getByTestId('viewport').getAttribute('data-geometry-builds');
   await page.screenshot({ path: info.outputPath('mechanical-animation.png') });
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   expect(
     (await save(page)).animation!.clips[0].tracks.find(
       (t) => t.nodeId === saved.animation!.nodes.find((n) => n.bodyId === pin.id)!.id,
     )!.keys,
   ).toHaveLength(1);
-  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await headerAction(page, 'Palauta');
   await time(page, 3.5);
   expect((await matrices(page)).get(left.id)![12]).toBeCloseTo(-150);
   await time(page, 0);
@@ -204,7 +204,10 @@ function animatedProject() {
 test('exports a playable GLB with hierarchy, TRS, easing and metadata', async ({ page }, info) => {
   const p = animatedProject();
   await load(page, p);
-  await page.getByRole('button', { name: 'Vie 3D-malli', exact: true }).click();
+  const exportButton = page.getByRole('button', { name: 'Vie 3D-malli', exact: true });
+  if (!(await exportButton.isVisible()))
+    await page.getByRole('button', { name: 'Lisää toimintoja', exact: true }).click();
+  await exportButton.click();
   await page
     .getByRole('dialog')
     .getByRole('combobox')

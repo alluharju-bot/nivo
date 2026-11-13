@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { cameraTrackSchema, validateCameraTrack } from './cameraAnimation';
 const id = z.string().min(1).max(100);
 const vector = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
 const quaternion = z
@@ -34,6 +35,7 @@ export const animationClipSchema = z.object({
   name: z.string().trim().min(1).max(120),
   duration: z.number().finite().min(0.01).max(3600),
   loop: z.boolean(),
+  camera: cameraTrackSchema.optional(),
   tracks: z
     .array(z.object({ nodeId: id, keys: z.array(animationKeySchema).max(10000) }))
     .max(10000),
@@ -46,7 +48,7 @@ export const animationClipSchema = z.object({
 });
 export const animationSchema = z
   .object({
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     nodes: z.array(animationNodeSchema).max(20000),
     clips: z.array(animationClipSchema).max(200),
   })
@@ -75,6 +77,11 @@ export const animationSchema = z
       }
     }
     for (const clip of data.clips) {
+      if (clip.camera) {
+        if (data.version !== 2) issue('Kamerareitti tarvitsee animaatioformaatin version 2.');
+        const error = validateCameraTrack(clip.camera, clip.duration);
+        if (error) issue(error);
+      }
       if (new Set(clip.tracks.map((t) => t.nodeId)).size !== clip.tracks.length)
         issue('Osalla voi olla vain yksi raita klipissä.');
       for (const track of clip.tracks) {

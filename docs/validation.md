@@ -1,4 +1,30 @@
-# Validointi — 5.11.2026
+# Validointi — 13.11.2026
+
+## V0.58.0 — kamerakierroksen prototyyppi
+
+Windows / Node 22.20.0 / Chrome / ANGLE D3D11 / NVIDIA RTX 2060 SUPER.
+
+- TypeScript ja Vite-tuotantokäännös hyväksytty.
+- Koko yksikkö-/geometriasarja: **864 hyväksyttyä, 6 ennestään ohitettua**;
+  159 hyväksyttyä ja 4 ohitettua tiedostoa. Näistä 11 uutta kamerareitin koetta.
+- Animaation 11 olemassa olevaa selainkoetta hyväksytty (10 + erikseen
+  uudelleen ajettu GLB-koe valikkoreitin korjauksen jälkeen). Windowsissa
+  käytettiin asennettua Chromea, koska Playwrightin omaa headless-shelliä ei ollut.
+- Playwright CLI -käyttöliittymävarmennus: scenen nimi, lisäys, poisto,
+  päällekkäisen ajoituksen hylkäys, kameran palautus, `.nivo`-tallennus ja reload.
+- Renderöity kamera ja objektit samalla kellolla; pysähdyksen zoom, PNG-vienti,
+  säteenseurannan tarkennus ja liikkeenaikainen tauko hyväksytty.
+- Mallin renderigeometria rakennettiin kerran. 240 ruudun rasterikokeen
+  RAF-väli keskimäärin 16,68 ms, p95 16,80 ms. Näyttörytmiin sidottu pienen
+  demohuoneen koe, ei suurten mallien suorituskykylupaus.
+- Kolme esikatselun sulkemista tarkennuksen käynnistyessä: ei JS-virheitä
+  tai DOMiin jääneitä renderöintikankaita. 1194 × 834 -esikatselu ei ylivuotanut.
+- Kolmen olemassa olleen testin WASM-tiedostopolku korjattiin Windows-yhteensopivaksi.
+  Vanhojen selainkokeiden Undo/Redo ja vienti huomioivat suppean yläpalkin valikon.
+
+[Käyttöohje, tekniset rajat ja koetulokset](camera-walkthrough.fi.md).
+
+## Aikaisempien passien ympäristö — 5.11.2026
 
 Ympäristö: Apple M1 Pro, 16 Gt, macOS 26.2 arm64, Node 24.14.0.
 Playwright 1.63.0 / Chromium 153.0.8010.12. Tablettiprofiili on

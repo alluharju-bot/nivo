@@ -419,7 +419,7 @@ export function progressiveRenderer(
     if (enabled)
       status(
         paused ? 'paused' : interacting ? 'rendering' : 'loading',
-        !paused && interacting ? 'Kamera liikkuu · tarkennus jatkuu pysähdyttyä' : undefined,
+        !paused && interacting ? 'Esikatselu liikkuu · tarkennus jatkuu pysähdyttyä' : undefined,
       );
   };
   return {
@@ -549,7 +549,7 @@ export function progressiveRenderer(
       if (enabled && !paused && !complete)
         status(
           value ? 'rendering' : 'loading',
-          value ? 'Kamera liikkuu · tarkennus jatkuu pysähdyttyä' : undefined,
+          value ? 'Esikatselu liikkuu · tarkennus jatkuu pysähdyttyä' : undefined,
         );
     },
     invalidate(rebuildScene = false, updateMaterials = false) {

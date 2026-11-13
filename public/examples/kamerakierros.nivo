@@ -1,0 +1,888 @@
+{
+  "format": "nivo",
+  "version": 9,
+  "id": "nivo-camera-gallery-demo",
+  "name": "Kamerakierros · Valon galleria",
+  "units": "mm",
+  "bodies": [
+    {
+      "id": "floor",
+      "name": "Vaalea kivilattia",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 8000,
+        "depth": 10000,
+        "height": 150
+      },
+      "origin": [
+        -4000,
+        0,
+        -150
+      ],
+      "color": "#b7b5a5",
+      "material": "matte"
+    },
+    {
+      "id": "wall-left",
+      "name": "Vasen seinä",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 150,
+        "depth": 10000,
+        "height": 3300
+      },
+      "origin": [
+        -4150,
+        0,
+        0
+      ],
+      "color": "#c5c6b8",
+      "material": "matte"
+    },
+    {
+      "id": "wall-right",
+      "name": "Oikea seinä",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 150,
+        "depth": 10000,
+        "height": 3300
+      },
+      "origin": [
+        4000,
+        0,
+        0
+      ],
+      "color": "#c5c6b8",
+      "material": "matte"
+    },
+    {
+      "id": "wall-back",
+      "name": "Päätyseinä",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 8000,
+        "depth": 150,
+        "height": 3300
+      },
+      "origin": [
+        -4000,
+        10000,
+        0
+      ],
+      "color": "#b0b8a5",
+      "material": "matte"
+    },
+    {
+      "id": "part-left",
+      "name": "Väliseinä vasen",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 3100,
+        "depth": 150,
+        "height": 3300
+      },
+      "origin": [
+        -4000,
+        6000,
+        0
+      ],
+      "color": "#8b9d92",
+      "material": "matte"
+    },
+    {
+      "id": "part-right",
+      "name": "Väliseinä oikea",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 3100,
+        "depth": 150,
+        "height": 3300
+      },
+      "origin": [
+        900,
+        6000,
+        0
+      ],
+      "color": "#8b9d92",
+      "material": "matte"
+    },
+    {
+      "id": "lintel",
+      "name": "Otsapalkki",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 1800,
+        "depth": 150,
+        "height": 700
+      },
+      "origin": [
+        -900,
+        6000,
+        2600
+      ],
+      "color": "#8b9d92",
+      "material": "matte"
+    },
+    {
+      "id": "door",
+      "name": "Liukuovi · animoitu",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 1800,
+        "depth": 70,
+        "height": 2580
+      },
+      "origin": [
+        -900,
+        5970,
+        0
+      ],
+      "color": "#a77644",
+      "material": "wood"
+    },
+    {
+      "id": "rail",
+      "name": "Oven yläkisko",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 4000,
+        "depth": 100,
+        "height": 70
+      },
+      "origin": [
+        -2900,
+        5900,
+        2650
+      ],
+      "color": "#344d45",
+      "material": "metal"
+    },
+    {
+      "id": "handle",
+      "name": "Vetimen lista",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 50,
+        "depth": 80,
+        "height": 750
+      },
+      "origin": [
+        750,
+        5900,
+        1000
+      ],
+      "color": "#b6b3a2",
+      "material": "metal"
+    },
+    {
+      "id": "table-top",
+      "name": "Pöytä · tammi",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 2400,
+        "depth": 1000,
+        "height": 70
+      },
+      "origin": [
+        -1200,
+        4000,
+        850
+      ],
+      "color": "#be915a",
+      "material": "wood"
+    },
+    {
+      "id": "table-leg-l",
+      "name": "Pöydän jalka vasen",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 130,
+        "depth": 800,
+        "height": 850
+      },
+      "origin": [
+        -1100,
+        4100,
+        0
+      ],
+      "color": "#46594c",
+      "material": "metal"
+    },
+    {
+      "id": "table-leg-r",
+      "name": "Pöydän jalka oikea",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 130,
+        "depth": 800,
+        "height": 850
+      },
+      "origin": [
+        970,
+        4100,
+        0
+      ],
+      "color": "#46594c",
+      "material": "metal"
+    },
+    {
+      "id": "display",
+      "name": "Yksityiskohta · messinkiesine",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 350,
+        "depth": 350,
+        "height": 500
+      },
+      "origin": [
+        300,
+        4250,
+        920
+      ],
+      "color": "#bd8b40",
+      "material": "metal"
+    },
+    {
+      "id": "displaybase",
+      "name": "Esineen tumma jalusta",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 490,
+        "depth": 490,
+        "height": 60
+      },
+      "origin": [
+        230,
+        4180,
+        920
+      ],
+      "color": "#344c48",
+      "material": "matte"
+    },
+    {
+      "id": "shelf",
+      "name": "Takahuoneen taso",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 2500,
+        "depth": 550,
+        "height": 900
+      },
+      "origin": [
+        900,
+        9000,
+        0
+      ],
+      "color": "#9b764b",
+      "material": "wood"
+    },
+    {
+      "id": "picture",
+      "name": "Vihreä taideteos",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 1700,
+        "depth": 50,
+        "height": 1500
+      },
+      "origin": [
+        -2500,
+        9940,
+        950
+      ],
+      "color": "#2d685b",
+      "material": "paint"
+    },
+    {
+      "id": "picture-2",
+      "name": "Oranssi taideteos",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 1000,
+        "depth": 50,
+        "height": 1000
+      },
+      "origin": [
+        1600,
+        9940,
+        1500
+      ],
+      "color": "#c58444",
+      "material": "paint"
+    },
+    {
+      "id": "bench",
+      "name": "Oleskelupenkki",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 600,
+        "depth": 1500,
+        "height": 450
+      },
+      "origin": [
+        -3400,
+        8000,
+        0
+      ],
+      "color": "#98704e",
+      "material": "wood"
+    },
+    {
+      "id": "slat-0",
+      "name": "Puupaneeli 1",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 80,
+        "depth": 100,
+        "height": 3000
+      },
+      "origin": [
+        -3950,
+        1000,
+        0
+      ],
+      "color": "#a57c4f",
+      "material": "wood"
+    },
+    {
+      "id": "slat-1",
+      "name": "Puupaneeli 2",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 80,
+        "depth": 100,
+        "height": 3000
+      },
+      "origin": [
+        -3950,
+        1260,
+        0
+      ],
+      "color": "#a57c4f",
+      "material": "wood"
+    },
+    {
+      "id": "slat-2",
+      "name": "Puupaneeli 3",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 80,
+        "depth": 100,
+        "height": 3000
+      },
+      "origin": [
+        -3950,
+        1520,
+        0
+      ],
+      "color": "#a57c4f",
+      "material": "wood"
+    },
+    {
+      "id": "slat-3",
+      "name": "Puupaneeli 4",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 80,
+        "depth": 100,
+        "height": 3000
+      },
+      "origin": [
+        -3950,
+        1780,
+        0
+      ],
+      "color": "#a57c4f",
+      "material": "wood"
+    },
+    {
+      "id": "slat-4",
+      "name": "Puupaneeli 5",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 80,
+        "depth": 100,
+        "height": 3000
+      },
+      "origin": [
+        -3950,
+        2040,
+        0
+      ],
+      "color": "#a57c4f",
+      "material": "wood"
+    },
+    {
+      "id": "slat-5",
+      "name": "Puupaneeli 6",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 80,
+        "depth": 100,
+        "height": 3000
+      },
+      "origin": [
+        -3950,
+        2300,
+        0
+      ],
+      "color": "#a57c4f",
+      "material": "wood"
+    },
+    {
+      "id": "slat-6",
+      "name": "Puupaneeli 7",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 80,
+        "depth": 100,
+        "height": 3000
+      },
+      "origin": [
+        -3950,
+        2560,
+        0
+      ],
+      "color": "#a57c4f",
+      "material": "wood"
+    },
+    {
+      "id": "beam-0",
+      "name": "Kattopalkki 1",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 8000,
+        "depth": 180,
+        "height": 150
+      },
+      "origin": [
+        -4000,
+        1000,
+        3150
+      ],
+      "color": "#687b6d",
+      "material": "matte"
+    },
+    {
+      "id": "beam-1",
+      "name": "Kattopalkki 2",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 8000,
+        "depth": 180,
+        "height": 150
+      },
+      "origin": [
+        -4000,
+        4500,
+        3150
+      ],
+      "color": "#687b6d",
+      "material": "matte"
+    },
+    {
+      "id": "beam-2",
+      "name": "Kattopalkki 3",
+      "kind": "cad",
+      "feature": {
+        "type": "rectangle-extrusion",
+        "width": 8000,
+        "depth": 180,
+        "height": 150
+      },
+      "origin": [
+        -4000,
+        8300,
+        3150
+      ],
+      "color": "#687b6d",
+      "material": "matte"
+    }
+  ],
+  "groups": [],
+  "dimensions": [],
+  "guides": [],
+  "settings": {
+    "guideXray": false,
+    "axisStyle": "subtle",
+    "axisLabels": false,
+    "dimensionDisplay": "hidden",
+    "render": {
+      "environment": "warm",
+      "exposure": 1,
+      "shadows": true,
+      "focalLength": 35,
+      "lightPower": 1.1
+    }
+  },
+  "updatedAt": "2026-11-13T10:00:00Z",
+  "animation": {
+    "version": 2,
+    "nodes": [
+      {
+        "id": "node-door",
+        "name": "Liukuovi · animoitu",
+        "bodyId": "door",
+        "rest": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "node-handle",
+        "name": "Vetimen lista",
+        "bodyId": "handle",
+        "rest": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    ],
+    "clips": [
+      {
+        "id": "gallery-tour",
+        "name": "Valon galleria · esittely",
+        "duration": 23,
+        "loop": false,
+        "tracks": [
+          {
+            "nodeId": "node-door",
+            "keys": [
+              {
+                "id": "door-0",
+                "time": 0,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "id": "door-9",
+                "time": 9,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "id": "door-12",
+                "time": 12,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    -2000,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "id": "door-23",
+                "time": 23,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    -2000,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "nodeId": "node-handle",
+            "keys": [
+              {
+                "id": "handle-0",
+                "time": 0,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "id": "handle-9",
+                "time": 9,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "id": "handle-12",
+                "time": 12,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    -2000,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "id": "handle-23",
+                "time": 23,
+                "interpolation": "smooth",
+                "pose": {
+                  "position": [
+                    -2000,
+                    0,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "markers": [],
+        "camera": {
+          "keys": [
+            {
+              "id": "entry",
+              "name": "Saapuminen",
+              "time": 0,
+              "hold": 1.5,
+              "position": [
+                0,
+                900,
+                1650
+              ],
+              "target": [
+                0,
+                4700,
+                1450
+              ],
+              "focalLength": 28,
+              "interpolation": "smooth"
+            },
+            {
+              "id": "detail",
+              "name": "Materiaalin yksityiskohta",
+              "time": 5,
+              "hold": 3,
+              "position": [
+                -1800,
+                3600,
+                1550
+              ],
+              "target": [
+                250,
+                4400,
+                1100
+              ],
+              "focalLength": 32,
+              "interpolation": "smooth",
+              "zoom": {
+                "target": [
+                  475,
+                  4425,
+                  1220
+                ],
+                "focalLength": 65
+              }
+            },
+            {
+              "id": "doorway",
+              "name": "Ovi avautuu",
+              "time": 13,
+              "hold": 2,
+              "position": [
+                0,
+                5400,
+                1650
+              ],
+              "target": [
+                0,
+                8500,
+                1450
+              ],
+              "focalLength": 28,
+              "interpolation": "smooth"
+            },
+            {
+              "id": "lounge",
+              "name": "Takahuone",
+              "time": 20,
+              "hold": 3,
+              "position": [
+                0,
+                8300,
+                1650
+              ],
+              "target": [
+                1600,
+                9500,
+                1450
+              ],
+              "focalLength": 24,
+              "interpolation": "smooth"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

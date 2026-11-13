@@ -8,6 +8,7 @@ export function createAnimationPreview(
   objects: () => Map<string, { mesh: Mesh; outline: Object3D; boundary?: Object3D }>,
   canvas: HTMLCanvasElement,
   render: () => void,
+  sample?: (time: number, matrices: Map<string, Matrix4>, state?: AnimationViewport) => void,
 ) {
   let frame = 0,
     stamp = 0,
@@ -16,6 +17,10 @@ export function createAnimationPreview(
     signature = '',
     driven = new Set<string>();
   const identity = new Matrix4();
+  const resetClock = () => {
+    stamp = performance.now();
+  };
+  document.addEventListener('visibilitychange', resetClock);
   const apply = (matrices: Map<string, Matrix4>) => {
     for (const id of new Set([...driven, ...matrices.keys()])) {
       const node = objects().get(id);
@@ -28,6 +33,7 @@ export function createAnimationPreview(
         }
     }
     driven = new Set(matrices.keys());
+    sample?.(time, matrices, current());
     canvas.dataset.animationTime = String(time);
     canvas.dataset.animationMatrices =
       matrices.size <= 32 ? JSON.stringify([...matrices].map(([id, m]) => [id, m.elements])) : '';
@@ -37,6 +43,11 @@ export function createAnimationPreview(
     frame = 0;
     const state = current();
     if (!state?.playing || !state.clip) return;
+    if (document.hidden) {
+      stamp = now;
+      frame = requestAnimationFrame(tick);
+      return;
+    }
     time += Math.max(0, (now - stamp) / 1000) * state.speed;
     stamp = now;
     const duration = state.clip.duration;
@@ -64,6 +75,10 @@ export function createAnimationPreview(
         playing = false;
         signature = '';
         if (driven.size) apply(new Map());
+        else {
+          sample?.(0, new Map(), undefined);
+          render();
+        }
         return;
       }
       const next = `${state.clip?.id}:${state.time}:${state.speed}`;
@@ -81,6 +96,7 @@ export function createAnimationPreview(
       } else if (!frame) frame = requestAnimationFrame(tick);
     },
     dispose() {
+      document.removeEventListener('visibilitychange', resetClock);
       cancelAnimationFrame(frame);
     },
   };

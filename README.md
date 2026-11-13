@@ -3,6 +3,18 @@
 **Ideasta mitoitettuun muotoon.** Selaimessa toimiva avoimen lähdekoodin
 3D-suunnittelutyökalu kalusteille, rakennusosille ja tiloille.
 
+Versio **0.58.0** lisää ensimmäisen **kamerakierroksen** animaatioikkunaan.
+**Animaatio → Kamera & reitti**: tallenna kuvakulmia, nimeä scenet, määritä
+saapumisajat ja pysähdykset sekä valitse yksityiskohtazoom. Kamerareitti ja
+osien omat animaatiot toistuvat samalla aikajanalla. Renderöity esikatselu
+käyttää nykyisiä materiaaleja ja valoja; valinnainen säteenseuranta tarkentaa
+paikallaan pysyvää kuvaa. Pysäytetyn kuvakulman voi tallentaa PNG:nä.
+
+Tyhjän projektin **Kamerakierros · tilaesimerkki** avaa neljän scenen gallerian,
+jossa on zoom ja animoitu liukuovi. Sen voi myös avata tiedostona
+[kamerakierros.nivo](public/examples/kamerakierros.nivo).
+Käyttö, tekninen rajaus ja seuraavat askeleet: [kamerakierroksen ohje](docs/camera-walkthrough.fi.md).
+
 Versio **0.57.5** palauttaa tarkentuvan renderin näytön omaan tarkkuuteen
 työpöydällä muistibudjetin puitteissa, myös 4K-kokoluokassa. Aiempi kiinteä
 3 MP / 2560 px raja ei enää sumenna suurta näkymää suurentamalla pienempää kuvaa.

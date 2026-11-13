@@ -106,7 +106,10 @@ export function mergeProject(target: Project, source: Project) {
     animation:
       target.animation || incoming.animation
         ? {
-            version: 1 as const,
+            version:
+              target.animation?.version === 2 || incoming.animation?.version === 2
+                ? (2 as const)
+                : (1 as const),
             nodes: [...(target.animation?.nodes ?? []), ...(incoming.animation?.nodes ?? [])],
             clips: [...(target.animation?.clips ?? []), ...(incoming.animation?.clips ?? [])],
           }

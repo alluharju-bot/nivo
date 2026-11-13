@@ -4429,18 +4429,20 @@ export default function App() {
       changeView('iso', true);
     }
   };
-  const finishedExample = async (curves = false) => {
+  const finishedExample = async (curves: boolean | 'camera' = false) => {
     try {
       const response = await fetch(
-        `${import.meta.env.BASE_URL}examples/${curves ? 'muotojen-lapi' : 'viimeistelty-kaappi'}.nivo`,
+        `${import.meta.env.BASE_URL}examples/${curves === 'camera' ? 'kamerakierros' : curves ? 'muotojen-lapi' : 'viimeistelty-kaappi'}.nivo`,
       );
       if (!response.ok) throw new Error('Esimerkkiprojektia ei saatu avattua.');
       if (
         await editor.transact(
           { ...parseProject(await response.text()), id: uid() },
-          curves
-            ? 'Käyräesimerkki avattu. Lähtömuodot löytyvät piilotettuina mallilistasta. Muodot → Muotojen läpi luo uuden pinnan.'
-            : 'Viimeistelty kaappiesimerkki avattu. Tutki reunakäsittelyjä F:llä, mittoja ja renderin tekstuureja.',
+          curves === 'camera'
+            ? 'Kamerakierros avattu. Avaa Animaatio → Kamera & reitti → Renderöity esikatselu.'
+            : curves
+              ? 'Käyräesimerkki avattu. Lähtömuodot löytyvät piilotettuina mallilistasta. Muodot → Muotojen läpi luo uuden pinnan.'
+              : 'Viimeistelty kaappiesimerkki avattu. Tutki reunakäsittelyjä F:llä, mittoja ja renderin tekstuureja.',
           'replace',
         )
       ) {
@@ -8281,6 +8283,9 @@ export default function App() {
               </div>
             )}
             <Viewport
+              onAnimationCameraReady={(bridge) => {
+                animation.cameraBridge.current = bridge;
+              }}
               geometryEditing={geometryActive ? geometryStage : undefined}
               geometryActive={geometryActive}
               heldSelectionIds={heldSelectionIds}
@@ -8966,6 +8971,13 @@ export default function App() {
                     onClick={() => void finishedExample(true)}
                   >
                     Käyräesimerkki · pullo ja kartio <span>↗</span>
+                  </button>
+                  <button
+                    className="welcome-example"
+                    disabled={busy}
+                    onClick={() => void finishedExample('camera')}
+                  >
+                    Kamerakierros · tilaesimerkki <span>↗</span>
                   </button>
                   <div className="welcome-meta">
                     <span>01 — Piirrä</span>

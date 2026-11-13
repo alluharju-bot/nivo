@@ -1,4 +1,5 @@
 import { beforeAll, expect, test } from 'vitest';
+import { fileURLToPath } from 'node:url';
 import Module, { type ManifoldToplevel } from 'manifold-3d';
 import { BoxGeometry, TorusGeometry, Vector3 } from 'three';
 import { meshBounds, readGeometry, type SurfaceMesh } from '../surface/mesh';
@@ -12,7 +13,7 @@ let api: ManifoldToplevel;
 beforeAll(async () => {
   api = await Module({
     locateFile: () =>
-      new URL('../../node_modules/manifold-3d/manifold.wasm', import.meta.url).pathname,
+      fileURLToPath(new URL('../../node_modules/manifold-3d/manifold.wasm', import.meta.url)),
   });
   api.setup();
 });

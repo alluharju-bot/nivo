@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ready, save, view } from './helpers';
+import { ready, save, view, headerAction } from './helpers';
 import { freshProject, makeBody, type Project } from '../src/model/project';
 import { ensureAnimationNodes, type AnimationClip } from '../src/model/animation';
 
@@ -91,9 +91,9 @@ test('moves keys on two tracks together with a shared preview and one undo step'
   expect(updated.bodies).toEqual(p.bodies);
   await expect(diamond(page, 0, 1)).toHaveAttribute('aria-pressed', 'true');
   await expect(diamond(page, 1, 1)).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   expect(times(await save(page))).toEqual(times(p));
-  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await headerAction(page, 'Palauta');
   expect(times(await save(page))).toEqual(times(updated));
   await page.screenshot({ path: info.outputPath('multi-keyframe-selection.png') });
   await diamond(page, 1, 1).click({ modifiers: ['Shift'] });
@@ -125,7 +125,7 @@ test('selects whole tracks and extends their timing, interpolation and deletion 
   ).toBe(true);
   await panel(page).getByRole('button', { name: 'Poista valitut avaimet', exact: true }).click();
   expect((await save(page)).animation!.clips[0].tracks).toHaveLength(0);
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   expect(times(await save(page))).toEqual(times(moved));
 });
 

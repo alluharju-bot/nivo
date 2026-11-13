@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import initOpenCascade from 'replicad-opencascadejs';
 import { setOC, drawCircle, type Sketch } from 'replicad';
 import { createShape, meshBody, projectShapes, runProbe, pushPullFace } from './kernel';
@@ -75,9 +76,7 @@ it('keeps circular rim ownership on the correct split face and after a rigid rot
 beforeAll(async () => {
   setOC(
     await initOpenCascade({
-      wasmBinary: readFileSync(
-        import.meta.resolve('replicad-opencascadejs/wasm').replace('file://', ''),
-      ),
+      wasmBinary: readFileSync(fileURLToPath(import.meta.resolve('replicad-opencascadejs/wasm'))),
     }),
   );
 }, 30_000);

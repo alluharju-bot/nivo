@@ -35,6 +35,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { BodyMesh } from '../cad/protocol';
 import { bounds, type Body, type Project } from '../model/project';
 import type { RenderView } from '../model/renderViews';
+import type { CameraPose } from '../model/cameraAnimation';
 import { createRenderer } from '../viewport/graphicsContext';
 
 export type RenderSettings = NonNullable<Project['settings']['render']>;
@@ -373,6 +374,8 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
         );
         const partLights = createPartLights(range.source, emitter);
         const traceLights = createTraceLights(range.source, emitter);
+        partLights.userData.bodyId = body.id;
+        traceLights.userData.bodyId = body.id;
         emitter.dispose();
         if (traceLights.children.length) lights.add(traceLights);
         if (partLights.userData.previewOnly) areaLights.push(partLights);
@@ -635,7 +638,63 @@ export function createRenderScene(host: HTMLDivElement, current: () => Props) {
   canvas.addEventListener('pointerdown', down);
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointermove', move);
+  let animationMoving = false;
+  const identity = new THREE.Matrix4();
   return {
+    /** Reuse geometry/materials while the common animation clock changes transforms. */
+    animationFrame(
+      view: CameraPose | undefined,
+      matrices: Map<string, THREE.Matrix4>,
+      playing: boolean,
+    ) {
+      controls.enabled = false;
+      let geometryChanged = false;
+      for (const object of [...model.children, ...lights.children]) {
+        const id = object.userData.bodyId;
+        if (!id) continue;
+        const matrix = matrices.get(id) ?? identity;
+        if (!object.matrix.equals(matrix)) {
+          object.matrixAutoUpdate = false;
+          object.matrix.copy(matrix);
+          object.matrixWorldNeedsUpdate = true;
+          geometryChanged = true;
+        }
+      }
+      let cameraChanged = false;
+      if (view) {
+        cameraChanged =
+          !camera.position.equals(new THREE.Vector3(...view.position)) ||
+          !controls.target.equals(new THREE.Vector3(...view.target)) ||
+          Math.abs(camera.getFocalLength() - view.focalLength) > 1e-7;
+        if (cameraChanged) {
+          camera.position.set(...view.position);
+          camera.up.set(0, 0, 1);
+          controls.target.set(...view.target);
+          setCameraLens(camera, view.focalLength);
+          camera.lookAt(controls.target);
+          camera.updateMatrixWorld();
+          camera.near = Math.min(0.1, camera.position.distanceTo(controls.target) / 10000);
+          camera.far = Math.max(camera.far, camera.position.length() + extent * 4);
+          camera.updateProjectionMatrix();
+        }
+      }
+      const moving = playing && (geometryChanged || cameraChanged);
+      if (moving !== animationMoving) {
+        animationMoving = moving;
+        progressive.interaction(moving);
+      }
+      if (geometryChanged) {
+        scene.updateMatrixWorld(true);
+        renderer.shadowMap.needsUpdate = true;
+      }
+      if (cameraChanged || geometryChanged) {
+        progressive.invalidate(geometryChanged);
+        draw(false, false);
+      }
+      canvas.dataset.animationMoving = String(moving);
+      canvas.dataset.animationMatrices =
+        matrices.size <= 32 ? JSON.stringify([...matrices].map(([id, m]) => [id, m.elements])) : '';
+    },
     sync,
     fit,
     settings: settingsOnly,

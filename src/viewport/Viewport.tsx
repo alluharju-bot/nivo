@@ -1,6 +1,13 @@
 import { extrusionPreview } from './extrusionPreview';
 import { layerUVKey } from '../render/layerUV';
 import { createAnimationPreview } from './animation';
+import {
+  evaluateCamera,
+  type AnimationCameraBridge,
+  type CameraPose,
+} from '../model/cameraAnimation';
+import { setCameraLens } from '../render/cameraLens';
+import { createCameraRoute } from './cameraRoute';
 import { createMotionPreview } from './motions';
 import { createLightHelper } from './lightEditing';
 import { layerDomain } from '../render/layers';
@@ -64,6 +71,7 @@ import { createTriangleIndex } from './triangleIndex';
 import { createRenderer, watchGraphicsContext, contextLostMessage } from './graphicsContext';
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
+  animationCamera: AnimationCameraBridge;
   light: () => void;
   motion: () => void;
   animation: () => void;
@@ -413,13 +421,91 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       render();
     },
   );
+  const cameraRoute = createCameraRoute(scene);
+  let cameraHome:
+    | {
+        camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
+        target: THREE.Vector3;
+        min: number;
+        max: number;
+      }
+    | undefined;
+  let previousCameraTrack: import('../model/cameraAnimation').CameraTrack | undefined;
+  let previousCameraTime = NaN;
+  const rememberAnimationCamera = () => {
+    if (!cameraHome)
+      cameraHome = {
+        camera: camera.clone(),
+        target: controls.target.clone(),
+        min: controls.minDistance,
+        max: controls.maxDistance,
+      };
+  };
+  const showAnimationCamera = (view: CameraPose) => {
+    if (current().animation) rememberAnimationCamera();
+    setProjection('perspective');
+    if (!camera.up.equals(new THREE.Vector3(0, 0, 1))) setCameraUp([0, 0, 1]);
+    perspective.position.set(...view.position);
+    controls.target.set(...view.target);
+    const distance = perspective.position.distanceTo(controls.target);
+    controls.minDistance = Math.min(controls.minDistance, distance / 2);
+    controls.maxDistance = Math.max(controls.maxDistance, distance * 2);
+    setCameraLens(perspective, view.focalLength);
+    perspective.lookAt(controls.target);
+    controls.update();
+  };
   const animationPreview = createAnimationPreview(
     () => current().animation,
     () => bodyNodes,
     renderer.domElement,
     () => {
       renderer.shadowMap.needsUpdate = true;
-      render();
+      if (!current().animation?.renderPreview) render();
+    },
+    (time, matrices, state) => {
+      cameraRoute.sync(state?.clip?.camera, !!state?.showRoute && !state.playing);
+      const follow = !!state?.cameraEnabled && !!state.clip?.camera?.keys.length;
+      if (follow) rememberAnimationCamera();
+      if (!follow && cameraHome) {
+        if (!camera.up.equals(cameraHome.camera.up)) setCameraUp(cameraHome.camera.up.toArray());
+        setProjection(
+          cameraHome.camera instanceof THREE.PerspectiveCamera ? 'perspective' : 'orthographic',
+        );
+        if (
+          camera instanceof THREE.PerspectiveCamera &&
+          cameraHome.camera instanceof THREE.PerspectiveCamera
+        )
+          camera.copy(cameraHome.camera);
+        else if (
+          camera instanceof THREE.OrthographicCamera &&
+          cameraHome.camera instanceof THREE.OrthographicCamera
+        )
+          camera.copy(cameraHome.camera);
+        controls.target.copy(cameraHome.target);
+        controls.minDistance = cameraHome.min;
+        controls.maxDistance = cameraHome.max;
+        camera.updateProjectionMatrix();
+        controls.update();
+        cameraHome = undefined;
+        previousCameraTrack = undefined;
+        previousCameraTime = NaN;
+        controls.enabled = true;
+      }
+      if (follow) controls.enabled = !state?.playing && !state?.renderPreview;
+      if (state?.renderPreview) previousCameraTime = NaN;
+      if (
+        follow &&
+        !state?.renderPreview &&
+        (state?.playing ||
+          state?.clip?.camera !== previousCameraTrack ||
+          time !== previousCameraTime)
+      ) {
+        const view = evaluateCamera(state!.clip?.camera, time);
+        if (view) showAnimationCamera(view);
+        previousCameraTrack = state?.clip?.camera;
+        previousCameraTime = time;
+      }
+      state?.onSample(time, matrices);
     },
   );
   const workingBodies = () => current().animation?.bodies ?? current().bodies;
@@ -1826,6 +1912,20 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     render();
   };
   const result: SceneApi = {
+    animationCamera: {
+      capture: () => {
+        setProjection('perspective');
+        return {
+          position: camera.position.toArray(),
+          target: controls.target.toArray(),
+          focalLength: perspective.getFocalLength(),
+        };
+      },
+      show: (view) => {
+        showAnimationCamera(view);
+        render();
+      },
+    },
     geometry: syncGeometry,
     capture: async () => {
       await materialLibrary.ready();
@@ -1909,6 +2009,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       disposed = true;
       motionPreview.dispose();
       animationPreview.dispose();
+      cameraRoute.dispose();
       lightHelper.dispose();
       geometryEditor?.dispose();
       cancelAnimationFrame(renderFrame);
@@ -1978,6 +2079,7 @@ export function Viewport(props: Props) {
       setError('');
       api.current = makeScene(host.current!, () => latest.current);
       latest.current.onCaptureReady?.(api.current.capture);
+      latest.current.onAnimationCameraReady?.(api.current.animationCamera);
       if (generation && latest.current.meshes.length) api.current.command({ id: 0, type: 'fit' });
       const canvas = host.current!.querySelector('canvas')!;
       unwatch = watchGraphicsContext(
@@ -1995,6 +2097,7 @@ export function Viewport(props: Props) {
     }
     return () => {
       latest.current.onCaptureReady?.(undefined);
+      latest.current.onAnimationCameraReady?.(undefined);
       unwatch?.();
       api.current?.dispose();
       api.current = undefined;

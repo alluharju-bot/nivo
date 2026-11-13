@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Matrix4, Vector3 } from 'three';
+import { CameraAnimationPanel, CameraTimelineTrack } from './CameraAnimationPanel';
+import { AnimationRenderPreview } from './AnimationRenderPreview';
+import type { AnimationCameraBridge } from '../model/cameraAnimation';
 import {
   Play,
   Pause,
@@ -54,6 +57,10 @@ export interface AnimationViewport {
   onPick: (point: Vec3) => void;
   onFrame: (time: number) => void;
   onEnd: (time: number) => void;
+  cameraEnabled: boolean;
+  showRoute: boolean;
+  renderPreview: boolean;
+  onSample: (time: number, matrices: Map<string, Matrix4>) => void;
 }
 export function useAnimationWorkspace(
   project: Project,
@@ -71,6 +78,15 @@ export function useAnimationWorkspace(
   const [drafts, setDrafts] = useState<PoseMap>({}),
     [error, setError] = useState(''),
     [picking, setPicking] = useState(false);
+  const [tab, setTab] = useState<'objects' | 'camera'>('objects');
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [showRoute, setShowRoute] = useState(true);
+  const [renderPreview, setRenderPreview] = useState(false);
+  const [cameraKeyId, setCameraKeyId] = useState<string>();
+  const cameraBridge = useRef<AnimationCameraBridge | undefined>(undefined);
+  const renderFrame = useRef<((time: number, matrices: Map<string, Matrix4>) => void) | undefined>(
+    undefined,
+  );
   const [keySelection, setKeySelection] = useState<{
       clipId: string;
       refs: AnimationKeyRef[];
@@ -133,6 +149,8 @@ export function useAnimationWorkspace(
     setTime(0);
     timeRef.current = 0;
     setError('');
+    setRenderPreview(false);
+    setCameraEnabled(false);
   };
   useEffect(() => {
     close();
@@ -164,7 +182,14 @@ export function useAnimationWorkspace(
   };
   const saveClip = (value: AnimationClip, label: string) =>
     data &&
-    commitData({ ...data, clips: data.clips.map((c) => (c.id === value.id ? value : c)) }, label);
+    commitData(
+      {
+        ...data,
+        version: value.camera ? 2 : data.version,
+        clips: data.clips.map((c) => (c.id === value.id ? value : c)),
+      },
+      label,
+    );
   const shiftKeys = async (
     refs: AnimationKeyRef[],
     delta: number,
@@ -335,6 +360,10 @@ export function useAnimationWorkspace(
             picking,
             onPick: (point) => void changePivot(point),
             onFrame,
+            cameraEnabled,
+            showRoute: showRoute && tab === 'camera' && !renderPreview,
+            renderPreview,
+            onSample: (t, matrices) => renderFrame.current?.(t, matrices),
             onEnd: (next) => {
               setPlaying(false);
               setTime(next);
@@ -342,10 +371,43 @@ export function useAnimationWorkspace(
             },
           }
         : undefined,
-    [open, data, clip, time, playing, speed, posed, picking, evaluation],
+    [
+      open,
+      data,
+      clip,
+      time,
+      playing,
+      speed,
+      posed,
+      picking,
+      evaluation,
+      cameraEnabled,
+      showRoute,
+      tab,
+      renderPreview,
+    ],
   );
   const key = selectedKeys.length === 1 ? selectedKeys[0].key : undefined;
   return {
+    tab,
+    setTab,
+    cameraEnabled,
+    setCameraEnabled,
+    showRoute,
+    setShowRoute,
+    cameraBridge,
+    renderPreview,
+    setRenderPreview,
+    renderFrame,
+    cameraKeyId,
+    setCameraKeyId,
+    meshes,
+    currentTime: () => timeRef.current,
+    seekAfterCameraEdit: (next: number) => {
+      reset();
+      timeRef.current = next;
+      setTime(next);
+    },
     open,
     start: () => {
       setOpen(true);
@@ -409,7 +471,8 @@ export function useAnimationWorkspace(
     },
   };
 }
-type Workspace = ReturnType<typeof useAnimationWorkspace>;
+export type AnimationWorkspaceState = ReturnType<typeof useAnimationWorkspace>;
+type Workspace = AnimationWorkspaceState;
 type Actions = {
   onSelect: (ids: string[], groupId?: string) => void;
   onTool: (tool: 'select' | 'move' | 'rotate' | 'scale') => void;
@@ -420,7 +483,7 @@ type Actions = {
   project: Project;
   operation?: ReactNode;
 };
-function CommitInput({
+export function CommitInput({
   value,
   label,
   onCommit,
@@ -472,11 +535,13 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
         <div>
           <small>ANIMAATIO</small>
           <h2>
-            {s.selectedKeys.length > 1
-              ? 'Ajoituksen muokkaus'
-              : s.active
-                ? animationNodeName(s.active, a.project)
-                : 'Valitse liikkuva osa'}
+            {s.tab === 'camera'
+              ? 'Kamerakierros'
+              : s.selectedKeys.length > 1
+                ? 'Ajoituksen muokkaus'
+                : s.active
+                  ? animationNodeName(s.active, a.project)
+                  : 'Valitse liikkuva osa'}
           </h2>
         </div>
         <button
@@ -489,340 +554,368 @@ export function AnimationPanel({ state: s, ...a }: { state: Workspace } & Action
           <X size={18} />
         </button>
       </header>
-      <div className="animation-tool-row">
-        {(['select', 'move', 'rotate', 'scale'] as const).map((tool, i) => (
-          <button
-            key={tool}
-            aria-pressed={a.tool === tool}
-            disabled={s.playing || a.busy}
-            onClick={() => a.onTool(tool)}
-          >
-            {['Valitse', 'Siirrä · M', 'Kierrä · R', 'Skaalaa · L'][i]}
-          </button>
-        ))}
-      </div>
-      {s.selectedKeys.length < 2 && a.operation}
-      {!s.clip ? (
-        <button className="button dark" onClick={() => void s.createClip()} disabled={a.busy}>
-          <Plus size={16} /> Luo animaatioklippi
+      <div className="animation-tool-row" aria-label="Animaation raidat">
+        <button aria-pressed={s.tab === 'camera'} onClick={() => s.setTab('camera')}>
+          Kamera & reitti
         </button>
+        <button aria-pressed={s.tab === 'objects'} onClick={() => s.setTab('objects')}>
+          Objektit
+        </button>
+      </div>
+      {s.tab === 'camera' ? (
+        <CameraAnimationPanel state={s} project={a.project} busy={a.busy} />
       ) : (
         <>
-          <label>
-            Animoitava osa tai ryhmä
-            <select
-              aria-label="Animaation kohde"
-              value={s.active?.id ?? ''}
-              onChange={(e) => {
-                const node = s.data?.nodes.find((n) => n.id === e.target.value);
-                if (node) {
-                  a.onResetGesture();
-                  a.onSelect(nodeBodyIds(s.data!, node.id), node.groupId);
-                }
-              }}
-            >
-              <option value="">Valitse näkymästä…</option>
-              {s.data?.nodes
-                .filter((n) => n.bodyId || n.groupId)
-                .map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.groupId ? '▣ ' : ''}
-                    {animationNodeName(n, a.project)}
-                  </option>
-                ))}
-            </select>
-          </label>
-          {s.active && pose && rotation && s.selectedKeys.length < 2 && (
+          <div className="animation-tool-row">
+            {(['select', 'move', 'rotate', 'scale'] as const).map((tool, i) => (
+              <button
+                key={tool}
+                aria-pressed={a.tool === tool}
+                disabled={s.playing || a.busy}
+                onClick={() => a.onTool(tool)}
+              >
+                {['Valitse', 'Siirrä · M', 'Kierrä · R', 'Skaalaa · L'][i]}
+              </button>
+            ))}
+          </div>
+          {s.selectedKeys.length < 2 && a.operation}
+          {!s.clip ? (
+            <button className="button dark" onClick={() => void s.createClip()} disabled={a.busy}>
+              <Plus size={16} /> Luo animaatioklippi
+            </button>
+          ) : (
             <>
-              <button
-                disabled={s.dirty || a.busy || s.playing}
-                aria-pressed={s.picking}
-                onClick={() => {
-                  a.onResetGesture();
-                  s.setPicking(!s.picking);
-                }}
-              >
-                <Crosshair size={15} /> {s.picking ? 'Napsauta pivot-pistettä' : 'Poimi pivot'}
-              </button>
-              <div className="animation-pose-grid">
-                {(['position', 'rotation', 'scale'] as const).map((kind, row) => (
-                  <fieldset key={kind}>
-                    <legend>{['Sijainti · paikallinen mm', 'Kierto · °', 'Skaala'][row]}</legend>
-                    {['X', 'Y', 'Z'].map((axis, i) => (
-                      <label key={axis}>
-                        {axis}
-                        <input
-                          aria-label={`Animaatio ${kind} ${axis}`}
-                          type="number"
-                          step={kind === 'scale' ? '0.01' : 'any'}
-                          value={Number(
-                            (kind === 'rotation' ? rotation[i] : pose[kind][i]).toFixed(5),
-                          )}
-                          disabled={s.playing || a.busy}
-                          onChange={(e) => {
-                            const values = [
-                              ...(kind === 'rotation' ? rotation : pose[kind]),
-                            ] as Vec3;
-                            values[i] = Number(e.target.value);
-                            s.changePose({
-                              ...pose,
-                              [kind]: kind === 'rotation' ? degreesRotation(values) : values,
-                            });
-                          }}
-                        />
-                      </label>
-                    ))}
-                  </fieldset>
-                ))}
-              </div>
-              <button
-                className="button dark"
-                disabled={a.busy || s.playing}
-                onClick={() => {
-                  a.onResetGesture();
-                  void s.addKey();
-                }}
-              >
-                <Plus size={16} /> Lisää / päivitä avain
-              </button>
-            </>
-          )}
-          {s.dirty && (
-            <div className="animation-draft" role="status">
-              Luonnosasento · lisää avain tallentaaksesi. Ajan vaihto palauttaa tallennetun
-              liikkeen.
-              <button
-                onClick={() => {
-                  a.onResetGesture();
-                  s.discard();
-                }}
-              >
-                Palauta asento
-              </button>
-            </div>
-          )}
-          {s.selectedKeys.length > 1 && (
-            <fieldset className="animation-key-editor" disabled={a.busy || s.playing}>
-              <legend>
-                {s.selectedKeys.length} avainta ·{' '}
-                {new Set(s.selectedKeys.map((k) => k.nodeId)).size} raitaa
-              </legend>
               <label>
-                Siirrä valintaa (s)
-                <CommitInput
-                  key={s.selectedKeys.map((e) => `${animationKeyToken(e)}:${e.key.time}`).join('|')}
-                  label="Valittujen avainten siirtymä"
-                  type="number"
-                  step="0.01"
-                  value={0}
-                  onCommit={(text) => void s.shiftKeys(s.selectedKeys, Number(text))}
-                />
-              </label>
-              <label>
-                Liike seuraavaan avaimeen
+                Animoitava osa tai ryhmä
                 <select
-                  aria-label="Valittujen avainten interpolointi"
-                  value={
-                    s.selectedKeys.every(
-                      (e) => e.key.interpolation === s.selectedKeys[0].key.interpolation,
-                    )
-                      ? s.selectedKeys[0].key.interpolation
-                      : ''
-                  }
-                  onChange={(e) =>
-                    void s.changeKeyInterpolation(e.target.value as AnimationKey['interpolation'])
-                  }
-                >
-                  <option value="" disabled>
-                    Useita arvoja
-                  </option>
-                  <option value="step">Step · välitön</option>
-                  <option value="linear">Linear · tasainen</option>
-                  <option value="smooth">Smooth · pehmeä</option>
-                </select>
-              </label>
-              <p className="muted">
-                Vedä yhtä valittua avainta: kaikki siirtyvät yhtä paljon. Klippi pitenee
-                tarvittaessa.
-              </p>
-              <button onClick={() => void s.deleteKeys()}>
-                <Trash2 size={14} /> Poista valitut avaimet
-              </button>
-              <button onClick={s.clearKeys}>Tyhjennä avainvalinta</button>
-            </fieldset>
-          )}
-          {s.key && (
-            <fieldset className="animation-key-editor">
-              <legend>Valittu avain · {s.key.time.toFixed(2)} s</legend>
-              <label>
-                Aika (s)
-                <CommitInput
-                  label="Avaimen aika"
-                  type="number"
-                  min={0}
-                  max={3600}
-                  step="0.01"
-                  value={s.key.time}
-                  onCommit={(text) => {
-                    const t = Number(text);
-                    if (Number.isFinite(t) && t >= 0 && t <= 3600)
-                      void s.moveKey(s.primaryKey!.nodeId, s.key!, t);
+                  aria-label="Animaation kohde"
+                  value={s.active?.id ?? ''}
+                  onChange={(e) => {
+                    const node = s.data?.nodes.find((n) => n.id === e.target.value);
+                    if (node) {
+                      a.onResetGesture();
+                      a.onSelect(nodeBodyIds(s.data!, node.id), node.groupId);
+                    }
                   }}
-                />
-              </label>
-              <label>
-                Liike seuraavaan avaimeen
-                <select
-                  aria-label="Avaimen interpolointi"
-                  value={s.key.interpolation}
-                  disabled={a.busy || s.playing}
-                  onChange={(e) =>
-                    void s.changeKeyInterpolation(e.target.value as AnimationKey['interpolation'])
-                  }
                 >
-                  <option value="step">Step · välitön</option>
-                  <option value="linear">Linear · tasainen</option>
-                  <option value="smooth">Smooth · pehmeä</option>
+                  <option value="">Valitse näkymästä…</option>
+                  {s.data?.nodes
+                    .filter((n) => n.bodyId || n.groupId)
+                    .map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.groupId ? '▣ ' : ''}
+                        {animationNodeName(n, a.project)}
+                      </option>
+                    ))}
                 </select>
               </label>
-              <div className="animation-tool-row">
-                <button onClick={() => s.setClipboard(structuredClone(s.key!))}>
-                  <Copy size={14} /> Kopioi avain
-                </button>
-                <button disabled={a.busy || s.playing} onClick={() => void s.deleteKeys()}>
-                  <Trash2 size={14} /> Poista avain
-                </button>
-              </div>
-            </fieldset>
-          )}
-          {s.clipboard && (
-            <button disabled={!s.active || a.busy || s.playing} onClick={() => void s.addKey(true)}>
-              <ClipboardPaste size={14} /> Liitä avain tähän aikaan
-            </button>
-          )}
-          <details>
-            <summary>Tapahtumamerkit</summary>
-            <button
-              onClick={() =>
-                void s.saveClip(
-                  {
-                    ...s.clip!,
-                    markers: [...s.clip!.markers, { id: uid(), time: s.time, name: 'EVENT' }],
-                  },
-                  'Tapahtumamerkki lisätty.',
-                )
-              }
-            >
-              <Plus size={14} /> Lisää merkki · {s.time.toFixed(2)} s
-            </button>
-            {s.clip.markers.map((m) => (
-              <div className="animation-event" key={m.id}>
-                <button onClick={() => s.seek(m.time)}>{m.time.toFixed(2)} s</button>
-                <CommitInput
-                  value={m.name}
-                  label={`Tapahtuma ${m.id}`}
-                  onCommit={(name) =>
-                    name.trim() &&
-                    s.saveClip(
-                      {
-                        ...s.clip!,
-                        markers: s.clip!.markers.map((x) =>
-                          x.id === m.id ? { ...x, name: name.trim() } : x,
-                        ),
-                      },
-                      'Tapahtuma nimetty.',
-                    )
-                  }
-                />
+              {s.active && pose && rotation && s.selectedKeys.length < 2 && (
+                <>
+                  <button
+                    disabled={s.dirty || a.busy || s.playing}
+                    aria-pressed={s.picking}
+                    onClick={() => {
+                      a.onResetGesture();
+                      s.setPicking(!s.picking);
+                    }}
+                  >
+                    <Crosshair size={15} /> {s.picking ? 'Napsauta pivot-pistettä' : 'Poimi pivot'}
+                  </button>
+                  <div className="animation-pose-grid">
+                    {(['position', 'rotation', 'scale'] as const).map((kind, row) => (
+                      <fieldset key={kind}>
+                        <legend>
+                          {['Sijainti · paikallinen mm', 'Kierto · °', 'Skaala'][row]}
+                        </legend>
+                        {['X', 'Y', 'Z'].map((axis, i) => (
+                          <label key={axis}>
+                            {axis}
+                            <input
+                              aria-label={`Animaatio ${kind} ${axis}`}
+                              type="number"
+                              step={kind === 'scale' ? '0.01' : 'any'}
+                              value={Number(
+                                (kind === 'rotation' ? rotation[i] : pose[kind][i]).toFixed(5),
+                              )}
+                              disabled={s.playing || a.busy}
+                              onChange={(e) => {
+                                const values = [
+                                  ...(kind === 'rotation' ? rotation : pose[kind]),
+                                ] as Vec3;
+                                values[i] = Number(e.target.value);
+                                s.changePose({
+                                  ...pose,
+                                  [kind]: kind === 'rotation' ? degreesRotation(values) : values,
+                                });
+                              }}
+                            />
+                          </label>
+                        ))}
+                      </fieldset>
+                    ))}
+                  </div>
+                  <button
+                    className="button dark"
+                    disabled={a.busy || s.playing}
+                    onClick={() => {
+                      a.onResetGesture();
+                      void s.addKey();
+                    }}
+                  >
+                    <Plus size={16} /> Lisää / päivitä avain
+                  </button>
+                </>
+              )}
+              {s.dirty && (
+                <div className="animation-draft" role="status">
+                  Luonnosasento · lisää avain tallentaaksesi. Ajan vaihto palauttaa tallennetun
+                  liikkeen.
+                  <button
+                    onClick={() => {
+                      a.onResetGesture();
+                      s.discard();
+                    }}
+                  >
+                    Palauta asento
+                  </button>
+                </div>
+              )}
+              {s.selectedKeys.length > 1 && (
+                <fieldset className="animation-key-editor" disabled={a.busy || s.playing}>
+                  <legend>
+                    {s.selectedKeys.length} avainta ·{' '}
+                    {new Set(s.selectedKeys.map((k) => k.nodeId)).size} raitaa
+                  </legend>
+                  <label>
+                    Siirrä valintaa (s)
+                    <CommitInput
+                      key={s.selectedKeys
+                        .map((e) => `${animationKeyToken(e)}:${e.key.time}`)
+                        .join('|')}
+                      label="Valittujen avainten siirtymä"
+                      type="number"
+                      step="0.01"
+                      value={0}
+                      onCommit={(text) => void s.shiftKeys(s.selectedKeys, Number(text))}
+                    />
+                  </label>
+                  <label>
+                    Liike seuraavaan avaimeen
+                    <select
+                      aria-label="Valittujen avainten interpolointi"
+                      value={
+                        s.selectedKeys.every(
+                          (e) => e.key.interpolation === s.selectedKeys[0].key.interpolation,
+                        )
+                          ? s.selectedKeys[0].key.interpolation
+                          : ''
+                      }
+                      onChange={(e) =>
+                        void s.changeKeyInterpolation(
+                          e.target.value as AnimationKey['interpolation'],
+                        )
+                      }
+                    >
+                      <option value="" disabled>
+                        Useita arvoja
+                      </option>
+                      <option value="step">Step · välitön</option>
+                      <option value="linear">Linear · tasainen</option>
+                      <option value="smooth">Smooth · pehmeä</option>
+                    </select>
+                  </label>
+                  <p className="muted">
+                    Vedä yhtä valittua avainta: kaikki siirtyvät yhtä paljon. Klippi pitenee
+                    tarvittaessa.
+                  </p>
+                  <button onClick={() => void s.deleteKeys()}>
+                    <Trash2 size={14} /> Poista valitut avaimet
+                  </button>
+                  <button onClick={s.clearKeys}>Tyhjennä avainvalinta</button>
+                </fieldset>
+              )}
+              {s.key && (
+                <fieldset className="animation-key-editor">
+                  <legend>Valittu avain · {s.key.time.toFixed(2)} s</legend>
+                  <label>
+                    Aika (s)
+                    <CommitInput
+                      label="Avaimen aika"
+                      type="number"
+                      min={0}
+                      max={3600}
+                      step="0.01"
+                      value={s.key.time}
+                      onCommit={(text) => {
+                        const t = Number(text);
+                        if (Number.isFinite(t) && t >= 0 && t <= 3600)
+                          void s.moveKey(s.primaryKey!.nodeId, s.key!, t);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Liike seuraavaan avaimeen
+                    <select
+                      aria-label="Avaimen interpolointi"
+                      value={s.key.interpolation}
+                      disabled={a.busy || s.playing}
+                      onChange={(e) =>
+                        void s.changeKeyInterpolation(
+                          e.target.value as AnimationKey['interpolation'],
+                        )
+                      }
+                    >
+                      <option value="step">Step · välitön</option>
+                      <option value="linear">Linear · tasainen</option>
+                      <option value="smooth">Smooth · pehmeä</option>
+                    </select>
+                  </label>
+                  <div className="animation-tool-row">
+                    <button onClick={() => s.setClipboard(structuredClone(s.key!))}>
+                      <Copy size={14} /> Kopioi avain
+                    </button>
+                    <button disabled={a.busy || s.playing} onClick={() => void s.deleteKeys()}>
+                      <Trash2 size={14} /> Poista avain
+                    </button>
+                  </div>
+                </fieldset>
+              )}
+              {s.clipboard && (
                 <button
-                  aria-label={`Poista tapahtuma ${m.name}`}
+                  disabled={!s.active || a.busy || s.playing}
+                  onClick={() => void s.addKey(true)}
+                >
+                  <ClipboardPaste size={14} /> Liitä avain tähän aikaan
+                </button>
+              )}
+              <details>
+                <summary>Tapahtumamerkit</summary>
+                <button
                   onClick={() =>
                     void s.saveClip(
-                      { ...s.clip!, markers: s.clip!.markers.filter((x) => x.id !== m.id) },
-                      'Tapahtumamerkki poistettu.',
+                      {
+                        ...s.clip!,
+                        markers: [...s.clip!.markers, { id: uid(), time: s.time, name: 'EVENT' }],
+                      },
+                      'Tapahtumamerkki lisätty.',
                     )
                   }
                 >
-                  <Trash2 size={14} />
+                  <Plus size={14} /> Lisää merkki · {s.time.toFixed(2)} s
                 </button>
-              </div>
-            ))}
-            <p className="muted">
-              Merkit tallentuvat vientiin. Esikatselu ei suorita pelitapahtumia.
-            </p>
-          </details>
-          <details>
-            <summary>Klippi ja vienti</summary>
-            <label>
-              Nimi
-              <CommitInput
-                label="Animaation nimi"
-                value={s.clip.name}
-                onCommit={(name) =>
-                  name.trim() && s.saveClip({ ...s.clip!, name: name.trim() }, 'Animaatio nimetty.')
-                }
-              />
-            </label>
-            <button
-              onClick={() => {
-                const blob = new Blob(
-                  [
-                    JSON.stringify(
-                      {
-                        format: 'nivo-animation',
-                        version: 1,
-                        units: 'mm',
-                        up: 'Z',
-                        animation: s.data,
-                      },
-                      null,
-                      2,
-                    ),
-                  ],
-                  { type: 'application/json' },
-                );
-                const url = URL.createObjectURL(blob),
-                  link = document.createElement('a');
-                link.href = url;
-                link.download = `${a.project.name}.animation.json`;
-                link.click();
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-              }}
-            >
-              <Download size={14} /> Lataa animaatiodata
-            </button>
-            <p className="muted">
-              GLB: Vie malli → GLB → Animaatiot. JSON säilyttää avainvälit ja tapahtumat tarkasti.
-            </p>
-            <button
-              disabled={a.busy}
-              onClick={() =>
-                s.data &&
-                void s.commitData(
-                  { ...s.data, clips: s.data.clips.filter((c) => c.id !== s.clip!.id) },
-                  'Animaatioklippi poistettu. Malli säilyy.',
-                )
-              }
-            >
-              <Trash2 size={14} /> Poista klippi
-            </button>
-          </details>
+                {s.clip.markers.map((m) => (
+                  <div className="animation-event" key={m.id}>
+                    <button onClick={() => s.seek(m.time)}>{m.time.toFixed(2)} s</button>
+                    <CommitInput
+                      value={m.name}
+                      label={`Tapahtuma ${m.id}`}
+                      onCommit={(name) =>
+                        name.trim() &&
+                        s.saveClip(
+                          {
+                            ...s.clip!,
+                            markers: s.clip!.markers.map((x) =>
+                              x.id === m.id ? { ...x, name: name.trim() } : x,
+                            ),
+                          },
+                          'Tapahtuma nimetty.',
+                        )
+                      }
+                    />
+                    <button
+                      aria-label={`Poista tapahtuma ${m.name}`}
+                      onClick={() =>
+                        void s.saveClip(
+                          { ...s.clip!, markers: s.clip!.markers.filter((x) => x.id !== m.id) },
+                          'Tapahtumamerkki poistettu.',
+                        )
+                      }
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <p className="muted">
+                  Merkit tallentuvat vientiin. Esikatselu ei suorita pelitapahtumia.
+                </p>
+              </details>
+              <details>
+                <summary>Klippi ja vienti</summary>
+                <label>
+                  Nimi
+                  <CommitInput
+                    label="Animaation nimi"
+                    value={s.clip.name}
+                    onCommit={(name) =>
+                      name.trim() &&
+                      s.saveClip({ ...s.clip!, name: name.trim() }, 'Animaatio nimetty.')
+                    }
+                  />
+                </label>
+                <button
+                  onClick={() => {
+                    const blob = new Blob(
+                      [
+                        JSON.stringify(
+                          {
+                            format: 'nivo-animation',
+                            version: s.data!.version,
+                            units: 'mm',
+                            up: 'Z',
+                            animation: s.data,
+                          },
+                          null,
+                          2,
+                        ),
+                      ],
+                      { type: 'application/json' },
+                    );
+                    const url = URL.createObjectURL(blob),
+                      link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${a.project.name}.animation.json`;
+                    link.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  }}
+                >
+                  <Download size={14} /> Lataa animaatiodata
+                </button>
+                <p className="muted">
+                  GLB: Vie malli → GLB → Animaatiot. JSON säilyttää avainvälit ja tapahtumat
+                  tarkasti.
+                </p>
+                <button
+                  disabled={a.busy}
+                  onClick={() =>
+                    s.data &&
+                    void s.commitData(
+                      { ...s.data, clips: s.data.clips.filter((c) => c.id !== s.clip!.id) },
+                      'Animaatioklippi poistettu. Malli säilyy.',
+                    )
+                  }
+                >
+                  <Trash2 size={14} /> Poista klippi
+                </button>
+              </details>
+            </>
+          )}
+          <button
+            onClick={() => {
+              a.onResetGesture();
+              s.close();
+              a.onLegacy();
+            }}
+          >
+            Sarana / liuku · kahden asennon liike
+          </button>
+          {s.error && <p role="alert">{s.error}</p>}
+          <p className="muted">
+            Valitse aika → muokkaa asentoa → lisää avain. Mallin perustila palautuu, kun suljet
+            animaation.
+          </p>
         </>
       )}
-      <button
-        onClick={() => {
-          a.onResetGesture();
-          s.close();
-          a.onLegacy();
-        }}
-      >
-        Sarana / liuku · kahden asennon liike
-      </button>
-      {s.error && <p role="alert">{s.error}</p>}
-      <p className="muted">
-        Valitse aika → muokkaa asentoa → lisää avain. Mallin perustila palautuu, kun suljet
-        animaation.
-      </p>
+      {s.renderPreview && s.clip && <AnimationRenderPreview state={s} project={a.project} />}
     </aside>
   );
 }
@@ -1117,6 +1210,7 @@ export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Act
                     duration > 0 &&
                     duration <= 3600 &&
                     s.clip!.tracks.every((t) => t.keys.every((k) => k.time <= duration)) &&
+                    (s.clip!.camera?.keys.every((k) => k.time + k.hold <= duration) ?? true) &&
                     s.clip!.markers.every((m) => m.time <= duration)
                   )
                     void s.saveClip({ ...s.clip!, duration }, 'Animaation kesto muutettu.');
@@ -1216,6 +1310,7 @@ export function AnimationTimeline({ state: s, ...a }: { state: Workspace } & Act
                 style={{ left: `${(100 * s.time) / s.clip.duration}%` }}
               />
             </div>
+            {s.clip.camera && <CameraTimelineTrack state={s} busy={a.busy} />}
             {s.clip.tracks.map((track) => {
               const node = s.data!.nodes.find((n) => n.id === track.nodeId)!;
               return (

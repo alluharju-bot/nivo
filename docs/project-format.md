@@ -3,6 +3,27 @@
 UTF-8 JSON, tunniste `format: "nivo"` ja `version: 9`. Kaikki mitat ovat
 millimetrejä. Z-akseli on ylöspäin. Renderöintiverkkoa ei tarvita avaamiseen.
 
+V0.58.0 lisää kamerareitin animaation **aliversioon 2**. Projektin pääversio
+säilyy yhdeksänä. Vanha `animation.version: 1` avautuu edelleen ja säilyy
+ykkösenä, kunnes klippiin lisätään kameraraita. Vanha sovellus, joka hyväksyy
+vain animaation version 1, hylkää uuden kameratiedoston sen sijaan, että
+pudottaisi kameratiedot huomaamatta tallennettaessa.
+
+- `clips[].camera` on valinnainen `{ keys: CameraKey[] }`.
+- Kamerapiste: `id`, `name`, `time` (saapuminen sekunteina), `hold` (pysähdys
+  sekunteina), `position`, `target`, `focalLength` (12–200 mm),
+  `interpolation: smooth | linear`. Interpolointi kuvaa lähtöä seuraavaan pisteeseen.
+- Valinnainen `zoom: { target, focalLength }` siirtää katsesuuntaa ja muuttaa
+  polttoväliä pysähdyksen aikana, kameran paikkaa muuttamatta. Kohde on kiinteä
+  maailmanpiste, ei jatkuva objektiviite.
+- Enintään 500 pistettä/klippi. Saapumiset ovat järjestyksessä; edellisen
+  pisteen pysähdyksen jälkeen on jäätävä positiivinen siirtymäaika. Pysähdyksen
+  lopun pitää mahtua klippiin. Zoom tarvitsee positiivisen pysähdysajan.
+- Undo/Redo, `.nivo`, paikallinen/pilvitallennus ja projektien yhdistäminen
+  säilyttävät kameratiedot. Mallin siirtäminen ei automaattisesti siirrä reittiä.
+- GLB-vienti sisältää tässä prototyypissä edelleen objektien animaatiot;
+  kamerareitin ja muuttuvan polttovälin siirto GLB:hen ei ole toteutettu.
+
 V0.52.0 nostaa formaatin versioon 9 ja lisää valinnaisen `animation`-osion:
 
 - `version: 1`, `nodes`, `clips`. Vanha v8 migroidaan muuttamatta geometriaa;
