@@ -4,6 +4,23 @@ import { evaluateAnimation } from '../model/animation';
 import { evaluateCamera } from '../model/cameraAnimation';
 import { setCameraLens } from './cameraLens';
 import type { RenderSnapshot } from './snapshot';
+import type { RenderJobProgress } from './traceJob';
+
+/** Progress is an absolute frame position. A saved frame may still have the
+ * previous sampling report; never count that frame twice at the save boundary. */
+export function animationRenderPosition(
+  completed: number,
+  total: number,
+  progress?: RenderJobProgress,
+) {
+  const current = progress
+    ? (progress.frame ?? 0) +
+      (progress.phase === 'preparing'
+        ? 0
+        : Math.min(1, progress.samples / Math.max(1, progress.target)))
+    : 0;
+  return Math.min(total, Math.max(completed, current));
+}
 
 export const animationResolutions = [
   { name: 'HD', width: 1280, height: 720 },
@@ -20,6 +37,7 @@ export type AnimationRenderSettings = {
   end: number;
   samples: number;
   denoise: boolean;
+  bounces?: number;
 };
 export function animationRenderPlan(settings: AnimationRenderSettings, duration: number) {
   const { width, height, fps, start, end, samples } = settings;
@@ -46,6 +64,11 @@ export function animationRenderPlan(settings: AnimationRenderSettings, duration:
     throw new Error('Valitse klipin sisällä oleva aikaväli.');
   if (!Number.isInteger(samples) || samples < 1 || samples > 65536)
     throw new Error('Näytemäärän tulee olla 1–65536.');
+  if (
+    settings.bounces !== undefined &&
+    (!Number.isInteger(settings.bounces) || settings.bounces < 1 || settings.bounces > 16)
+  )
+    throw new Error('Valon kimmokkeiden määrän tulee olla 1–16.');
   const frames = Math.ceil((end - start) * fps - 1e-8);
   return { frames, time: (index: number) => start + index / fps, duration: frames / fps };
 }

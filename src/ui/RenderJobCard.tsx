@@ -48,7 +48,7 @@ export function RenderJobCard({
               ? `${percent} % · ${p.samples} / ${p.target} näytettä`
               : p?.phase === 'saving'
                 ? 'Tallennetaan kuvaa…'
-                : 'Valmistellaan mallia…'}
+                : (p?.detail ?? 'Valmistellaan mallia…')}
           </p>
           <small>Voit jatkaa mallintamista. Pidä tämä selainvälilehti auki.</small>
           <button className="button subtle" onClick={onCancel}>

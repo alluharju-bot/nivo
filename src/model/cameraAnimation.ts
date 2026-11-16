@@ -92,6 +92,7 @@ export function evaluateCamera(
   const a = keys[i],
     b = keys[i + 1];
   if (time <= a.time + a.hold && a.hold > 0) {
+    if (!a.zoom) return a; // Avoid quaternion roundoff during an exact still hold.
     const start = a.zoom?.start ?? 0,
       duration = a.zoom?.duration ?? a.hold;
     return mix(a, endPose(a), smooth(Math.max(0, Math.min(1, (time - a.time - start) / duration))));

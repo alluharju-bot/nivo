@@ -12,6 +12,7 @@ import { watchGraphicsContext, contextLostMessage } from '../viewport/graphicsCo
 import type { AnimationWorkspaceState } from './AnimationWorkspace';
 import { AnimationExportPanel } from './AnimationExportPanel';
 import { downloadFile, safeFilename } from '../storage/projects';
+import type { RenderFramePreview } from '../render/traceJob';
 
 export function AnimationRenderPreview({
   state: s,
@@ -32,6 +33,39 @@ export function AnimationRenderPreview({
   const [samples, setSamples] = useState(64),
     [exporting, setExporting] = useState(false);
   const [rendering, setRendering] = useState(false);
+  const renderingRef = useRef(false);
+  const liveHost = useRef<HTMLDivElement>(null),
+    finishedCanvas = useRef<HTMLCanvasElement>(null);
+  const [renderImage, setRenderImage] = useState<RenderFramePreview & { time: number }>();
+  const [finishedFrame, setFinishedFrame] = useState<number>();
+  const [finishedTime, setFinishedTime] = useState(0);
+  const finishedFrameRef = useRef<number | undefined>(undefined);
+  const [showRender, setShowRender] = useState(false);
+  const presentFrame = (
+    canvas: HTMLCanvasElement,
+    preview: RenderFramePreview & { time: number },
+  ) => {
+    if (!liveHost.current || !finishedCanvas.current) return;
+    if (canvas.parentElement !== liveHost.current) liveHost.current.replaceChildren(canvas);
+    canvas.dataset.renderFrame = String(preview.frame);
+    canvas.dataset.renderSamples = String(preview.samples);
+    canvas.setAttribute('aria-label', 'Animaation renderöintikuva');
+    if (preview.complete) {
+      // Keep one bounded completed image after the export context is released.
+      // Only copy at frame completion, never read back pixels while sampling.
+      const saved = finishedCanvas.current;
+      const scale = Math.min(1, 1280 / canvas.width);
+      saved.width = Math.round(canvas.width * scale);
+      saved.height = Math.round(canvas.height * scale);
+      saved.getContext('2d')?.drawImage(canvas, 0, 0, saved.width, saved.height);
+      saved.dataset.renderFrame = String(preview.frame);
+      finishedFrameRef.current = preview.frame + 1;
+      setFinishedFrame(preview.frame + 1);
+      setFinishedTime(preview.time);
+    }
+    setRenderImage(preview);
+    setShowRender(true);
+  };
   const [aspect, setAspect] = useState(16 / 9);
   useEffect(() => {
     const fit = () => {
@@ -60,6 +94,7 @@ export function AnimationRenderPreview({
     let unwatch: (() => void) | undefined;
     const update = (time: number, matrices: Map<string, Matrix4>) => {
       const { s } = latest.current;
+      if (!renderingRef.current) setShowRender(false);
       api.current?.animationFrame(evaluateCamera(s.clip?.camera, time), matrices, s.playing);
       if (slider.current) slider.current.value = String(time);
       if (output.current)
@@ -187,14 +222,17 @@ export function AnimationRenderPreview({
       >
         <header>
           <h2>{s.clip?.name} · kamerakierros</h2>
-          <span ref={sceneName} />
+          <span ref={sceneName} hidden={showRender} />
           <label>
             <input
               type="checkbox"
               aria-label="Tarkenna pysähdyksissä"
               disabled={rendering}
               checked={quality}
-              onChange={(e) => setQuality(e.target.checked)}
+              onChange={(e) => {
+                setShowRender(false);
+                setQuality(e.target.checked);
+              }}
             />{' '}
             Tarkenna pysähdyksissä
           </label>
@@ -213,7 +251,9 @@ export function AnimationRenderPreview({
             </select>
           )}
           <button
-            disabled={rendering || exporting || s.playing || (quality && trace.samples < 1)}
+            disabled={
+              rendering || showRender || exporting || s.playing || (quality && trace.samples < 1)
+            }
             onClick={() => void savePNG()}
             title="Tallentaa pysäytetyn kuvakulman nykyisellä tarkennuksella"
           >
@@ -225,6 +265,30 @@ export function AnimationRenderPreview({
         </header>
         <div ref={stage} className="camera-render-stage">
           <div ref={host} className="camera-render-host" />
+          <div
+            ref={liveHost}
+            className="animation-live-render"
+            hidden={!showRender || !rendering}
+          />
+          <figure
+            className={`animation-finished-frame${rendering ? ' is-thumbnail' : ''}`}
+            hidden={!showRender || finishedFrame === undefined}
+          >
+            <canvas ref={finishedCanvas} aria-label="Viimeksi valmistunut animaatioruutu" />
+            <figcaption>Ruutu {finishedFrame} valmis</figcaption>
+          </figure>
+          {showRender && (
+            <div className="animation-render-image-label">
+              {rendering
+                ? `Renderöintikuva · ruutu ${(renderImage?.frame ?? 0) + 1} · ${renderImage?.time?.toFixed(2)} s · ${renderImage?.samples ?? 0} näytettä`
+                : `Viimeksi valmistunut ruutu · ${finishedFrame} · ${finishedTime.toFixed(2)} s`}
+              {!rendering && (
+                <button onClick={() => setShowRender(false)}>
+                  Palaa kamerareitin esikatseluun
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <fieldset className="camera-render-controls" disabled={rendering}>
           <button
@@ -265,20 +329,34 @@ export function AnimationRenderPreview({
           state={s}
           name={project.name}
           onAspect={setAspect}
+          onPreview={presentFrame}
           capture={async () => {
             if (!api.current) throw new Error('Renderöintinäkymä ei ole valmis.');
             return api.current.capture();
           }}
           onBusy={(busy) => {
+            renderingRef.current = busy;
             setRendering(busy);
             if (busy) {
+              liveHost.current?.replaceChildren();
+              finishedFrameRef.current = undefined;
+              setFinishedFrame(undefined);
+              setRenderImage(undefined);
+              setShowRender(false);
               s.pause();
               setQuality(false);
               api.current?.trace.stop();
+            } else {
+              liveHost.current?.replaceChildren();
+              setShowRender(finishedFrameRef.current !== undefined);
             }
           }}
         />
-        <div className="camera-render-status" role={error ? 'alert' : 'status'}>
+        <div
+          className="camera-render-status"
+          hidden={rendering || showRender}
+          role={error ? 'alert' : 'status'}
+        >
           {error ||
             (quality
               ? traceStatusLabel(trace)

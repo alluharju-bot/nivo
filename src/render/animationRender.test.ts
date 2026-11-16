@@ -10,7 +10,12 @@ import {
   ACESFilmicToneMapping,
 } from 'three';
 import { parseProject } from '../model/project';
-import { animationRenderPlan, animationResolutions, poseAnimationFrame } from './animationRender';
+import {
+  animationRenderPlan,
+  animationRenderPosition,
+  animationResolutions,
+  poseAnimationFrame,
+} from './animationRender';
 import { prepareTraceMaterials } from './traceMaterials';
 
 const options = {
@@ -23,6 +28,26 @@ const options = {
   denoise: true,
 };
 describe('offline camera animation', () => {
+  it('does not double-count a saved frame while its previous progress report is still visible', () => {
+    const progress = {
+      phase: 'rendering' as const,
+      frame: 0,
+      samples: 1024,
+      target: 1024,
+      elapsed: 30,
+      width: 1280,
+      height: 720,
+    };
+    expect(animationRenderPosition(0, 10)).toBe(0);
+    expect(animationRenderPosition(0, 10, { ...progress, samples: 512 })).toBe(0.5);
+    expect(animationRenderPosition(1, 10, progress)).toBe(1);
+    expect(animationRenderPosition(1, 10, { ...progress, phase: 'saving' })).toBe(1);
+    expect(
+      animationRenderPosition(1, 10, { ...progress, phase: 'preparing', frame: 1, samples: 0 }),
+    ).toBe(1);
+    expect(animationRenderPosition(1, 10, { ...progress, frame: 1, samples: 512 })).toBe(1.5);
+    expect(animationRenderPosition(10, 10, { ...progress, frame: 9 })).toBe(10);
+  });
   it('samples exact frame times, independent of render duration, without duplicating the endpoint', () => {
     const plan = animationRenderPlan(options, 23);
     expect(plan.frames).toBe(690);
@@ -36,6 +61,9 @@ describe('offline camera animation', () => {
     for (const patch of [
       { samples: 65537 },
       { samples: NaN },
+      { bounces: 0 },
+      { bounces: 17 },
+      { bounces: NaN },
       { end: 24 },
       { start: 23 },
       { fps: 0 },

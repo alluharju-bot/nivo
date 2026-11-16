@@ -165,3 +165,86 @@ valaistuksen ja sommittelun viimeistelyä.
 Käyttöliittymäkuvat ja paikallisen ajon lokit: `output/playwright/camera-*.png`,
 `camera-roundtrip.nivo`, `animation-regression.log`, `glb-regression.log` ja
 `full-unit-tests.log`. Ne ovat paikallisia testiartefakteja, eivät julkaisun assetteja.
+
+## Renderöinnin palaute ja nopeutus — 16.11.2026
+
+Vienti näyttää nyt varsinaisen säteenseurantakuvan näytteiden kertyessä. Ensimmäinen
+kuva ilmestyy ensimmäisen kokonaisen näytteen jälkeen. Siihen asti vaiheteksti
+kertoo materiaalien lataamisesta, geometrian valmistelusta tai GPU-ohjelman
+kääntämisestä. Kokonaisedistyminen, nykyisen ruudun näytteet, valmistuneiden
+ruutujen määrä ja kulunut aika näkyvät myös vientiasetusten ollessa suljettuna.
+Edellisen valmiin ruudun pikkukuva säilyy seuraavan ruudun laskennan aikana.
+Valmis kuva jää näkyviin myös työn päättyessä tai keskeytyessä.
+
+Laatuvalinnat:
+
+| Valinta                  | Näytteitä / ruutu | Valon kimmokkeita | Kohinanpoisto |
+| ------------------------ | ----------------: | ----------------: | ------------- |
+| Nopea animaatio (oletus) |                64 |                 4 | Kyllä         |
+| Tasapainoinen            |               256 |                 8 | Kyllä         |
+| Tarkka                   |              1024 |                16 | Kyllä         |
+
+Arvot voi muuttaa itse. Kimmokkeiden vähentäminen muuttaa myös kuvaa: epäsuora
+valo, lasin läpi kulkeva valo ja peilit voivat jäädä tummemmiksi. Kohinanpoisto
+ei korvaa puuttuvaa valaistusta eikä takaa yksityiskohtien säilymistä 64 näytteellä.
+Se on nykyinen ohjauskuvia hyödyntävä spatiaalinen a-trous-suodatin, ei OIDN eikä
+ruutujen välistä tietoa käyttävä temporaalinen suodatin. Tarkista aina testruutu.
+
+**Lataa suorituskykyraportti** tallentaa työn jälkeen JSON-raportin. Se kertoo
+resoluution, näytemäärän, BVH/näkymäpäivitysten ja kamerapäivitysten määrät,
+tekstuurikartan varauksen, shader-käännökset sekä kahdeksan viimeisen ruudun
+valmistelu-, näytteistys-, viimeistely- ja kirjoitusajat. GPU-aikoja raportoidaan
+vain ajastinlaajennuksen ollessa käytettävissä; CPU-lähetysaika ei ole GPU-aikaa.
+Tekstuurikartan tavumäärä ei ole renderöinnin koko VRAM-kulutus. Ensimmäisen
+näytteen seinäkelloaika sisältää valmistelua ja komentojen lähettämistä.
+
+GPU-työtä ei enää sidota näytön virkistystaajuuteen. Yksi rajattu erä pysyy
+kerrallaan jonossa, ja selain saa vuoron lyhyen peruutettavan ajastimen kautta.
+Kamera-ajo rakentaa näkymän/BVH:n kerran ja päivittää seuraaville ruuduille vain
+kameran. Animoitu geometria päivitetään tarvittaessa. Näytteet kertyvät GPU:lla;
+esikatselu käyttää suoraan samaa renderöintikangasta. Valmis pikkukuva kopioidaan
+vain ruudun valmistuessa. PNG/MP4-vienti lukee vain valmiita ruutuja.
+
+### Mitattu vertailu julkisella esimerkillä
+
+Windows, Chrome, ANGLE D3D11, RTX 2060 SUPER. Malli
+`public/examples/kamerakierros.nivo`, kamera-aika 1,8–1,9 s, kolme ruutua,
+1280 × 720, 32 näytettä, kohinanpoisto. Alla kahden jälkimmäisen ruudun
+keskimääräinen seinäkelloaika; ensimmäinen valmistelu on jätetty pois.
+
+| Asetus                           | Sekuntia / ruutu |
+| -------------------------------- | ---------------: |
+| 16 kimmoketta, vanha RAF-ajastus |             8,37 |
+| 4 kimmoketta, vanha RAF-ajastus  |             7,55 |
+| 4 kimmoketta, uusi ajastus       |             4,98 |
+
+Pelkkä ajastusmuutos lyhensi saman laadun aikaa noin 34 %. Kaikki kolme PNG:tä
+olivat tavuilleen identtiset ennen ja jälkeen ajastusmuutoksen. Kimmokkeiden
+vähentämiselle ei väitetä samaa kuvan säilymistä. Full HD / 64 näytettä / 4
+kimmoketta vei samalla julkisella esimerkillä lämpimänä noin 23 s / ruutu.
+Luvut ovat paikallisia lyhyitä mittauksia, eivät yleisiä nopeuslupauksia.
+
+Myös käyttäjän erillinen tallennettu kamerakierros tarkistettiin paikallisesti.
+Asiakasmallia, sen kuvia tai yksityisiä raportteja ei julkaista repositoriossa.
+Suuren sisätilan GPU-laskenta voi edelleen kestää sekunteja näytettä kohti:
+BVH-välimuisti, denoiser tai WebGPU-nimike eivät yksin takaa millisekunteja.
+Kylmä GPU-ohjelman käännös voi yhä kestää kymmeniä sekunteja. Ensimmäinen
+GPU-erä käyttää valmistelun odotusrajaa, myöhempi työ lyhyempää jumitusrajaa.
+Odottaminen ja peruutus pysyvät näkyvissä.
+
+Pysähdyksissä muuttumaton kamera ja geometria käyttävät edellistä valmista kuvaa.
+Jokainen videoruutu kirjoitetaan oikealla aikaleimalla, mutta samaa kuvaa ei lasketa
+uudelleen. Vertailu käyttää täsmälleen samoja kamera- ja projektiomatriiseja;
+objektin liike, kameran liike tai zoom estävät uudelleenkäytön. Raportin
+`reusedFrames` ja ruudun `reused` erottavat nämä lasketuista ruuduista. Tämä
+nopeuttaa pysähdyksiä muuttamatta videon kestoa. Jäljellä olevan ajan arvio piilotetaan, kun pysähdysruutuja käytetään uudelleen:
+halvan pysähdyksen jälkeen tuleva liikkuva osuus voi olla huomattavasti hitaampi.
+
+Varmennus 16.11.: 873 yksikkökoetta hyväksytty, 6 ennestään ohitettua;
+tuotantokäännös Pages-polulla läpäisty. Selainkokeissa varmistettiin valmistuvat
+PNG-ruudut, MP4-vienti (kolme H.264-ruutua, 1280 × 720, 30 fps), molemmat
+keskeytysvaiheet, tabletin leveys, pysähdysten uudelleenkäyttö ja tavallinen
+kuvarenderöinti mallinnuksen jatkuessa. Uudelleenkäytetyt PNG:t olivat keskenään
+tavuilleen samat. Koko kamerakierrosta ei renderöity loppuun; suorituskykyluvut
+ovat lyhyistä mittausosuuksista. Rakennuksessa säilyvät ennestään olevat
+suurten JavaScript-osien ja fflate-tuonnin varoitukset.
