@@ -49,6 +49,7 @@ export function traceLighting() {
       samples: number,
       guides?: DenoiseGuides,
       output: THREE.WebGLRenderTarget | null = null,
+      stabilizeDiffuse?: (source: THREE.WebGLRenderTarget, guides: DenoiseGuides) => THREE.Texture,
     ) {
       if (source.textures.length < 2) {
         filter.draw(renderer, source.texture, samples, guides, output, variance[0].texture);
@@ -82,7 +83,8 @@ export function traceLighting() {
         2,
         source.textures[1],
       );
-      material.uniforms.diffuse.value = filtered[0].texture;
+      material.uniforms.diffuse.value =
+        stabilizeDiffuse && guides ? stabilizeDiffuse(filtered[0], guides) : filtered[0].texture;
       material.uniforms.specular.value = filtered[1].texture;
       const previous = renderer.getRenderTarget();
       try {

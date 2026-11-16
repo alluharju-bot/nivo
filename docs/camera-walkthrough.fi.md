@@ -119,8 +119,9 @@ alustuksen jälkeen. Arvio tarkentuu työn aikana, eikä ole laatutakuu.
 
 Teknisesti yksi yksityinen tilannekuva ja yksi WebGL-renderöijä palvelevat koko
 työtä. Materiaalit, tekstuurit ja ohjelmat säilyvät ruutujen välillä. Kamera-ajo
-päivittää kameran; objektien liike päivittää myös geometrian BVH:n. Näytteet ja
-kohinanpoiston historia nollataan jokaiselle ruudulle. Videon aikaleima on
+päivittää kameran; objektien liike päivittää myös geometrian BVH:n. Säteenseurannan näytteet ja
+ruudunsisäinen kohinavarianssi nollataan jokaiselle uudelle kuvakulmalle. Valinnainen
+hajavalaistuksen vakautus säilyttää erillisen historian kameraliikkeen yli. Videon aikaleima on
 ruutunumero / fps, joten GPU:n nopeus ei muuta videon nopeutta. Mediabunny 1.66.0
 hoitaa videon pakkaamisen ja MP4-säiliön; sen lisenssi on mukana jakelussa.
 
@@ -132,7 +133,7 @@ jatkuvaa seurantaa tai kameran GLB-vientiä. Zoomin kohde on
 valintahetken maailmanpiste: myöhemmin siirtyvä objekti ei vedä kameraa mukanaan.
 
 Seuraavia mahdollisia vaiheita ovat törmäysvaroitukset, jatkuva kohteenseuranta,
-liike-epäterävyys, ruutujen välistä tietoa hyödyntävä kohinanpoisto ja renderöintityön
+liike-epäterävyys, objektien liikkeen huomioiva temporaalinen kohinanpoisto ja renderöintityön
 jatkaminen sulkemisen jälkeen. Korkeakaan näytemäärä ei yksin korvaa materiaalien,
 valaistuksen ja sommittelun viimeistelyä.
 
@@ -187,8 +188,9 @@ Laatuvalinnat:
 Arvot voi muuttaa itse. Kimmokkeiden vähentäminen muuttaa myös kuvaa: epäsuora
 valo, lasin läpi kulkeva valo ja peilit voivat jäädä tummemmiksi. Kohinanpoisto
 ei korvaa puuttuvaa valaistusta eikä takaa yksityiskohtien säilymistä 64 näytteellä.
-Se on nykyinen ohjauskuvia hyödyntävä spatiaalinen a-trous-suodatin, ei OIDN eikä
-ruutujen välistä tietoa käyttävä temporaalinen suodatin. Tarkista aina testruutu.
+Pohjana on ohjauskuvia hyödyntävä spatiaalinen à-trous-suodatin. Versiosta 0.59.2
+alkaen animaatiovienti voi lisäksi vakauttaa hajavalaistusta ruutujen välillä
+(kuvaus alla). Toteutus ei ole OIDN. Tarkista aina testruutu ja lyhyt liikkuva osuus.
 
 **Lataa suorituskykyraportti** tallentaa työn jälkeen JSON-raportin. Se kertoo
 resoluution, näytemäärän, BVH/näkymäpäivitysten ja kamerapäivitysten määrät,
@@ -248,3 +250,67 @@ kuvarenderöinti mallinnuksen jatkuessa. Uudelleenkäytetyt PNG:t olivat kesken�
 tavuilleen samat. Koko kamerakierrosta ei renderöity loppuun; suorituskykyluvut
 ovat lyhyistä mittausosuuksista. Rakennuksessa säilyvät ennestään olevat
 suurten JavaScript-osien ja fflate-tuonnin varoitukset.
+
+## Hajavalaistuksen vakautus liikkeessä — 17.11.2026
+
+Animaatioviennin **Vakauta valaistus liikkeessä** on oletuksena päällä yhdessä
+kohinanpoiston kanssa. Se vähentää kameraliikkeessä ruudusta toiseen muuttuvaa
+hajavalaistuksen kohinaa. Näytemäärä, kimmokkeet, kamerareitti ja videon ajoitus
+säilyvät valittuina. Valinnan poistaminen palauttaa aiemman, vain kyseistä
+ruutua suodattavan vientiputken. Tavallinen still-renderöinti toimii ennallaan.
+
+Edellisen ruudun valaistus projisoidaan nykyiseen näkymään syvyyden ja kameran
+avulla. Pinnan väri poistetaan historian valaistuksesta ja nykyisen ruudun
+materiaalitekstuuri palautetaan lopuksi: puunsyitä ei keskiarvoisteta vanhan
+kuvan kanssa. Lasi ja heijastukset käyttävät nykyisen ruudun tulosta.
+Normaali-, syvyys- ja materiaalirajat hylkäävät sopimattoman historian;
+nykyisen valaistuksen paikallinen vaihteluväli rajaa hyväksyttyäkin historiaa.
+
+Kamerahyppy tai suuri objektiivin muutos aloittaa historian uudelleen.
+Objektin liikkuessa koko historia nollataan kyseiselle ruudulle. Tämä on
+tarkoituksella konservatiivinen ratkaisu: objektien liikevektoreita ei vielä
+ole, joten niiden varjoja ei yritetä seurata arvauksella. Ensimmäinen ruutu ja
+historian nollauksen jälkeinen ruutu vastaavat tavallista kohinanpoistoa.
+Muuttumattomat pysähdysruudut käyttävät edelleen aiempaa valmista kuvaa.
+
+Historia varaa kiinteästi 40 tavua pikseliä kohti: Full HD noin 79 MiB ja 4K UHD
+noin 316 MiB. Varaukset kierrätetään ruutujen välillä ja vapautetaan työn
+valmistuessa tai keskeytyessä. Suorituskykyraportin `temporal` kertoo, onko
+vakautus käytössä, sen `bytes`-varauksen sekä `accumulatedFrames`-määrän
+(ruudut, joille yhteensopivaa historiaa oli tarjolla; ei pikselikohtainen
+hyväksyntäprosentti). Lisätyö on kuvan valmisteluvaiheessa, ei jokaisella
+säteenseurannan näytteellä. GPU:lta ei lueta historiaa CPU:lle.
+
+Periaatteen taustaa: [SVGF-tutkimus](https://research.nvidia.com/labs/rtr/publication/schied2017spatiotemporal/).
+Tämä rajattu hajavalaistuksen suodatin ei toteuta koko SVGF-menetelmää.
+64 näytteellä lasiin ja kiiltäviin pintoihin voi edelleen jäädä kohinaa.
+Kameran liikkeessä ja objektianimaatioissa laatu on arvioitava erikseen;
+yksi onnistunut still-kuva ei todista koko videon laatua.
+
+### Varmennus 0.59.2
+
+- 875 yksikkö- ja geometriakoetta hyväksytty, 6 ennestään ohitettua.
+- `tests/fixtures/temporal-lighting-harness.ts` suorittaa oikean GLSL-suodattimen
+  selaimen GPU:lla tunnetulla liikkuvalla tekstuurilla. Kohina-RMSE:n suhde
+  alkuperäiseen oli 0,507; puhtaan tekstuurin kontrastisuhde oli 0,99937.
+  Nämä ovat synteettisen testin tuloksia, eivät lupaus samanlaisesta parannuksesta
+  asiakasmallissa. Testi hylkää epäonnistuneet kohina-, yksityiskohta-, uusi pinta-,
+  kamerahyppy-, geometrian nollaus-, lasi-, muistivaraus- ja vapautustarkistukset.
+- Julkisen tilaesimerkin kolmen ruudun kamera-ajossa näkymä rakennettiin kerran,
+  kamera päivitettiin kahdesti ja historia jatkui kahdelle ruudulle. Valinta pois:
+  historian varaus 0 tavua. Liikkuvan oven kolmella ruudulla näkymä päivittyi
+  kolmesti ja historia nollautui jokaiselle liikkuvalle ruudulle.
+- Keskeytys tarkistettiin kahden valmistuneen ruudun jälkeen sekä ennen
+  ensimmäistä näytettä. Valmis esikatselukuva säilyi, aktiivinen renderöintikangas
+  poistui ja vientiasetukset palautuivat käytettäviksi.
+- Yksityisestä tallennetusta huonekopiosta renderöitiin paikallisesti kuusi
+  peräkkäistä liikkuvaa ruutua ennen ja jälkeen muutoksen: Full HD, 30 fps,
+  64 näytettä, 4 kimmoketta. Tarkastettiin täysikokoiset kuvat ja samoin
+  kohdistetut pintarajaukset. Heikosti kohdistuva seinä jätettiin mittauksesta
+  pois. Sarjat ovat eri satunnaisotoksia; kuuden ruudun vertailu ei ole koko
+  videon laatutakuu. Mallia, kuvia tai yksityisiä raportteja ei julkaista.
+- Uuden shaderin tekstuurinäytteistys käyttää eksplisiittistä mip-tasoa 0;
+  siten historian hylkäyshaara ei tarvitse implisiittisiä derivaattoja. Muutos
+  säilytti synteettisen GPU-testin tulokset samoina ja poisti uuden suodattimen
+  derivaatta-varoituksen. Kirjastojen aiemmat deprekaatio- ja shader-varoitukset
+  säilyvät; selainkokeissa ei tullut JavaScript-virheitä.

@@ -38,6 +38,7 @@ export type AnimationRenderSettings = {
   samples: number;
   denoise: boolean;
   bounces?: number;
+  temporal?: boolean;
 };
 export function animationRenderPlan(settings: AnimationRenderSettings, duration: number) {
   const { width, height, fps, start, end, samples } = settings;

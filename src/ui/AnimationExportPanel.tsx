@@ -48,6 +48,7 @@ export function AnimationExportPanel({
   const [samples, setSamples] = useState(64),
     [denoise, setDenoise] = useState(true);
   const [bounces, setBounces] = useState(4);
+  const [temporal, setTemporal] = useState(true);
   const [start, setStart] = useState(0),
     [end, setEnd] = useState(s.clip?.duration ?? 1);
   const [format, setFormat] = useState<AnimationOutputFormat>('mp4');
@@ -103,6 +104,7 @@ export function AnimationExportPanel({
         samples,
         denoise,
         bounces,
+        temporal: temporal && denoise,
       };
       const plan = animationRenderPlan(settings, s.clip.duration);
       setTotal(test ? 1 : plan.frames);
@@ -349,6 +351,18 @@ export function AnimationExportPanel({
               onChange={(e) => setDenoise(e.target.checked)}
             />{' '}
             Kohinanpoisto
+          </label>
+          <label
+            className="camera-checkbox"
+            title="Vakauttaa kameraliikkeen hajavalaistusta. Lasi ja heijastukset säilyvät nykyisestä kuvasta. Liikkuvat objektit nollaavat historian."
+          >
+            <input
+              type="checkbox"
+              checked={temporal}
+              disabled={!denoise}
+              onChange={(e) => setTemporal(e.target.checked)}
+            />{' '}
+            Vakauta valaistus liikkeessä
           </label>
           <div className="camera-actions">
             <button onClick={() => void run(true)}>Testrenderöi nykyinen ruutu</button>

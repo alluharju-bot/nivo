@@ -6,7 +6,8 @@ import { configureEmitterSampling } from './emitterSampling';
 import { gpuQueue } from './gpuQueue';
 import { traceLighting } from './traceLighting';
 import { reflectionGuides } from './reflectionGuides';
-import { traceGuides } from './traceGuides';
+import { traceGuides, type DenoiseGuides } from './traceGuides';
+import { temporalDiffuse } from './temporalDiffuse';
 import { imageLook } from './imageLook';
 import { traceResources } from './traceResources';
 import { prepareTraceMaterials } from './traceMaterials';
@@ -22,6 +23,8 @@ export type RenderJobOptions = {
   bounces?: number;
   /** Opt in only when applyFrame reports every scene change. */
   reuseStillFrames?: boolean;
+  /** Camera-motion diffuse lighting history; does not alter ray sampling. */
+  temporal?: boolean;
 };
 export type RenderFrameTiming = {
   frame: number;
@@ -36,6 +39,7 @@ export type RenderFrameTiming = {
 };
 export type RenderJobDiagnostics = {
   backend: 'WebGL2';
+  temporal: { enabled: boolean; bytes: number; accumulatedFrames: number };
   width: number;
   height: number;
   targetSamples: number;
@@ -154,6 +158,11 @@ export async function renderFrames(
     sceneUpdateMs = 0;
   const recentFrames: RenderFrameTiming[] = [];
   const denoise = traceLighting();
+  const temporal = options.temporal && options.denoise !== false ? temporalDiffuse() : undefined;
+  const stabilizeDiffuse = temporal
+    ? (surface: THREE.WebGLRenderTarget, guide: DenoiseGuides) =>
+        temporal.draw(renderer!, surface, guide, snapshot.camera)
+    : undefined;
   const reflections = reflectionGuides();
   const guides = traceGuides();
   const look = imageLook(snapshot.look);
@@ -176,6 +185,11 @@ export async function renderFrames(
       frames,
       diagnostics: {
         backend: 'WebGL2',
+        temporal: {
+          enabled: !!temporal,
+          bytes: temporal?.bytes ?? 0,
+          accumulatedFrames: temporal?.accumulatedFrames ?? 0,
+        },
         width,
         height,
         targetSamples: target,
@@ -353,6 +367,7 @@ export async function renderFrames(
           continue;
         }
         if (geometryChanged) {
+          temporal?.invalidate();
           snapshot.scene.updateMatrixWorld(true);
           updateScene();
           // setScene updates geometry/uniforms but retains the already patched shader.
@@ -467,9 +482,9 @@ export async function renderFrames(
               type: THREE.HalfFloatType,
               depthBuffer: false,
             });
-            denoise.draw(renderer!, tracer!.target, target, guide, filtered);
+            denoise.draw(renderer!, tracer!.target, target, guide, filtered, stabilizeDiffuse);
             look.draw(renderer!, filtered.texture);
-          } else denoise.draw(renderer!, tracer!.target, target, guide);
+          } else denoise.draw(renderer!, tracer!.target, target, guide, null, stabilizeDiffuse);
         } else look.draw(renderer!, tracer!.target.texture);
       });
       queue.submit();
@@ -499,6 +514,7 @@ export async function renderFrames(
     if (resources) resources.dispose();
     else tracer?.dispose();
     disposeSnapshotGeometry?.();
+    temporal?.dispose();
     denoise.dispose();
     reflections.dispose();
     guides.dispose();
