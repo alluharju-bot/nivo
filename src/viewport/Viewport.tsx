@@ -57,6 +57,7 @@ import { createRotationGripResolver } from '../model/rotationGrip';
 import { rotatePoint } from '../model/transforms';
 import { dot, unit } from '../model/geometry';
 import { createWorkspaceGrid } from './workspaceGrid';
+import { createNavigationGlass } from './navigationGlass';
 import { createBodyBatches, type ModelMaterial } from './bodyBatches';
 import { BodySpatialIndex, intersectModel } from './spatialIndex';
 import { createModelDimensions } from './modelDimensions';
@@ -181,6 +182,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         renderNow();
       });
   };
+  const navigationGlass = createNavigationGlass(scene, render);
+  const cameraChanged = () => {
+    navigationGlass.cameraChanged();
+    render();
+  };
   const locateHighlight = createLocateHighlight(scene, renderer.domElement, render);
   const updateMarkups = () => {
     const markupProps = current();
@@ -263,6 +269,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           object.visible = false;
         }
       }
+    navigationGlass.prepareFrame();
     renderer.render(scene, camera);
     hidden.forEach(({ object, visible }) => {
       object.visible = visible;
@@ -332,7 +339,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   };
   let workspaceViews: ReturnType<typeof createWorkspaceViews> | undefined;
   const materialLibrary = createMaterialLibrary(render);
-  controls.addEventListener('change', render);
+  controls.addEventListener('change', cameraChanged);
   controls.update();
   const resize = () => {
     const width = container.clientWidth,
@@ -550,6 +557,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     }
   };
   const sync = () => {
+    navigationGlass.invalidate();
     const props = current();
     holdLabels.sync(props.bodies, props.heldSelectionIds ?? []);
     openingPreview.sync(props.opening?.cutters);
@@ -1654,7 +1662,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     const target = controls.target.clone();
     navigation.sync(workingBodies(), current().selectedIds, current().editingBodyId);
     controls.target.copy(target);
-    controls.addEventListener('change', render);
+    controls.addEventListener('change', cameraChanged);
     controls.addEventListener('change', knife.clear);
   };
   const orientCamera = (
@@ -1953,6 +1961,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     capture: async (format = 'screen') => {
       await materialLibrary.ready();
       if (disposed) throw new Error('Mallinnusnäkymä on suljettu.');
+      navigationGlass.finish();
       const pixelRatio = renderer.getPixelRatio();
       const size = renderer.getSize(new THREE.Vector2());
       const gl = renderer.getContext();
@@ -2046,9 +2055,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     },
     lens: () => {
       if (cameraHome) return;
-      perspective.fov = current().modelFov ?? defaultModelFov;
+      const fov = current().modelFov ?? defaultModelFov;
+      if (perspective.fov === fov) return;
+      perspective.fov = fov;
       perspective.updateProjectionMatrix();
-      render();
+      if (camera === perspective) cameraChanged();
     },
     light: render,
     texture,
@@ -2074,6 +2085,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
     },
     dispose() {
       disposed = true;
+      navigationGlass.finish();
       motionPreview.dispose();
       animationPreview.dispose();
       cameraRoute.dispose();
