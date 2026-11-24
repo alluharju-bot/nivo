@@ -451,10 +451,10 @@ test('model annotation appearance persists and is rendered in the A3 PNG', async
   await expect(group.locator('rect')).toHaveCSS('fill', 'rgb(25, 0, 74)');
   await expect(guide).toHaveCSS('background-color', 'rgb(0, 238, 119)');
   await expect(guide).toHaveCSS('border-top-left-radius', '999px');
-  await page.getByRole('button', { name: 'Kuvan koko ja linssi' }).click();
+  await page.getByRole('button', { name: 'Kamera', exact: true }).click();
   await page.getByLabel('PNG-kuvan koko').selectOption('a3-landscape');
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Tallenna PNG', exact: true }).click();
+  await page.getByRole('button', { name: 'Ota kuva', exact: true }).click();
   const image = await download;
   await image.saveAs(info.outputPath('styled-a3.png'));
   const png = await readFile((await image.path())!);

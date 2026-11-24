@@ -170,7 +170,8 @@ test('manual wear paints on a face, erases, cancels and undoes one gesture at a 
     Object.values((await save(page)).bodies[0].faceMaterials!)[0].appearance.layers![0].strokes,
   ).toHaveLength(1);
   const captured = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Tallenna näkymä PNG', exact: true }).click();
+  await page.getByRole('button', { name: 'Kamera', exact: true }).click();
+  await page.getByRole('button', { name: 'Ota kuva', exact: true }).click();
   await (await captured).saveAs(info.outputPath('manual-wear-surface.png'));
   await page.screenshot({ path: info.outputPath('manual-wear.png') });
   await page.reload();
@@ -224,7 +225,8 @@ test('procedural palette and hand-painted wear also work on a curved cylinder', 
   expect(layer.strokes![0].points.length).toBeGreaterThan(5);
   await page.keyboard.press('Escape');
   const captured = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Tallenna näkymä PNG', exact: true }).click();
+  await page.getByRole('button', { name: 'Kamera', exact: true }).click();
+  await page.getByRole('button', { name: 'Ota kuva', exact: true }).click();
   await (await captured).saveAs(info.outputPath('curved-manual-wear-surface.png'));
   await page.screenshot({ path: info.outputPath('curved-manual-wear.png') });
   for (const id of ['iron-black', 'rubber-fine', 'rubber-ribbed', 'carbon-fiber']) {
@@ -265,7 +267,8 @@ test('procedural carbon, black iron, rubber and chipped steel render together', 
   );
   await ready(page, bodies);
   const captured = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Tallenna näkymä PNG', exact: true }).click();
+  await page.getByRole('button', { name: 'Kamera', exact: true }).click();
+  await page.getByRole('button', { name: 'Ota kuva', exact: true }).click();
   await (await captured).saveAs(info.outputPath('procedural-palette.png'));
   await page.getByRole('button', { name: 'Renderöi', exact: true }).click();
   await page.getByRole('button', { name: 'Kuva', exact: true }).click();

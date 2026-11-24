@@ -740,26 +740,60 @@ p {
   font-size: 10px;
   color: #647464;
 }
+/* The popover stays above the canvas and follows its camera button as the toolbar moves. */
 .model-camera-settings {
+  --menu-width: min(15rem, calc(100vw - 16px));
   position: fixed;
-  inset: auto 1rem 1rem auto;
+  inset: auto;
+  top: calc(var(--camera-bottom) + 4px);
+  left: clamp(
+    8px,
+    calc(var(--camera-right) - var(--menu-width)),
+    calc(100vw - var(--menu-width) - 8px)
+  );
   margin: 0;
-  width: min(19rem, calc(100vw - 2rem));
-  padding: 1rem;
+  box-sizing: border-box;
+  width: var(--menu-width);
+  max-height: calc(100dvh - var(--camera-bottom) - 12px);
+  overflow: auto;
+  padding: 12px;
   border: 1px solid #b4c3b4;
   border-radius: 8px;
   box-shadow: 0 4px 20px #28372733;
   background: white;
   color: #294734;
+  font-size: 13px;
+}
+@supports (top: anchor(bottom)) {
+  .model-camera-settings {
+    top: calc(anchor(--model-camera bottom, var(--camera-bottom)) + 4px);
+    left: clamp(
+      8px,
+      calc(anchor(--model-camera right, var(--camera-right)) - var(--menu-width)),
+      calc(100vw - var(--menu-width) - 8px)
+    );
+    max-height: calc(100dvh - anchor(--model-camera bottom, var(--camera-bottom)) - 12px);
+  }
 }
 .model-camera-settings:popover-open,
 .model-camera-settings label {
   display: grid;
-  gap: 0.6rem;
+  gap: 6px;
+}
+.model-camera-settings:popover-open {
+  gap: 10px;
 }
 .model-camera-settings select,
 .model-camera-settings input {
   width: 100%;
+}
+.display-controls .model-camera-trigger {
+  anchor-name: --model-camera;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 46px;
 }
 .display-divider {
   width: 1px;

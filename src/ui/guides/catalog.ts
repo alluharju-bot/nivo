@@ -539,8 +539,8 @@ export const toolGuides = [
     category: 'Näkymät',
     steps: [
       step('Rajaa näkymä', 'Kierrä ja zoomaa malli haluttuun asentoon.'),
-      step('Paina kamerakuvaketta', 'Tallenna näkymä PNG ottaa kuvan ilman käyttöliittymää.'),
-      step('Kuva latautuu', 'Nykyinen näkymä ja näkyvät mittamerkinnät tulevat mukaan.'),
+      step('Avaa Kamera', 'Valitse kuvan koko ja säädä tarvittaessa kuvakulmaa.'),
+      step('Valitse Ota kuva', 'PNG-kuvaan tulevat nykyinen näkymä ja näkyvät mittamerkinnät.'),
     ],
     tip: 'Piilota turhat merkinnät ennen kuvaa. Näkymän tallennus ei korvaa .nivo-projektin tallentamista.',
   },

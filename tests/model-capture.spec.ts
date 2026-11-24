@@ -40,7 +40,8 @@ test('captures the current modeling view as PNG without changing the camera or p
     height: (c as HTMLCanvasElement).height,
   }));
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Tallenna näkymä PNG', exact: true }).click();
+  await page.getByRole('button', { name: 'Kamera', exact: true }).click();
+  await page.getByRole('button', { name: 'Ota kuva', exact: true }).click();
   const image = await download;
   expect(image.suggestedFilename()).toMatch(/-nakyma\.png$/);
   const png = await readFile((await image.path())!);
@@ -90,17 +91,27 @@ test('captures the current modeling view as PNG without changing the camera or p
   // Saved dimensions are part of the picture; the global visibility switch applies to exports too.
   await page.getByRole('button', { name: 'Piilota kaikki mittaviivat', exact: true }).click();
   const hiddenDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Tallenna näkymä PNG', exact: true }).click();
+  await page.getByRole('button', { name: 'Kamera', exact: true }).click();
+  await page.getByRole('button', { name: 'Ota kuva', exact: true }).click();
   const hidden = await hiddenDownload;
   const hiddenPng = await readFile((await hidden.path())!);
   expect(hiddenPng.equals(png)).toBe(false);
   await hidden.saveAs(info.outputPath('model-without-dimensions.png'));
-  await expect(
-    page.getByRole('button', { name: 'Tallenna näkymä PNG', exact: true }),
-  ).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Kamera', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Näytä kaikki mittaviivat', exact: true }).click();
   const beforeA3 = await save(page);
-  await page.getByRole('button', { name: 'Kuvan koko ja linssi' }).click();
+  await page.getByRole('button', { name: 'Kamera', exact: true }).click();
+  const settings = page.getByRole('group', { name: 'Kameran asetukset' });
+  const button = page.getByRole('button', { name: 'Kamera', exact: true });
+  const triggerRect = (await button.boundingBox())!;
+  const menuRect = (await settings.boundingBox())!;
+  expect(menuRect.y).toBeCloseTo(triggerRect.y + triggerRect.height + 4, 0);
+  expect(menuRect.x).toBeLessThan(triggerRect.x + triggerRect.width);
+  expect(menuRect.x + menuRect.width).toBeGreaterThan(triggerRect.x);
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+  await button.press('Enter');
+  await expect(settings).toBeVisible();
   const fov = page.getByRole('slider', { name: 'Perspektiivin kuvakulma' });
   await expect(fov).toHaveValue('40');
   await fov.focus();
@@ -117,10 +128,12 @@ test('captures the current modeling view as PNG without changing the camera or p
     ['a3-landscape', 4961, 3508],
     ['a3-portrait', 3508, 4961],
   ] as const) {
+    if (!(await settings.isVisible())) await button.click();
     await page.getByLabel('PNG-kuvan koko').selectOption(format);
     const pending = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Tallenna PNG', exact: true }).click();
+    await page.getByRole('button', { name: 'Ota kuva', exact: true }).click();
     const paper = await pending;
+    await expect(settings).toBeHidden();
     const file = await readFile((await paper.path())!);
     expect([file.readUInt32BE(16), file.readUInt32BE(20)]).toEqual([w, h]);
     const densities = [];
