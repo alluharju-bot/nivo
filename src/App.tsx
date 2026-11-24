@@ -89,6 +89,8 @@ import {
   setGhostOpacity,
   type DisplayMode,
 } from './model/display';
+import { defaultModelFov } from './render/cameraLens';
+import type { CaptureFormat } from './viewport/capture';
 import { DisplayControls } from './ui/DisplayControls';
 import { selectionDescription } from './model/activity';
 import { bezierInstruction } from './model/bezier';
@@ -896,14 +898,22 @@ export default function App() {
   });
   const [cabinetOpen, setCabinetOpen] = useState(false);
   const renderJob = useRenderJob();
-  const captureModel = useRef<(() => Promise<Blob>) | undefined>(undefined);
+  const [captureFormat, setCaptureFormat] = useState<CaptureFormat>('screen');
+  const [modelFov, setModelFov] = useState(defaultModelFov);
+  const captureModel = useRef<((format?: CaptureFormat) => Promise<Blob>) | undefined>(undefined);
   const [capturingModel, setCapturingModel] = useState(false);
   const saveModelImage = async () => {
     if (!captureModel.current || capturingModel || busy) return;
     setCapturingModel(true);
     try {
-      const image = await captureModel.current();
-      downloadFile(image, `${safeFilename(project.name)}-nakyma.png`, 'image/png');
+      const image = await captureModel.current(captureFormat);
+      const suffix =
+        captureFormat === 'screen'
+          ? 'nakyma'
+          : captureFormat === 'a3-portrait'
+            ? 'a3-pysty'
+            : 'a3-vaaka';
+      downloadFile(image, `${safeFilename(project.name)}-${suffix}.png`, 'image/png');
       editor.setMessage('Mallinnusnäkymä tallennettu PNG-kuvaksi.');
     } catch (error) {
       editor.setError(error instanceof Error ? error.message : 'Kuvan tallentaminen epäonnistui.');
@@ -3565,13 +3575,15 @@ export default function App() {
     };
     void editor.transact(
       next,
-      patch.labelRotation !== undefined
-        ? 'Mittatekstin kierto muutettu.'
-        : patch.hidden === undefined
-          ? 'Merkinnän teksti muutettu.'
-          : patch.hidden
-            ? 'Merkintä piilotettu.'
-            : 'Merkintä palautettu näkyviin.',
+      'lineColor' in patch || 'labelColor' in patch || 'labelShape' in patch || 'lineStyle' in patch
+        ? 'Merkinnän ulkoasu muutettu.'
+        : patch.labelRotation !== undefined
+          ? 'Mittatekstin kierto muutettu.'
+          : patch.hidden === undefined
+            ? 'Merkinnän teksti muutettu.'
+            : patch.hidden
+              ? 'Merkintä piilotettu.'
+              : 'Merkintä palautettu näkyviin.',
     );
   };
   const selectDimension = (id: string, additive = false, editing = false) => {
@@ -7734,6 +7746,11 @@ export default function App() {
                 else setDisplayPreview(undefined);
               }}
               onOverview={() => changeView('iso', true)}
+              captureFormat={captureFormat}
+              onFormat={setCaptureFormat}
+              modelFov={modelFov}
+              onFov={setModelFov}
+              lensDisabled={projection !== 'perspective' || !!animation.viewport?.cameraEnabled}
               onCapture={() => void saveModelImage()}
               capturing={capturingModel}
               onVisibility={(event) => {
@@ -8283,6 +8300,7 @@ export default function App() {
               </div>
             )}
             <Viewport
+              modelFov={modelFov}
               onAnimationCameraReady={(bridge) => {
                 animation.cameraBridge.current = bridge;
               }}
@@ -10432,6 +10450,7 @@ export default function App() {
                   </div>
                   <AnnotationProperties
                     annotation={(selectedDimension ?? selectedGuide)!}
+                    modelAppearance
                     rotatable={!!selectedDimension}
                     value={
                       selectedDimension

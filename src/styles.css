@@ -740,6 +740,27 @@ p {
   font-size: 10px;
   color: #647464;
 }
+.model-camera-settings {
+  position: fixed;
+  inset: auto 1rem 1rem auto;
+  margin: 0;
+  width: min(19rem, calc(100vw - 2rem));
+  padding: 1rem;
+  border: 1px solid #b4c3b4;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px #28372733;
+  background: white;
+  color: #294734;
+}
+.model-camera-settings:popover-open,
+.model-camera-settings label {
+  display: grid;
+  gap: 0.6rem;
+}
+.model-camera-settings select,
+.model-camera-settings input {
+  width: 100%;
+}
 .display-divider {
   width: 1px;
   height: 20px;

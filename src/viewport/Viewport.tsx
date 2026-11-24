@@ -6,7 +6,7 @@ import {
   type AnimationCameraBridge,
   type CameraPose,
 } from '../model/cameraAnimation';
-import { setCameraLens } from '../render/cameraLens';
+import { defaultModelFov, setCameraLens } from '../render/cameraLens';
 import { createCameraRoute } from './cameraRoute';
 import { createMotionPreview } from './motions';
 import { createLightHelper } from './lightEditing';
@@ -18,7 +18,7 @@ import { createHoldLabels } from './holdLabels';
 import { markupSvg, updateMarkupSvg } from './markupSvg';
 import { createOpeningPreview } from './openingPreview';
 import { installKnife } from './knife';
-import { captureModelView, modelCaptureScale } from './capture';
+import { captureModelView, modelCaptureScale, type CaptureFormat } from './capture';
 import { createGuideAnnotation } from './guideAnnotation';
 import { installTextureEditing } from './textureEditing';
 import { bodyDisplayMode, bodyGhostOpacity } from '../model/display';
@@ -72,11 +72,12 @@ import { createRenderer, watchGraphicsContext, contextLostMessage } from './grap
 export type { Tool, CameraCommand } from './types';
 interface SceneApi {
   animationCamera: AnimationCameraBridge;
+  lens: () => void;
   light: () => void;
   motion: () => void;
   animation: () => void;
   geometry: () => void;
-  capture: () => Promise<Blob>;
+  capture: (format?: CaptureFormat) => Promise<Blob>;
   color: () => void;
   texture: () => void;
   sync: () => void;
@@ -132,7 +133,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
   const pointDimensions = createPointDimensions(container);
   const modelDimensions = createModelDimensions(container);
   const holdLabels = createHoldLabels(container);
-  const perspective = new THREE.PerspectiveCamera(40, 1, 0.1, 1_000_000);
+  const perspective = new THREE.PerspectiveCamera(
+    current().modelFov ?? defaultModelFov,
+    1,
+    0.1,
+    1_000_000,
+  );
   const orthographic = new THREE.OrthographicCamera(-900, 900, 700, -700, 0.1, 1_000_000);
   perspective.up.set(0, 0, 1);
   orthographic.up.set(0, 0, 1);
@@ -1265,7 +1271,9 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           const pixels =
             camera instanceof THREE.OrthographicCamera
               ? (2 * halfHeight) / camera.zoom / container.clientHeight
-              : (2 * camera.position.distanceTo(start) * Math.tan(Math.PI / 9)) /
+              : (2 *
+                  camera.position.distanceTo(start) *
+                  Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) /
                 container.clientHeight;
           side.normalize().multiplyScalar(pixels * 5);
           const dimension = (
@@ -1697,7 +1705,7 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
           .copy(controls.target)
           .addScaledVector(
             new THREE.Vector3(...normal).normalize(),
-            radius / Math.tan(THREE.MathUtils.degToRad(20)),
+            radius / Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2)),
           );
         halfHeight = radius;
         orthographic.zoom = 1;
@@ -1753,7 +1761,10 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       controls.target.copy(center);
       camera.position
         .copy(center)
-        .addScaledVector(direction, radius / Math.tan(THREE.MathUtils.degToRad(20)));
+        .addScaledVector(
+          direction,
+          radius / Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2)),
+        );
       halfHeight = radius;
       orthographic.zoom = 1;
       resize();
@@ -1939,10 +1950,11 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       },
     },
     geometry: syncGeometry,
-    capture: async () => {
+    capture: async (format = 'screen') => {
       await materialLibrary.ready();
       if (disposed) throw new Error('Mallinnusnäkymä on suljettu.');
       const pixelRatio = renderer.getPixelRatio();
+      const size = renderer.getSize(new THREE.Vector2());
       const gl = renderer.getContext();
       const maxDimension = Math.min(
         4096,
@@ -1955,36 +1967,73 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
         maxDimension,
       );
       try {
-        renderer.setPixelRatio(pixelRatio * scale);
+        if (format === 'screen') renderer.setPixelRatio(pixelRatio * scale);
         // captureModelView copies the pixels and overlays synchronously before decoding SVGs.
         // Do not await it here: restore the interactive buffer before the next browser frame.
-        return captureModelView(renderer.domElement, container, () => {
-          renderNow();
-          const hidden = [
-            pickPreview,
-            locateHighlight.group,
-            scene.getObjectByName('interaction-overlays'),
-            scene.getObjectByName('geometry-editing-overlays'),
-            scene.getObjectByName('wear-brush-overlays'),
-            scene.getObjectByName('section-handles'),
-            scene.getObjectByName('light-direction-helper'),
-          ]
-            .filter((object): object is THREE.Object3D => !!object)
-            .map((object) => ({ object, visible: object.visible }));
-          try {
-            hidden.forEach(({ object }) => {
-              object.visible = false;
-            });
-            renderer.render(scene, camera);
-          } finally {
-            hidden.forEach(({ object, visible }) => {
-              object.visible = visible;
-            });
-            render();
-          }
-        });
+        return captureModelView(
+          renderer.domElement,
+          container,
+          (ctx, width, height) => {
+            renderNow();
+            const hidden = [
+              pickPreview,
+              locateHighlight.group,
+              scene.getObjectByName('interaction-overlays'),
+              scene.getObjectByName('geometry-editing-overlays'),
+              scene.getObjectByName('wear-brush-overlays'),
+              scene.getObjectByName('section-handles'),
+              scene.getObjectByName('light-direction-helper'),
+            ]
+              .filter((object): object is THREE.Object3D => !!object)
+              .map((object) => ({ object, visible: object.visible }));
+            try {
+              hidden.forEach(({ object }) => {
+                object.visible = false;
+              });
+              if (format === 'screen') {
+                renderer.render(scene, camera);
+                ctx.drawImage(renderer.domElement, 0, 0);
+              } else {
+                // A3 can exceed the GPU's maximum single drawing buffer. Render
+                // each part of the same view at print resolution using a private camera.
+                const printCamera = camera.clone();
+                const printRatio = width / container.clientWidth;
+                const tile = Math.min(2048, maxDimension);
+                if (tile < 1) throw new Error('Grafiikkalaite ei ole valmis A3-vientiin.');
+                for (let y = 0; y < height; y += tile) {
+                  for (let x = 0; x < width; x += tile) {
+                    const w = Math.min(tile, width - x),
+                      h = Math.min(tile, height - y);
+                    // Keep screen-space line widths proportional to the page. Three floors the
+                    // physical buffer size after multiplying by the pixel ratio.
+                    renderer.setDrawingBufferSize(
+                      (w + 1e-7) / printRatio,
+                      (h + 1e-7) / printRatio,
+                      printRatio,
+                    );
+                    if (
+                      gl.drawingBufferWidth !== w ||
+                      gl.drawingBufferHeight !== h ||
+                      gl.isContextLost()
+                    )
+                      throw new Error('Grafiikkalaitteen muisti ei riitä A3-kuvaan.');
+                    printCamera.setViewOffset(width, height, x, y, w, h);
+                    renderer.render(scene, printCamera);
+                    ctx.drawImage(renderer.domElement, x, y);
+                  }
+                }
+              }
+            } finally {
+              hidden.forEach(({ object, visible }) => {
+                object.visible = visible;
+              });
+              render();
+            }
+          },
+          format,
+        );
       } finally {
-        renderer.setPixelRatio(pixelRatio);
+        renderer.setDrawingBufferSize(size.x, size.y, pixelRatio);
         render();
       }
     },
@@ -1994,6 +2043,12 @@ function makeScene(container: HTMLDivElement, current: () => Props): SceneApi {
       bodies.userData.spatialIndex = new BodySpatialIndex(workingBodies());
       navigation.sync(workingBodies(), current().selectedIds, current().editingBodyId);
       interactions.sync();
+    },
+    lens: () => {
+      if (cameraHome) return;
+      perspective.fov = current().modelFov ?? defaultModelFov;
+      perspective.updateProjectionMatrix();
+      render();
     },
     light: render,
     texture,
@@ -2160,6 +2215,7 @@ export function Viewport(props: Props) {
     api.current?.animation();
     api.current?.preview();
   }, [props.animation]);
+  useEffect(() => api.current?.lens(), [props.modelFov]);
   useEffect(() => api.current?.light(), [props.lightEditing]);
   useEffect(() => api.current?.color(), [props.colorPreview]);
   useEffect(() => api.current?.texture(), [props.editingTexture]);

@@ -1,5 +1,5 @@
-import { Box, Ghost, Square, Boxes, House, Camera, Eye } from 'lucide-react';
-import { useState, type MouseEvent } from 'react';
+import { Box, Ghost, Square, Boxes, House, Camera, Eye, ChevronDown } from 'lucide-react';
+import { useId, useState, type MouseEvent } from 'react';
 import {
   commonDisplayMode,
   bodyGhostOpacity,
@@ -8,6 +8,9 @@ import {
   type DisplayMode,
   type ModelDisplay,
 } from '../model/display';
+
+import { defaultModelFov } from '../render/cameraLens';
+import type { CaptureFormat } from '../viewport/capture';
 
 const icons = { solid: Box, flat: Square, ghost: Ghost, wireframe: Boxes };
 const descriptions = {
@@ -24,6 +27,11 @@ export function DisplayControls({
   disabled,
   onChange,
   onOverview,
+  captureFormat,
+  onFormat,
+  modelFov,
+  onFov,
+  lensDisabled,
   onCapture,
   capturing,
   onVisibility,
@@ -36,12 +44,18 @@ export function DisplayControls({
   disabled: boolean;
   onChange: (mode: DisplayMode) => void;
   onOverview: () => void;
+  captureFormat: CaptureFormat;
+  onFormat: (format: CaptureFormat) => void;
+  modelFov: number;
+  onFov: (fov: number) => void;
+  lensDisabled: boolean;
   onCapture: () => void;
   capturing: boolean;
   onVisibility: (event: MouseEvent<HTMLButtonElement>) => void;
   onOpacityPreview: (opacity?: number) => void;
   onOpacity: (opacity: number) => void;
 }) {
+  const optionsId = useId();
   const [draft, setDraft] = useState<number>();
   const mode = commonDisplayMode(display, ids.length ? ids : bodyIds);
   const scope = ids.length ? `Valinta · ${ids.length} osaa` : 'Koko näkymä';
@@ -101,6 +115,49 @@ export function DisplayControls({
           onClick={onCapture}
         >
           <Camera size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          popoverTarget={optionsId}
+          aria-label="Kuvan koko ja linssi"
+          title="Kuvan koko ja linssi"
+        >
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      </div>
+      <div
+        id={optionsId}
+        popover="auto"
+        className="model-camera-settings"
+        aria-label="Kuvan koko ja linssi"
+      >
+        <label>
+          PNG-kuvan koko
+          <select value={captureFormat} onChange={(e) => onFormat(e.target.value as CaptureFormat)}>
+            <option value="screen">Näkymän kuvasuhde</option>
+            <option value="a3-landscape">A3 vaaka · 4961 × 3508 px · 300 ppi</option>
+            <option value="a3-portrait">A3 pysty · 3508 × 4961 px · 300 ppi</option>
+          </select>
+        </label>
+        <label>
+          Kuvakulma · {modelFov}°
+          <input
+            type="range"
+            aria-label="Perspektiivin kuvakulma"
+            min="20"
+            max="110"
+            step="1"
+            value={modelFov}
+            disabled={lensDisabled}
+            onChange={(e) => onFov(Number(e.target.value))}
+          />
+        </label>
+        {lensDisabled && <small>Säädä linssiä mallinnuksen perspektiivinäkymässä.</small>}
+        <button type="button" disabled={lensDisabled} onClick={() => onFov(defaultModelFov)}>
+          Palauta oletuslinssi
+        </button>
+        <button type="button" disabled={disabled || capturing} onClick={onCapture}>
+          Tallenna PNG
         </button>
       </div>
       {mode === 'ghost' && (

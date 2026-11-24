@@ -4,7 +4,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import type { Body, Guide } from '../model/project';
 import { guidePoints, guideMeasurement } from '../model/guides';
-import { annotationText } from '../model/annotationStyle';
+import { annotationText, labelInk } from '../model/annotationStyle';
 import { formatLength } from '../model/units';
 import { disposeMaterial } from '../render/materials';
 import { pointMarker } from './pointMarker';
@@ -38,8 +38,12 @@ export function createGuideAnnotation(container: HTMLDivElement, parent: Group) 
       if (!points || !measurement) return false;
       const vectors = points.map((p) => new Vector3(...p));
       const measured = measurement.map((p) => new Vector3(...p));
-      const color = selected ? '#df741f' : '#487b91';
-      if (!previous || previous.selected !== selected) {
+      const color = guide.lineColor ?? (selected ? '#df741f' : '#487b91');
+      if (
+        !previous ||
+        previous.selected !== selected ||
+        previous.guide.lineColor !== guide.lineColor
+      ) {
         for (const marker of markers) {
           parent.remove(marker);
           marker.geometry.dispose();
@@ -69,14 +73,15 @@ export function createGuideAnnotation(container: HTMLDivElement, parent: Group) 
         line.geometry.dispose();
         line.geometry = new LineGeometry().setPositions(points.flatMap((p) => p.toArray()));
         const material = line.material;
+        if (guide.lineStyle) dashed = guide.lineStyle !== 'solid';
         const transparent = opacity < 1;
         if (material.dashed !== dashed || material.transparent !== transparent)
           material.needsUpdate = true;
         material.color.set(color);
         material.linewidth = width;
         material.dashed = dashed;
-        material.dashSize = 14;
-        material.gapSize = 8;
+        material.dashSize = guide.lineStyle === 'dotted' ? 2 : 14;
+        material.gapSize = guide.lineStyle === 'dotted' ? 6 : 8;
         material.depthTest = !xray;
         material.transparent = transparent;
         material.opacity = opacity;
@@ -88,11 +93,14 @@ export function createGuideAnnotation(container: HTMLDivElement, parent: Group) 
       };
       setLine(0, vectors, isGuide, selected ? 4 : 2);
       const direction = vectors[1].clone().sub(vectors[0]).normalize();
+      // Align the long extension with the finite guide so their dash gaps coincide.
+      const period = lines[0].material.dashSize + lines[0].material.gapSize;
+      const extensionLength = Math.ceil(20000 / period) * period;
       setLine(
         1,
         isGuide
           ? [
-              vectors[0].clone().addScaledVector(direction, -20000),
+              vectors[0].clone().addScaledVector(direction, -extensionLength),
               vectors[1].clone().addScaledVector(direction, 20000),
             ]
           : undefined,
@@ -102,6 +110,10 @@ export function createGuideAnnotation(container: HTMLDivElement, parent: Group) 
       );
       setLine(2, isGuide && guide.offset ? measured : undefined, false, 1.5);
       const value = measured[0].distanceTo(measured[1]);
+      element.style.backgroundColor = guide.labelColor ?? '';
+      element.style.color = guide.labelColor ? labelInk(guide.labelColor) : '';
+      element.style.borderRadius =
+        guide.labelShape === 'pill' ? '999px' : guide.labelShape === 'square' ? '0px' : '';
       element.dataset.xray = String(xray);
       element.dataset.guideId = guide.id;
       element.dataset.selected = String(selected);

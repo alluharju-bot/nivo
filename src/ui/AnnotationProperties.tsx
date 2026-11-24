@@ -11,6 +11,7 @@ export function AnnotationProperties({
   onDelete,
   focusKey = 0,
   rotatable = false,
+  modelAppearance = false,
 }: {
   annotation: { id: string } & AnnotationPatch;
   value: number | null;
@@ -19,6 +20,7 @@ export function AnnotationProperties({
   onDelete: () => void;
   focusKey?: number;
   rotatable?: boolean;
+  modelAppearance?: boolean;
 }) {
   const [text, setText] = useState(annotation.label ?? '');
   const input = useRef<HTMLInputElement>(null);
@@ -103,6 +105,77 @@ export function AnnotationProperties({
           />
           <span className="muted">0° pitää tekstin vaakasuorassa myös näkymää käännettäessä.</span>
         </label>
+      )}
+      {modelAppearance && (
+        <fieldset className="note-style-fields" disabled={busy}>
+          <legend>Viivan ja numerolaatikon ulkoasu</legend>
+          <label>
+            Viivan väri
+            <input
+              type="color"
+              value={annotation.lineColor ?? (rotatable ? '#375c64' : '#487b91')}
+              onChange={(e) => onChange({ lineColor: e.target.value })}
+            />
+          </label>
+          <label>
+            Viivatyyli
+            <select
+              aria-label="Viivatyyli"
+              value={annotation.lineStyle ?? ''}
+              onChange={(e) =>
+                onChange({
+                  lineStyle: (e.target.value || undefined) as AnnotationPatch['lineStyle'],
+                })
+              }
+            >
+              <option value="">Oletus</option>
+              <option value="solid">Yhtenäinen</option>
+              <option value="dashed">Katkoviiva</option>
+              <option value="dotted">Pisteviiva</option>
+            </select>
+          </label>
+          <label>
+            Numerolaatikon väri
+            <input
+              type="color"
+              value={annotation.labelColor ?? (rotatable ? '#fbfcf5' : '#fbfdfb')}
+              onChange={(e) => onChange({ labelColor: e.target.value })}
+            />
+          </label>
+          <label>
+            Numerolaatikon muoto
+            <select
+              aria-label="Numerolaatikon muoto"
+              value={annotation.labelShape ?? 'rounded'}
+              onChange={(e) =>
+                onChange({ labelShape: e.target.value as AnnotationPatch['labelShape'] })
+              }
+            >
+              <option value="rounded">Pyöristetty</option>
+              <option value="square">Suorakulmio</option>
+              <option value="pill">Kapseli</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={
+              !annotation.lineColor &&
+              !annotation.labelColor &&
+              !annotation.lineStyle &&
+              !annotation.labelShape
+            }
+            onClick={() =>
+              onChange({
+                lineColor: undefined,
+                labelColor: undefined,
+                lineStyle: undefined,
+                labelShape: undefined,
+              })
+            }
+          >
+            Palauta oletusulkoasu
+          </button>
+        </fieldset>
       )}
       <div className="annotation-buttons">
         <button

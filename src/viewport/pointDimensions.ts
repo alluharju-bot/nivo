@@ -4,6 +4,7 @@ import { dimensionBodyIds, pointDimensionGeometry } from '../model/dimensions';
 import { formatLength } from '../model/units';
 import { annotationText, type DimensionLineStyle } from '../model/annotationStyle';
 
+import { applyDimensionAppearance } from './dimensionAppearance';
 import { dimensionPaths } from '../drawing/dimensionGraphics';
 
 export function createPointDimensions(container: HTMLElement) {
@@ -105,7 +106,7 @@ export function createPointDimensions(container: HTMLElement) {
         rect.setAttribute('y', '-11');
         rect.setAttribute('width', String(labelText.length * 6.6 + 12));
         rect.setAttribute('height', '22');
-        rect.setAttribute('rx', '4');
+        applyDimensionAppearance(d, path, extension, rect, text, 22);
         text.textContent = labelText;
       }
       for (const [id, entry] of entries)

@@ -11,6 +11,7 @@ import {
 import { dimensionBodyIds } from '../model/dimensions';
 import { formatLength } from '../model/units';
 import { annotationText, type DimensionLineStyle } from '../model/annotationStyle';
+import { applyDimensionAppearance } from './dimensionAppearance';
 import { dimensionPaths } from '../drawing/dimensionGraphics';
 const ns = 'http://www.w3.org/2000/svg';
 const svgNode = <K extends keyof SVGElementTagNameMap>(name: K) =>
@@ -109,7 +110,6 @@ export function createModelDimensions(container: HTMLElement) {
           group.dataset.testid = 'dimension-3d';
           group.dataset.dimension = dimension.id;
           group.dataset.body = body.id;
-          background.setAttribute('rx', '4');
           hit.classList.add('dimension-hit');
           label.classList.add('dimension-label');
           label.append(background, text);
@@ -161,6 +161,14 @@ export function createModelDimensions(container: HTMLElement) {
         entry.path.setAttribute('d', paths.solid);
         entry.extension.setAttribute('d', paths.dashed);
         entry.extension.setAttribute('stroke-dasharray', paths.dashArray);
+        applyDimensionAppearance(
+          dimension,
+          entry.path,
+          entry.extension,
+          entry.background,
+          entry.text,
+          20,
+        );
         entry.text.textContent = label;
         entry.hit.setAttribute('d', paths.hit);
         entry.group.classList.toggle('is-selected', selectedDimensions.includes(dimension.id));

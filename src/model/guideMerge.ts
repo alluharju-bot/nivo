@@ -58,7 +58,11 @@ export function upsertGuide(bodies: Body[], guides: Guide[], candidate: Guide) {
           g.mode === 'free' &&
           !g.hidden &&
           !candidate.hidden &&
-          g.label === candidate.label,
+          g.label === candidate.label &&
+          g.lineColor === candidate.lineColor &&
+          g.lineStyle === candidate.lineStyle &&
+          g.labelColor === candidate.labelColor &&
+          g.labelShape === candidate.labelShape,
       )
       .flatMap((g) => {
         const span = interval(g);

@@ -83,6 +83,7 @@ export type Gesture =
     }
   | { type: 'pen'; point: Vec3; close?: boolean };
 export interface ViewportProps {
+  modelFov?: number;
   onAnimationCameraReady?: (
     bridge?: import('../model/cameraAnimation').AnimationCameraBridge,
   ) => void;
@@ -97,7 +98,9 @@ export interface ViewportProps {
   recentMeasures?: readonly number[];
   dimensionLocks?: ReadonlySet<string>;
   onRememberMeasures?: (...values: number[]) => void;
-  onCaptureReady?: (capture?: () => Promise<Blob>) => void;
+  onCaptureReady?: (
+    capture?: (format?: import('./capture').CaptureFormat) => Promise<Blob>,
+  ) => void;
   editingTexture?: { id: string; texture: TexturePlacement };
   colorPreview?: ColorPreview;
   onTexture?: (texture: TexturePlacement) => void;

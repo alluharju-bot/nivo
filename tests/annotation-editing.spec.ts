@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ready, view, save } from './helpers';
+import { ready, view, save, headerAction } from './helpers';
 import { freshProject, makeBody, type Project } from '../src/model/project';
 import { readFile } from 'node:fs/promises';
 
@@ -87,14 +87,19 @@ test('dimension labels stay upright, rotate independently and keep their style o
   await angle.fill('22.5');
   await angle.press('Enter');
   await expect(label).toHaveAttribute('transform', /rotate\(22.5\)/);
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   await expect(label).toHaveAttribute('transform', /rotate\(0\)/);
-  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
-  await page.getByLabel('Asetukset', { exact: true }).click();
+  await headerAction(page, 'Palauta');
+  const settings = page.getByLabel('Asetukset', { exact: true });
+  const more = page.getByRole('button', { name: 'Lisää toimintoja', exact: true });
+  const nested = !(await settings.isVisible());
+  if (nested) await more.click();
+  await settings.click();
   await page.getByRole('combobox', { name: 'Dimensioiden viivatyyli' }).selectOption('solid');
   await expect(group.locator('.dimension-extension')).toHaveAttribute('d', '');
   await page.getByRole('combobox', { name: 'Dimensioiden viivatyyli' }).selectOption('drafting');
-  await page.getByLabel('Asetukset', { exact: true }).click();
+  await settings.click();
+  if (nested) await more.click();
   await view(page, original.bodies, 'front');
   await expect(label).toHaveAttribute('transform', /rotate\(22.5\)/);
   await page.screenshot({ path: info.outputPath('dimension-rotated.png') });
@@ -145,11 +150,11 @@ test('dimensions select in orange, edit text without moving geometry and support
   let saved = await save(page);
   expect(saved.bodies).toEqual(original.bodies);
   expect(saved.dimensions[1]).toEqual({ ...original.dimensions[1], label: 'Aukko {mitta} mm' });
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   await expect(page.locator('.model-dimensions [data-dimension="points"] text')).toHaveText(
     '400 mm',
   );
-  await page.getByRole('button', { name: 'Palauta', exact: true }).click();
+  await headerAction(page, 'Palauta');
   await labelClick(page, 'points');
   await page.keyboard.down('Shift');
   await labelClick(page, 'extent');
@@ -164,7 +169,7 @@ test('dimensions select in orange, edit text without moving geometry and support
   saved = await save(page);
   expect(saved.bodies).toEqual(original.bodies);
   expect(saved.guides).toEqual(original.guides);
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   await expect(page.getByTestId('dimension-3d')).toHaveCount(2);
 });
 
@@ -271,7 +276,7 @@ test('dimension lines can be picked away from the label, dragged and restored wi
   await expect(page.locator('.model-dimensions [data-dimension="points"]')).toHaveClass(
     /is-selected/,
   );
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   expect((await save(page)).dimensions).toEqual(original.dimensions);
   await page.getByRole('button', { name: 'Palauta edellinen valinta', exact: true }).click();
   await expect(page.locator('.model-dimensions [data-dimension="points"]')).toHaveClass(
@@ -389,7 +394,7 @@ test('measurement text accepts cancel and reset, and hiding retains an unfinishe
     label: 'Jako {mitta} mm',
     hidden: true,
   });
-  await page.getByRole('button', { name: 'Peru', exact: true }).click();
+  await headerAction(page, 'Peru');
   expect((await save(page)).guides).toEqual(original.guides);
   await browserTab(page, 'Viivat');
   await row.getByRole('button').first().click();
@@ -402,4 +407,74 @@ test('measurement text accepts cancel and reset, and hiding retains an unfinishe
   saved = await save(page);
   expect(saved.guides).toEqual(original.guides);
   expect(saved.bodies).toEqual(original.bodies);
+});
+
+test('model annotation appearance persists and is rendered in the A3 PNG', async ({
+  page,
+}, info) => {
+  await setup(page);
+  await browserTab(page, 'Mitat');
+  await page.getByTestId('dimension-row-points').getByRole('button').first().click();
+  const changeColor = async (name: string, value: string) => {
+    await page.getByLabel(name, { exact: true }).fill(value);
+  };
+  await changeColor('Viivan väri', '#ff00bb');
+  await changeColor('Numerolaatikon väri', '#19004a');
+  await page.getByLabel('Numerolaatikon muoto').selectOption('square');
+  await page.getByLabel('Viivatyyli', { exact: true }).selectOption('dotted');
+  const group = page.locator('.point-dimensions [data-dimension="points"]');
+  await expect(group.locator('rect')).toHaveAttribute('rx', '0');
+  await expect(group.locator('.dimension-line')).toHaveCSS('stroke', 'rgb(255, 0, 187)');
+  await expect(group.locator('.dimension-line')).toHaveCSS('stroke-dasharray', '1px, 4px');
+  await expect(group.locator('text')).toHaveCSS('fill', 'rgb(255, 255, 255)');
+  await browserTab(page, 'Viivat');
+  await page.getByTestId('guide-row-guide').getByRole('button').first().click();
+  await changeColor('Numerolaatikon väri', '#00ee77');
+  await changeColor('Viivan väri', '#cc0066');
+  await page.getByLabel('Numerolaatikon muoto').selectOption('pill');
+  await page.getByLabel('Viivatyyli', { exact: true }).selectOption('dashed');
+  const guide = page.locator('.guide-label[data-guide-id="guide"]');
+  await expect(guide).toHaveCSS('background-color', 'rgb(0, 238, 119)');
+  await expect(guide).toHaveCSS('color', 'rgb(0, 0, 0)');
+  await page.getByRole('button', { name: 'Palauta oletusulkoasu' }).click();
+  await expect(guide).not.toHaveCSS('background-color', 'rgb(0, 238, 119)');
+  await headerAction(page, 'Peru');
+  const project = await save(page);
+  expect(project.guides[0]).toMatchObject({
+    lineStyle: 'dashed',
+    labelColor: '#00ee77',
+    lineColor: '#cc0066',
+    labelShape: 'pill',
+  });
+  await expect(page.getByText('Tallessa selaimessa', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(group.locator('rect')).toHaveCSS('fill', 'rgb(25, 0, 74)');
+  await expect(guide).toHaveCSS('background-color', 'rgb(0, 238, 119)');
+  await expect(guide).toHaveCSS('border-top-left-radius', '999px');
+  await page.getByRole('button', { name: 'Kuvan koko ja linssi' }).click();
+  await page.getByLabel('PNG-kuvan koko').selectOption('a3-landscape');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Tallenna PNG', exact: true }).click();
+  const image = await download;
+  await image.saveAs(info.outputPath('styled-a3.png'));
+  const png = await readFile((await image.path())!);
+  const counts = await page.evaluate(async (base64) => {
+    const image = new Image();
+    image.src = 'data:image/png;base64,' + base64;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(image, 0, 0);
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let dark = 0,
+      green = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] === 25 && data[i + 1] === 0 && data[i + 2] === 74) dark++;
+      if (data[i] === 0 && data[i + 1] === 238 && data[i + 2] === 119) green++;
+    }
+    return [dark, green];
+  }, png.toString('base64'));
+  counts.forEach((count) => expect(count).toBeGreaterThan(100));
 });

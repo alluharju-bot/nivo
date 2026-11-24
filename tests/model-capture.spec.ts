@@ -98,5 +98,47 @@ test('captures the current modeling view as PNG without changing the camera or p
   await expect(
     page.getByRole('button', { name: 'Tallenna näkymä PNG', exact: true }),
   ).toBeEnabled();
+  await page.getByRole('button', { name: 'Näytä kaikki mittaviivat', exact: true }).click();
+  const beforeA3 = await save(page);
+  await page.getByRole('button', { name: 'Kuvan koko ja linssi' }).click();
+  const fov = page.getByRole('slider', { name: 'Perspektiivin kuvakulma' });
+  await expect(fov).toHaveValue('40');
+  await fov.focus();
+  await fov.press('End');
+  await expect(fov).toHaveValue('110');
+  await expect(canvas).not.toHaveAttribute('data-camera', camera!);
+  const wide = JSON.parse((await canvas.getAttribute('data-camera'))!);
+  expect(wide.position).toEqual(JSON.parse(camera!).position);
+  expect(wide.target).toEqual(JSON.parse(camera!).target);
+  await page.getByRole('button', { name: 'Palauta oletuslinssi' }).click();
+  await expect(canvas).toHaveAttribute('data-camera', camera!);
+
+  for (const [format, w, h] of [
+    ['a3-landscape', 4961, 3508],
+    ['a3-portrait', 3508, 4961],
+  ] as const) {
+    await page.getByLabel('PNG-kuvan koko').selectOption(format);
+    const pending = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Tallenna PNG', exact: true }).click();
+    const paper = await pending;
+    const file = await readFile((await paper.path())!);
+    expect([file.readUInt32BE(16), file.readUInt32BE(20)]).toEqual([w, h]);
+    const densities = [];
+    for (let off = 8; off < file.length; off += file.readUInt32BE(off) + 12) {
+      if (file.toString('ascii', off + 4, off + 8) === 'pHYs')
+        densities.push([file.readUInt32BE(off + 8), file.readUInt32BE(off + 12), file[off + 16]]);
+    }
+    expect(densities).toEqual([[11811, 11811, 1]]);
+    expect(
+      await canvas.evaluate((c) => [
+        (c as HTMLCanvasElement).width,
+        (c as HTMLCanvasElement).height,
+      ]),
+    ).toEqual([size.width, size.height]);
+    await expect(canvas).toHaveAttribute('data-camera', camera!);
+    await paper.saveAs(info.outputPath(format + '.png'));
+  }
+  await page.keyboard.press('Escape');
+  expect(await save(page)).toEqual(beforeA3);
   expect(errors).toEqual([]);
 });
